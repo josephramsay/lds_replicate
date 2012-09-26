@@ -1,0 +1,71 @@
+This script replicates data in the LINZ Data Service to a local data store. Currently supported datasores include
+PostgreSQL (PostGIS), MSSQL Spatial, FileGDB and SpatiaLite. Support for other outputs is ongoing.
+
+
+USAGE
+-----
+
+The basic usage of the script is:
+
+python main.py <options> output        
+
+Where valid output specifiers include; pg (postgres), ms (mssql), slite (spatialite) and fgdb (filegdb)
+
+where options are:
+-f (--fromdate) Date in yyyy-mm-dd format start of incremental range (omission assumes auto incremental bounds)
+-t (--todate) Date in yyyy-mm-dd format for end of incremental range (omission assumes auto incremental bounds)
+-l (--layer) Mandatory. Layer name/id in format v:x###
+-s (--source) Connection string for source DS
+-d (--destination) Connection string for destination DS
+-c (--cql) Filter definition in CQL format
+-h (--help) Display this message
+
+
+
+EXAMPLES
+--------
+
+
+----1----
+python main.py -l v:x772 pg
+
+Copy the 'NZ Primary Parcels' layer using the auto incremental feature to a postgres output. The postgres connection 
+parameters will have had to be defined in the ldsincr.conf configuration file.
+
+----2----
+python main.py -l v:x781 -fd 2012-05-01 -td 2012-05-31 slite
+
+Copy the 'NZ Railway Centre Lines' layer between the dates 2012-05-01 and 2012-05-31 to a SpatiaLite data store. Connections parameters for SpatialLite 
+should be defined in the configuration file.
+
+----3----
+python main.py slite -l v:x782 -fd ALL -c "land_district = 'Otago'" mssql
+
+Copy the 'NZ Non-Primary Parcels' for all dates but only the Otago region into an MSSQL Spatial database whose parameters are stored in the configuration file
+
+----4----
+python main.py -l v:x785 -dc "C:\path\to\some\folder\somefile.gdb" fgdb
+
+Copy the 'NZ Land Districts' layer into the fileGDB database file somefile.gdb using incremental range determined by lastmodified and current date. 
+    
+    
+---------
+
+NOTES
+----- 
+1. Connection options can be set up in the config file "ldsincr.conf" but command line options can be used instead and will override 
+configuration file settings. There is no checking done on command line connection strings
+2. A valid layer name or the keyword ALL is required on the command line prefixed by the -l option flag
+3. Dates are not required and omitting them will trigger an auto incremental request based on the lastmodified parameter in the respective 
+destination layer properties file
+4. Dates when provided must be in the format yyyy-mm-dd or specify the keyword ALL to trigger full replication
+5. Full replication uses a fast driver copy mechanism and ignores discards and filters. Adding discard columns to a fully replicated layer
+would be considered a schema change and potentially fail. 
+5. CQL strings are only minimally checked for tokens indicating a predicate. The user is responsible for ensuring they are constructing their
+filter using the correct parameter names, formats and bounds.
+6. CQL filters will override one another (they do not stack) according to; Command Line > configfile (ldsincr.conf) > layer config (___.layer.properties) 
+7. Output names (for DB tables/FileGDB directories etc) are defined in the layer config file, not LDS. Changing this name will trigger the creation
+of a new table.
+
+
+A1. Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July  
