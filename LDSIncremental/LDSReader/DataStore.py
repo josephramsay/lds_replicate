@@ -173,8 +173,6 @@ class DataStore(object):
     
     def write(self,src,dsn):
         '''Main write method attempts to open then create a datasource'''
-        if src.getIncremental():#TODO. maybe consider this as the branch point for by-feature or driver copy
-            pass
         
         print "DS write",dsn#.split(":")[0]
         try:
@@ -196,7 +194,7 @@ class DataStore(object):
             self.copyDS(src.ds,self.ds,src.CHANGE_COL)
         else:
             # no cols to delete and no operational instructions
-            self.cloneDS(src.ds,self.ds,None)
+            self.cloneDS(src.ds,self.ds)
         
         self.ds.SyncToDisk()
         self.ds.Destroy()  
@@ -205,7 +203,16 @@ class DataStore(object):
     def cloneDS(self,src_ds,dst_ds):
         '''Copy from source to destination using the driver copy and without manipulating data'''
         '''TODO. address problems with this approach if a user has changed a tablename, specified ignore columns etc'''
-        dst_ds.Copy(src_ds)
+        print "Non-Incremental fast copy"
+        for li in range(0,src_ds.GetLayerCount()):
+            src_layer = src_ds.GetLayer(li)
+            src_layer_name = src_layer.GetName()
+            ref_name = self.mlr.readConvertedLayerName(src_layer_name)
+            dst_layer_name = self.schema+"."+self.sanitise(ref_name) if self.schema is not None else self.sanitise(ref_name)
+            dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name))
+            
+        src_layer.ResetReading()
+
     
     
     def copyDS(self,src_ds,dst_ds,changecol):

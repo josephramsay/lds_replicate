@@ -35,6 +35,10 @@ class Reader(object):
         self._readConfigFile(self.fname)
         
         
+    def getSections(self):
+        '''list of sections (layernames/datasources)'''
+        return self.cp.sections()
+        
     def _readConfigFile(self,fname):
         '''split off so you can override the config file on the same reader object if needed'''
         self.cp = ConfigParser.ConfigParser()

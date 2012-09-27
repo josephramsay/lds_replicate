@@ -60,12 +60,13 @@ configuration file settings. There is no checking done on command line connectio
 destination layer properties file
 4. Dates when provided must be in the format yyyy-mm-dd or specify the keyword ALL to trigger full replication
 5. Full replication uses a fast driver copy mechanism and ignores discards and filters. Adding discard columns to a fully replicated layer
-would be considered a schema change and potentially fail. 
-5. CQL strings are only minimally checked for tokens indicating a predicate. The user is responsible for ensuring they are constructing their
+would be considered a schema change and potentially fail.
+6. CQL strings are only minimally checked for tokens indicating a predicate. The user is responsible for ensuring they are constructing their
 filter using the correct parameter names, formats and bounds.
-6. CQL filters will override one another (they do not stack) according to; Command Line > configfile (ldsincr.conf) > layer config (___.layer.properties) 
-7. Output names (for DB tables/FileGDB directories etc) are defined in the layer config file, not LDS. Changing this name will trigger the creation
+7. CQL filters will override one another (they do not stack) according to; Command Line > configfile (ldsincr.conf) > layer config (___.layer.properties) 
+8. Output names (for DB tables/FileGDB directories etc) are defined in the layer config file, not LDS. Changing this name will trigger the creation
 of a new table.
+9. Adding multiple output on the command line will trigger the copy process for these outputs 
 
 
 A1. Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July  

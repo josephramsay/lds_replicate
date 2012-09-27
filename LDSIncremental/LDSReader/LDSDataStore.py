@@ -89,7 +89,7 @@ class LDSDataStore(WFSDataStore):
     @classmethod
     def fetchLayerNames(self,url):
         res = []
-        mm = re.compile('<Name>v:x(\d+)<\/Name>')
+        mm = re.compile('<Name>(v:x\d+)<\/Name>')
         lds = urlopen(url)
         for line in lds:    
             res += re.findall(mm,line)

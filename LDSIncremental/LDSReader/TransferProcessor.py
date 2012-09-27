@@ -123,7 +123,12 @@ class TransferProcessor(object):
         self.dst = dst
         self.src = LDSDataStore(self.source_str)        
         
-        self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
+        #full LDS layer name list
+        lds_full = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
+        #list of configured layers
+        lds_config = self.dst.mlr.getLayerNames()
+        
+        self.lnl = map(lambda x: x.lstrip('v:x'),set(lds_full).intersection(set(lds_config)))
         
         #override config file dates with command line dates if provided
         
@@ -146,18 +151,16 @@ class TransferProcessor(object):
             raise InputMisconfigurationException("Layer name required {-l v:xNNN | ALL}")
         
         
-        
-        #choose to replicate All layers (or just one)       
-        if fdate is None or tdate is None:
+        '''if any date is 'ALL' full rep otherwise do auto unless we have proper dates'''
+        if fdate=='ALL' or tdate=='ALL':
+            self.fullReplicate(layer)       
+        elif fdate is None or tdate is None:
             '''do auto incremental'''
             self.autoIncrement(layer)
-        elif fdate=='ALL' or tdate=='ALL':
-            '''do full replication. require 'ALL' explicitly since full replicate could be an expensive operation'''
-            self.fullReplicate(layer) 
         else:
             '''do requested date range'''
             self.definedIncremental(layer,fdate,tdate)
-        #missing case is; if one date provided and other sg else. caught by elif
+        #missing case is; if one date provided and other sg ? caught by elif (consider using the valid date?)
     
     #----------------------------------------------------------------------------------------------
     
@@ -220,71 +223,3 @@ class TransferProcessor(object):
         elif layer_cql is not None and layer_cql != '':
             return layer_cql
         return None
-    
-
-
-        
-           
-    #----------------------------------------------------------------------------------------------
-        
-def main():
-    '''temporarily used as test runner'''
-    #tp = TransferProcessor('v:x787','ALL','ALLl')
-    #set the desc field to something common to see what gets updated
-    #tp = TransferProcessor('v:x787','2012-08-01','2012-09-11')
-    #tp = TransferProcessor('v:x787',None,None)
-    
-    tp = TransferProcessor('v:x785','2012-09-01','2012-09-18')
-    
-
-    tp.processLDS2PG()
-    #tp.processLDS2FileGDB()
-
-    #testlayer = "v:x780"
-    
-    
-    # SOURCES
-    
-    #src = LDSDataStore() 
-    #src.read(src.sourceURI(testlayer))
-    
-    #src = ShapefileDataStore()
-    #src.read(src.sourceURI("nz-primary-parcels.shp"))    
-    
-    #src = MapinfoDataStore()
-    #src.read(src.sourceURI("nz-primary-parcels.mif"))
-    
-    #src = CSVDataStore()
-    #src.read(src.sourceURI("nz-primary-parcels.csv"))
-    
-    # DESTINATIONS
-    
-    #dst1 = PostgreSQLDataStore()
-    #dst1.write(src,dst1.destinationURI(layer))
-    
-    #dst2 = CSVDataStore()
-    #dst2.write(src,dst2.destinationURI(basename+".csv"))
-    
-    #dst3 = ShapefileDataStore()
-    #dst3.write(src,dst3.destinationURI(basename+".shp"))
-    
-    #dst4 = MapinfoDataStore()
-    #dst4.write(src,dst4.destinationURI(basename+".mif"))
-    
-    #dst5 = ArcSDEDataStore()
-    #dst5.write(src,dst4.destinationURI("copy785_table"))
-    #Need instance to test against
-    
-    #dst6 = FileGDBDataStore()
-    #dst6.write(src,dst5.destinationURI("copy785.gdb"))
-    #ERROR 1: Error: Failed at creating table for \v_x785 (General function failure.) 
-    #[In this case its not an ESRI projection name problem]
-    
-    #print dst1.ds.GetName()
-    #print dst2.ds.GetName()
-    #print dst3.ds.GetName()
-
-
-if __name__ == "__main__":
-    main()    
-    print "***FIN***"

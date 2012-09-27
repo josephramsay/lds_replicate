@@ -32,6 +32,9 @@ class MetaLayerReader(object):
         self.mainconfig = Reader("../ldsincr.conf")
         
    
+    def getLayerNames(self):
+        return self.layerconfig.getSections()
+    
     def readConvertedLayerName(self,layer_id):
         (pkey,name,gcol,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
         return name
