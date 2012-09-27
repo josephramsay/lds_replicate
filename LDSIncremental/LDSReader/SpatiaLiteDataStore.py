@@ -3,12 +3,13 @@ Created on 9/08/2012
 
 @author: jramsay
 '''
-import gdal
+
+import logging
 
 from DataStore import DataStore
-from ReadConfig import Reader
 from MetaLayerInformation import MetaLayerReader
 
+ldslog = logging.getLogger('LDS')
 
 class SpatiaLiteDataStore(DataStore):
     '''
@@ -64,7 +65,7 @@ class SpatiaLiteDataStore(DataStore):
         return super(SpatiaLiteDataStore,self).getOptions() + local_opts
         
     def _cleanLayer(self,layer):
-        print "PG clean"
+        ldslog.info("SL clean")
         self.ds.DeleteLayer(layer)
         
     def _clean(self):

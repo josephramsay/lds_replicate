@@ -63,7 +63,11 @@ Supported Formats:
 
 '''
 
-import sys, ogr, osr, re
+import sys
+import ogr
+import osr
+import re
+import logging
 
 from datetime import datetime, timedelta
 from abc import ABCMeta, abstractmethod
@@ -71,6 +75,8 @@ from abc import ABCMeta, abstractmethod
 from LDSUtilities import LDSUtilities
 from MetaLayerInformation import MetaLayerReader
 from ProjectionReference import Projection
+
+ldslog = logging.getLogger('LDS')
 
 #exceptions
 class DSReaderException(Exception): pass
@@ -88,7 +94,8 @@ class InvalidFeatureException(LDSReaderException): pass
 
 class DataStore(object):
     '''
-    classdocs
+    DataStore is the base Datasource wrapper object superclassing Postgres/LDS(WFS) etc.
+    This class contains the main copy functions for each datasource and sets up default connection parameters 
     '''
     __metaclass__ = ABCMeta
 
@@ -98,6 +105,8 @@ class DataStore(object):
         '''
         cons init driver
         '''
+        
+
         
         if conn_str is not None:
             self.conn_str = conn_str
@@ -168,25 +177,27 @@ class DataStore(object):
     
     def read(self,dsn):
         '''main read method'''
-        print "DS read",dsn.split(":")[0]
+        ldslog.info("DS read"+dsn.split(":")[0])
         self.ds = self.driver.Open(dsn)
     
     def write(self,src,dsn):
         '''Main write method attempts to open then create a datasource'''
         
-        print "DS write",dsn#.split(":")[0]
+        ldslog.info("DS Write "+dsn)#.split(":")[0]
         try:
             self.ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
             if self.ds is None:
                 raise DSReaderException("Error opening DS on Destination "+str(dsn)+", attempting DS Create")
         except DSReaderException as dsre1:
             print "DSReaderException",dsre1 
+            ldslog.error(dsre1)
             try:
                 self.ds = self.driver.CreateDataSource(dsn)
                 if self.ds is None:
                     raise DSReaderException("Error creating DS on Destination "+str(dsn)+", quitting")
             except DSReaderException as dsre2:
                 print "DSReaderException",dsre2
+                ldslog.error(dsre2)
                 raise
             
         if src.getIncremental():
@@ -196,6 +207,7 @@ class DataStore(object):
             # no cols to delete and no operational instructions
             self.cloneDS(src.ds,self.ds)
         
+        ldslog.info("Sync output")
         self.ds.SyncToDisk()
         self.ds.Destroy()  
 
@@ -203,7 +215,8 @@ class DataStore(object):
     def cloneDS(self,src_ds,dst_ds):
         '''Copy from source to destination using the driver copy and without manipulating data'''
         '''TODO. address problems with this approach if a user has changed a tablename, specified ignore columns etc'''
-        print "Non-Incremental fast copy"
+
+        ldslog.info("Using cloneDS. Non-Incremental driver copy")
         for li in range(0,src_ds.GetLayerCount()):
             src_layer = src_ds.GetLayer(li)
             src_layer_name = src_layer.GetName()
@@ -220,7 +233,7 @@ class DataStore(object):
         '''Data Store replication for incremental queries'''
         #build new layer by duplicating source layers  
             
-        
+        ldslog.info("Using copyDS. Per-feature copy")
         for li in range(0,src_ds.GetLayerCount()):
 
             src_layer = src_ds.GetLayer(li)
@@ -235,8 +248,8 @@ class DataStore(object):
             '''retrieve per-layer settings from props'''
             (ref_pkey,ref_name,ref_gcol,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(ref_layer_name)
             
-            dst_layer_name = self.schema+"."+self.sanitise(ref_name) if self.schema is not None else self.sanitise(ref_name)
-            
+            dst_layer_name = self.schema+"."+self.sanitise(ref_name) if hasattr(self,'schema') and self.schema is not None else self.sanitise(ref_name)
+            ldslog.info("Dest layer: "+dst_layer_name)
             
             '''parse discard columns'''
             self.optcols |= set(ref_disc.strip('[]{}()').split(',') if ref_disc is not None else [])
@@ -257,7 +270,7 @@ class DataStore(object):
             dst_layer = dst_ds.GetLayer(dst_layer_name)
             if dst_layer is None:
                 '''create a new layer if a similarly named existing layer can't be found on the dst'''
-                print dst_layer_name+" does not exist. Creating new layer."
+                ldslog.warning(dst_layer_name+" does not exist. Creating new layer")
                 #new_layer_flag = True
                 
                 #read defns of each field
@@ -277,7 +290,7 @@ class DataStore(object):
                 if dst_layer is None:
                     #overwrite the dst_sref if its causing trouble (ie GDAL general function errors)
                     dst_sref = Projection.getDefaultSpatialRef()
-                    print "Warning. Could not initialise Layer with specified SRID {",src_layer_sref,"}.\n\nUsing Default {",dst_sref,"} instead"
+                    ldslog.warning("Could not initialise Layer with specified SRID {",src_layer_sref,"}.\n\nUsing Default {",dst_sref,"} instead")
                     if src_layer_geom is ogr.wkbPolygon:
                         dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,ogr.wkbMultiPolygon,opts)
                     else:
@@ -306,7 +319,8 @@ class DataStore(object):
                 #src_fid = src_feat.GetFieldAsInteger(ref_pkey)
 
                 #self._showFeatureData(new_feat)
-                #print "CHANGE::",change
+                src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
+                ldslog.debug("CHANGE:"+change+" "+str(src_pkey))
                 
                 try:
                     if change == "INSERT":
@@ -317,41 +331,38 @@ class DataStore(object):
                     elif change == "DELETE":
                         '''lookup and delete using fid matching ID of feature being deleted'''
                         #if not new_layer_flag: 
-                        src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
                         dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
                         if dst_fid is not None:
                             err = dst_layer.DeleteFeature(dst_fid)
                         else:
+                            ldslog.error("No match for FID with ID="+str(src_pkey)+" on "+change,exc_info=1)
                             raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on "+change)
                     elif change == "UPDATE":
                         '''build new feature, assign it the looked-up matching fid and overwrite on dst'''
                         #if not new_layer_flag: 
-                        dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_feat.GetFieldAsInteger(ref_pkey))
+                        dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
                         new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_gcol)
                         if dst_fid is not None:
                             new_feat.SetFID(dst_fid)
                             err = dst_layer.SetFeature(new_feat)
                         else:
+                            ldslog.error("No match for FID with ID="+str(src_pkey)+" on "+change,exc_info=1)
                             raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on "+change)
                         
                     if err!=0: 
+                        ldslog.error("Driver Error ["+str(err)+"] using FID="+str(dst_fid)+" on "+change,exc_info=1)
                         raise InvalidFeatureException("Driver Error ["+str(err)+"] using FID="+str(dst_fid)+" on "+change)
                     
                 except InvalidFeatureException as ife:
-                    print "InvalidFeatureException",ife
+                    ldslog.error(ife,exc_info=1)
+                    #print "InvalidFeatureException",ife
                                
                 src_feat = src_layer.GetNextFeature()
 
             #self._showLayerData(dst_layer)
             src_layer.ResetReading()
             dst_layer.ResetReading()
-            #since we can't delete a field on the source try on the dest
-            #dst_layer.DeleteField(dst_layer.GetLayerDefn().GetFieldIndex(CHANGE_COL))
-            
-            #self._showLayerData(dst_layer)
-            
-            '''notes. fid is not necessarily unique between calls to source so cant be used directly when doing deletes/updates, instead
-           we must use the actual key (id in most cases) and use this as a reference to get the destination fid.'''
+
 
 
     def partialCloneFeature(self,fin,fout_def,ref_gcol):
@@ -450,7 +461,10 @@ class DataStore(object):
         if re.match('\A\d',name):
             name = "_"+name
         #replace unwanted chars with _ and compress multiple and remove trailing
-        return re.sub('_+','_',re.sub('[ \-,.\\\\/:;{}()\[\]]','_',name.lower())).rstrip('_')
+        sani = re.sub('_+','_',re.sub('[ \-,.\\\\/:;{}()\[\]]','_',name.lower())).rstrip('_')
+        #unexpected name subst source of a few bugs, log as debug
+        ldslog.debug("Sanitise:raw="+name+" name="+sani)
+        return sani
     
 
     @classmethod
@@ -464,14 +478,14 @@ class DataStore(object):
     @classmethod
     def _showFeatureData(self,feature):
         '''prints feature/fid info. useful for debugging'''
-        print "\nFeat:FID:",feature.GetFID()
+        ldslog.debug("Feat:FID:"+str(feature.GetFID()))
         for field_no in range(0,feature.GetFieldCount()):
-            print "fid={},fld_no={},fld_data={}".format(feature.GetFID(),field_no,feature.GetFieldAsString(field_no))
+            ldslog.debug("fid={},fld_no={},fld_data={}".format(feature.GetFID(),field_no,feature.GetFieldAsString(field_no)))
             
     @classmethod
     def _showLayerData(self,layer):
         '''prints layer and embedded feature data. useful for debugging'''
-        print "\nLayer:Name:",layer.GetName()
+        ldslog.debug("Layer:Name:"+layer.GetName())
         layer.ResetReading()
         feat = layer.GetNextFeature()
         while feat is not None:

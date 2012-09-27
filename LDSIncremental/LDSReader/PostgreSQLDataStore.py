@@ -4,11 +4,12 @@ Created on 9/08/2012
 @author: jramsay
 '''
 import gdal
+import logging
 
 from DataStore import DataStore
-from ReadConfig import Reader
 from MetaLayerInformation import MetaLayerReader
 
+ldslog = logging.getLogger('LDS')
 
 class PostgreSQLDataStore(DataStore):
     '''
@@ -55,7 +56,9 @@ class PostgreSQLDataStore(DataStore):
             return self.conn_str
         #can't put schema in quotes, causes error but without quotes tables get created in public anyway, still need schema.table syntax
         sstr = " active_schema={}".format(self.schema) if self.schema is not None and self.schema !='' else ""
-        return "PG:dbname='{}' host='{}' port='{}' user='{}' password='{}'".format(self.dbname, self.host, self.port, self.usr, self.pwd)+sstr
+        uri = "PG:dbname='{}' host='{}' port='{}' user='{}' password='{}'".format(self.dbname, self.host, self.port, self.usr, self.pwd)+sstr
+        ldslog.debug(uri)
+        return uri
 
 #    def read(self,dsn):
 #        print "PG read"
@@ -76,7 +79,7 @@ class PostgreSQLDataStore(DataStore):
         return super(PostgreSQLDataStore,self).getOptions() + local_opts
         
     def _cleanLayer(self,layer):
-        print "PG clean"
+        ldslog.info("PG clean "+layer)
         self.ds.DeleteLayer(layer)
         
     def _clean(self):

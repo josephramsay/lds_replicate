@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.2
 
 LDSIncremental -  LDS Incremental Utilities
 
@@ -50,11 +50,22 @@ Created on 23/07/2012
 
 '''
 
-import sys, getopt
+import sys
+import getopt
+import logging
 
 from TransferProcessor import TransferProcessor
 from TransferProcessor import InputMisconfigurationException
 
+ldslog = logging.getLogger('LDS')
+ldslog.setLevel(logging.DEBUG)
+
+fh = logging.FileHandler('debug.log','w')
+fh.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+fh.setFormatter(formatter)
+ldslog.addHandler(fh)
 
 def usage():
     print "for help use --help"
@@ -63,6 +74,8 @@ def main():
     '''Main entrypoint if the LDS incremental replication script
     usage: python LDSReader/main.py -l <layer_id> { -f <fromdate> | -t <todate> | -c <cql_filter> } <output>
     '''
+
+    
     td = None
     fd = None
     ly = None
@@ -73,6 +86,8 @@ def main():
     # parse command line options
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hf:t:l:s:d:c:", ["help","fromdate=","todate=","layer=","source=","destination=","cql="])
+        ldslog.info("OPTS:"+str(opts))
+        ldslog.info("ARGS:"+str(args))
     except getopt.error, msg:
         print msg
         usage()

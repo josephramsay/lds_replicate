@@ -6,15 +6,9 @@ Created on 17/08/2012
 import unittest, datetime
 
 from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
-from LDSReader.OracleSpatialDataStore import OracleSpatialDataStore
 from LDSReader.MSSQLSpatialDataStore import MSSQLSpatialDataStore
 from LDSReader.LDSDataStore import LDSDataStore
-from LDSReader.CSVDataStore import CSVDataStore
 from LDSReader.FileGDBDataStore import FileGDBDataStore
-from LDSReader.ShapefileDataStore import ShapefileDataStore
-from LDSReader.MapinfoDataStore import MapinfoDataStore
-from LDSReader.ArcSDEDataStore import ArcSDEDataStore
-
 
 from LDSReader.TransferProcessor import TransferProcessor
 
@@ -171,8 +165,8 @@ class TestIncrementalDestinations(unittest.TestCase):
 
             tp.processLDS2PG()
         
-            tp.fromdate = self.fd2
-            tp.todate = self.td2
+            tp.fromdate = None
+            tp.todate = None
 
             tp.processLDS2PG()
         
@@ -188,8 +182,8 @@ class TestIncrementalDestinations(unittest.TestCase):
 
             tp.processLDS2MSSQL()
         
-            tp.fromdate = self.fd2
-            tp.todate = self.td2
+            tp.fromdate = None
+            tp.todate = None
 
             tp.processLDS2MSSQL()
         
@@ -205,8 +199,8 @@ class TestIncrementalDestinations(unittest.TestCase):
 
             tp.processLDS2SpatiaLite()
         
-            tp.fromdate = self.fd2
-            tp.todate = self.td2
+            tp.fromdate = None
+            tp.todate = None
 
             tp.processLDS2SpatiaLite()
         
@@ -222,8 +216,8 @@ class TestIncrementalDestinations(unittest.TestCase):
 
             tp.processLDS2FileGDB()
         
-            tp.fromdate = self.fd2
-            tp.todate = self.td2
+            tp.fromdate = None
+            tp.todate = None
 
             tp.processLDS2FileGDB()
 

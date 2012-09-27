@@ -15,11 +15,10 @@ Created on 26/07/2012
 @author: jramsay
 '''
 
+import logging
 
-import sys, re
 from datetime import datetime 
 
-from WFSDataStore import WFSDataStore
 from LDSDataStore import LDSDataStore,LDSUtilities
 #from ArcSDEDataStore import ArcSDEDataStore
 #from CSVDataStore import CSVDataStore
@@ -30,8 +29,9 @@ from PostgreSQLDataStore import PostgreSQLDataStore
 from MSSQLSpatialDataStore import MSSQLSpatialDataStore
 from SpatiaLiteDataStore import SpatiaLiteDataStore
 
-from ReadConfig import Reader
-from DataStore import InvalidLayerException
+
+ldslog = logging.getLogger('LDS')
+
 
 class InputMisconfigurationException(Exception): pass
 
@@ -67,6 +67,7 @@ class TransferProcessor(object):
         self.cql = None
         if cql != None:
             self.cql = cql     
+            self.ldslog.info("CQL:"+str(cql))
 
     
     def processLDS2PG(self):
@@ -130,6 +131,8 @@ class TransferProcessor(object):
         
         self.lnl = map(lambda x: x.lstrip('v:x'),set(lds_full).intersection(set(lds_config)))
         
+        ldslog.debug("Layer List:"+str(self.lnl))
+        
         #override config file dates with command line dates if provided
         
         
@@ -152,14 +155,18 @@ class TransferProcessor(object):
         
         
         '''if any date is 'ALL' full rep otherwise do auto unless we have proper dates'''
-        if fdate=='ALL' or tdate=='ALL':
-            self.fullReplicate(layer)       
+        if fdate=='ALL' or tdate=='ALL': 
+            ldslog.info("Full Replicate on "+str(layer)) 
+            self.fullReplicate(layer)      
         elif fdate is None or tdate is None:
             '''do auto incremental'''
+            ldslog.info("Auto Incremental on "+str(layer)) 
             self.autoIncrement(layer)
         else:
             '''do requested date range'''
+            ldslog.info("Selected Replicate on "+str(layer)+" : "+str(fdate)+" to "+str(tdate)) 
             self.definedIncremental(layer,fdate,tdate)
+
         #missing case is; if one date provided and other sg ? caught by elif (consider using the valid date?)
     
     #----------------------------------------------------------------------------------------------
@@ -211,7 +218,7 @@ class TransferProcessor(object):
             self.dst.write(self.src,self.dst.destinationURI(layer_i))
             self.dst.setLastModified(layer_i,tdate)
         else:
-            print "No update required for layer "+layer_i
+            ldslog.info("No update required for layer "+layer_i)
         return tdate
     
     

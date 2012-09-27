@@ -18,7 +18,8 @@ import unittest
 
 #from TestTransferTypes import TestIncrementalDates
 from TestTransferTypes import TestIncrementalDestinations
-#from TestConnectivity import TestConnect
+from TestConnectivity import TestConnect
+from TestUI import TestUI
 
 
 class FullSuite(unittest.TestSuite):
@@ -67,11 +68,12 @@ def main():
     #runner.run(suite)
     
     runner  = unittest.TextTestRunner()
-    #s1a = unittest.TestLoader().loadTestsFromTestCase(TestConnect)
+    s1a = unittest.TestLoader().loadTestsFromTestCase(TestConnect)
     #s2a = unittest.TestLoader().loadTestsFromTestCase(TestTransfer)
     #s3a = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDates)
-    s3b = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDestinations)
-    ss = unittest.TestSuite([s3b])
+    s3b = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDestinations) 
+    s4a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
+    ss = unittest.TestSuite([s1a,s3b,s4a])
     runner.run(ss)
     
 if __name__ == "__main__":

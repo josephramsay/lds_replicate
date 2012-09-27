@@ -3,12 +3,12 @@ Created on 9/08/2012
 
 @author: jramsay
 '''
+import logging
 
 from DataStore import DataStore
-from ReadConfig import Reader
 from MetaLayerInformation import MetaLayerReader
 
-import gdal
+ldslog = logging.getLogger('LDS')
 
 class MSSQLSpatialDataStore(DataStore):
     '''
@@ -45,7 +45,9 @@ class MSSQLSpatialDataStore(DataStore):
             return self.conn_str
         #return "MSSQL:server={};database={};trusted_connection={};".format(self.server, self.dbname, self.trust)
         sstr = ";Schema={}".format(self.schema) if self.schema is not None and self.schema !='' else ""
-        return "MSSQL:server={};database={};UID={};PWD={};Driver={}".format(self.server, self.dbname, self.usr, self.pwd,self.odbc)+sstr
+        uri = "MSSQL:server={};database={};UID={};PWD={};Driver={}".format(self.server, self.dbname, self.usr, self.pwd,self.odbc)+sstr
+        ldslog.debug(uri)
+        return uri
         
 
 

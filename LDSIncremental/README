@@ -68,5 +68,19 @@ filter using the correct parameter names, formats and bounds.
 of a new table.
 9. Adding multiple output on the command line will trigger the copy process for these outputs 
 
+10. The properties files are interchangeable and selected based on their name ie postgresql.layer.properties is the layer properties file for the 
+PostgreSQL output. Copying this file to mssql.layer.properties would assign it as the same for a MSSQLSpatial output
+11. In the properties files the sections are denoted by the layer id in square brackets eg [v:x111]
+12. Beneath the section header property values include {pkey, name, lastmodified, geocolumn, epsg, cql}
+12.1. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' globally this may very per layer.
+12.2. Property 'name'. Used as the name for the output table/file these are not guaranteed to be unique. Nominally set to LDS layer name.
+12.3. Property 'lastmodified'. This is a date string (yyyy-mm-dd) indicating the age of the data copied to output. It is used as a start point 
+when doing auto-incremental updates.
+12.4. Property 'geocolumn'. Used as the name for the output geometry column
+12.5. Property 'epsg'. Specifies the required EPSG number to affect a projection change. If left blank the source projection will be retained
+12.6. Property 'cql'. Sets a cql filter for the layer. Notes 1: the user is responsible for constructing well-formed CQL filters. 2: Layer filters 
+will be overriden globally in the config file or on the command line.
+
+   
 
 A1. Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July  

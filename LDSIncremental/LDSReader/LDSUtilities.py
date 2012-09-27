@@ -6,6 +6,9 @@ Created on 28/08/2012
 
 
 import re
+import logging
+
+ldslog = logging.getLogger('LDS')
 
 class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
@@ -68,64 +71,65 @@ class LDSUtilities(object):
         if re.match('.*(?:equals|disjoint|intersects|touches|crosses|within|contains|overlaps|bbox|dwithin|beyond|relate)',c,re.IGNORECASE):
             v+=16
             
+        ldslog.debug("CQL check:"+c+":"+v)
         if v>0:
-            '''return ("&cql_filter="+c,v)'''
             return "&cql_filter="+c
         else:
             return ""
     
     
-    
-    def parseLayerList(self,ds):
-        layers = ()
-        for li in range(0,ds.GetLayerCount()):
-            layer = ds.GetLayerByIndex(li)
-
-            print "layer",layer.GetName()#,layer.GetLayerDefn()
-            layers += (layer.GetName(),)
-
-        return layers
-
-    
-    def parseFeatureList(self,ds,layername):
-        head = ()
-        body = ()
-        
-        #lep = self.constructEndpoint(layername)
-        #lds = self.connect(lep)
-        #geo = ds.GetGeomType()
-        #sref = ds.GetSpatialRef()
-        '''get the first row and use it to build a headers list = ((colname,coltype),)'''
-        layer = ds.GetLayerByName(layername)
-        feat = layer.GetNextFeature()
-        for fc in range(0,feat.GetFieldCount()):
-            fdef = feat.GetFieldDefnRef(fc)
-
-            head += ((fdef.GetName(),fdef.GetType()),) 
-        print "head",layer.GetName(),head
-        
-        '''get data by column header'''
-        while feat is not None:
-            '''put the geo obj in the first col'''
-            data = (feat.GetGeometryRef().ExportToWkt(),)
-            for col in head:
-                data += (feat.GetField(col[0]),)
-                
-            print "data",data
-            body += (data,) 
-            
-            feat = layer.GetNextFeature()
-        return (head,body)
-            
-                
-    def parseFieldList(self,ds,layername):
-        head = ()
-        layer = ds.GetLayerByName(layername)
-        feat = layer.GetNextFeature()
-        for fc in range(0,feat.GetFieldCount()):
-            fdef = feat.GetFieldDefnRef(fc)
-
-            head += ((fdef.GetName(),fdef.GetType()),) 
-            
-        print "head",layer.GetName(),head
+#    #no longer used
+#    
+#    def parseLayerList(self,ds):
+#        layers = ()
+#        for li in range(0,ds.GetLayerCount()):
+#            layer = ds.GetLayerByIndex(li)
+#
+#            print "layer",layer.GetName()#,layer.GetLayerDefn()
+#            layers += (layer.GetName(),)
+#
+#        return layers
+#
+#    
+#    def parseFeatureList(self,ds,layername):
+#        head = ()
+#        body = ()
+#        
+#        #lep = self.constructEndpoint(layername)
+#        #lds = self.connect(lep)
+#        #geo = ds.GetGeomType()
+#        #sref = ds.GetSpatialRef()
+#        '''get the first row and use it to build a headers list = ((colname,coltype),)'''
+#        layer = ds.GetLayerByName(layername)
+#        feat = layer.GetNextFeature()
+#        for fc in range(0,feat.GetFieldCount()):
+#            fdef = feat.GetFieldDefnRef(fc)
+#
+#            head += ((fdef.GetName(),fdef.GetType()),) 
+#        print "head",layer.GetName(),head
+#        
+#        '''get data by column header'''
+#        while feat is not None:
+#            '''put the geo obj in the first col'''
+#            data = (feat.GetGeometryRef().ExportToWkt(),)
+#            for col in head:
+#                data += (feat.GetField(col[0]),)
+#                
+#            print "data",data
+#            body += (data,) 
+#            
+#            feat = layer.GetNextFeature()
+#        return (head,body)
+#            
+#                
+#    def parseFieldList(self,ds,layername):
+#        head = ()
+#        layer = ds.GetLayerByName(layername)
+#        feat = layer.GetNextFeature()
+#        for fc in range(0,feat.GetFieldCount()):
+#            fdef = feat.GetFieldDefnRef(fc)
+#
+#            head += ((fdef.GetName(),fdef.GetType()),) 
+#            
+#        print "head",layer.GetName(),head
         

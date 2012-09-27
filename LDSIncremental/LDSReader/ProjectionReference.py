@@ -4,6 +4,9 @@ Created on 17/08/2012
 @author: jramsay
 '''
 import osr
+import logging
+
+ldslog =  logging.getLogger('LDS')
 
 class Projection(object):
     '''
@@ -59,6 +62,7 @@ class Projection(object):
             srs.ImportFromEPSG(int(epsg))
             #srs.SetFromUserInput(epsg)#consider allowing WKT
         except:
+            ldslog.warning("Invalid EPSG,"+str(epsg)+". Reprojection disabled")
             print "Invalid EPSG,",epsg,". Reprojection disabled"
             srs = None
         return srs

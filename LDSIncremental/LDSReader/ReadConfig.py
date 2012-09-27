@@ -14,9 +14,14 @@ Created on 24/07/2012
 
 @author: jramsay
 '''
+import sys
+import os
+import logging
+import ConfigParser
 
 from ConfigParser import NoOptionError,NoSectionError,Error
-import ConfigParser, sys, os
+
+ldslog = logging.Logger("LDS.ReadConfig")
 
 class Reader(object):
     '''
@@ -86,7 +91,7 @@ class Reader(object):
         try:
             over = self.cp.get('PostgreSQL', 'overwrite')
         except NoOptionError:
-            print "Overwrite not specified, Setting to True"
+            ldslog.debug("PG: Overwrite not specified, Setting to True")
             over = True
         
         return (host,port,dbname,schema,usr,pwd,over)
@@ -152,7 +157,7 @@ class Reader(object):
         try: 
             path = self.cp.get('File', 'path')
         except NoOptionError:
-            print "No path specified, default to Home directory"
+            ldslog.debug("File: No path specified, default to Home directory")
             path = "~"
         
         return (prefix,path)
@@ -162,7 +167,7 @@ class Reader(object):
         try: 
             path = self.cp.get('FileGDB', 'path')
         except NoOptionError:
-            print "No path specified, default to Home directory"
+            ldslog.debug("FileGDB: No path specified, default to Home directory")
             path = "~"
         
         return path
@@ -187,25 +192,25 @@ class Reader(object):
         except NoOptionError:
             url = "http://wfs.data.linz.govt/"
         except NoSectionError:
-            print "No LDS Section... Cannot recover, quitting"
+            ldslog.debug("LDS: No LDS Section... Cannot recover, quitting")
             sys.exit(1)
             
         try: 
             fmt = self.cp.get('LDS', 'fmt')
         except NoOptionError:
-            print "No output format specified, default to GML2"
+            ldslog.debug("LDS: No output format specified, default to GML2")
             fmt = "GML2"
         
         try: 
             svc = self.cp.get('LDS', 'svc')
         except NoOptionError:
-            print "No service type specified, default to WFS"
+            ldslog.debug("LDS: No service type specified, default to WFS")
             svc = "WFS"
         
         try: 
             ver = self.cp.get('LDS', 'ver')
         except NoOptionError:
-            print "No Version specified, assuming WFS and default to version 1.0.0"
+            ldslog.debug("LDS: No Version specified, assuming WFS and default to version 1.0.0")
             ver = "1.0.0"
         
         key = self.cp.get('LDS', 'key') 
@@ -246,14 +251,14 @@ class Reader(object):
         try:
             pkey = self.cp.get(layer, 'pkey')
         except NoOptionError:
-            print "No Primary Key Column defined, default to 'ID'"
+            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
             pkey = '(ID, Integer)'
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
             name = self.cp.get(layer, 'name')
         except NoOptionError:
-            print "No Name saved in config for this layer, returning ID"
+            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
             name = layer
             
         if name is None:
@@ -262,7 +267,7 @@ class Reader(object):
         try:
             gcol = self.cp.get(layer, 'geocolumn')
         except NoOptionError:
-            print "No Geo Column defined, default to 'SHAPE'"
+            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
             gcol = 'SHAPE'
             
         try:
@@ -274,7 +279,7 @@ class Reader(object):
         try:
             lmod = self.cp.get(layer, 'lastmodified')
         except NoOptionError:
-            print "No Last-Modified date recorded, successful update will write current time here"
+            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
             lmod = None
             
         try:
@@ -296,7 +301,7 @@ class Reader(object):
         try:
             self.cp.set(layer,'lastmodified',lmod)
         except Error:
-            print "Last-Modified date not saved!"
+            ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
         
         with open(self.fname,'wb') as conffile:
             self.cp.write(conffile)

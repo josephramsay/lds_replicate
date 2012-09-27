@@ -14,14 +14,16 @@ Created on 23/07/2012
 
 @author: jramsay
 '''
-import re,csv
+import re
+
+import logging
 
 from WFSDataStore import WFSDataStore
 from urllib2 import urlopen
 from LDSUtilities import LDSUtilities
 
 
-
+ldslog = logging.getLogger('LDS')
 
 class LDSDataStore(WFSDataStore):
     '''
@@ -43,7 +45,9 @@ class LDSDataStore(WFSDataStore):
     def getCapabilities(self):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
-        return self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
+        uri = self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
+        ldslog.debug(uri)
+        return uri
     
     
     def sourceURI(self,layername):
@@ -53,7 +57,9 @@ class LDSDataStore(WFSDataStore):
         cql = self._buildCQLStr()
         typ = "&typeName="+layername
         fmt = "&outputFormat="+self.fmt
-        return self.url+self.key+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
+        uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
+        ldslog.debug(uri)
+        return uri
     
     
     def sourceURI_incr(self,layername):
@@ -64,7 +70,9 @@ class LDSDataStore(WFSDataStore):
         vep = LDSUtilities.splitLayerName(layername)+"-changeset"
         typ = "&typeName="+layername+"-changeset"
         fmt = "&outputFormat="+self.fmt
-        return self.url+self.key+vep+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
+        uri = self.url+self.key+vep+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
+        ldslog.debug(uri)
+        return uri
         
     def sourceURI_incrd(self,layername,fromdate,todate):
         '''Endpoint constructor fetching specific feature with incr date fields'''
@@ -75,7 +83,9 @@ class LDSDataStore(WFSDataStore):
         typ = "&typeName="+layername+"-changeset"
         inc = "&viewparams=from:"+fromdate+";to:"+todate
         fmt = "&outputFormat="+self.fmt
-        return self.url+self.key+vep+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+inc+fmt+cql
+        uri = self.url+self.key+vep+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+inc+fmt+cql
+        ldslog.debug(uri)
+        return uri
     
     
     def _buildCQLStr(self):
@@ -129,7 +139,7 @@ class LDSDataStore(WFSDataStore):
        
 
     def read(self,dsn):
-        print "LDS read",dsn
+        ldslog.info("LDS read "+dsn)
         self.ds = self.driver.Open(dsn)
         
     def write(self,dsn):

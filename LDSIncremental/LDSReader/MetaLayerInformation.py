@@ -14,9 +14,11 @@ Created on 23/07/2012
 
 @author: jramsay
 '''
+import logging
 
 from ReadConfig import Reader
 
+ldslog = logging.getLogger('LDS')
 
 class MetaLayerReader(object):
     '''
@@ -51,7 +53,7 @@ class MetaLayerReader(object):
         return lmod
         
     def writeLastModified(self,layer_id,lmod):
-        print "Writing "+lmod+" for layer="+layer_id+" to config file"
+        ldslog.info("Writing "+lmod+" for layer="+layer_id+" to config file")
         self.layerconfig.writeLayerSchemaConfig(layer_id, lmod)
 
         
