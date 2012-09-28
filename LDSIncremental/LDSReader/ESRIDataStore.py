@@ -1,4 +1,6 @@
 '''
+ESRI specific DS class super classing ESRI based data formats including FileGDB, ShapeFile and ArcSDE
+
 Created on 9/08/2012
 
 @author: jramsay
@@ -11,20 +13,20 @@ from ProjectionReference import Projection
 
 class ESRIDataStore(DataStore):
     '''
-    ESRI specific DS because ESRI is non-conforming and demands its own SRID
+    ESRI Specific superclass primarily used to do OSGEO to ESRI SpatialReference transformations
     '''
 
     def __init__(self,conn_str=None):
-        '''
-        cons init driver
-        '''
+
         super(ESRIDataStore,self).__init__(conn_str)
         
         
     def sourceURI(self,layer):
+        '''URI method for returning source calls private subclass common URI method'''
         return self._commonURI(layer)
     
     def destinationURI(self,layer):
+        '''URI method for returning destination calls private subclass common URI method'''
         return self._commonURI(layer)
         
     def _commonURI(self,layer):
@@ -35,9 +37,10 @@ class ESRIDataStore(DataStore):
 #        self.ds = self.driver.Open(dsn)
 #    
     def write(self,src_ds,dsn):
+        '''ESRI specific write method used as entry point for converDataSourceESRI'''
         '''TODO. No need to do the poly to multi conversion but incremental __change__ removal still reqd'''
         #naive implementation? change SR per layer in place
-        self.convertDatasourceESRI(src_ds.ds)
+        self.convertDataSourceESRI(src_ds.ds)
         super(ESRIDataStore,self).write(src_ds,dsn)
         #self.ds = self.driver.CopyDataSource(src_ds, dsn)
         
@@ -48,8 +51,8 @@ class ESRIDataStore(DataStore):
     #    pr2 = SpatialReference(pr1).MorphToESRI()
     #    return dataset.SetProjectionRef(pr2)
     
-    def convertDatasourceESRI(self,datasource):
-        '''morphs datasource layer by layer, in place'''
+    def convertDataSourceESRI(self,datasource):
+        '''Spatial Reference method to "Morph" datasource layer by layer, in place'''
         for li in range(0,datasource.GetLayerCount()):
             layer = datasource.GetLayer(li)
            
@@ -65,19 +68,9 @@ class ESRIDataStore(DataStore):
             
         return datasource
         
-    def rebuildSpatialReference(self,sr):
-        '''de/re-construct faulty sref after morph'''
-        #SetGeogCS(self, char pszGeogName, char pszDatumName, char pszEllipsoidName, 
-        #double dfSemiMajor, double dfInvFlattening, 
-        #char pszPMName = "Greenwich", double dfPMOffset = 0.0, 
-        #char pszUnits = "degree", double dfConvertToRadians = 0.0174532925199433) -> OGRErr
-        #srs.SetGeogCS("GCS_NZGD_2000","D_NZGD_2000","GRS_1980",6378137.0,298.257222101,"Greenwich",0.0,"Degree",0.0174532925199433)
-        pass
-        
-        
         
     def getOptions(self,layer_id):
-        '''no cross-esri specific options'''
+        '''Direct push through to super since no pan-ESRI specific options'''
         
         return super(ESRIDataStore,self).getOptions()
         

@@ -1,0 +1,323 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LDSReader.test.TestTransferTypes &mdash; LDSINCR 0.0.2 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.0.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LDSINCR 0.0.2 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LDSINCR 0.0.2 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for LDSReader.test.TestTransferTypes</h1><div class="highlight"><pre>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Created on 17/08/2012</span>
+
+<span class="sd">@author: jramsay</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="kn">import</span> <span class="nn">unittest</span><span class="o">,</span> <span class="nn">datetime</span>
+
+<span class="kn">from</span> <span class="nn">LDSReader.PostgreSQLDataStore</span> <span class="kn">import</span> <span class="n">PostgreSQLDataStore</span>
+<span class="kn">from</span> <span class="nn">LDSReader.MSSQLSpatialDataStore</span> <span class="kn">import</span> <span class="n">MSSQLSpatialDataStore</span>
+<span class="kn">from</span> <span class="nn">LDSReader.LDSDataStore</span> <span class="kn">import</span> <span class="n">LDSDataStore</span>
+<span class="kn">from</span> <span class="nn">LDSReader.FileGDBDataStore</span> <span class="kn">import</span> <span class="n">FileGDBDataStore</span>
+
+<span class="kn">from</span> <span class="nn">LDSReader.TransferProcessor</span> <span class="kn">import</span> <span class="n">TransferProcessor</span>
+
+<span class="c"># -----------------------------------------------------------------------------</span>
+
+
+<span class="c">#class TestTransfer(unittest.TestCase):</span>
+<span class="c">#</span>
+<span class="c">#    @classmethod</span>
+<span class="c">#    def setUpClass(self):</span>
+<span class="c">#        self.layername = &quot;v:x785&quot;</span>
+<span class="c">#        self.csvfilename = &quot;x785.csv&quot;</span>
+<span class="c">#        self.shapefilename = &quot;x785.shp&quot;</span>
+<span class="c">#        self.mapinfofilename = &quot;x785.tab&quot;</span>
+<span class="c">#        self.tablename = &quot;x785table&quot;</span>
+<span class="c">#        self.sdetablename = &quot;x785table&quot;</span>
+<span class="c">#        </span>
+<span class="c">#        self.src = LDSDataStore()</span>
+<span class="c">#        self.src.read(self.src.sourceURI(self.layername))</span>
+<span class="c">#</span>
+<span class="c">#</span>
+<span class="c">#    @classmethod</span>
+<span class="c">#    def tearDownClass(self):</span>
+<span class="c">#        #self.src.disconnect?</span>
+<span class="c">#        self.src = None</span>
+<span class="c">#</span>
+<span class="c">#</span>
+<span class="c">#    #File-1</span>
+<span class="c">#    def test1LDS2CSVTransfer(self):        </span>
+<span class="c">#        dst = CSVDataStore()</span>
+<span class="c">#        print &quot;DST:&quot;,dst.destinationURI(self.csvfilename)</span>
+<span class="c">#        dst.write(self.src.ds,dst.destinationURI(self.csvfilename))</span>
+<span class="c">#        self.fail(&quot;LDS2CSV&quot;)</span>
+<span class="c">#        </span>
+<span class="c">#    #ESRIFile-2</span>
+<span class="c">#    def test2LDS2FileGDBTransfer(self):       </span>
+<span class="c">#        dst = FileGDBDataStore()</span>
+<span class="c">#        dst.write(self.src.ds,dst.destinationURI(self.filegdbname))</span>
+<span class="c">#        self.assertEqual(122, 123, &quot;fail123&quot;)</span>
+<span class="c">#    </span>
+<span class="c">#    #GISFile-3</span>
+<span class="c">#    def test3LDS2ShapefileTransfer(self):</span>
+<span class="c">#        dst = ShapefileDataStore()</span>
+<span class="c">#        dst.write(self.src,dst.destinationURI(self.shapefilename))</span>
+<span class="c">#        </span>
+<span class="c">#    def test3LDS2MapinfoFileTransfer(self):</span>
+<span class="c">#        dst = MapinfoDataStore()</span>
+<span class="c">#        dst.write(self.src,dst.destinationURI(self.mapinfofilename))</span>
+<span class="c">#    </span>
+<span class="c">#    #DB-4  </span>
+<span class="c">#    def test4LDS2PostgreSQLTransfer(self):</span>
+<span class="c">#        dst = PostgreSQLDataStore()</span>
+<span class="c">#        dst.write(self.src,dst.destinationURI(self.tablename))</span>
+<span class="c">#        </span>
+<span class="c">#    def test4LDS2OracleTransfer(self):</span>
+<span class="c">#        dst = OracleSpatialDataStore()</span>
+<span class="c">#        dst.write(self.src,dst.destinationURI(self.tablename))</span>
+<span class="c">#    </span>
+<span class="c">#    def test4LDS2MSSQLTransfer(self):</span>
+<span class="c">#        dst = MSSQLSpatialDataStore()</span>
+<span class="c">#        dst.write(self.src,dst.destinationURI(self.tablename))</span>
+<span class="c">#        </span>
+<span class="c">#    #ESRISomething-5</span>
+<span class="c">#    def test5LDS2ArcSDETransfer(self):</span>
+<span class="c">#        dst = ArcSDEDataStore()</span>
+<span class="c">#        dst.write(self.src,dst.destinationURI(self.sdetablename))</span>
+
+
+<span class="c"># -----------------------------------------------------------------------------</span>
+
+<span class="c">#class TestIncrementalDates(unittest.TestCase):</span>
+<span class="c">#    def __init__(self):</span>
+<span class="c">#        self.fd1 = &quot;2012-01-01&quot;</span>
+<span class="c">#        self.td1 = &quot;2012-08-31&quot;</span>
+<span class="c">#        </span>
+<span class="c">#        self.fd2 = &quot;2012-09-01&quot;</span>
+<span class="c">#        self.td2 = &quot;2012-09-14&quot;</span>
+<span class="c">#        </span>
+<span class="c">#        </span>
+<span class="c">#        self.point_layer = &quot;v:x787&quot;     #NZ Geodetic Marks</span>
+<span class="c">#        self.line_layer1 = &quot;v:x781&quot;     #NZ Rail Centrelines</span>
+<span class="c">#        self.line_layer2 = &quot;v:x818&quot;     #NZ Road Centrelines</span>
+<span class="c">#        self.poly_layer1 = &quot;v:x785&quot;     #NZ Land Districts</span>
+<span class="c">#        self.poly_layer2 = &quot;v:x772&quot;     #NZ Primary Parcels</span>
+        
+<span class="c">#    @classmethod</span>
+<span class="c">#    def setUpClass(self):#        </span>
+<span class="c">#        self.tp = TransferProcessor()</span>
+<span class="c">#        </span>
+<span class="c">#       </span>
+<span class="c">#</span>
+<span class="c">#</span>
+<span class="c">#    @classmethod</span>
+<span class="c">#    def tearDownClass(self):</span>
+<span class="c">#        #self.src.disconnect?</span>
+<span class="c">#        self.tp = None</span>
+<span class="c">#</span>
+<span class="c">#</span>
+<span class="c">#    def test1LDSDefDate(self):    </span>
+<span class="c">#        </span>
+<span class="c">#        self.tp.fromdate = &#39;2012-01-01&#39;</span>
+<span class="c">#        self.tp.todate = &#39;2012-08-30&#39;</span>
+<span class="c">#        self.tp.layer = &#39;v:x787&#39;</span>
+<span class="c">#        self.tp.processLDS2PG()    </span>
+<span class="c">#        </span>
+<span class="c">#        self.fail(&quot;T1&quot;)</span>
+<span class="c">#        </span>
+<span class="c">#        </span>
+<span class="c">#    def test2LDSNoDate(self):    </span>
+<span class="c">#        </span>
+<span class="c">#        self.tp.fromdate = None</span>
+<span class="c">#        self.tp.todate = None</span>
+<span class="c">#        self.tp.layer = &#39;v:x787&#39;</span>
+<span class="c">#        self.tp.processLDS2PG()</span>
+<span class="c">#        </span>
+<span class="c">#        self.fail(&quot;T2&quot;)</span>
+        
+<span class="c"># -----------------------------------------------------------------------------</span>
+        
+<div class="viewcode-block" id="TestIncrementalDestinations"><a class="viewcode-back" href="../../../api/LDSReader.test.html#LDSReader.test.TestTransferTypes.TestIncrementalDestinations">[docs]</a><span class="k">class</span> <span class="nc">TestIncrementalDestinations</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TestIncrementalDestinations.setUpClass"><a class="viewcode-back" href="../../../api/LDSReader.test.html#LDSReader.test.TestTransferTypes.TestIncrementalDestinations.setUpClass">[docs]</a>    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>        
+        <span class="bp">self</span><span class="o">.</span><span class="n">fd1</span> <span class="o">=</span> <span class="s">&quot;2001-01-01&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">td1</span> <span class="o">=</span> <span class="s">&quot;2012-03-31&quot;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">fd2</span> <span class="o">=</span> <span class="s">&quot;2012-04-01&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">td2</span> <span class="o">=</span> <span class="s">&quot;2012-09-14&quot;</span>
+        
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">point_layer</span> <span class="o">=</span> <span class="s">&quot;v:x787&quot;</span>     <span class="c">#NZ Geodetic Marks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line_layer1</span> <span class="o">=</span> <span class="s">&quot;v:x781&quot;</span>     <span class="c">#NZ Rail Centrelines</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">line_layer2</span> <span class="o">=</span> <span class="s">&quot;v:x818&quot;</span>     <span class="c">#NZ Road Centrelines</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">poly_layer1</span> <span class="o">=</span> <span class="s">&quot;v:x785&quot;</span>     <span class="c">#NZ Land Districts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">poly_layer2</span> <span class="o">=</span> <span class="s">&quot;v:x772&quot;</span>     <span class="c">#NZ Primary Parcels</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_layers</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">point_layer</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">line_layer1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">line_layer2</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">poly_layer1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">poly_layer2</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="TestIncrementalDestinations.setUp"><a class="viewcode-back" href="../../../api/LDSReader.test.html#LDSReader.test.TestTransferTypes.TestIncrementalDestinations.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&quot;</span><span class="se">\n\n</span><span class="s">&gt;&gt;&gt; TIMESTAMP START&quot;</span><span class="p">,</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="TestIncrementalDestinations.tearDown"><a class="viewcode-back" href="../../../api/LDSReader.test.html#LDSReader.test.TestTransferTypes.TestIncrementalDestinations.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&gt;&gt;&gt; TIMESTAMP END&quot;</span><span class="p">,</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span>
+    
+    
+    
+    </div>
+<div class="viewcode-block" id="TestIncrementalDestinations.test1LDS2PostgreSQL"><a class="viewcode-back" href="../../../api/LDSReader.test.html#LDSReader.test.TestTransferTypes.TestIncrementalDestinations.test1LDS2PostgreSQL">[docs]</a>    <span class="k">def</span> <span class="nf">test1LDS2PostgreSQL</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>    
+        <span class="k">print</span> <span class="s">&quot;LDS 2 PostgreSQL&quot;</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_layers</span><span class="p">:</span>
+            <span class="n">tp</span> <span class="o">=</span> <span class="n">TransferProcessor</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">fromdate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fd1</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">todate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">td1</span>
+
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2PG</span><span class="p">()</span>
+        
+            <span class="n">tp</span><span class="o">.</span><span class="n">fromdate</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">todate</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2PG</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        </div>
+<div class="viewcode-block" id="TestIncrementalDestinations.test2LDS2MSSQL"><a class="viewcode-back" href="../../../api/LDSReader.test.html#LDSReader.test.TestTransferTypes.TestIncrementalDestinations.test2LDS2MSSQL">[docs]</a>    <span class="k">def</span> <span class="nf">test2LDS2MSSQL</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>    
+        <span class="k">print</span> <span class="s">&quot;LDS 2 MSSQL&quot;</span>
+        <span class="c">#self.tp.layer = self.point_layer</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_layers</span><span class="p">:</span>
+            <span class="n">tp</span> <span class="o">=</span> <span class="n">TransferProcessor</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">fromdate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fd1</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">todate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">td1</span>
+
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2MSSQL</span><span class="p">()</span>
+        
+            <span class="n">tp</span><span class="o">.</span><span class="n">fromdate</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">todate</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2MSSQL</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        </div>
+<div class="viewcode-block" id="TestIncrementalDestinations.test3LDS2SpatialLite"><a class="viewcode-back" href="../../../api/LDSReader.test.html#LDSReader.test.TestTransferTypes.TestIncrementalDestinations.test3LDS2SpatialLite">[docs]</a>    <span class="k">def</span> <span class="nf">test3LDS2SpatialLite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>    
+        <span class="k">print</span> <span class="s">&quot;LDS 2 SpatiaLite&quot;</span>
+        <span class="c">#self.tp.layer = self.point_layer</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_layers</span><span class="p">:</span>
+            <span class="n">tp</span> <span class="o">=</span> <span class="n">TransferProcessor</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">fromdate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fd1</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">todate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">td1</span>
+
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2SpatiaLite</span><span class="p">()</span>
+        
+            <span class="n">tp</span><span class="o">.</span><span class="n">fromdate</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">todate</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2SpatiaLite</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        </div>
+<div class="viewcode-block" id="TestIncrementalDestinations.test4LDS2FileGDB"><a class="viewcode-back" href="../../../api/LDSReader.test.html#LDSReader.test.TestTransferTypes.TestIncrementalDestinations.test4LDS2FileGDB">[docs]</a>    <span class="k">def</span> <span class="nf">test4LDS2FileGDB</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>    
+        <span class="k">print</span> <span class="s">&quot;LDS 2 FileGDB&quot;</span>
+        <span class="c">#self.tp.layer = self.point_layer</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_layers</span><span class="p">:</span>
+            <span class="n">tp</span> <span class="o">=</span> <span class="n">TransferProcessor</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">fromdate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fd1</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">todate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">td1</span>
+
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2FileGDB</span><span class="p">()</span>
+        
+            <span class="n">tp</span><span class="o">.</span><span class="n">fromdate</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">todate</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2FileGDB</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assert_</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        </div></div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c">#import sys;sys.argv = [&#39;&#39;, &#39;Test.testName&#39;]</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LDSINCR 0.0.2 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, jramsay.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

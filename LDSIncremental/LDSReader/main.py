@@ -3,51 +3,57 @@ v.0.0.2
 
 LDSIncremental -  LDS Incremental Utilities
 
-Copyright 2011 Crown copyright (c)
-Land Information New Zealand and the New Zealand Government.
-All rights reserved
+| Copyright 2011 Crown copyright (c)
+| Land Information New Zealand and the New Zealand Government.
+| All rights reserved
 
-This program is released under the terms of the new BSD license. See the 
-LICENSE file for more information.
+This program is released under the terms of the new BSD license. See the LICENSE file for more information.
 
 Created on 23/07/2012
 
 @author: jramsay
 
-    Python script to translate fetch an LDS update between two dates. Intended to be used in a batch process rather than interactively. 
-    
-    Usage: 
-        python main.py pg   | postgres
-        python main.py ms   | mssql
-        python main.py slite| spatialite
-        python main.py fgdb | filegdb
-        
-        *** coming soon ***
-        python main.py arc  | sde | arcsde
-        python main.py mi   | mapinfo
-        python main.py shp  | shapefile
-        python main.py csv  | csvfile
-        
-    Options:
-        -l --layer           v:xNNN | ALL
-        -f --fromdate        yyyy-mm-dd | ALL
-        -t --todate          yyyy-mm-dd | ALL
-        -s --source          Connection string for data source (eg. WFS:http://path/to/WFS/service or http://path/to/WFS/service?SERVICE=WFS)   
-        -d --destination     Connection string for data destination (eg. PG:"dbname='databasename' host='addr' port='5432' user='x' password='y'")
-        -c --cql             CQL flter string (eg. "land_district = 'Otago'")
-        -h --help            This help screen
-        
-    Note 
-    1. Connection options can be set up in the config file "ldsincr.conf" but command line options can be used instead and will override 
-    configuration file settings. There is no checking done on command line connection strings
-    2. A valid layer name or the keyword ALL is required on the command line prefixed by the -l option flag
-    3. Dates are not required and omitting them will trigger an auto incremental request based on the lastmodified parameter in the respective 
-    destination layer properties file
-    4. Dates when provided must be in the format yyyy-mm-dd or specify the keyword ALL
-    5. CQL strings are only minimally checked for tokens indicating a predicate. The user is responsible for ensuring they are constructing their
-    filter using the correct parameter names, formats and bounds.
-    6. CQL filters will be override one another according to; Command Line > configfile (ldsincr.conf) > layer config (___.layer.properties) 
+Python script to translate fetch an LDS update between two dates. Intended to be used in a batch process rather than interactively. 
 
+| Usage: 
+| python main.py pg   | postgres
+| python main.py ms   | mssql
+| python main.py slite| spatialite
+| python main.py fgdb | filegdb
+
+| python main.py arc  | sde | arcsde
+| python main.py mi   | mapinfo
+| python main.py shp  | shapefile
+| python main.py csv  | csvfile
+|
+| Options:
+| -l --layer           v:xNNN | ALL
+| -f --fromdate        yyyy-mm-dd | ALL
+| -t --todate          yyyy-mm-dd | ALL
+| -s --source          Connection string for data source (eg. WFS:http://path/to/WFS/service or http://path/to/WFS/service?SERVICE=WFS)   
+| -d --destination     Connection string for data destination (eg. PG:"dbname='databasename' host='addr' port='5432' user='x' password='y'")
+| -c --cql             CQL flter string (eg. "land_district = 'Otago'")
+| -h --help            This help screen
+
+| Notes 
+| 1. Connection options can be set up in the config file "ldsincr.conf" but command line options can be used instead and will override configuration file settings. There is no checking done on command line connection strings
+| 2. A valid layer name or the keyword ALL is required on the command line prefixed by the -l option flag
+| 3. Dates are not required and omitting them will trigger an auto incremental request based on the lastmodified parameter in the respective destination layer properties file
+| 4. Dates when provided must be in the format yyyy-mm-dd or specify the keyword ALL to trigger full replication
+| 5. Full replication uses a fast driver copy mechanism and ignores discards and filters. Adding discard columns to a fully replicated layer would be considered a schema change and potentially fail.
+| 6. CQL strings are only minimally checked for tokens indicating a predicate. The user is responsible for ensuring they are constructing their filter using the correct parameter names, formats and bounds.
+| 7. CQL filters will override one another (they do not stack) according to; Command Line > configfile (ldsincr.conf) > layer config (___.layer.properties) 
+| 8. Output names (for DB tables/FileGDB directories etc) are defined in the layer config file, not LDS. Changing this name will trigger the creation of a new table.
+| 9. Adding multiple output on the command line will trigger the copy process for these outputs 
+| 10. The properties files are interchangeable and selected based on their name ie postgresql.layer.properties is the layer properties file for the PostgreSQL output. Copying this file to mssql.layer.properties would assign it as the same for a MSSQLSpatial output
+| 11. In the properties files the sections are denoted by the layer id in square brackets eg [v:x111]
+| 12. Beneath the section header property values include {pkey, name, lastmodified, geocolumn, epsg, cql}
+| 12.1. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' globally this may very per layer.
+| 12.2. Property 'name'. Used as the name for the output table/file these are not guaranteed to be unique. Nominally set to LDS layer name.
+| 12.3. Property 'lastmodified'. This is a date string (yyyy-mm-dd) indicating the age of the data copied to output. It is used as a start point when doing auto-incremental updates.
+| 12.4. Property 'geocolumn'. Used as the name for the output geometry column
+| 12.5. Property 'epsg'. Specifies the required EPSG number to affect a projection change. If left blank the source projection will be retained
+| 12.6. Property 'cql'. Sets a cql filter for the layer. Notes 1: the user is responsible for constructing well-formed CQL filters. 2: Layer filters will be overriden globally in the config file or on the command line.
 '''
 
 import sys
@@ -72,6 +78,7 @@ def usage():
     
 def main():
     '''Main entrypoint if the LDS incremental replication script
+    
     usage: python LDSReader/main.py -l <layer_id> { -f <fromdate> | -t <todate> | -c <cql_filter> } <output>
     '''
 

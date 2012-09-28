@@ -1,0 +1,244 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LDSReader.LDSDataStore &mdash; LDSINCR 0.0.2 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LDSINCR 0.0.2 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LDSINCR 0.0.2 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for LDSReader.LDSDataStore</h1><div class="highlight"><pre>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">v.0.0.1</span>
+
+<span class="sd">LDSIncremental -  LDS Incremental Utilities</span>
+
+<span class="sd">Copyright 2011 Crown copyright (c)</span>
+<span class="sd">Land Information New Zealand and the New Zealand Government.</span>
+<span class="sd">All rights reserved</span>
+
+<span class="sd">This program is released under the terms of the new BSD license. See the </span>
+<span class="sd">LICENSE file for more information.</span>
+
+<span class="sd">Created on 23/07/2012</span>
+
+<span class="sd">@author: jramsay</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">WFSDataStore</span> <span class="kn">import</span> <span class="n">WFSDataStore</span>
+<span class="kn">from</span> <span class="nn">urllib2</span> <span class="kn">import</span> <span class="n">urlopen</span>
+<span class="kn">from</span> <span class="nn">LDSUtilities</span> <span class="kn">import</span> <span class="n">LDSUtilities</span>
+
+
+<span class="n">ldslog</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;LDS&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LDSDataStore"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSDataStore.LDSDataStore">[docs]</a><span class="k">class</span> <span class="nc">LDSDataStore</span><span class="p">(</span><span class="n">WFSDataStore</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    PostgreSQL DataStore</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">conn_str</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        cons init driver</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c">#super WFS sets WFS driver and gets WFS config params</span>
+        <span class="c">#supersuper DataStore sets def flags (eg INCR)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LDSDataStore</span><span class="p">,</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">conn_str</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">CHANGE_COL</span> <span class="o">=</span> <span class="s">&quot;__change__&quot;</span>
+
+
+        
+<div class="viewcode-block" id="LDSDataStore.getCapabilities"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSDataStore.LDSDataStore.getCapabilities">[docs]</a>    <span class="k">def</span> <span class="nf">getCapabilities</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s">&#39;conn_str&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn_str</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn_str</span>
+        <span class="n">uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="o">+</span><span class="s">&quot;/wfs?service=WFS&quot;</span><span class="o">+</span><span class="s">&quot;&amp;version=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">ver</span><span class="o">+</span><span class="s">&quot;&amp;request=GetCapabilities&quot;</span>
+        <span class="n">ldslog</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">uri</span>
+    
+    </div>
+<div class="viewcode-block" id="LDSDataStore.sourceURI"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSDataStore.LDSDataStore.sourceURI">[docs]</a>    <span class="k">def</span> <span class="nf">sourceURI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">layername</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Basic Endpoint constructor&#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s">&#39;conn_str&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn_str</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn_str</span>
+        <span class="n">cql</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buildCQLStr</span><span class="p">()</span>
+        <span class="n">typ</span> <span class="o">=</span> <span class="s">&quot;&amp;typeName=&quot;</span><span class="o">+</span><span class="n">layername</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="s">&quot;&amp;outputFormat=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">fmt</span>
+        <span class="n">uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="o">+</span><span class="s">&quot;/wfs?service=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">svc</span><span class="o">+</span><span class="s">&quot;&amp;version=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">ver</span><span class="o">+</span><span class="s">&quot;&amp;request=GetFeature&quot;</span><span class="o">+</span><span class="n">typ</span><span class="o">+</span><span class="n">fmt</span><span class="o">+</span><span class="n">cql</span>
+        <span class="n">ldslog</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">uri</span>
+    
+    </div>
+<div class="viewcode-block" id="LDSDataStore.sourceURI_incr"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSDataStore.LDSDataStore.sourceURI_incr">[docs]</a>    <span class="k">def</span> <span class="nf">sourceURI_incr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">layername</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Endpoint constructor without date fields but uses the .../v/xXXX addressing construct. Only really useful for testing the incremental URL format&#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s">&#39;conn_str&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn_str</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn_str</span>
+        <span class="n">cql</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buildCQLStr</span><span class="p">()</span>
+        <span class="n">vep</span> <span class="o">=</span> <span class="n">LDSUtilities</span><span class="o">.</span><span class="n">splitLayerName</span><span class="p">(</span><span class="n">layername</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;-changeset&quot;</span>
+        <span class="n">typ</span> <span class="o">=</span> <span class="s">&quot;&amp;typeName=&quot;</span><span class="o">+</span><span class="n">layername</span><span class="o">+</span><span class="s">&quot;-changeset&quot;</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="s">&quot;&amp;outputFormat=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">fmt</span>
+        <span class="n">uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="o">+</span><span class="n">vep</span><span class="o">+</span><span class="s">&quot;/wfs?service=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">svc</span><span class="o">+</span><span class="s">&quot;&amp;version=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">ver</span><span class="o">+</span><span class="s">&quot;&amp;request=GetFeature&quot;</span><span class="o">+</span><span class="n">typ</span><span class="o">+</span><span class="n">fmt</span><span class="o">+</span><span class="n">cql</span>
+        <span class="n">ldslog</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">uri</span>
+        </div>
+<div class="viewcode-block" id="LDSDataStore.sourceURI_incrd"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSDataStore.LDSDataStore.sourceURI_incrd">[docs]</a>    <span class="k">def</span> <span class="nf">sourceURI_incrd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">layername</span><span class="p">,</span><span class="n">fromdate</span><span class="p">,</span><span class="n">todate</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Endpoint constructor fetching specific feature with incr date fields&#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s">&#39;conn_str&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn_str</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn_str</span>
+        <span class="n">cql</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buildCQLStr</span><span class="p">()</span>
+        <span class="n">vep</span> <span class="o">=</span> <span class="n">LDSUtilities</span><span class="o">.</span><span class="n">splitLayerName</span><span class="p">(</span><span class="n">layername</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;-changeset&quot;</span>
+        <span class="n">typ</span> <span class="o">=</span> <span class="s">&quot;&amp;typeName=&quot;</span><span class="o">+</span><span class="n">layername</span><span class="o">+</span><span class="s">&quot;-changeset&quot;</span>
+        <span class="n">inc</span> <span class="o">=</span> <span class="s">&quot;&amp;viewparams=from:&quot;</span><span class="o">+</span><span class="n">fromdate</span><span class="o">+</span><span class="s">&quot;;to:&quot;</span><span class="o">+</span><span class="n">todate</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="s">&quot;&amp;outputFormat=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">fmt</span>
+        <span class="n">uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="o">+</span><span class="n">vep</span><span class="o">+</span><span class="s">&quot;/wfs?service=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">svc</span><span class="o">+</span><span class="s">&quot;&amp;version=&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">ver</span><span class="o">+</span><span class="s">&quot;&amp;request=GetFeature&quot;</span><span class="o">+</span><span class="n">typ</span><span class="o">+</span><span class="n">inc</span><span class="o">+</span><span class="n">fmt</span><span class="o">+</span><span class="n">cql</span>
+        <span class="n">ldslog</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">uri</span>
+    
+    </div>
+    <span class="k">def</span> <span class="nf">_buildCQLStr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cqlfilter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getFilter</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">cqlfilter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">cql</span> <span class="o">=</span> <span class="n">LDSUtilities</span><span class="o">.</span><span class="n">checkCQL</span><span class="p">(</span><span class="n">cqlfilter</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cql</span><span class="o">=</span><span class="s">&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">cql</span>
+    
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LDSDataStore.fetchLayerNames"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSDataStore.LDSDataStore.fetchLayerNames">[docs]</a>    <span class="k">def</span> <span class="nf">fetchLayerNames</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">url</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">mm</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&#39;&lt;Name&gt;(v:x\d+)&lt;\/Name&gt;&#39;</span><span class="p">)</span>
+        <span class="n">lds</span> <span class="o">=</span> <span class="n">urlopen</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lds</span><span class="p">:</span>    
+            <span class="n">res</span> <span class="o">+=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">mm</span><span class="p">,</span><span class="n">line</span><span class="p">)</span>
+        <span class="n">lds</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">res</span>
+    
+    
+<span class="c">#    def getLayerName(self,url):</span>
+<span class="c">#        &#39;&#39;&#39;JP code to be added&#39;&#39;&#39;</span>
+<span class="c">#        import ogr </span>
+<span class="c">#        import gdal </span>
+<span class="c">#</span>
+<span class="c">#        wfs_drv = ogr.GetDriverByName(&#39;WFS&#39;) </span>
+<span class="c">#        </span>
+<span class="c">#        gdal.SetConfigOption(&#39;OGR_WFS_LOAD_MULTIPLE_LAYER_DEFN&#39;, &#39;NO&#39;) </span>
+<span class="c">#        </span>
+<span class="c">#        ds = ogr.Open(&#39;WFS:http://wfs.data.linz.govt.nz/3b7124f23806431c8371f139ec84c40e/wfs&#39;) </span>
+<span class="c">#        </span>
+<span class="c">#        for i in range(0, ds.GetLayerCount()): </span>
+<span class="c">#        </span>
+<span class="c">#            lyr = ds.GetLayer(i) </span>
+<span class="c">#            print lyr.GetName() </span>
+<span class="c">#        </span>
+<span class="c">#        # or more info </span>
+<span class="c">#        </span>
+<span class="c">#        layermetadata = ds.GetLayerByName(&quot;WFSLayerMetadata&quot;) </span>
+<span class="c">#        </span>
+<span class="c">#        feat = layermetadata.GetNextFeature() </span>
+<span class="c">#        while feat is not None: </span>
+<span class="c">#            name = feat.GetFieldAsString(&#39;layer_name&#39;) </span>
+<span class="c">#            title = feat.GetFieldAsString(&#39;title&#39;) </span>
+<span class="c">#            print( &quot;%s, %s&quot; % (name, title) ) </span>
+<span class="c">#            feat = layermetadata.GetNextFeature() </span>
+<span class="c">#        feat = None </span>
+
+
+       
+</div>
+<div class="viewcode-block" id="LDSDataStore.read"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSDataStore.LDSDataStore.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">dsn</span><span class="p">):</span>
+        <span class="n">ldslog</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;LDS read &quot;</span><span class="o">+</span><span class="n">dsn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="n">dsn</span><span class="p">)</span>
+        </div>
+<div class="viewcode-block" id="LDSDataStore.write"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSDataStore.LDSDataStore.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">dsn</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;Unable to write to LDS Data Source&quot;</span><span class="p">)</span>
+
+        
+        </div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LDSINCR 0.0.2 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, jramsay.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

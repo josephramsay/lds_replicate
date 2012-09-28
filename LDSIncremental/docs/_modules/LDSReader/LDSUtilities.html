@@ -1,0 +1,230 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LDSReader.LDSUtilities &mdash; LDSINCR 0.0.2 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LDSINCR 0.0.2 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LDSINCR 0.0.2 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for LDSReader.LDSUtilities</h1><div class="highlight"><pre>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Created on 28/08/2012</span>
+
+<span class="sd">@author: jramsay</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">ldslog</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;LDS&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LDSUtilities"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSUtilities.LDSUtilities">[docs]</a><span class="k">class</span> <span class="nc">LDSUtilities</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;Does the LDS related stuff not specifically part of the datastore&#39;&#39;&#39;</span> 
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+    
+    
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LDSUtilities.splitLayerName"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSUtilities.LDSUtilities.splitLayerName">[docs]</a>    <span class="k">def</span> <span class="nf">splitLayerName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">layername</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;layer name typically in the format v:x###&#39;&#39;&#39;</span>
+        <span class="sd">&#39;&#39;&#39;TODO. test for valid layername&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="s">&quot;/&quot;</span><span class="o">+</span><span class="n">layername</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;:&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="s">&quot;/&quot;</span><span class="o">+</span><span class="n">layername</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;:&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+    </div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LDSUtilities.cropChangeset"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSUtilities.LDSUtilities.cropChangeset">[docs]</a>    <span class="k">def</span> <span class="nf">cropChangeset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">layername</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">layername</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;-changeset&quot;</span><span class="p">,</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    </div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LDSUtilities.checkDateFormat"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSUtilities.LDSUtilities.checkDateFormat">[docs]</a>    <span class="k">def</span> <span class="nf">checkDateFormat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">xdate</span><span class="p">):</span>        
+        <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">xdate</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s">&#39;^ALL$|^\d{4}\-\d{2}-\d{2}$&#39;</span><span class="p">,</span><span class="n">xdate</span><span class="p">)</span>
+
+        </div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LDSUtilities.checkLayerName"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSUtilities.LDSUtilities.checkLayerName">[docs]</a>    <span class="k">def</span> <span class="nf">checkLayerName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">lname</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;make sure layer name conforms to v:x format or user is asking for ALL layers&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">lname</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s">&#39;^ALL$|^v:x\d+$&#39;</span><span class="p">,</span><span class="n">lname</span><span class="p">)</span> 
+        </div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="LDSUtilities.checkCQL"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.LDSUtilities.LDSUtilities.checkCQL">[docs]</a>    <span class="k">def</span> <span class="nf">checkCQL</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">c</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;since CQL commands are freeform strings we need to try and validate at least the most basic errors. this is pretty basic and just looks for valid predicates</span>
+<span class="sd">        &lt;predicate&gt; ::= &lt;comparison predicate&gt; | &lt;text predicate&gt; | &lt;null predicate&gt; | &lt;temporal predicate&gt; | &lt;classification predicate&gt; | &lt;existence_predicate&gt; | &lt;between predicate&gt; | &lt;include exclude predicate&gt;       </span>
+<span class="sd">        BNF http://docs.geotools.org/latest/userguide/library/cql/internal.html</span>
+<span class="sd">        NB. Needs more work...?&#39;&#39;&#39;</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="mi">0</span>
+        
+        <span class="c">#comp pred</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;.*(?:!=|=|&lt;|&gt;|&lt;=|&gt;=)&#39;</span><span class="p">,</span><span class="n">c</span><span class="p">):</span>
+            <span class="n">v</span><span class="o">+=</span><span class="mi">1</span>
+        <span class="c">#text pred</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;.*(?:not\s*)?like.*&#39;</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+            <span class="n">v</span><span class="o">+=</span><span class="mi">2</span>
+        <span class="c">#null pred</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;.*is\s*(?:not\s*)?null.*&#39;</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+            <span class="n">v</span><span class="o">+=</span><span class="mi">4</span>
+        <span class="c">#time pred</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;.*(?:before|during|after)&#39;</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+            <span class="n">v</span><span class="o">+=</span><span class="mi">8</span>
+        <span class="c">#clsf pred, not defined</span>
+        <span class="c">#exst pred</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;.*(?:does-not-)?exist&#39;</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+            <span class="n">v</span><span class="o">+=</span><span class="mi">32</span>
+        <span class="c">#btwn pred</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;.*(?:not\s*)?between&#39;</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+            <span class="n">v</span><span class="o">+=</span><span class="mi">64</span>
+        <span class="c">#incl pred</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;.*(?:include|exclude)&#39;</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+            <span class="n">v</span><span class="o">+=</span><span class="mi">128</span>
+        <span class="c">#geo predicates just for good measure, returns v=16 overriding classification pred</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&#39;.*(?:equals|disjoint|intersects|touches|crosses|within|contains|overlaps|bbox|dwithin|beyond|relate)&#39;</span><span class="p">,</span><span class="n">c</span><span class="p">,</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+            <span class="n">v</span><span class="o">+=</span><span class="mi">16</span>
+            
+        <span class="n">ldslog</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;CQL check:&quot;</span><span class="o">+</span><span class="n">c</span><span class="o">+</span><span class="s">&quot;:&quot;</span><span class="o">+</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">v</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&quot;&amp;cql_filter=&quot;</span><span class="o">+</span><span class="n">c</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&quot;&quot;</span>
+    
+    
+<span class="c">#    #no longer used</span>
+<span class="c">#    </span>
+<span class="c">#    def parseLayerList(self,ds):</span>
+<span class="c">#        layers = ()</span>
+<span class="c">#        for li in range(0,ds.GetLayerCount()):</span>
+<span class="c">#            layer = ds.GetLayerByIndex(li)</span>
+<span class="c">#</span>
+<span class="c">#            print &quot;layer&quot;,layer.GetName()#,layer.GetLayerDefn()</span>
+<span class="c">#            layers += (layer.GetName(),)</span>
+<span class="c">#</span>
+<span class="c">#        return layers</span>
+<span class="c">#</span>
+<span class="c">#    </span>
+<span class="c">#    def parseFeatureList(self,ds,layername):</span>
+<span class="c">#        head = ()</span>
+<span class="c">#        body = ()</span>
+<span class="c">#        </span>
+<span class="c">#        #lep = self.constructEndpoint(layername)</span>
+<span class="c">#        #lds = self.connect(lep)</span>
+<span class="c">#        #geo = ds.GetGeomType()</span>
+<span class="c">#        #sref = ds.GetSpatialRef()</span>
+<span class="c">#        &#39;&#39;&#39;get the first row and use it to build a headers list = ((colname,coltype),)&#39;&#39;&#39;</span>
+<span class="c">#        layer = ds.GetLayerByName(layername)</span>
+<span class="c">#        feat = layer.GetNextFeature()</span>
+<span class="c">#        for fc in range(0,feat.GetFieldCount()):</span>
+<span class="c">#            fdef = feat.GetFieldDefnRef(fc)</span>
+<span class="c">#</span>
+<span class="c">#            head += ((fdef.GetName(),fdef.GetType()),) </span>
+<span class="c">#        print &quot;head&quot;,layer.GetName(),head</span>
+<span class="c">#        </span>
+<span class="c">#        &#39;&#39;&#39;get data by column header&#39;&#39;&#39;</span>
+<span class="c">#        while feat is not None:</span>
+<span class="c">#            &#39;&#39;&#39;put the geo obj in the first col&#39;&#39;&#39;</span>
+<span class="c">#            data = (feat.GetGeometryRef().ExportToWkt(),)</span>
+<span class="c">#            for col in head:</span>
+<span class="c">#                data += (feat.GetField(col[0]),)</span>
+<span class="c">#                </span>
+<span class="c">#            print &quot;data&quot;,data</span>
+<span class="c">#            body += (data,) </span>
+<span class="c">#            </span>
+<span class="c">#            feat = layer.GetNextFeature()</span>
+<span class="c">#        return (head,body)</span>
+<span class="c">#            </span>
+<span class="c">#                </span>
+<span class="c">#    def parseFieldList(self,ds,layername):</span>
+<span class="c">#        head = ()</span>
+<span class="c">#        layer = ds.GetLayerByName(layername)</span>
+<span class="c">#        feat = layer.GetNextFeature()</span>
+<span class="c">#        for fc in range(0,feat.GetFieldCount()):</span>
+<span class="c">#            fdef = feat.GetFieldDefnRef(fc)</span>
+<span class="c">#</span>
+<span class="c">#            head += ((fdef.GetName(),fdef.GetType()),) </span>
+<span class="c">#            </span>
+<span class="c">#        print &quot;head&quot;,layer.GetName(),head</span>
+        </div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LDSINCR 0.0.2 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, jramsay.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

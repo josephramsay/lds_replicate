@@ -1,14 +1,5 @@
 '''
-v.0.0.1
-
-LDSIncremental -  LDS Incremental Utilities
-
-Copyright 2011 Crown copyright (c)
-Land Information New Zealand and the New Zealand Government.
-All rights reserved
-
-This program is released under the terms of the new BSD license. See the 
-LICENSE file for more information.
+LDSDataStore convenience subclass of WFSDataStore wrapping the LDS specific WFS instance. 
 
 Created on 23/07/2012
 
@@ -27,7 +18,8 @@ ldslog = logging.getLogger('LDS')
 
 class LDSDataStore(WFSDataStore):
     '''
-    PostgreSQL DataStore
+    LDS DataStore provides standard options and URI methods along with convenience methods for common functions/documents expressed as 
+    URI builders. For incremental specifically the change-column is defined here
     '''
 
     def __init__(self,conn_str=None):
@@ -43,6 +35,7 @@ class LDSDataStore(WFSDataStore):
 
         
     def getCapabilities(self):
+        '''GetCapabilities endpoint constructor'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
         uri = self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
@@ -75,7 +68,7 @@ class LDSDataStore(WFSDataStore):
         return uri
         
     def sourceURI_incrd(self,layername,fromdate,todate):
-        '''Endpoint constructor fetching specific feature with incr date fields'''
+        '''Endpoint constructor fetching specific layer with incremental date fields'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
         cql = self._buildCQLStr()
@@ -89,6 +82,7 @@ class LDSDataStore(WFSDataStore):
     
     
     def _buildCQLStr(self):
+        '''Fetches and set filters and appends key part and does basic checking'''
         cqlfilter = self.getFilter()
         if cqlfilter is not None:
             cql = LDSUtilities.checkCQL(cqlfilter)
@@ -98,6 +92,8 @@ class LDSDataStore(WFSDataStore):
     
     @classmethod
     def fetchLayerNames(self,url):
+        '''Non-Driver method for fetching LDS layer ID's using standard URL open library.
+        TODO. Investigate implementing this using the WFS driver and the relative expense for each'''
         res = []
         mm = re.compile('<Name>(v:x\d+)<\/Name>')
         lds = urlopen(url)
@@ -105,45 +101,14 @@ class LDSDataStore(WFSDataStore):
             res += re.findall(mm,line)
         lds.close()
         return res
-    
-    
-#    def getLayerName(self,url):
-#        '''JP code to be added'''
-#        import ogr 
-#        import gdal 
-#
-#        wfs_drv = ogr.GetDriverByName('WFS') 
-#        
-#        gdal.SetConfigOption('OGR_WFS_LOAD_MULTIPLE_LAYER_DEFN', 'NO') 
-#        
-#        ds = ogr.Open('WFS:http://wfs.data.linz.govt.nz/3b7124f23806431c8371f139ec84c40e/wfs') 
-#        
-#        for i in range(0, ds.GetLayerCount()): 
-#        
-#            lyr = ds.GetLayer(i) 
-#            print lyr.GetName() 
-#        
-#        # or more info 
-#        
-#        layermetadata = ds.GetLayerByName("WFSLayerMetadata") 
-#        
-#        feat = layermetadata.GetNextFeature() 
-#        while feat is not None: 
-#            name = feat.GetFieldAsString('layer_name') 
-#            title = feat.GetFieldAsString('title') 
-#            print( "%s, %s" % (name, title) ) 
-#            feat = layermetadata.GetNextFeature() 
-#        feat = None 
-
 
        
 
     def read(self,dsn):
+        '''Simple Read method for LDS data store'''
         ldslog.info("LDS read "+dsn)
         self.ds = self.driver.Open(dsn)
         
-    def write(self,dsn):
-        raise NotImplementedError("Unable to write to LDS Data Source")
 
         
         

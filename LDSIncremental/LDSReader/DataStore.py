@@ -1,66 +1,9 @@
 '''
+DataStore is the base Datasource wrapper object 
+
 Created on 9/08/2012
 
 @author: jramsay
-
-:~$ ogrinfo --formats
-Supported Formats:
-  -> "ESRI Shapefile" (read/write)
-  -> "MapInfo File" (read/write)
-  -> "UK .NTF" (readonly)
-  -> "SDTS" (readonly)
-  -> "TIGER" (read/write)
-  -> "S57" (read/write)
-  -> "DGN" (read/write)
-  -> "VRT" (readonly)
-  -> "REC" (readonly)
-  -> "Memory" (read/write)
-  -> "BNA" (read/write)
-  -> "CSV" (read/write)
-  -> "NAS" (readonly)
-  -> "GML" (read/write)
-  -> "GPX" (read/write)
-  -> "KML" (read/write)
-  -> "GeoJSON" (read/write)
-  -> "Interlis 1" (read/write)
-  -> "Interlis 2" (read/write)
-  -> "GMT" (read/write)
-  -> "SQLite" (read/write)
-  -> "DODS" (readonly)
-  -> "ODBC" (read/write)
-  -> "PGeo" (readonly)
-  -> "MSSQLSpatial" (read/write)
-  -> "OGDI" (readonly)
-  -> "PostgreSQL" (read/write)
-  -> "MySQL" (read/write)
-  -> "PCIDSK" (read/write)
-  -> "XPlane" (readonly)
-  -> "AVCBin" (readonly)
-  -> "AVCE00" (readonly)
-  -> "DXF" (read/write)
-  -> "Geoconcept" (read/write)
-  -> "GeoRSS" (read/write)
-  -> "GPSTrackMaker" (read/write)
-  -> "VFK" (readonly)
-  -> "PGDump" (read/write)
-  -> "GPSBabel" (read/write)
-  -> "SUA" (readonly)
-  -> "OpenAir" (readonly)
-  -> "PDS" (readonly)
-  -> "WFS" (readonly)
-  -> "HTF" (readonly)
-  -> "AeronavFAA" (readonly)
-  -> "Geomedia" (readonly)
-  -> "EDIGEO" (readonly)
-  -> "GFT" (read/write)
-  -> "SVG" (readonly)
-  -> "CouchDB" (read/write)
-  -> "Idrisi" (readonly)
-  -> "ARCGEN" (readonly)
-  -> "SEGUKOOA" (readonly)
-  -> "SEGY" (readonly)
-
-
 '''
 
 import sys
@@ -73,7 +16,6 @@ from datetime import datetime, timedelta
 from abc import ABCMeta, abstractmethod
 
 from LDSUtilities import LDSUtilities
-from MetaLayerInformation import MetaLayerReader
 from ProjectionReference import Projection
 
 ldslog = logging.getLogger('LDS')
@@ -94,8 +36,8 @@ class InvalidFeatureException(LDSReaderException): pass
 
 class DataStore(object):
     '''
-    DataStore is the base Datasource wrapper object superclassing Postgres/LDS(WFS) etc.
-    This class contains the main copy functions for each datasource and sets up default connection parameters 
+    DataStore superclasses PostgreSQL, LDS(WFS), FileGDB and SpatiaLite datastores.
+    This class contains the main copy functions for each datasource and sets up default connection parameters. Common options are also set up in this class 
     '''
     __metaclass__ = ABCMeta
 
@@ -159,16 +101,18 @@ class DataStore(object):
         return self.OVERWRITE      
     
     def getOptions(self):
-        '''override this in subclasses as new options are required'''
+        '''Returns common options, overridden in subclasses for source specifc options'''
         return ['OVERWRITE='+self.getOverwrite()]    
     
     
     @abstractmethod
     def sourceURI(self):
+        '''Abstract URI method for returning source. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method sourceURI not implemented")
     
     @abstractmethod
     def destinationURI(self):
+        '''Abstract URI method for returning destination. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method destinationURI not implemented")
 
     #@abstractmethod
@@ -176,12 +120,12 @@ class DataStore(object):
     #    raise NotImplementedError("Abstract method buildExternalLayerDefinition not implemented")
     
     def read(self,dsn):
-        '''main read method'''
+        '''Main DS read method'''
         ldslog.info("DS read"+dsn.split(":")[0])
         self.ds = self.driver.Open(dsn)
     
     def write(self,src,dsn):
-        '''Main write method attempts to open then create a datasource'''
+        '''Main DS write method. Attempts to open or alternatively, create a datasource'''
         
         ldslog.info("DS Write "+dsn)#.split(":")[0]
         try:
@@ -230,7 +174,7 @@ class DataStore(object):
     
     def copyDS(self,src_ds,dst_ds,changecol):
         #TDOD. decide whether C_C is better as an arg or a src.prop
-        '''Data Store replication for incremental queries'''
+        '''DataStore feature-by-feature replication for incremental queries'''
         #build new layer by duplicating source layers  
             
         ldslog.info("Using copyDS. Per-feature copy")
@@ -366,7 +310,7 @@ class DataStore(object):
 
 
     def partialCloneFeature(self,fin,fout_def,ref_gcol):
-        '''rebuilds a feature using a passed in feature def. must still ignore discarded columns since they will be in the source'''
+        '''Builds a feature using a passed in feature definition. Must still ignore discarded columns since they will be in the source'''
 
         fout = ogr.Feature(fout_def)
 
@@ -398,7 +342,7 @@ class DataStore(object):
         return fout
     
     def partialCloneFeatureDef(self,fin):
-        '''builds a feature definition ignoring the __change__ and discarded columns'''
+        '''Builds a feature definition ignoring the __change__ and any discarded columns'''
         #create blank feat defn
         fout_def = ogr.FeatureDefn()
         #read input feat defn
@@ -417,7 +361,7 @@ class DataStore(object):
     
     
     def _findMatchingFID(self,dst_layer,ref_pkey,key):
-        '''find the FID matching a primary key value'''
+        '''Find the FID matching a primary key value'''
         qry = ref_pkey+" = "+str(key)
         dst_layer.SetAttributeFilter(qry)
         found_feat = dst_layer.GetNextFeature()
@@ -428,8 +372,8 @@ class DataStore(object):
     
     
     def getLastModified(self,layer):
-        '''gets the last modification time of a layer to use for incremental "fromdate" calls'''
-        '''this is intended to be run as a destination method ie dst.getLastModified'''
+        '''Gets the last modification time of a layer to use for incremental "fromdate" calls. This is intended to be run 
+        as a destination method since the destination is the DS being modified i.e. dst.getLastModified'''
         lmd = self.mlr.readLastModified(layer)
         if lmd is None or lmd == '':
             lmd = self.EARLIEST_INIT_DATE
@@ -437,13 +381,13 @@ class DataStore(object):
         #return lm.strftime(self.DATE_FORMAT)
         
     def setLastModified(self,layer,newdate):
-        '''gets the last modification time of a layer to use for incremental "fromdate" calls'''
-        '''this is intended to be run as a destination method ie dst.getLastModified'''
+        '''Sets the last modification time of a layer following a successful incremental copy operation'''
         self.mlr.writeLastModified(layer, newdate)    
 
     def getCurrent(self,offset):
-        '''gets the current timestamp plus any required offset for incremental todate calls'''
-        '''offset expected in dict form with {day=D, hour=H, minute=M}'''
+        '''Gets the current timestamp plus any required offset for incremental todate calls. 
+        Offsets are expected in dict form with {day=D, hour=H, minute=M}. 
+        This may be useful if you need to synchronise layer dates when being processed across a day boundary'''
         if offset is None:
             offset = {'day':0,'hour':0,'minute':0}
         dpo = datetime.now()+timedelta(days=offset['day'],hours=offset['hour'],minutes=offset['minute'])
@@ -455,8 +399,8 @@ class DataStore(object):
     
     @classmethod
     def sanitise(self,name):
-        '''manually subst potential table naming errors, generic function to retain naming convention across all outputs'''
-        '''no guarantees this wont cause naming conflicts eg A-B-C -> a_b_c <- a::{b}::c'''
+        '''Manually substitute potential table naming errors implemented as a common function to retain naming convention across all outputs.
+        No guarantees are made that this feature won't cause naming conflicts e.g. A-B-C -> a_b_c <- a::{b}::c'''
         #append _ to name beginning with a number
         if re.match('\A\d',name):
             name = "_"+name
@@ -469,7 +413,7 @@ class DataStore(object):
 
     @classmethod
     def parseStringList(self,st):
-        '''flakey name type parse'''
+        '''QaD List-as-String to List parser'''
         return st.rstrip(')]').lstrip('[(').split(',') if st.find(',')>-1 else st
 
     
@@ -477,14 +421,14 @@ class DataStore(object):
     
     @classmethod
     def _showFeatureData(self,feature):
-        '''prints feature/fid info. useful for debugging'''
+        '''Prints feature/fid info. Useful for debugging'''
         ldslog.debug("Feat:FID:"+str(feature.GetFID()))
         for field_no in range(0,feature.GetFieldCount()):
             ldslog.debug("fid={},fld_no={},fld_data={}".format(feature.GetFID(),field_no,feature.GetFieldAsString(field_no)))
             
     @classmethod
     def _showLayerData(self,layer):
-        '''prints layer and embedded feature data. useful for debugging'''
+        '''Prints layer and embedded feature data. Useful for debugging'''
         ldslog.debug("Layer:Name:"+layer.GetName())
         layer.ResetReading()
         feat = layer.GetNextFeature()

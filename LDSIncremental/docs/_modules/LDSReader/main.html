@@ -1,0 +1,252 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LDSReader.main &mdash; LDSINCR 0.0.2 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LDSINCR 0.0.2 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LDSINCR 0.0.2 documentation</a> &raquo;</li>
+          <li><a href="../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for LDSReader.main</h1><div class="highlight"><pre>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">v.0.0.2</span>
+
+<span class="sd">LDSIncremental -  LDS Incremental Utilities</span>
+
+<span class="sd">Copyright 2011 Crown copyright (c)</span>
+<span class="sd">Land Information New Zealand and the New Zealand Government.</span>
+<span class="sd">All rights reserved</span>
+
+<span class="sd">This program is released under the terms of the new BSD license. See the </span>
+<span class="sd">LICENSE file for more information.</span>
+
+<span class="sd">Created on 23/07/2012</span>
+
+<span class="sd">@author: jramsay</span>
+
+<span class="sd">    Python script to translate fetch an LDS update between two dates. Intended to be used in a batch process rather than interactively. </span>
+<span class="sd">    </span>
+<span class="sd">    Usage: </span>
+<span class="sd">        python main.py pg   | postgres</span>
+<span class="sd">        python main.py ms   | mssql</span>
+<span class="sd">        python main.py slite| spatialite</span>
+<span class="sd">        python main.py fgdb | filegdb</span>
+<span class="sd">        </span>
+<span class="sd">        *** coming soon ***</span>
+<span class="sd">        python main.py arc  | sde | arcsde</span>
+<span class="sd">        python main.py mi   | mapinfo</span>
+<span class="sd">        python main.py shp  | shapefile</span>
+<span class="sd">        python main.py csv  | csvfile</span>
+<span class="sd">        </span>
+<span class="sd">    Options:</span>
+<span class="sd">        -l --layer           v:xNNN | ALL</span>
+<span class="sd">        -f --fromdate        yyyy-mm-dd | ALL</span>
+<span class="sd">        -t --todate          yyyy-mm-dd | ALL</span>
+<span class="sd">        -s --source          Connection string for data source (eg. WFS:http://path/to/WFS/service or http://path/to/WFS/service?SERVICE=WFS)   </span>
+<span class="sd">        -d --destination     Connection string for data destination (eg. PG:&quot;dbname=&#39;databasename&#39; host=&#39;addr&#39; port=&#39;5432&#39; user=&#39;x&#39; password=&#39;y&#39;&quot;)</span>
+<span class="sd">        -c --cql             CQL flter string (eg. &quot;land_district = &#39;Otago&#39;&quot;)</span>
+<span class="sd">        -h --help            This help screen</span>
+<span class="sd">        </span>
+<span class="sd">    Note </span>
+<span class="sd">    1. Connection options can be set up in the config file &quot;ldsincr.conf&quot; but command line options can be used instead and will override </span>
+<span class="sd">    configuration file settings. There is no checking done on command line connection strings</span>
+<span class="sd">    2. A valid layer name or the keyword ALL is required on the command line prefixed by the -l option flag</span>
+<span class="sd">    3. Dates are not required and omitting them will trigger an auto incremental request based on the lastmodified parameter in the respective </span>
+<span class="sd">    destination layer properties file</span>
+<span class="sd">    4. Dates when provided must be in the format yyyy-mm-dd or specify the keyword ALL</span>
+<span class="sd">    5. CQL strings are only minimally checked for tokens indicating a predicate. The user is responsible for ensuring they are constructing their</span>
+<span class="sd">    filter using the correct parameter names, formats and bounds.</span>
+<span class="sd">    6. CQL filters will be override one another according to; Command Line &gt; configfile (ldsincr.conf) &gt; layer config (___.layer.properties) </span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">getopt</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">TransferProcessor</span> <span class="kn">import</span> <span class="n">TransferProcessor</span>
+<span class="kn">from</span> <span class="nn">TransferProcessor</span> <span class="kn">import</span> <span class="n">InputMisconfigurationException</span>
+
+<span class="n">ldslog</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;LDS&#39;</span><span class="p">)</span>
+<span class="n">ldslog</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+<span class="n">fh</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span><span class="s">&#39;debug.log&#39;</span><span class="p">,</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+<span class="n">fh</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+<span class="n">formatter</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">Formatter</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%(asctime)s</span><span class="s"> - </span><span class="si">%(levelname)s</span><span class="s"> - </span><span class="si">%(module)s</span><span class="s"> - </span><span class="si">%(message)s</span><span class="s">&#39;</span><span class="p">)</span>
+<span class="n">fh</span><span class="o">.</span><span class="n">setFormatter</span><span class="p">(</span><span class="n">formatter</span><span class="p">)</span>
+<span class="n">ldslog</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
+
+<div class="viewcode-block" id="usage"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.main.usage">[docs]</a><span class="k">def</span> <span class="nf">usage</span><span class="p">():</span>
+    <span class="k">print</span> <span class="s">&quot;for help use --help&quot;</span>
+    </div>
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../api/LDSReader.html#LDSReader.main.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;Main entrypoint if the LDS incremental replication script</span>
+<span class="sd">    usage: python LDSReader/main.py -l &lt;layer_id&gt; { -f &lt;fromdate&gt; | -t &lt;todate&gt; | -c &lt;cql_filter&gt; } &lt;output&gt;</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    
+    <span class="n">td</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">fd</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">ly</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">sc</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">dc</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="n">cq</span> <span class="o">=</span> <span class="bp">None</span>
+    
+    <span class="c"># parse command line options</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">opts</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="n">getopt</span><span class="o">.</span><span class="n">getopt</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="s">&quot;hf:t:l:s:d:c:&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;help&quot;</span><span class="p">,</span><span class="s">&quot;fromdate=&quot;</span><span class="p">,</span><span class="s">&quot;todate=&quot;</span><span class="p">,</span><span class="s">&quot;layer=&quot;</span><span class="p">,</span><span class="s">&quot;source=&quot;</span><span class="p">,</span><span class="s">&quot;destination=&quot;</span><span class="p">,</span><span class="s">&quot;cql=&quot;</span><span class="p">])</span>
+        <span class="n">ldslog</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;OPTS:&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">opts</span><span class="p">))</span>
+        <span class="n">ldslog</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;ARGS:&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">args</span><span class="p">))</span>
+    <span class="k">except</span> <span class="n">getopt</span><span class="o">.</span><span class="n">error</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span>
+        <span class="k">print</span> <span class="n">msg</span>
+        <span class="n">usage</span><span class="p">()</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        
+    <span class="c"># process options</span>
+    <span class="k">for</span> <span class="n">opt</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">opts</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">opt</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;-h&quot;</span><span class="p">,</span> <span class="s">&quot;--help&quot;</span><span class="p">):</span>
+            <span class="k">print</span> <span class="n">__doc__</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">opt</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;-f&quot;</span><span class="p">,</span><span class="s">&quot;--fromdate&quot;</span><span class="p">):</span>
+            <span class="n">fd</span> <span class="o">=</span> <span class="n">val</span> 
+        <span class="k">elif</span> <span class="n">opt</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;-t&quot;</span><span class="p">,</span><span class="s">&quot;--todate&quot;</span><span class="p">):</span>
+            <span class="n">td</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">elif</span> <span class="n">opt</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;-l&quot;</span><span class="p">,</span><span class="s">&quot;--layer&quot;</span><span class="p">):</span>
+            <span class="n">ly</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">elif</span> <span class="n">opt</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;-s&quot;</span><span class="p">,</span><span class="s">&quot;--source&quot;</span><span class="p">):</span>
+            <span class="n">sc</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">elif</span> <span class="n">opt</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;-d&quot;</span><span class="p">,</span><span class="s">&quot;--destination&quot;</span><span class="p">):</span>
+            <span class="n">dc</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">elif</span> <span class="n">opt</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;-c&quot;</span><span class="p">,</span><span class="s">&quot;--cql&quot;</span><span class="p">):</span>
+            <span class="n">cq</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s">&quot;unrecognised option:</span><span class="se">\n</span><span class="s">&quot;</span> \
+            <span class="s">&quot;-f (--fromdate) Date in yyyy-mm-dd format start of incremental range (omission assumes auto incremental bounds),&quot;</span> \
+            <span class="s">&quot;-t (--todate) Date in yyyy-mm-dd format for end of incremental range (omission assumes auto incremental bounds),&quot;</span> \
+            <span class="s">&quot;-l (--layer) Mandatory. Layer name/id in format v:x### (omission assumes all layers),&quot;</span> \
+            <span class="s">&quot;-s (--source) Connection string for source DS,&quot;</span> \
+            <span class="s">&quot;-d (--destination) Connection string for destination DS,&quot;</span> \
+            <span class="s">&quot;-c (--cql) Filter definition in CQL format,&quot;</span> \
+            <span class="s">&quot;-h (--help) Display this message&quot;</span> \
+            <span class="s">&quot;Note. Setting both -f and -t to &#39;ALL&#39; will load the entire layer ignoring incremental bounds. Omitting the -l option loads all layers. Using these together will replicate the entire LDS&quot;</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="c">#TODO consider ly argument to specify a file name containing a list of layers? </span>
+    <span class="k">if</span> <span class="n">ly</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">InputMisconfigurationException</span><span class="p">(</span><span class="s">&quot;Layer name required (-l)&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        
+    <span class="n">tp</span> <span class="o">=</span> <span class="n">TransferProcessor</span><span class="p">(</span><span class="n">ly</span><span class="p">,</span><span class="n">fd</span><span class="p">,</span><span class="n">td</span><span class="p">,</span><span class="n">sc</span><span class="p">,</span><span class="n">dc</span><span class="p">,</span><span class="n">cq</span><span class="p">)</span>
+    
+    <span class="c">#output format</span>
+    <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;pg&quot;</span><span class="p">,</span> <span class="s">&quot;postgres&quot;</span><span class="p">):</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2PG</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;ms&quot;</span><span class="p">,</span> <span class="s">&quot;mssql&quot;</span><span class="p">):</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2MSSQL</span><span class="p">()</span>
+<span class="c">#        elif arg in (&quot;mi&quot;, &quot;mapinfo&quot;):</span>
+<span class="c">#            tp.processLDS2Mapinfo()</span>
+<span class="c">#        elif arg in (&quot;shp&quot;, &quot;shapefile&quot;):</span>
+<span class="c">#            tp.processLDS2Shape() </span>
+<span class="c">#        elif arg in (&quot;csv&quot;, &quot;csvfile&quot;):</span>
+<span class="c">#            tp.processLDS2CSV()</span>
+        <span class="k">elif</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;slite&quot;</span><span class="p">,</span> <span class="s">&quot;spatialite&quot;</span><span class="p">):</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2SpatiaLite</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;fgdb&quot;</span><span class="p">,</span> <span class="s">&quot;filegdb&quot;</span><span class="p">):</span>
+            <span class="n">tp</span><span class="o">.</span><span class="n">processLDS2FileGDB</span><span class="p">()</span>
+<span class="c">#        elif arg in (&quot;arc&quot;, &quot;sde&quot;, &quot;arcsde&quot;):</span>
+<span class="c">#            tp.processLDS2ArcSDE()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InputMisconfigurationException</span><span class="p">(</span><span class="s">&quot;Output type required (pg,ms,slite,fgdb&quot;</span><span class="p">)</span>
+
+
+
+</div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LDSINCR 0.0.2 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, jramsay.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

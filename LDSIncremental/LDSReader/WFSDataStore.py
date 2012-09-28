@@ -69,6 +69,7 @@ class WFSDataStore(DataStore):
         return self.ds
     
     def write(self,src_ds,dsn):
+        '''Write method deliberately raises exception discouraging writing to a WFS source'''
         return NotImplementedError("No destination for WFS")
         
         
