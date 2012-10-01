@@ -104,10 +104,12 @@ class LDSDataStore(WFSDataStore):
 
        
 
-    def read(self,dsn):
-        '''Simple Read method for LDS data store'''
-        ldslog.info("LDS read "+dsn)
-        self.ds = self.driver.Open(dsn)
+#    def read(self,dsn):
+#        '''Simple Read method for LDS data store'''
+#        ldslog.info("LDS read "+dsn)
+#        self.ds = self.driver.Open(dsn)
+        
+    #write uses WFS write exception message
         
 
         

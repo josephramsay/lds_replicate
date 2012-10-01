@@ -34,13 +34,15 @@ class MSSQLSpatialDataStore(DataStore):
 
         
     def sourceURI(self,layer):
+        '''URI method returns source file name'''
         return self._commonURI(layer)
     
     def destinationURI(self,layer):
+        '''URI method returns destination file name'''
         return self._commonURI(layer)
         
     def _commonURI(self,layer):
-        '''refers to common connection instance for example in a DB where it doesn't matter whether your reading or writing'''
+        '''Refers to common connection instance for example in a DB where it doesn't matter whether your reading or writing'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
         #return "MSSQL:server={};database={};trusted_connection={};".format(self.server, self.dbname, self.trust)
@@ -52,7 +54,7 @@ class MSSQLSpatialDataStore(DataStore):
 
 
     def getOptions(self,layer_id):
-        '''add PG options for SCHEMA and GEO_NAME'''
+        '''Get MS options for GEO_NAME'''
         local_opts = []
         gname = self.mlr.readGeometryColumnName(layer_id)
         
@@ -61,9 +63,3 @@ class MSSQLSpatialDataStore(DataStore):
         
         return super(MSSQLSpatialDataStore,self).getOptions() + local_opts
     
-    
-#    def read(self,dsn):
-#        self.ds = self.driver.Open(dsn)
-#    
-#    def write(self,src_ds,dsn):
-#        self.ds = self.driver.CopyDataSource(src_ds, dsn)

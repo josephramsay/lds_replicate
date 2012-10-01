@@ -76,7 +76,7 @@ class LDSUtilities(object):
         if re.match('.*(?:equals|disjoint|intersects|touches|crosses|within|contains|overlaps|bbox|dwithin|beyond|relate)',cql,re.IGNORECASE):
             v+=16
             
-        ldslog.debug("CQL check:"+cql+":"+v)
+        ldslog.debug("CQL check:"+cql+":"+str(v))
         if v>0:
             return "&cql_filter="+cql
         else:

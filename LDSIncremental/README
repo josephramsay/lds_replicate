@@ -72,7 +72,7 @@ of a new table.
 PostgreSQL output. Copying this file to mssql.layer.properties would assign it as the same for a MSSQLSpatial output
 11. In the properties files the sections are denoted by the layer id in square brackets eg [v:x111]
 12. Beneath the section header property values include {pkey, name, lastmodified, geocolumn, epsg, cql}
-12.1. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' globally this may very per layer.
+12.1. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' this may very per layer.
 12.2. Property 'name'. Used as the name for the output table/file these are not guaranteed to be unique. Nominally set to LDS layer name.
 12.3. Property 'lastmodified'. This is a date string (yyyy-mm-dd) indicating the age of the data copied to output. It is used as a start point 
 when doing auto-incremental updates.

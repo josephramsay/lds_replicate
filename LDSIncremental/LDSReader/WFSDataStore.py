@@ -26,7 +26,7 @@ class WFSDataStore(DataStore):
 
     def __init__(self,conn_str=None):
         '''
-        cons init driver and read config
+        Init driver and read config
         '''
 
         
@@ -54,7 +54,7 @@ class WFSDataStore(DataStore):
             
         
     def sourceURI(self,layername):
-        '''Basic Endpoint constructor'''
+        '''URI method returns source file name'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
         typ = "&typeName="+layername
@@ -62,11 +62,12 @@ class WFSDataStore(DataStore):
         return self.url+self.key+"/?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt
     
     def destinationURI(self,layername):
+        '''URI method returns destination file name'''
         return NotImplementedError("No destination for WFS")
 
-    def read(self,dsn):
-        self.ds = self.driver.Open(dsn)
-        return self.ds
+#    def read(self,dsn):
+#        self.ds = self.driver.Open(dsn)
+#        return self.ds
     
     def write(self,src_ds,dsn):
         '''Write method deliberately raises exception discouraging writing to a WFS source'''

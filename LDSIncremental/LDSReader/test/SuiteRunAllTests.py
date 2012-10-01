@@ -20,6 +20,7 @@ import unittest
 from TestTransferTypes import TestIncrementalDestinations
 from TestConnectivity import TestConnect
 from TestUI import TestUI
+from TestLayerTypes import TestLayerTypes
 
 
 class FullSuite(unittest.TestSuite):
@@ -73,7 +74,9 @@ def main():
     #s3a = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDates)
     s3b = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDestinations) 
     s4a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
-    ss = unittest.TestSuite([s1a,s3b,s4a])
+    s5a = unittest.TestLoader().loadTestsFromTestCase(TestLayerTypes)
+    
+    ss = unittest.TestSuite([s1a,s3b,s4a,s5a])
     runner.run(ss)
     
 if __name__ == "__main__":

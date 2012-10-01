@@ -34,14 +34,15 @@ class SpatiaLiteDataStore(DataStore):
 
         
     def sourceURI(self,layer):
+        '''URI method returns source file name'''
         return self._commonURI(layer)
     
     def destinationURI(self,layer):
+        '''URI method returns destination file name'''
         return self._commonURI(layer)
         
     def _commonURI(self,layer):
-        '''refers to common connection instance for example in a DB where it doesn't matter whether your reading or writing'''
-        '''layer not used since table isnt a valid initialisation parameter'''
+        '''Since SpatiaLite databases are self contained files this only needs to return a file path'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
         return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
@@ -64,15 +65,6 @@ class SpatiaLiteDataStore(DataStore):
         
         return super(SpatiaLiteDataStore,self).getOptions() + local_opts
         
-    def _cleanLayer(self,layer):
-        ldslog.info("SL clean")
-        self.ds.DeleteLayer(layer)
-        
-    def _clean(self):
-        for li in range(0,self.ds.GetLayerCount()):
-            self.cleanLayer(li)
-    
-
 
     '''
     returned by ogr.GetFieldTypeName(i)

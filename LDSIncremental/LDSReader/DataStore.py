@@ -78,7 +78,9 @@ class DataStore(object):
         self.cql = cql
          
     def getFilter(self):
-        return self.cql
+        if self.cql is not None and self.cql != '': 
+            return self.cql
+        return None
     
     #incr flag
     def setIncremental(self):
@@ -104,6 +106,7 @@ class DataStore(object):
         '''Returns common options, overridden in subclasses for source specifc options'''
         return ['OVERWRITE='+self.getOverwrite()]    
     
+    '''Both Source and Destination URI for the generic situation where we want to transfer between similar Ds formats. e.g. PG->PG'''
     
     @abstractmethod
     def sourceURI(self):
@@ -190,7 +193,7 @@ class DataStore(object):
             ref_layer_name = LDSUtilities.cropChangeset(src_layer_name)
             
             '''retrieve per-layer settings from props'''
-            (ref_pkey,ref_name,ref_gcol,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(ref_layer_name)
+            (ref_pkey,ref_name,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(ref_layer_name)
             
             dst_layer_name = self.schema+"."+self.sanitise(ref_name) if hasattr(self,'schema') and self.schema is not None else self.sanitise(ref_name)
             ldslog.info("Dest layer: "+dst_layer_name)
@@ -304,6 +307,17 @@ class DataStore(object):
                 src_feat = src_layer.GetNextFeature()
 
             #self._showLayerData(dst_layer)
+            
+            #Build index - May need to be pushed out to subclasses depending on syntax differences
+            if ref_index == 'SPATIAL' or ref_index == 'S':
+                self.buildIndex('CREATE SPATIAL INDEX {s}_SK ON {s}({s})'.format(ref_gcol,dst_layer_name,ref_gcol))
+            elif ref_index == 'PKEY' or ref_index == 'P':
+                self.buildIndex('CREATE INDEX {s}_PK ON {s}({s})'.format(ref_pkey,dst_layer_name,ref_pkey))
+            elif ref_index is not None:
+                #maybe the user wants a non pk/spatial index? Try to filter the string
+                clst = ','.join(self.parseStringList(ref_index))
+                self.buildIndex('CREATE INDEX {s}_PK ON {s}({s})'.format(self.sanitise(clst),dst_layer_name,clst))
+            
             src_layer.ResetReading()
             dst_layer.ResetReading()
 
@@ -359,17 +373,7 @@ class DataStore(object):
                 
         return fout_def
     
-    
-    def _findMatchingFID(self,dst_layer,ref_pkey,key):
-        '''Find the FID matching a primary key value'''
-        qry = ref_pkey+" = "+str(key)
-        dst_layer.SetAttributeFilter(qry)
-        found_feat = dst_layer.GetNextFeature()
-        if found_feat is not None:
-            return found_feat.GetFID()
-        return None
-            
-    
+
     
     def getLastModified(self,layer):
         '''Gets the last modification time of a layer to use for incremental "fromdate" calls. This is intended to be run 
@@ -392,10 +396,60 @@ class DataStore(object):
             offset = {'day':0,'hour':0,'minute':0}
         dpo = datetime.now()+timedelta(days=offset['day'],hours=offset['hour'],minutes=offset['minute'])
         return dpo.strftime(self.DATE_FORMAT)
+    
+    def buildIndex(self,command):
+        '''Creates an index creation string for a new full replicate'''
+        ldslog.info('Attempting SQL '+command)
+        if self.validateSQL(command):
+            self.executeSQL(command)
+    
+    # private methods
         
+    def _executeSQL(self,sql):
+        '''Executes arbitrary SQL on the datasource'''
+        '''Tagged private since we only want it called from well controlled methods'''
+        try:
+            self.ds.executeSQL()
+        except:
+            ldslog.warning("Unable to execute SQL:"+sql,exc_info=1)
+                
+            
+    def _validateSQL(self,sql):
+        '''Validates SQL against a list of allowed queries'''
         
+        sql = sql.lower()
+        #first match 'create index'
+        if re.match('create index on',sql) or re.match('create spatial index on',sql):
+            return True
         
-    #utility methods
+        #second match 'drop index'
+        if re.match('drop index on',sql) or re.match('drop spatial index on',sql):
+            return True
+        
+        return False
+        
+    def _cleanLayer(self,layer):
+        '''Deletes a layer from the DS'''
+        ldslog.info("DS clean")
+        self.ds.DeleteLayer(layer)
+        
+    def _clean(self):
+        '''Deletes the entire DS layer by layer'''
+        for li in range(0,self.ds.GetLayerCount()):
+            self.cleanLayer(li)
+    
+    
+    def _findMatchingFID(self,dst_layer,ref_pkey,key):
+        '''Find the FID matching a primary key value'''
+        qry = ref_pkey+" = "+str(key)
+        dst_layer.SetAttributeFilter(qry)
+        found_feat = dst_layer.GetNextFeature()
+        if found_feat is not None:
+            return found_feat.GetFID()
+        return None
+            
+    
+    # utility methods
     
     @classmethod
     def sanitise(self,name):
@@ -415,9 +469,8 @@ class DataStore(object):
     def parseStringList(self,st):
         '''QaD List-as-String to List parser'''
         return st.rstrip(')]').lstrip('[(').split(',') if st.find(',')>-1 else st
-
     
-    #debugging methods
+    # debugging methods
     
     @classmethod
     def _showFeatureData(self,feature):

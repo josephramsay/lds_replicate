@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSIncremental -  LDS Incremental Utilities
+LDSIncremental -  ReadConfig
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -25,7 +25,7 @@ ldslog = logging.Logger("LDS.ReadConfig")
 
 class Reader(object):
     '''
-    reads a config file of user editable settings for PostgreSQL,FileGDB,ArcSDE,MySQL,MSSQL,DB2,Informix,Oracle
+    Config file reader/writer
     '''
 
 
@@ -41,11 +41,12 @@ class Reader(object):
         
         
     def getSections(self):
-        '''list of sections (layernames/datasources)'''
+        '''List of sections (layernames/datasources)'''
         return self.cp.sections()
         
     def _readConfigFile(self,fname):
-        '''split off so you can override the config file on the same reader object if needed'''
+        '''Reads named config file'''
+        #Split off so you can override the config file on the same reader object if needed
         self.cp = ConfigParser.ConfigParser()
         self.cp.read(fname)
                 
@@ -80,7 +81,7 @@ class Reader(object):
     #database
         
     def readPostgreSQLConfig(self):
-
+        '''PostgreSQL specific config file reader'''
         host = self.cp.get('PostgreSQL', 'host')
         port = self.cp.get('PostgreSQL', 'port')
         dbname = self.cp.get('PostgreSQL', 'dbname')
@@ -97,7 +98,7 @@ class Reader(object):
         return (host,port,dbname,schema,usr,pwd,over)
     
     def readMSSQLConfig(self):
-
+        '''MSSQL specific config file reader'''
         odbc = self.cp.get('MSSQL', 'odbc')
         server = self.cp.get('MSSQL', 'server')
         dsn = self.cp.get('MSSQL', 'dsn')
@@ -111,7 +112,7 @@ class Reader(object):
         return (odbc,server,dsn,trust,dbname,schema,usr,pwd)
     
     def readSpatiaLiteConfig(self):
-
+        '''SpatiaLite specific config file reader'''
         path = self.cp.get('SpatiaLite', 'path')
         
         return path
@@ -149,6 +150,7 @@ class Reader(object):
     #file    
     
     def readFileConfig(self):
+        '''Generic File-storage-type config file reader, could be used for FileGDB, SpatiaLite, Mapinfo, Shapefile since these only need a filename'''
         try:
             prefix = self.cp.get('File', 'prefix')
         except NoOptionError:
@@ -163,7 +165,7 @@ class Reader(object):
         return (prefix,path)
     
     def readFileGDBConfig(self):
-        
+        '''FileGDB specific config file reader'''
         try: 
             path = self.cp.get('FileGDB', 'path')
         except NoOptionError:
@@ -176,6 +178,7 @@ class Reader(object):
     #web
     
     def readWFSConfig(self):
+        '''Generic WFS specific config file reader'''
         url = self.cp.get('WFS', 'url') 
         key = self.cp.get('WFS', 'key') 
         svc = self.cp.get('WFS', 'svc') 
@@ -187,6 +190,7 @@ class Reader(object):
         return (url,key,svc,ver,fmt,cql)    
     
     def readLDSConfig(self):
+        '''LDs specific config file reader'''
         try:
             url = self.cp.get('LDS', 'url')
         except NoOptionError:
@@ -218,6 +222,7 @@ class Reader(object):
         return (url,key,svc,ver,fmt)
     
     def readProxyConfig(self):
+        '''Proxy config reader is needed. Not really supported anymore'''
         host = self.cp.get('Proxy', 'host') 
         port = self.cp.get('Proxy', 'port') 
         usr = self.cp.get('Proxy', 'user') 
@@ -230,16 +235,14 @@ class Reader(object):
     #----------------------------------------------------------------------------------------------
     
     def findLayerIdByName(self,name):
-        '''reverse lookup of section by associated name, finds first occurance only'''
+        '''Reverse lookup of section by associated name, finds first occurance only'''
         for section_name in self.cp.sections():
             if name == self.cp.get(section_name,'name'):
                 return section_name
         return name
     
     def readLayerSchemaConfig(self,layer):
-        '''assuming that when the reader for this method call is instantiated it will point at some non-def 
-        config file might be expecting too much, so uncomment below if needed'''
-        
+        '''Full Layer config reader'''
         try:
             defn = self.cp.get(layer, 'sql')
             #if the user has gone to the trouble of defining their own schema in SQL who are we to argue. assume pk and geo defined within
@@ -271,6 +274,12 @@ class Reader(object):
             gcol = 'SHAPE'
             
         try:
+            index = self.cp.get(layer, 'index')
+        except NoOptionError:
+            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
+            index = None
+            
+        try:
             epsg = self.cp.get(layer, 'epsg')
         except NoOptionError:
             #print "No Projection Transformation defined"#don't really need to state the default occurance
@@ -292,12 +301,12 @@ class Reader(object):
         except NoOptionError:
             cql = None
             
-        return (pkey,name,gcol,epsg,lmod,disc,cql)
+        return (pkey,name,gcol,index,epsg,lmod,disc,cql)
     
     
     
     def writeLayerSchemaConfig(self,layer,lmod):
-        '''write changes to config file remembering the config file was chosen in the object call. '''
+        '''Write changes to layer config file'''
         try:
             self.cp.set(layer,'lastmodified',lmod)
         except Error:

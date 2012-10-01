@@ -37,7 +37,7 @@ class InputMisconfigurationException(Exception): pass
 
 
 class TransferProcessor(object):
-    '''primary class controlling data transfer objects and parameters for these'''
+    '''Primary class controlling data transfer objects and the parameters for these'''
 
     def __init__(self,ly,fd=None,td=None,sc=None,dc=None,cql=None):
         #ldsu? lnl?
@@ -105,15 +105,16 @@ class TransferProcessor(object):
 
         
     def processLDS(self,dst):
-        '''process with LDS as a source and the dest supplied as arg'''
-        '''
-        the logic here is:
-        if layer not specified do them all {$layer = All}
-        else if layer specified do it {$layer = L[i]}
+        '''Process with LDS as a source and the destination supplied as an argument.
         
-        if dates specified as 'Full' do full replication on $layer
-        else if dates specified do incr on this range for $layer
-        else do auto-incr on $layer (where auto picks last-mod and current dates as range)
+        The logic here is:
+        
+        if layer is not specified, do them all {$layer = All}
+        else if layer specified do that layer {$layer = L[i]}
+        
+        if dates specified as 'ALL' do full replication on $layer
+        else if (both) dates are specified do incr on this range for $layer
+        else do auto-increment on $layer (where auto picks last-mod and current dates as range)
         '''
         
         #NB self.cql <- commandline, self.src.cql <- ldsincr.conf, 
@@ -172,6 +173,7 @@ class TransferProcessor(object):
     #----------------------------------------------------------------------------------------------
     
     def fullReplicate(self,layer):
+        '''Replicate across the whole date range'''
         if layer is 'ALL':
             #layer should never be none... 'ALL' needed
             #TODO consider driver reported layer list
@@ -182,14 +184,17 @@ class TransferProcessor(object):
 
 
     def fullReplicateLayer(self,layer):
+        '''Replicate the requested layer non-incrementally'''
         self.src.read(self.src.sourceURI(layer))
         self.dst.write(self.src,self.dst.destinationURI(layer))
-        '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer'''
+        '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
+        i.e. retained since dates may change between successive calls depending on the start time of the process'''
         self.dst.setLastModified(layer,self.dst.getCurrent(None))
     
     
     
     def autoIncrement(self,layer):
+        '''Auto-Increment reads last-mod and current time to construct incremental date ranges'''
         if layer is 'ALL':
             for layer_i in self.lnl:
                 self.autoIncrementLayer(layer_i)
@@ -198,6 +203,7 @@ class TransferProcessor(object):
             
                       
     def autoIncrementLayer(self,layer_i):
+        '''For a specified layer read date ranges and call incremental'''
         offset = None
         fdate = self.dst.getLastModified(layer_i)
         tdate = self.dst.getCurrent(offset)
@@ -206,23 +212,27 @@ class TransferProcessor(object):
 
     
     def definedIncremental(self,layer_i,fdate,tdate):
-        '''making sure the date ranges are sequential read/write and set last modified'''
+        '''Making sure the date ranges are sequential, read/write and set last modified'''
         #Once an individual layer has been defined...
-        #though it seems a bit of a hack it makes sense that we're stealing the DST MetaLayer to get its CQL and use it in the SRC query 
         
         self.src.setFilter(self.establishCQLPrecedence(self.cql,self.src.getFilter(),self.dst.mlr.readCQLFilter(LDSUtilities.cropChangeset(layer_i))))
         
         if datetime.strptime(tdate,'%Y-%M-%d') > datetime.strptime(fdate,'%Y-%M-%d'):
+            #Set Incremental determines whether we use the incremental or full endpoint construction
             self.src.setIncremental()
             self.src.read(self.src.sourceURI_incrd(layer_i,fdate,tdate))
             self.dst.write(self.src,self.dst.destinationURI(layer_i))
             self.dst.setLastModified(layer_i,tdate)
         else:
-            ldslog.info("No update required for layer "+layer_i)
+            ldslog.info("No update required for layer "+layer_i+" since [start:"+fdate+" > finish:"+tdate+"]")
         return tdate
     
     
     def establishCQLPrecedence(self,cmdline_cql,config_cql,layer_cql):
+        '''
+        Decide which CQL filter to apply.
+        CommandLine > Config-File > Layer-Properties
+        '''
         if cmdline_cql is not None:
             return cmdline_cql
         elif config_cql is not None and config_cql != '':

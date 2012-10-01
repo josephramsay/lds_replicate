@@ -10,9 +10,8 @@ ldslog =  logging.getLogger('LDS')
 
 class Projection(object):
     '''
-    classdocs
+    Utility Class performing common projection/spatial functions 
     '''
-
 
     def __init__(self):
  
@@ -29,10 +28,13 @@ class Projection(object):
         self.EPSG27200_esri = 'PROJCS["NZGD49 / New Zealand Map Grid",GEOGCS["NZGD49",DATUM["D_New_Zealand_1949",SPHEROID["International_1924",6378388,297]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["New_Zealand_Map_Grid"],PARAMETER["latitude_of_origin",-41],PARAMETER["central_meridian",173],PARAMETER["false_easting",2510000],PARAMETER["false_northing",6023150],UNIT["Meter",1]]'
         
     def getDefaultProjection(self):
-        return self.getProjection(2193)
+        '''Returns WKT of the 2193 Spatial Reference'''
+        return self.getProjection(2193)#WKT
+        #return self.validateEPSG(2193)#SR
     
     @classmethod
     def getProjection(self,pid):
+        '''Returns WKT of commonly used projections'''
         return {
             2193:self.EPSG2193_esri,
             4167:self.EPSG4167_esri,
@@ -41,6 +43,7 @@ class Projection(object):
         
     @classmethod
     def getDefaultSpatialRef(self):
+        '''Fallback Spatial Ref for LDS data sets. May not be appropriate in all cases'''
         srs = osr.SpatialReference()
         srs.SetGeogCS("GCS_NZGD_2000","D_NZGD_2000","GRS_1980",6378137.0,298.257222101,"Greenwich",0.0,"Degree",0.0174532925199433)
         srs.SetAuthority("GEOGCS","EPSG",4167)
@@ -48,6 +51,7 @@ class Projection(object):
     
     @classmethod
     def modifyMorphedSpatialReference(self,sref):
+        '''Hack to fix ESRI import of NZGD2000 GeogCS type, which it doesn't seem to understand'''
         geogcs = sref.ExportToWkt()
         if geogcs[8:16]=='NZGD2000':
             geogcs = geogcs.replace('NZGD2000','GCS_NZGD_2000')
@@ -57,6 +61,7 @@ class Projection(object):
     
     @classmethod
     def validateEPSG(self,epsg):
+        '''Returns a Spatial Reference privided a valid EPSG number'''
         try:
             srs = osr.SpatialReference()
             srs.ImportFromEPSG(int(epsg))
@@ -70,7 +75,7 @@ class Projection(object):
         
         
 class Geometry(object):
-    
+    '''Geometry class providing common definitions'''
     def __init__(self):
         '''
         Constructor
@@ -79,4 +84,5 @@ class Geometry(object):
         
     @classmethod
     def getGeoTransform(self):
+        '''Default Geo Column name'''
         return self.DEF

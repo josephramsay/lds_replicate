@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSIncremental -  LDS Incremental Utilities
+LDSIncremental -  (Meta) Layer Reader
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -22,8 +22,7 @@ ldslog = logging.getLogger('LDS')
 
 class MetaLayerReader(object):
     '''
-    Simple CSV DataStore intended for meta storage; schemas, layer-mod-dates etc
-    For now simply wraps calls to ReadConfig with a predefined filename and some preprocessing
+    Convenience wrapper class to config-file reader instances. 
     '''
 
     def __init__(self,props_file=None):
@@ -35,24 +34,28 @@ class MetaLayerReader(object):
         
    
     def getLayerNames(self):
+        '''Returns configured layers for respective layer properties file'''
         return self.layerconfig.getSections()
     
     def readConvertedLayerName(self,layer_id):
+        '''Reads configured name for a provided layer id'''
         (pkey,name,gcol,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
         return name
     
     def lookupConvertedLayerName(self,layer_name):
-        '''given a converted layer name look up its ID'''
+        '''Reverse lookup of layer id given a layer name, again using the layer properties file'''
         return self.layerconfig.findLayerIdByName(layer_name)
 
 
 
 
     def readLastModified(self,layer_id):
+        '''Reads last modified date for a provided layer id per destination'''
         (pkey,name,gcol,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
         return lmod
         
     def writeLastModified(self,layer_id,lmod):
+        '''Writes a new last modified date for a provided layer id per destination'''
         ldslog.info("Writing "+lmod+" for layer="+layer_id+" to config file")
         self.layerconfig.writeLayerSchemaConfig(layer_id, lmod)
 
@@ -60,31 +63,36 @@ class MetaLayerReader(object):
 
 
     def readOptionalColmuns(self,layer_id):
+        '''Returns a list of columns being discarded for the named layer (with removal of brackets)'''
         (pkey,name,gcol,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
         return disc.strip('[]{}()').split(',') if disc is not None else []
     
     def readPrimaryKey(self,layer_id):
+        '''Returns a list of columns being discarded for the named layer'''
         (pkey,name,gcol,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
         return pkey
     
     def readCQLFilter(self,layer_id):
+        '''Reads the CQL filter for the layer if provided'''
         (pkey,name,gcol,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
         return cql
     
     
     
     def readGeometryColumnName(self,layer_id):
+        '''Returns preferred geometry column name. If not provided uses the existing layer name'''
         (pkey,name,gcol,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
         return gcol
     
     
     def readAllLayerParameters(self,layer_id):
+        '''Returns a list of all layer parameters'''
         return self.layerconfig.readLayerSchemaConfig(layer_id)
         
     #unless there is a pk change we wont need to write pk
 
     def readDSSpecificParameters(self,drv):
-
+        '''Returns the datasource parameters'''
         if drv=='PostgreSQL':
             return self.mainconfig.readPostgreSQLConfig()
         elif drv=='MSSQLSpatial':
