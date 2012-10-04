@@ -16,7 +16,7 @@ class SpatiaLiteDataStore(DataStore):
     PostgreSQL DataStore
     '''
 
-    def __init__(self,conn_str=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
         cons init driver
         '''
@@ -28,7 +28,7 @@ class SpatiaLiteDataStore(DataStore):
 
         self.getDriver(self.DRIVER_NAME)
 
-        self.mlr = MetaLayerReader("spatialite.layer.properties")
+        self.mlr = MetaLayerReader(user_config,"spatialite.layer.properties")
 
         self.file = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
 
@@ -59,9 +59,15 @@ class SpatiaLiteDataStore(DataStore):
         '''add PG options for SCHEMA and GEO_NAME'''
         local_opts = []
         gname = self.mlr.readGeometryColumnName(layer_id)
+        #index = self.mlr.readIndexRef(layer_id).lower()
         
+        #TODO Figure out how to set geom_name for SL... this wont do it
         if gname is not None:
             local_opts += ['GEOMETRY_NAME='+gname]
+            
+        #Not really needed since default is YES
+        #if index == 'spatial or index == 's' or re.match(index,gname.lower()):
+        #    local_opts += ['SPATIAL_INDEX=YES']
         
         return super(SpatiaLiteDataStore,self).getOptions() + local_opts
         

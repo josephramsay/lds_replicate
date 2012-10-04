@@ -32,7 +32,6 @@ class Projection(object):
         return self.getProjection(2193)#WKT
         #return self.validateEPSG(2193)#SR
     
-    @classmethod
     def getProjection(self,pid):
         '''Returns WKT of commonly used projections'''
         return {
@@ -42,7 +41,7 @@ class Projection(object):
         }.get(pid,self.getDefaultProjection())
         
     @classmethod
-    def getDefaultSpatialRef(self):
+    def getDefaultSpatialRef(cls):
         '''Fallback Spatial Ref for LDS data sets. May not be appropriate in all cases'''
         srs = osr.SpatialReference()
         srs.SetGeogCS("GCS_NZGD_2000","D_NZGD_2000","GRS_1980",6378137.0,298.257222101,"Greenwich",0.0,"Degree",0.0174532925199433)
@@ -50,7 +49,7 @@ class Projection(object):
         return srs
     
     @classmethod
-    def modifyMorphedSpatialReference(self,sref):
+    def modifyMorphedSpatialReference(cls,sref):
         '''Hack to fix ESRI import of NZGD2000 GeogCS type, which it doesn't seem to understand'''
         geogcs = sref.ExportToWkt()
         if geogcs[8:16]=='NZGD2000':
@@ -60,7 +59,7 @@ class Projection(object):
         
     
     @classmethod
-    def validateEPSG(self,epsg):
+    def validateEPSG(cls,epsg):
         '''Returns a Spatial Reference privided a valid EPSG number'''
         try:
             srs = osr.SpatialReference()
@@ -81,8 +80,20 @@ class Geometry(object):
         Constructor
         '''
         self.DEF = 'SHAPE'
+        #NE 
+        self.YMAX = -30
+        self.XMAX = 180
+        #SW
+        self.YMIN = -70
+        self.XMIN = 155
         
-    @classmethod
     def getGeoTransform(self):
         '''Default Geo Column name'''
         return self.DEF
+    
+    def getBoundingBox(self):
+        '''A bounding box covering NZ'''
+        '''TODO... this properly'''
+        return (self.XMIN,self.YMIN,self.XMAX,self.YMAX)
+    
+    

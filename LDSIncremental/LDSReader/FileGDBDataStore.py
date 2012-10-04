@@ -17,7 +17,7 @@ class FileGDBDataStore(ESRIDataStore):
     FileGDB DataStore wrapper for file location and options 
     '''
 
-    def __init__(self,conn_str=None):
+    def __init__(self,conn_str=None,user_config=None):
 
         super(FileGDBDataStore,self).__init__(conn_str)
         
@@ -25,7 +25,7 @@ class FileGDBDataStore(ESRIDataStore):
         
         self.getDriver(self.DRIVER_NAME)
         
-        self.mlr = MetaLayerReader("filegdb.layer.properties")
+        self.mlr = MetaLayerReader(user_config,"filegdb.layer.properties")
         
         self.path = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
         

@@ -7,7 +7,7 @@ USAGE
 
 The basic usage of the script is:
 
-python main.py <options> output        
+python ldsreplicate.py <options> output        
 
 Where valid output specifiers include; pg (postgres), ms (mssql), slite (spatialite) and fgdb (filegdb)
 
@@ -27,24 +27,24 @@ EXAMPLES
 
 
 ----1----
-python main.py -l v:x772 pg
+python ldsreplicate.py -l v:x772 pg
 
 Copy the 'NZ Primary Parcels' layer using the auto incremental feature to a postgres output. The postgres connection 
 parameters will have had to be defined in the ldsincr.conf configuration file.
 
 ----2----
-python main.py -l v:x781 -fd 2012-05-01 -td 2012-05-31 slite
+python ldsreplicate.py -l v:x781 -f 2012-05-01 -t 2012-05-31 slite
 
 Copy the 'NZ Railway Centre Lines' layer between the dates 2012-05-01 and 2012-05-31 to a SpatiaLite data store. Connections parameters for SpatialLite 
 should be defined in the configuration file.
 
 ----3----
-python main.py slite -l v:x782 -fd ALL -c "land_district = 'Otago'" mssql
+python ldsreplicate.py -l v:x782 -f ALL -c "land_district = 'Otago'" mssql
 
 Copy the 'NZ Non-Primary Parcels' for all dates but only the Otago region into an MSSQL Spatial database whose parameters are stored in the configuration file
 
 ----4----
-python main.py -l v:x785 -dc "C:\path\to\some\folder\somefile.gdb" fgdb
+python ldsreplicate.py -l v:x785 -c "C:\path\to\some\folder\somefile.gdb" fgdb
 
 Copy the 'NZ Land Districts' layer into the fileGDB database file somefile.gdb using incremental range determined by lastmodified and current date. 
     

@@ -20,28 +20,30 @@ class LDSUtilities(object):
     
     
     @classmethod
-    def splitLayerName(self,layername):
+    def splitLayerName(cls,layername):
         '''Splits a layer name typically in the format v:x### into /v/x### for URI inclusion'''
         return "/"+layername.split(":")[0]+"/"+layername.split(":")[1]
     
     @classmethod
-    def cropChangeset(self,layername):
+    def cropChangeset(cls,layername):
         '''Removes changeset identifier from layer name'''
         return layername.rstrip("-changeset")
     
     @classmethod
-    def checkDateFormat(self,xdate):
-        '''Checks a date parameter conforms to yyyy-mm-dd format or is the "ALL" keyword'''        
-        return type(xdate) is str and re.search('^ALL$|^\d{4}\-\d{2}-\d{2}$',xdate)
+    def checkDateFormat(cls,xdate):
+        '''Checks a date parameter conforms to yyyy-MM-ddThh:mm:ss format'''        
+        return type(xdate) is str and re.search('^\d{4}\-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?)$',xdate)
 
+    # 772 time test string
+    # http://wfs.data.linz.govt.nz/ldskey/v/x772-changeset/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=v:x772-changeset&viewparams=from:2012-09-29T07:00:00;to:2012-09-29T07:30:00&outputFormat=GML2
+    
+    @classmethod
+    def checkLayerName(cls,lname):
+        '''Makes sure a layer name conforms to v:x format'''
+        return type(lname) is str and re.search('^v:x\d+$',lname) 
         
     @classmethod
-    def checkLayerName(self,lname):
-        '''Makes sure a layer name conforms to v:x format or user is asking for ALL layers'''
-        return type(lname) is str and re.search('^ALL$|^v:x\d+$',lname) 
-        
-    @classmethod
-    def checkCQL(self,cql):
+    def checkCQL(cls,cql):
         '''Since CQL commands are freeform strings we need to try and validate at least the most basic errors. This is very simple
         RE matcher that just looks for valid predicates.
         

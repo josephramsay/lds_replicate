@@ -91,7 +91,7 @@ class LDSDataStore(WFSDataStore):
         return cql
     
     @classmethod
-    def fetchLayerNames(self,url):
+    def fetchLayerNames(cls,url):
         '''Non-Driver method for fetching LDS layer ID's using standard URL open library.
         TODO. Investigate implementing this using the WFS driver and the relative expense for each'''
         res = []

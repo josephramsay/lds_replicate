@@ -16,7 +16,7 @@ class PostgreSQLDataStore(DataStore):
     PostgreSQL DataStore
     '''
 
-    def __init__(self,conn_str=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
         cons init driver
         '''
@@ -38,7 +38,7 @@ class PostgreSQLDataStore(DataStore):
         
         self.getDriver(self.DRIVER_NAME)
         
-        self.mlr = MetaLayerReader("postgresql.layer.properties")
+        self.mlr = MetaLayerReader(user_config,"postgresql.layer.properties")
 
         (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite) = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
 
@@ -71,7 +71,8 @@ class PostgreSQLDataStore(DataStore):
 
     def getOptions(self,layer_id):
         '''add PG options for SCHEMA and GEO_NAME'''
-        local_opts = []
+        #Should default to geometry but doesn't, creates bytea instead
+        local_opts = ['GEOM_TYPE=GEOMETRY']
         gname = self.mlr.readGeometryColumnName(layer_id)
         
         if gname is not None:
@@ -79,7 +80,26 @@ class PostgreSQLDataStore(DataStore):
         
         return super(PostgreSQLDataStore,self).getOptions() + local_opts
     
-    
+    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+        '''Builds an index creation string for a new full replicate in PG format'''
+        ref_index = ref_index.lower()
+        if ref_index == 'spatial' or ref_index == 's':
+            cmd = 'CREATE INDEX {}_SK ON {} USING GIST({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_gcol,dst_layer_name,ref_gcol)
+        elif ref_index == 'pkey' or ref_index == 'p':
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
+        elif ref_index is not None:
+            #maybe the user wants a non pk/spatial index? Try to filter the string. This wont work for spatial columns since GIST needed
+            #TODO. Detect when gcol is in the col list and build a "mixed-spatial"? index...
+            clst = ','.join(self.parseStringList(ref_index))
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+self.sanitise(clst),dst_layer_name,clst)
+        else:
+            return
+        ldslog.info("Index="+ref_index+". Execute "+cmd)
+        self._executeSQL(cmd)
+        
+        
+        
+
 #    def buildExternalLayerDefinition(self,layer_id,flist):
 #        '''build a predefined schema for the layer'''
 #        sr = Reader('../lpk.properties')

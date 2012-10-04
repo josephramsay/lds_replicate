@@ -19,6 +19,8 @@ from LDSUtilities import LDSUtilities
 from ProjectionReference import Projection
 
 ldslog = logging.getLogger('LDS')
+#Enabling exceptions halts program when no criotical error detected
+#ogr.UseExceptions()
 
 #exceptions
 class DSReaderException(Exception): pass
@@ -28,6 +30,7 @@ class CannotInitialiseDriverType(LDSReaderException): pass
 class DatasourceCopyException(LDSReaderException): pass
 class DatasourceCreateException(LDSReaderException): pass
 class DatasourceOpenException(DSReaderException): pass
+class LayerCreateException(LDSReaderException): pass
 class InvalidLayerException(LDSReaderException): pass
 class InvalidFeatureException(LDSReaderException): pass
 
@@ -45,16 +48,14 @@ class DataStore(object):
 
     def __init__(self,conn_str=None):
         '''
-        cons init driver
+        Constructor inits driver and some date specific settings
         '''
-        
 
-        
         if conn_str is not None:
             self.conn_str = conn_str
             
             
-        self.DATE_FORMAT='%Y-%m-%d'
+        self.DATE_FORMAT='%Y-%m-%dT%H:%M:%S'
         self.EARLIEST_INIT_DATE = '2000-01-01'
 
         #default clear the INCR flag
@@ -135,7 +136,7 @@ class DataStore(object):
             self.ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
             if self.ds is None:
                 raise DSReaderException("Error opening DS on Destination "+str(dsn)+", attempting DS Create")
-        except DSReaderException as dsre1:
+        except (RuntimeError,DSReaderException) as dsre1:
             print "DSReaderException",dsre1 
             ldslog.error(dsre1)
             try:
@@ -146,6 +147,11 @@ class DataStore(object):
                 print "DSReaderException",dsre2
                 ldslog.error(dsre2)
                 raise
+            except RuntimeError as rte:
+                print "GDAL RuntimeError",rte
+                ldslog.error(rte)
+
+                
             
         if src.getIncremental():
             # change col in delete list and as change indicator
@@ -167,9 +173,14 @@ class DataStore(object):
         for li in range(0,src_ds.GetLayerCount()):
             src_layer = src_ds.GetLayer(li)
             src_layer_name = src_layer.GetName()
-            ref_name = self.mlr.readConvertedLayerName(src_layer_name)
+            
+            #ref_name = self.mlr.readConvertedLayerName(src_layer_name)
+            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(ref_layer_name)
+            
             dst_layer_name = self.schema+"."+self.sanitise(ref_name) if self.schema is not None else self.sanitise(ref_name)
-            dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name))
+            dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name)) 
+            if ref_index is not None:
+                self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
             
         src_layer.ResetReading()
 
@@ -182,7 +193,7 @@ class DataStore(object):
             
         ldslog.info("Using copyDS. Per-feature copy")
         for li in range(0,src_ds.GetLayerCount()):
-
+            new_layer = False
             src_layer = src_ds.GetLayer(li)
             src_layer_name = src_layer.GetName()
             src_layer_sref = src_layer.GetSpatialRef()
@@ -193,7 +204,7 @@ class DataStore(object):
             ref_layer_name = LDSUtilities.cropChangeset(src_layer_name)
             
             '''retrieve per-layer settings from props'''
-            (ref_pkey,ref_name,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(ref_layer_name)
+            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(ref_layer_name)
             
             dst_layer_name = self.schema+"."+self.sanitise(ref_name) if hasattr(self,'schema') and self.schema is not None else self.sanitise(ref_name)
             ldslog.info("Dest layer: "+dst_layer_name)
@@ -216,6 +227,7 @@ class DataStore(object):
             #assuming output layer name will be the same... confusion if this isnt so
             dst_layer = dst_ds.GetLayer(dst_layer_name)
             if dst_layer is None:
+                new_layer = True
                 '''create a new layer if a similarly named existing layer can't be found on the dst'''
                 ldslog.warning(dst_layer_name+" does not exist. Creating new layer")
                 #new_layer_flag = True
@@ -237,12 +249,16 @@ class DataStore(object):
                 if dst_layer is None:
                     #overwrite the dst_sref if its causing trouble (ie GDAL general function errors)
                     dst_sref = Projection.getDefaultSpatialRef()
-                    ldslog.warning("Could not initialise Layer with specified SRID {",src_layer_sref,"}.\n\nUsing Default {",dst_sref,"} instead")
+                    ldslog.warning("Could not initialise Layer with specified SRID {"+str(src_layer_sref)+"}.\n\nUsing Default {"+str(dst_sref)+"} instead")
                     if src_layer_geom is ogr.wkbPolygon:
                         dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,ogr.wkbMultiPolygon,opts)
                     else:
                         dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
-
+                        
+                if dst_layer is None:
+                    ldslog.error(dst_layer_name+" cannot be created")
+                    raise LayerCreateException(dst_layer_name+" cannot be created")
+                
                 #dst_layer.SetFID("id")
             
                 '''setup layer headers for new layer etc'''                
@@ -308,19 +324,13 @@ class DataStore(object):
 
             #self._showLayerData(dst_layer)
             
-            #Build index - May need to be pushed out to subclasses depending on syntax differences
-            if ref_index == 'SPATIAL' or ref_index == 'S':
-                self.buildIndex('CREATE SPATIAL INDEX {s}_SK ON {s}({s})'.format(ref_gcol,dst_layer_name,ref_gcol))
-            elif ref_index == 'PKEY' or ref_index == 'P':
-                self.buildIndex('CREATE INDEX {s}_PK ON {s}({s})'.format(ref_pkey,dst_layer_name,ref_pkey))
-            elif ref_index is not None:
-                #maybe the user wants a non pk/spatial index? Try to filter the string
-                clst = ','.join(self.parseStringList(ref_index))
-                self.buildIndex('CREATE INDEX {s}_PK ON {s}({s})'.format(self.sanitise(clst),dst_layer_name,clst))
+            '''Builds an index on a newly created layer'''
+            #May need to be pushed out to subclasses depending on syntax differences
+            if new_layer and ref_index is not None:
+                self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
             
             src_layer.ResetReading()
             dst_layer.ResetReading()
-
 
 
     def partialCloneFeature(self,fin,fout_def,ref_gcol):
@@ -388,30 +398,42 @@ class DataStore(object):
         '''Sets the last modification time of a layer following a successful incremental copy operation'''
         self.mlr.writeLastModified(layer, newdate)    
 
-    def getCurrent(self,offset):
-        '''Gets the current timestamp plus any required offset for incremental todate calls. 
-        Offsets are expected in dict form with {day=D, hour=H, minute=M}. 
-        This may be useful if you need to synchronise layer dates when being processed across a day boundary'''
-        if offset is None:
-            offset = {'day':0,'hour':0,'minute':0}
-        dpo = datetime.now()+timedelta(days=offset['day'],hours=offset['hour'],minutes=offset['minute'])
+    def getCurrent(self):
+        '''Gets the current timestamp for incremental todate calls. 
+        Time format is UTC for LDS compatibility.
+        NB. Because the current date is generated to build the LDS URI the lastmodified time will reflect the request time and not the layer creation time'''
+        dpo = datetime.utcnow()
         return dpo.strftime(self.DATE_FORMAT)
     
-    def buildIndex(self,command):
-        '''Creates an index creation string for a new full replicate'''
-        ldslog.info('Attempting SQL '+command)
-        if self.validateSQL(command):
-            self.executeSQL(command)
+    
+    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+        '''Default index string builder for new fully replicated layers'''
+        ref_index = ref_index.lower()
+        if ref_index == 'spatial' or ref_index == 's':
+            cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_gcol,dst_layer_name,ref_gcol)
+        elif ref_index == 'pkey' or ref_index == 'p':
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
+        elif ref_index is not None:
+            #maybe the user wants a non pk/spatial index? Try to filter the string
+            clst = ','.join(self.parseStringList(ref_index))
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+self.sanitise(clst),dst_layer_name,clst)
+        else:
+            return
+        ldslog.info("Index="+ref_index+". Execute "+cmd)
+        self._executeSQL(cmd)
+
     
     # private methods
         
     def _executeSQL(self,sql):
         '''Executes arbitrary SQL on the datasource'''
         '''Tagged private since we only want it called from well controlled methods'''
-        try:
-            self.ds.executeSQL()
-        except:
-            ldslog.warning("Unable to execute SQL:"+sql,exc_info=1)
+        ldslog.debug("Index: "+sql)
+        if self._validateSQL(sql):
+            try:
+                self.ds.ExecuteSQL(sql)
+            except:
+                ldslog.warning("Unable to execute SQL:"+sql,exc_info=1)
                 
             
     def _validateSQL(self,sql):
@@ -419,11 +441,11 @@ class DataStore(object):
         
         sql = sql.lower()
         #first match 'create index'
-        if re.match('create index on',sql) or re.match('create spatial index on',sql):
+        if re.match('create index',sql) or re.match('create spatial index',sql):
             return True
         
         #second match 'drop index'
-        if re.match('drop index on',sql) or re.match('drop spatial index on',sql):
+        if re.match('drop index',sql) or re.match('drop spatial index',sql):
             return True
         
         return False
@@ -452,7 +474,7 @@ class DataStore(object):
     # utility methods
     
     @classmethod
-    def sanitise(self,name):
+    def sanitise(cls,name):
         '''Manually substitute potential table naming errors implemented as a common function to retain naming convention across all outputs.
         No guarantees are made that this feature won't cause naming conflicts e.g. A-B-C -> a_b_c <- a::{b}::c'''
         #append _ to name beginning with a number
@@ -466,27 +488,28 @@ class DataStore(object):
     
 
     @classmethod
-    def parseStringList(self,st):
+    def parseStringList(cls,st):
         '''QaD List-as-String to List parser'''
         return st.rstrip(')]').lstrip('[(').split(',') if st.find(',')>-1 else st
     
     # debugging methods
     
     @classmethod
-    def _showFeatureData(self,feature):
+    def _showFeatureData(cls,feature):
         '''Prints feature/fid info. Useful for debugging'''
         ldslog.debug("Feat:FID:"+str(feature.GetFID()))
         for field_no in range(0,feature.GetFieldCount()):
             ldslog.debug("fid={},fld_no={},fld_data={}".format(feature.GetFID(),field_no,feature.GetFieldAsString(field_no)))
             
     @classmethod
-    def _showLayerData(self,layer):
+    def _showLayerData(cls,layer):
         '''Prints layer and embedded feature data. Useful for debugging'''
         ldslog.debug("Layer:Name:"+layer.GetName())
         layer.ResetReading()
         feat = layer.GetNextFeature()
         while feat is not None:
-            self._showFeatureData(feat)
+            #cls is okay here since _showFeatureData is also a @classmethod
+            cls._showFeatureData(feat)
             feat = layer.GetNextFeature()                
                 
 

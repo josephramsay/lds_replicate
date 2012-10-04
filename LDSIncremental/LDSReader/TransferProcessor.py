@@ -39,11 +39,15 @@ class InputMisconfigurationException(Exception): pass
 class TransferProcessor(object):
     '''Primary class controlling data transfer objects and the parameters for these'''
 
-    def __init__(self,ly,fd=None,td=None,sc=None,dc=None,cql=None):
+    def __init__(self,ly=None,gp=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
         #ldsu? lnl?
         #self.src = LDSDataStore() 
         #self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
         
+        self.group = None
+        if gp != None:
+            self.group = gp
+            
         self.fromdate = None
         if fd != None:
             self.fromdate = fd
@@ -54,7 +58,7 @@ class TransferProcessor(object):
         
         self.layer = None
         if ly != None:
-            self.layer = ly     
+            self.layer = ly  
             
         self.source_str = None
         if sc != None:
@@ -68,23 +72,38 @@ class TransferProcessor(object):
         if cql != None:
             self.cql = cql     
             self.ldslog.info("CQL:"+str(cql))
+            
+        self.user_config = None
+        if uc != None:
+            self.user_config = uc   
 
+    #incr flag copied straight from Datastore
+    def setIncremental(self):
+        self.INCR = True
+         
+    def clearIncremental(self):
+        self.INCR = False
+         
+    def getIncremental(self):
+        return self.INCR
+    
+    
     
     def processLDS2PG(self):
         '''process LDS to PG convenience method'''
-        self.processLDS(PostgreSQLDataStore(self.destination_str))
+        self.processLDS(PostgreSQLDataStore(self.destination_str,self.user_config))
         
     def processLDS2MSSQL(self):
         '''process LDS to PG convenience method'''
-        self.processLDS(MSSQLSpatialDataStore(self.destination_str))
+        self.processLDS(MSSQLSpatialDataStore(self.destination_str,self.user_config))
         
     def processLDS2SpatiaLite(self):
         '''process LDS to SpatiaLite convenience method'''
-        self.processLDS(SpatiaLiteDataStore(self.destination_str))    
+        self.processLDS(SpatiaLiteDataStore(self.destination_str,self.user_config))   
         
     def processLDS2FileGDB(self):
         '''process LDS to FileGDB convenience method'''
-        self.processLDS(FileGDBDataStore(self.destination_str))
+        self.processLDS(FileGDBDataStore(self.destination_str,self.user_config))
         
 #    def processLDS2Shape(self):
 #        '''process LDS to ESRI Shapefile convenience method'''
@@ -123,7 +142,7 @@ class TransferProcessor(object):
         tdate = None
         
         self.dst = dst
-        self.src = LDSDataStore(self.source_str)        
+        self.src = LDSDataStore(self.source_str,self.user_config)       
         
         #full LDS layer name list
         lds_full = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
@@ -131,6 +150,8 @@ class TransferProcessor(object):
         lds_config = self.dst.mlr.getLayerNames()
         
         self.lnl = map(lambda x: x.lstrip('v:x'),set(lds_full).intersection(set(lds_config)))
+        
+        #Filter by group designation
         
         ldslog.debug("Layer List:"+str(self.lnl))
         
@@ -141,22 +162,24 @@ class TransferProcessor(object):
             if LDSUtilities.checkDateFormat(self.todate):
                 tdate = self.todate
             else:
-                raise InputMisconfigurationException("To-Date provided but format incorrect {-td yyyy-MM-dd | ALL}")
+                raise InputMisconfigurationException("To-Date provided but format incorrect {-td yyyy-MM-dd[Thh:mm:ss]}")
         
         if self.fromdate is not None:
             if LDSUtilities.checkDateFormat(self.fromdate):
                 fdate = self.fromdate
             else:
-                raise InputMisconfigurationException("From-Date provided but format incorrect {-fd yyyy-MM-dd | ALL}")
-            
-        if LDSUtilities.checkLayerName(self.layer):
+                raise InputMisconfigurationException("From-Date provided but format incorrect {-fd yyyy-MM-dd[Thh:mm:ss}")
+        
+        if self.layer is None:
+            layer = 'ALL'  
+        elif LDSUtilities.checkLayerName(self.layer):
             layer = self.layer
         else:
-            raise InputMisconfigurationException("Layer name required {-l v:xNNN | ALL}")
+            raise InputMisconfigurationException("Layer name provided but format incorrect {-l v:x###}")
         
         
         '''if any date is 'ALL' full rep otherwise do auto unless we have proper dates'''
-        if fdate=='ALL' or tdate=='ALL': 
+        if self.getIncremental():#fdate=='ALL' or tdate=='ALL': 
             ldslog.info("Full Replicate on "+str(layer)) 
             self.fullReplicate(layer)      
         elif fdate is None or tdate is None:
@@ -189,7 +212,7 @@ class TransferProcessor(object):
         self.dst.write(self.src,self.dst.destinationURI(layer))
         '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
         i.e. retained since dates may change between successive calls depending on the start time of the process'''
-        self.dst.setLastModified(layer,self.dst.getCurrent(None))
+        self.dst.setLastModified(layer,self.dst.getCurrent())
     
     
     
@@ -199,14 +222,13 @@ class TransferProcessor(object):
             for layer_i in self.lnl:
                 self.autoIncrementLayer(layer_i)
         else:
-            self.autoIncrementLayer(layer) 
+            self.autoIncrementLayer(layer)
             
                       
     def autoIncrementLayer(self,layer_i):
         '''For a specified layer read date ranges and call incremental'''
-        offset = None
         fdate = self.dst.getLastModified(layer_i)
-        tdate = self.dst.getCurrent(offset)
+        tdate = self.dst.getCurrent()
         
         self.definedIncremental(layer_i,fdate,tdate)
 
@@ -217,7 +239,7 @@ class TransferProcessor(object):
         
         self.src.setFilter(self.establishCQLPrecedence(self.cql,self.src.getFilter(),self.dst.mlr.readCQLFilter(LDSUtilities.cropChangeset(layer_i))))
         
-        if datetime.strptime(tdate,'%Y-%M-%d') > datetime.strptime(fdate,'%Y-%M-%d'):
+        if datetime.strptime(tdate,'%Y-%m-%d') > datetime.strptime(fdate,'%Y-%m-%d'):
             #Set Incremental determines whether we use the incremental or full endpoint construction
             self.src.setIncremental()
             self.src.read(self.src.sourceURI_incrd(layer_i,fdate,tdate))

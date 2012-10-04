@@ -21,7 +21,7 @@ import ConfigParser
 
 from ConfigParser import NoOptionError,NoSectionError,Error
 
-ldslog = logging.Logger("LDS.ReadConfig")
+ldslog = logging.Logger('LDS')
 
 class Reader(object):
     '''
@@ -267,6 +267,14 @@ class Reader(object):
         if name is None:
             name = layer
             
+        '''names are/can-be stored so we can reverse search by layer name'''
+        try:
+            group = self.cp.get(layer, 'group')
+        except NoOptionError:
+            ldslog.debug("Group List: No Groups defined for this layer")
+            group = None
+            
+            
         try:
             gcol = self.cp.get(layer, 'geocolumn')
         except NoOptionError:
@@ -301,7 +309,7 @@ class Reader(object):
         except NoOptionError:
             cql = None
             
-        return (pkey,name,gcol,index,epsg,lmod,disc,cql)
+        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
     
     
     

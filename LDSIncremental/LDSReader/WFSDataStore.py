@@ -24,7 +24,7 @@ class WFSDataStore(DataStore):
     PostgreSQL DataStore
     '''
 
-    def __init__(self,conn_str=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
         Init driver and read config
         '''
@@ -35,7 +35,7 @@ class WFSDataStore(DataStore):
         self.DRIVER_NAME = "WFS"
         self.getDriver(self.DRIVER_NAME)
         
-        self.mlr = MetaLayerReader()#"wfs.layer.properties")
+        self.mlr = MetaLayerReader(user_config)#"wfs.layer.properties")
         (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
         
         
