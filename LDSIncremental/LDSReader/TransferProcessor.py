@@ -44,6 +44,9 @@ class TransferProcessor(object):
         #self.src = LDSDataStore() 
         #self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
         
+        #do and incremental copy unless requested otherwise
+        self.setIncremental()
+        
         self.group = None
         if gp != None:
             self.group = gp
@@ -137,6 +140,7 @@ class TransferProcessor(object):
         '''
         
         #NB self.cql <- commandline, self.src.cql <- ldsincr.conf, 
+        PREFIX = 'v:x'
         
         fdate = None
         tdate = None
@@ -149,13 +153,19 @@ class TransferProcessor(object):
         #list of configured layers
         lds_config = self.dst.mlr.getLayerNames()
         
-        self.lnl = map(lambda x: x.lstrip('v:x'),set(lds_full).intersection(set(lds_config)))
+        lds_valid = map(lambda x: x.lstrip(PREFIX),set(lds_full).intersection(set(lds_config)))
         
         #Filter by group designation
-        
-        ldslog.debug("Layer List:"+str(self.lnl))
+
+        self.lnl = ()
+        lg = set(self.group.split(','))
+        for lid in lds_valid:
+            if set(self.dst.mlr.readLayerGroups(PREFIX+lid).split(',')).intersection(lg):
+                self.lnl += (lid,)
         
         #override config file dates with command line dates if provided
+        ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}".format(len(lds_full),len(lds_config),len(self.lnl)))
+        ldslog.debug("Layer List:"+str(self.lnl))
         
         
         if self.todate is not None:
@@ -180,15 +190,15 @@ class TransferProcessor(object):
         
         '''if any date is 'ALL' full rep otherwise do auto unless we have proper dates'''
         if self.getIncremental():#fdate=='ALL' or tdate=='ALL': 
-            ldslog.info("Full Replicate on "+str(layer)) 
-            self.fullReplicate(layer)      
+            ldslog.info("Full Replicate on "+str(layer))
+            self.fullReplicate(layer)
         elif fdate is None or tdate is None:
             '''do auto incremental'''
             ldslog.info("Auto Incremental on "+str(layer)) 
             self.autoIncrement(layer)
         else:
             '''do requested date range'''
-            ldslog.info("Selected Replicate on "+str(layer)+" : "+str(fdate)+" to "+str(tdate)) 
+            ldslog.info("Selected Replicate on "+str(layer)+" : "+str(fdate)+" to "+str(tdate))
             self.definedIncremental(layer,fdate,tdate)
 
         #missing case is; if one date provided and other sg ? caught by elif (consider using the valid date?)

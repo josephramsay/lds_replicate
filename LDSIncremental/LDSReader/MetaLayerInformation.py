@@ -25,19 +25,43 @@ class MetaLayerReader(object):
     Convenience wrapper class to config-file reader instances.
     '''
 
-    def __init__(self,config_file=None,props_file=None):
+    def __init__(self,config_file=None,properties=None):
         '''this is not a ogr function so we dont need a driver and therefore wont call super'''
         #some layer config properties may not be needed and wont be read eg WFS so None arg wont set layerconfig
-        if props_file is not None:
-            self.layerconfig = Reader("../"+props_file)
-            
+        
+        self.driver = None
+        
+        self.userconfig = None
         if config_file is not None:
             self.userconfig = Reader("../"+config_file)
         self.mainconfig = Reader("../ldsincr.conf")
         
+        #NOTE: probably delete this
+        if properties == 'pg':
+            self.layerconfig = Storage(self.mainconfig.readPostgreSQLConfig())
+        elif properties == 'ms':
+            self.layerconfig = Storage(self.mainconfig.readMSSQLConfig())
+        elif properties == 'fgdb':
+            self.layerconfig = Storage(self.mainconfig.readFileGDBConfig())
+        elif properties == 'slite':
+            self.layerconfig = Storage(self.mainconfig.readSpatiaLiteConfig())
+            
+        if properties is not None:            
+            self.layerconfig = Reader("../"+properties)
+
+
+    def setLayerConfig(self,layerconfig):
+        self.layerconfig = layerconfig
+        
+        
     def getLayerNames(self):
         '''Returns configured layers for respective layer properties file'''
         return self.layerconfig.getSections()
+    
+    def readLayerGroups(self,layer_id):
+        '''Reads configured name for a provided layer id'''
+        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        return group
     
     def readConvertedLayerName(self,layer_id):
         '''Reads configured name for a provided layer id'''
@@ -99,7 +123,8 @@ class MetaLayerReader(object):
     #unless there is a pk change we wont need to write pk
 
     def readDSSpecificParameters(self,drv):
-        '''Returns the datasource parameters'''
+        '''Returns the datasource parameters. By request updated to let users override parts of the basic config file'''
+        self.driver = drv
         ul = ()
         if drv=='PostgreSQL':
             ml = self.mainconfig.readPostgreSQLConfig()
@@ -124,7 +149,10 @@ class MetaLayerReader(object):
         else:
             return None
         
-        return map(lambda x,y: y if x is None else x,ul,ml)
+        params = map(lambda x,y: y if x is None else x,ul,ml)
+        
+        
+        return params
 
         
         

@@ -74,9 +74,11 @@ def main():
     td = None
     fd = None
     ly = None
+    gp = None
     sc = None
     dc = None
     cq = None
+    uc = None
     
     
     #first check required libs

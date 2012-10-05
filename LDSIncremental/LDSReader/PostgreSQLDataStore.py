@@ -38,9 +38,15 @@ class PostgreSQLDataStore(DataStore):
         
         self.getDriver(self.DRIVER_NAME)
         
+        
         self.mlr = MetaLayerReader(user_config,"postgresql.layer.properties")
+        
+        self.params = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
+        #use params to read layer config here or use driver on dst ds?
+        #self.readLayerConfig()
+        #self.mlr.setLayerConfig(params)
 
-        (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite) = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
+        (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite) = self.params
 
         
     def sourceURI(self,layer):
@@ -99,7 +105,26 @@ class PostgreSQLDataStore(DataStore):
         
         
         
-
+    #Config stuff
+    
+    def readLayerConfig(self):
+        sqlstr = 'select * from lds_config;'
+        res = self._executeSQL(sqlstr)
+        if res is None:
+            res = self.initLayerConfig()
+        return res
+    
+    def writeLayerConfig(self):
+        pass
+    
+    def initLayerConfig(self):
+        sqlstr = 'create table ldsincr (id int);'
+        try:
+            r = self._executeSQL(sqlstr)
+        except:
+            print 'wtf'
+        return r
+    
 #    def buildExternalLayerDefinition(self,layer_id,flist):
 #        '''build a predefined schema for the layer'''
 #        sr = Reader('../lpk.properties')

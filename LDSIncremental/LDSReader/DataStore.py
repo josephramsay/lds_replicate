@@ -151,8 +151,9 @@ class DataStore(object):
                 print "GDAL RuntimeError",rte
                 ldslog.error(rte)
 
-                
-            
+        #here seems like the logical place to do the layer config stuff     
+        self.readLayerConfig()   
+        
         if src.getIncremental():
             # change col in delete list and as change indicator
             self.copyDS(src.ds,self.ds,src.CHANGE_COL)
@@ -175,7 +176,7 @@ class DataStore(object):
             src_layer_name = src_layer.GetName()
             
             #ref_name = self.mlr.readConvertedLayerName(src_layer_name)
-            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(ref_layer_name)
+            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(src_layer_name)
             
             dst_layer_name = self.schema+"."+self.sanitise(ref_name) if self.schema is not None else self.sanitise(ref_name)
             dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name)) 
@@ -428,24 +429,29 @@ class DataStore(object):
     def _executeSQL(self,sql):
         '''Executes arbitrary SQL on the datasource'''
         '''Tagged private since we only want it called from well controlled methods'''
-        ldslog.debug("Index: "+sql)
+        
+        ldslog.debug("SQL: "+sql)
         if self._validateSQL(sql):
             try:
-                self.ds.ExecuteSQL(sql)
+                retval = self.ds.ExecuteSQL(sql)
             except:
                 ldslog.warning("Unable to execute SQL:"+sql,exc_info=1)
-                
+        return retval
             
     def _validateSQL(self,sql):
         '''Validates SQL against a list of allowed queries'''
+        '''TODO. Better validation'''
         
         sql = sql.lower()
         #first match 'create index'
-        if re.match('create index',sql) or re.match('create spatial index',sql):
+        if re.match('(?:create|drop)(?:\s+spatial)?\s+index',sql):
+            return True
+        
+        if re.match('(?:create|drop)\s+(?:index|table)',sql):
             return True
         
         #second match 'drop index'
-        if re.match('drop index',sql) or re.match('drop spatial index',sql):
+        if re.match('select\s+(?:\w+|\*)\s+from',sql):
             return True
         
         return False

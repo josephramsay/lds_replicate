@@ -21,7 +21,7 @@ import ConfigParser
 
 from ConfigParser import NoOptionError,NoSectionError,Error
 
-ldslog = logging.Logger('LDS')
+ldslog = logging.getLogger('LDS')
 
 class Reader(object):
     '''
@@ -231,8 +231,9 @@ class Reader(object):
         return (host,port,usr,pwd)
     
     
-    
+    # Functions above relate to connection config info
     #----------------------------------------------------------------------------------------------
+    # Functions below relate to layer config data
     
     def findLayerIdByName(self,name):
         '''Reverse lookup of section by associated name, finds first occurance only'''
@@ -327,8 +328,116 @@ class Reader(object):
              
         
         
-        
-        
+#class Storage(object):
+#    '''
+#    Config file reader/writer for internal storage subclasses normal reader to use file reading capabilities
+#    but overrides the layer data functions
+#    '''
+#
+#
+#    def __init__(self,params):
+#        '''
+#        Constructor
+#        '''
+#
+#        
+#    def _readConfigFile(self,fname):
+#        '''Reads named config location'''
+#        #Split off so you can override the config file on the same reader object if needed
+#        self.cp = ConfigParser.ConfigParser()
+#        self.cp.read(fname)
+#        
+#    def parseConnStr(self,params):
+#        pass
+#    
+#    def findLayerIdByName(self,name):
+#        '''Reverse lookup of section by associated name, finds first occurance only'''
+#        for section_name in self.cp.sections():
+#            if name == self.cp.get(section_name,'name'):
+#                return section_name
+#        return name
+#    
+#    def readLayerSchemaConfig(self,layer):
+#        '''Full Layer config reader'''
+#        try:
+#            defn = self.cp.get(layer, 'sql')
+#            #if the user has gone to the trouble of defining their own schema in SQL who are we to argue. assume pk and geo defined within
+#            return (defn,None,None)
+#        except:
+#            pass
+#        
+#        '''optional but one way to record the type and name of a column is to save a string tuple (name,type) and parse this at build time'''
+#        try:
+#            pkey = self.cp.get(layer, 'pkey')
+#        except NoOptionError:
+#            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
+#            pkey = '(ID, Integer)'
+#            
+#        '''names are/can-be stored so we can reverse search by layer name'''
+#        try:
+#            name = self.cp.get(layer, 'name')
+#        except NoOptionError:
+#            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
+#            name = layer
+#            
+#        if name is None:
+#            name = layer
+#            
+#        '''names are/can-be stored so we can reverse search by layer name'''
+#        try:
+#            group = self.cp.get(layer, 'group')
+#        except NoOptionError:
+#            ldslog.debug("Group List: No Groups defined for this layer")
+#            group = None
+#            
+#            
+#        try:
+#            gcol = self.cp.get(layer, 'geocolumn')
+#        except NoOptionError:
+#            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
+#            gcol = 'SHAPE'
+#            
+#        try:
+#            index = self.cp.get(layer, 'index')
+#        except NoOptionError:
+#            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
+#            index = None
+#            
+#        try:
+#            epsg = self.cp.get(layer, 'epsg')
+#        except NoOptionError:
+#            #print "No Projection Transformation defined"#don't really need to state the default occurance
+#            epsg = None
+#            
+#        try:
+#            lmod = self.cp.get(layer, 'lastmodified')
+#        except NoOptionError:
+#            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
+#            lmod = None
+#            
+#        try:
+#            disc = self.cp.get(layer, 'discard')
+#        except NoOptionError:
+#            disc = None 
+#            
+#        try:
+#            cql = self.cp.get(layer, 'cql')
+#        except NoOptionError:
+#            cql = None
+#            
+#        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
+#    
+#    
+#    
+#    def writeLayerSchemaConfig(self,layer,lmod):
+#        '''Write changes to layer config file'''
+#        try:
+#            self.cp.set(layer,'lastmodified',lmod)
+#        except Error:
+#            ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
+#        
+#        with open(self.fname,'wb') as conffile:
+#            self.cp.write(conffile)
         
         
     

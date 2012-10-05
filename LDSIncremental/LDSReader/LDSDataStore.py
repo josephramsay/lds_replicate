@@ -22,13 +22,13 @@ class LDSDataStore(WFSDataStore):
     URI builders. For incremental specifically the change-column is defined here
     '''
 
-    def __init__(self,conn_str=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
         cons init driver
         '''
         #super WFS sets WFS driver and gets WFS config params
         #supersuper DataStore sets def flags (eg INCR)
-        super(LDSDataStore,self).__init__(conn_str)
+        super(LDSDataStore,self).__init__(conn_str,user_config)
         
         self.CHANGE_COL = "__change__"
 
