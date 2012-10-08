@@ -69,14 +69,15 @@ def main():
     #runner.run(suite)
     
     runner  = unittest.TextTestRunner()
-    s1a = unittest.TestLoader().loadTestsFromTestCase(TestConnect)
+    #s1a = unittest.TestLoader().loadTestsFromTestCase(TestConnect)
     #s2a = unittest.TestLoader().loadTestsFromTestCase(TestTransfer)
     #s3a = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDates)
-    s3b = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDestinations) 
-    s4a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
-    s5a = unittest.TestLoader().loadTestsFromTestCase(TestLayerTypes)
+    #s3b = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDestinations) 
+    #s4a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
+    #s5a = unittest.TestLoader().loadTestsFromTestCase(TestLayerTypes)
+    s6 = unittest.TestLoader().loadTestsFromTestCase(TestInitConfig)
     
-    ss = unittest.TestSuite([s1a,s3b,s4a,s5a])
+    ss = unittest.TestSuite([s6])
     runner.run(ss)
     
 if __name__ == "__main__":

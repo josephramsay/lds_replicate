@@ -25,7 +25,7 @@ class FileGDBDataStore(ESRIDataStore):
         
         self.getDriver(self.DRIVER_NAME)
         
-        self.mlr = MetaLayerReader(user_config,"filegdb.layer.properties")
+        self.mlr = MetaLayerReader(self,user_config,"filegdb.layer.properties")
         
         self.path = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
         

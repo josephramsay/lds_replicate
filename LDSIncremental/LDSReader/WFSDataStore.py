@@ -16,7 +16,7 @@ Created on 23/07/2012
 '''
 
 from DataStore import DataStore
-from ReadConfig import Reader
+#from ReadConfig import ReaderFile
 from MetaLayerInformation import MetaLayerReader
 
 class WFSDataStore(DataStore):
@@ -35,22 +35,10 @@ class WFSDataStore(DataStore):
         self.DRIVER_NAME = "WFS"
         self.getDriver(self.DRIVER_NAME)
         
-        self.mlr = MetaLayerReader(user_config)#"wfs.layer.properties")
+        self.mlr = MetaLayerReader(self,user_config)#"wfs.layer.properties")
+        
         (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
         
-        
-        
-        '''since we may need a proxy to connect to a WFS DS check for proxy config here'''
-        #(self.host,self.port,self.usr,self.pwd) = rc.readProxyConfig()
-
-#    def setup(self,url,key):
-#        '''overrides for url and key assuming key replacement for different users is a common use case'''
-#        
-#        if url is not None:
-#            self.url = url
-#            
-#        if key is not None:
-#            self.key = key
             
         
     def sourceURI(self,layername):

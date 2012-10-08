@@ -101,6 +101,16 @@ class LDSDataStore(WFSDataStore):
             res += re.findall(mm,line)
         lds.close()
         return res
+    
+    @classmethod
+    def readDocument(cls,url):
+        '''Non-Driver method for fetching LDS DS as a document'''
+        lds = urlopen(url)
+        data = lds.read()
+        lds.close()
+        return data
+        
+        
 
        
 

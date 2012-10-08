@@ -28,7 +28,7 @@ class SpatiaLiteDataStore(DataStore):
 
         self.getDriver(self.DRIVER_NAME)
 
-        self.mlr = MetaLayerReader(user_config,"spatialite.layer.properties")
+        self.mlr = MetaLayerReader(self,user_config,"spatialite.layer.properties")
 
         self.file = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
 

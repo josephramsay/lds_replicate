@@ -8,16 +8,17 @@ Created on 28/08/2012
 
 
 import re
+import os
 import logging
+from StringIO import StringIO
+
+from lxml import etree
 
 ldslog = logging.getLogger('LDS')
 
 class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
-    
-    def __init__(self):
-        pass
-    
+
     
     @classmethod
     def splitLayerName(cls,layername):
@@ -85,6 +86,45 @@ class LDSUtilities(object):
             return ""
     
     
+    
+
+class ConfigInitialiser(object):
+    '''Initialises configurationa t forst run'''
+
+    @classmethod
+    def buildTransform(cls,src,dst):
+        '''Given a destination DS use this to select an XSL transform object and generate an output document that will initialise a new config file/table'''
+        #df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
+        
+        uri = src.getCapabilities()
+        xml = src.readDocument(uri)
+        
+
+        print os.getcwd()
+        
+        if dst.DRIVER_NAME == 'PostgreSQL':
+            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_initdb.xsl'),'r').read()
+        elif dst.DRIVER_NAME == 'MSSQL':
+            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_initdb.xsl'),'r').read()
+        elif dst.DRIVER_NAME == 'SQLite':
+            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_initdb.xsl'),'r').read()
+        elif dst.DRIVER_NAME == 'FileGDB':
+            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_initdb.xsl'),'r').read()
+        else:
+            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_config.xsl'),'r').read()
+        print page
+        
+        xslt = etree.XML(page)
+        transform = etree.XSLT(xslt)
+        
+        doc = etree.parse(StringIO(xml))
+        res = transform(doc)
+        
+        return res
+      
+    
+    def initialiseConfig(self):
+        pass
 #    #no longer used
 #    
 #    def parseLayerList(self,ds):

@@ -39,14 +39,14 @@ class PostgreSQLDataStore(DataStore):
         self.getDriver(self.DRIVER_NAME)
         
         
-        self.mlr = MetaLayerReader(user_config,"postgresql.layer.properties")
+        self.mlr = MetaLayerReader(self,user_config,"postgresql.layer.properties")
         
         self.params = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
         #use params to read layer config here or use driver on dst ds?
         #self.readLayerConfig()
         #self.mlr.setLayerConfig(params)
 
-        (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite) = self.params
+        (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite,self.config) = self.params
 
         
     def sourceURI(self,layer):
@@ -125,52 +125,4 @@ class PostgreSQLDataStore(DataStore):
             print 'wtf'
         return r
     
-#    def buildExternalLayerDefinition(self,layer_id,flist):
-#        '''build a predefined schema for the layer'''
-#        sr = Reader('../lpk.properties')
-#        (pkey,name,gcol,lmod,excl) = self.mlr.readAllLayerParameters(layer_id)
-#        #sr.readLayerSchemaConfig(lname)
-#        sname = self.sanitise(name) if name is not None else self.sanitise(layer_id)
-#        pk = self.parseStringList(pkey)
-#        #atlist = self.parseStringList(excl)
-#        s = 'CREATE TABLE '+sname+"("
-#        #s += pk+' INTEGER UNIQUE NOT NULL,'
-#        #s += gcol+' GEOMETRY,'
-#        for f in flist:
-#            cname = f.GetName()
-#            if cname not in self.optcols:
-#                s += '"'+cname+'" '+self.convertToDestinationType(f.GetType())+','
-#        s += 'CONSTRAINT pk_'+sname+' PRIMARY KEY ('+pkey+'),'
-#        s += 'CONSTRAINT enforce_dims_shape CHECK (st_ndims(shape) = 2),'
-#        s += 'CONSTRAINT enforce_srid_shape CHECK (st_srid(shape) = 2193));'
-#        
-#        return s
-#        
-#
-#
-#    '''
-#    returned by ogr.GetFieldTypeName(i)
-#    0 Integer
-#    1 IntegerList
-#    2 Real
-#    3 RealList
-#    4 String
-#    5 StringList
-#    6 (unknown)
-#    7 (unknown)
-#    8 Binary
-#    9 Date
-#    10 Time
-#    11 DateTime
-#    12 (unknown) ...
-#    '''
-#    def convertToDestinationType(self,key):
-#        return {0: 'integer', 1: 'integer',
-#                2: 'double precision', 3: 'double precision',
-#                4: 'character varying', 5: 'character varying',
-#                8: 'byte',
-#                9: 'date', 10: 'time', 11: 'timestamp'
-#         }.get(key,'character varying')  
-#               
-
         

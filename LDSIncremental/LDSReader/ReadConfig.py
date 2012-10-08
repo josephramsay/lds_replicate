@@ -23,7 +23,7 @@ from ConfigParser import NoOptionError,NoSectionError,Error
 
 ldslog = logging.getLogger('LDS')
 
-class Reader(object):
+class ReaderFile(object):
     '''
     Config file reader/writer
     '''
@@ -49,34 +49,7 @@ class Reader(object):
         #Split off so you can override the config file on the same reader object if needed
         self.cp = ConfigParser.ConfigParser()
         self.cp.read(fname)
-                
-#    #incremental
-#    def readIncrementalConfig(self):
-#        try:
-#            layer = self.cp.get('Incremental', 'layer')
-#        except NoSectionError:
-#            #no section will be caught for whole read
-#            print "Missing Section [Incremental] in config file, setting all to default"
-#            return ("All",None,None,None)
-#        except NoOptionError:
-#            print "No layer specified, default to All"
-#            layer = "All"
-#            
-#        try:
-#            fdate = self.cp.get('Incremental', 'from')
-#            tdate = self.cp.get('Incremental', 'to')
-#        except NoOptionError:
-#            print "One or more missing dates, default to Full Replicate"
-#            fdate = None
-#            tdate = None
-#        
-#        try:
-#            cql = self.cp.get('Incremental', 'cql')
-#        except NoOptionError:
-#            #silently discard, not implemented
-#            cql = None
-#        
-#        return (layer,fdate,tdate,cql)
+
     
     #database
         
@@ -88,6 +61,11 @@ class Reader(object):
         schema = self.cp.get('PostgreSQL', 'schema')
         usr = self.cp.get('PostgreSQL', 'user')
         pwd = self.cp.get('PostgreSQL', 'pass')
+        try:
+            config = self.cp.get('PostgreSQL', 'config')
+        except NoOptionError:
+            ldslog.debug("PostgreSQL: No config preference specified, default to 'external'")
+            config = 'external'
         
         try:
             over = self.cp.get('PostgreSQL', 'overwrite')
@@ -95,7 +73,7 @@ class Reader(object):
             ldslog.debug("PG: Overwrite not specified, Setting to True")
             over = True
         
-        return (host,port,dbname,schema,usr,pwd,over)
+        return (host,port,dbname,schema,usr,pwd,over,config)
     
     def readMSSQLConfig(self):
         '''MSSQL specific config file reader'''
@@ -109,13 +87,25 @@ class Reader(object):
         usr = self.cp.get('MSSQL', 'user')
         pwd = self.cp.get('MSSQL', 'pass')
         
-        return (odbc,server,dsn,trust,dbname,schema,usr,pwd)
+        try:
+            config = self.cp.get('MSSQL', 'config')
+        except NoOptionError:
+            ldslog.debug("MSSQL: No config preference specified, default to 'external'")
+            config = 'external'
+        
+        return (odbc,server,dsn,trust,dbname,schema,usr,pwd,config)
     
     def readSpatiaLiteConfig(self):
         '''SpatiaLite specific config file reader'''
         path = self.cp.get('SpatiaLite', 'path')
         
-        return path
+        try:
+            config = self.cp.get('SpatiaLite', 'config')
+        except NoOptionError:
+            ldslog.debug("SpatiaLite: No config preference specified, default to 'external'")
+            config = 'external'
+        
+        return (path,config)
     
     
 #    def readOracleConfig(self):
@@ -146,23 +136,23 @@ class Reader(object):
 #        password = self.cp.get('ArcSDE', 'pass')
 #        
 #        return (server, instance, database, username, password) 
-    
-    #file    
-    
-    def readFileConfig(self):
-        '''Generic File-storage-type config file reader, could be used for FileGDB, SpatiaLite, Mapinfo, Shapefile since these only need a filename'''
-        try:
-            prefix = self.cp.get('File', 'prefix')
-        except NoOptionError:
-            prefix = None
-        
-        try: 
-            path = self.cp.get('File', 'path')
-        except NoOptionError:
-            ldslog.debug("File: No path specified, default to Home directory")
-            path = "~"
-        
-        return (prefix,path)
+#    
+#    #file    
+#    
+#    def readFileConfig(self):
+#        '''Generic File-storage-type config file reader, could be used for FileGDB, SpatiaLite, Mapinfo, Shapefile since these only need a filename'''
+#        try:
+#            prefix = self.cp.get('File', 'prefix')
+#        except NoOptionError:
+#            prefix = None
+#        
+#        try: 
+#            path = self.cp.get('File', 'path')
+#        except NoOptionError:
+#            ldslog.debug("File: No path specified, default to Home directory")
+#            path = "~"
+#        
+#        return (prefix,path)
     
     def readFileGDBConfig(self):
         '''FileGDB specific config file reader'''
@@ -171,8 +161,14 @@ class Reader(object):
         except NoOptionError:
             ldslog.debug("FileGDB: No path specified, default to Home directory")
             path = "~"
+            
+        try:
+            config = self.cp.get('FileGDB', 'config')
+        except NoOptionError:
+            ldslog.debug("FileGDB: No config preference specified, default to 'external'")
+            config = 'external'
         
-        return path
+        return (path,config)
     
     
     #web
@@ -325,119 +321,123 @@ class Reader(object):
             self.cp.write(conffile)
         
         
+#------------------------------------------------------------------------------
              
         
         
-#class Storage(object):
-#    '''
-#    Config file reader/writer for internal storage subclasses normal reader to use file reading capabilities
-#    but overrides the layer data functions
-#    '''
-#
-#
-#    def __init__(self,params):
-#        '''
-#        Constructor
-#        '''
-#
-#        
-#    def _readConfigFile(self,fname):
-#        '''Reads named config location'''
-#        #Split off so you can override the config file on the same reader object if needed
-#        self.cp = ConfigParser.ConfigParser()
-#        self.cp.read(fname)
-#        
-#    def parseConnStr(self,params):
-#        pass
-#    
-#    def findLayerIdByName(self,name):
-#        '''Reverse lookup of section by associated name, finds first occurance only'''
-#        for section_name in self.cp.sections():
-#            if name == self.cp.get(section_name,'name'):
-#                return section_name
-#        return name
-#    
-#    def readLayerSchemaConfig(self,layer):
-#        '''Full Layer config reader'''
-#        try:
-#            defn = self.cp.get(layer, 'sql')
-#            #if the user has gone to the trouble of defining their own schema in SQL who are we to argue. assume pk and geo defined within
-#            return (defn,None,None)
-#        except:
-#            pass
-#        
-#        '''optional but one way to record the type and name of a column is to save a string tuple (name,type) and parse this at build time'''
-#        try:
-#            pkey = self.cp.get(layer, 'pkey')
-#        except NoOptionError:
-#            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
-#            pkey = '(ID, Integer)'
-#            
-#        '''names are/can-be stored so we can reverse search by layer name'''
-#        try:
-#            name = self.cp.get(layer, 'name')
-#        except NoOptionError:
-#            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
-#            name = layer
-#            
-#        if name is None:
-#            name = layer
-#            
-#        '''names are/can-be stored so we can reverse search by layer name'''
-#        try:
-#            group = self.cp.get(layer, 'group')
-#        except NoOptionError:
-#            ldslog.debug("Group List: No Groups defined for this layer")
-#            group = None
-#            
-#            
-#        try:
-#            gcol = self.cp.get(layer, 'geocolumn')
-#        except NoOptionError:
-#            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
-#            gcol = 'SHAPE'
-#            
-#        try:
-#            index = self.cp.get(layer, 'index')
-#        except NoOptionError:
-#            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
-#            index = None
-#            
-#        try:
-#            epsg = self.cp.get(layer, 'epsg')
-#        except NoOptionError:
-#            #print "No Projection Transformation defined"#don't really need to state the default occurance
-#            epsg = None
-#            
-#        try:
-#            lmod = self.cp.get(layer, 'lastmodified')
-#        except NoOptionError:
-#            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
-#            lmod = None
-#            
-#        try:
-#            disc = self.cp.get(layer, 'discard')
-#        except NoOptionError:
-#            disc = None 
-#            
-#        try:
-#            cql = self.cp.get(layer, 'cql')
-#        except NoOptionError:
-#            cql = None
-#            
-#        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
-#    
-#    
-#    
-#    def writeLayerSchemaConfig(self,layer,lmod):
-#        '''Write changes to layer config file'''
-#        try:
-#            self.cp.set(layer,'lastmodified',lmod)
-#        except Error:
-#            ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
-#        
-#        with open(self.fname,'wb') as conffile:
-#            self.cp.write(conffile)
+class ReaderTable(object):
+    '''
+    Config file reader/writer for internal storage subclasses normal reader to use file reading capabilities
+    but overrides the layer data functions
+    '''
+
+
+    def __init__(self,parent):
+        '''
+        Constructor
+        '''
+        #tablename = tableprefix+'_lds_config'
+        tablename = 'lds_config'
+            
+        self._readConfigFile(parent,tablename)
+
+        
+    def _readConfigFile(self,parent,tablename):
+        '''Reads named config location'''
+        #Split off so you can override the config file on the same reader object if needed
+        self.ds = parent
+        self.tablename = tablename
+
+        
+    def parseConnStr(self,params):
+        pass
+    
+    def findLayerIdByName(self,name):
+        '''Lookup of id (section header in CP) by associated name, finds first occurance only'''
+        result = self.ds._executeSQL('SELECT ID FROM {} WHERE NAME = {}'.format(self.tablename,name))
+        row = result.GetNextFeature()
+        try:
+            lid =  row.GetField('ID')
+        except:
+            ldslog.debug("LayerSchema: No matching ID column found")
+        return lid
+
+    
+    def readLayerSchemaConfig(self,layer):
+        '''Full Layer config reader'''
+        result = self.ds._executeSQL('SELECT * FROM {} WHERE ID = {}'.format(self.tablename,layer))
+        
+        #Assume layer id is unique in the config table
+        row = result.GetNextFeature()
+        try:
+            pkey =  row.GetField('PKEY')
+        except:
+            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
+            pkey = '(ID, Integer)'
+            
+        '''names are/can-be stored so we can reverse search by layer name'''
+        try:
+            name = row.GetField('NAME')
+        except:
+            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
+            name = layer
+            
+        if name is None:
+            name = layer
+            
+        '''names are/can-be stored so we can reverse search by layer name'''
+        try:
+            group = row.GetField('GROUP')
+        except:
+            ldslog.debug("Group List: No Groups defined for this layer")
+            group = None
+            
+            
+        try:
+            gcol = row.GetField('GEOCOLUMN')
+        except:
+            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
+            gcol = 'SHAPE'
+            
+        try:
+            index = row.GetField('INDEX')
+        except:
+            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
+            index = None
+            
+        try:
+            epsg = row.GetField('EPSG')
+        except:
+            #print "No Projection Transformation defined"#don't really need to state the default occurance
+            epsg = None
+            
+        try:
+            lmod = row.GetField('LASTMODIFIED')
+        except:
+            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
+            lmod = None
+            
+        try:
+            disc = row.GetField('DISCARD')
+        except:
+            disc = None 
+            
+        try:
+            cql = row.GetField('CQL')
+        except:
+            cql = None
+            
+        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
+    
+    
+    
+    def writeLayerSchemaConfig(self,layer,lmod):
+        '''Write changes to layer config file'''
+        try:
+            self.ds._executeSQL('UPDATE {} SET LASTMODIFIED = {} WHERE ID = {}'.format(self.tablename,lmod,layer))
+        except:
+            ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
+        
         
         
     

@@ -29,7 +29,7 @@ class MSSQLSpatialDataStore(DataStore):
   
         self.getDriver(self.DRIVER_NAME)
         
-        self.mlr = MetaLayerReader(user_config,"mssql.layer.properties")
+        self.mlr = MetaLayerReader(self,user_config,"mssql.layer.properties")
         
         (self.odbc,self.server,self.dsn,self.trust,self.dbname,self.schema,self.usr,self.pwd) = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
 

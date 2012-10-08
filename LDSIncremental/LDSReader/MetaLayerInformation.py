@@ -16,7 +16,7 @@ Created on 23/07/2012
 '''
 import logging
 
-from ReadConfig import Reader
+from ReadConfig import ReaderFile, ReaderTable
 
 ldslog = logging.getLogger('LDS')
 
@@ -25,33 +25,47 @@ class MetaLayerReader(object):
     Convenience wrapper class to config-file reader instances.
     '''
 
-    def __init__(self,config_file=None,properties=None):
+    def __init__(self,parent,config_file=None,properties=None):
         '''this is not a ogr function so we dont need a driver and therefore wont call super'''
         #some layer config properties may not be needed and wont be read eg WFS so None arg wont set layerconfig
         
+        
+        self.parent = parent
         self.driver = None
         
+        #userconfig is not meant to replace mainconfig, just overwrite the parts the user has decided to customise
         self.userconfig = None
         if config_file is not None:
-            self.userconfig = Reader("../"+config_file)
-        self.mainconfig = Reader("../ldsincr.conf")
+            self.userconfig = ReaderFile("../"+config_file)
+        self.mainconfig = ReaderFile("../ldsincr.conf")
         
-        #NOTE: probably delete this
-        if properties == 'pg':
-            self.layerconfig = Storage(self.mainconfig.readPostgreSQLConfig())
-        elif properties == 'ms':
-            self.layerconfig = Storage(self.mainconfig.readMSSQLConfig())
-        elif properties == 'fgdb':
-            self.layerconfig = Storage(self.mainconfig.readFileGDBConfig())
-        elif properties == 'slite':
-            self.layerconfig = Storage(self.mainconfig.readSpatiaLiteConfig())
+        #HACK. Assumes last value is the config value
+        config = self.readDSSpecificParameters(parent.DRIVER_NAME)[-1:][0]
+        
+#        #NOTE: probably delete this
+#        if properties == 'pg':
+#            self.layerconfig = Storage(self.mainconfig.readPostgreSQLConfig())
+#        elif properties == 'ms':
+#            self.layerconfig = Storage(self.mainconfig.readMSSQLConfig())
+#        elif properties == 'fgdb':
+#            self.layerconfig = Storage(self.mainconfig.readFileGDBConfig())
+#        elif properties == 'slite':
+#            self.layerconfig = Storage(self.mainconfig.readSpatiaLiteConfig())
             
-        if properties is not None:            
-            self.layerconfig = Reader("../"+properties)
+            
+
+            
+        if config.lower() == 'internal':
+            self.layerconfig = ReaderTable(parent)
+        elif properties is not None:
+            if config is None:
+                ldslog.warning('No config type specified')
+            self.layerconfig = ReaderFile("../"+properties)
 
 
-    def setLayerConfig(self,layerconfig):
-        self.layerconfig = layerconfig
+#    def setLayerConfig(self,layerconfig):
+#        '''Setter for Layerconfig, useful for external classes'''
+#        self.layerconfig = layerconfig
         
         
     def getLayerNames(self):
@@ -126,6 +140,7 @@ class MetaLayerReader(object):
         '''Returns the datasource parameters. By request updated to let users override parts of the basic config file'''
         self.driver = drv
         ul = ()
+
         if drv=='PostgreSQL':
             ml = self.mainconfig.readPostgreSQLConfig()
             if self.userconfig is not None:

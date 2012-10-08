@@ -5,10 +5,10 @@ Created on 17/08/2012
 '''
 import unittest, datetime
 
-from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
-from LDSReader.MSSQLSpatialDataStore import MSSQLSpatialDataStore
-from LDSReader.LDSDataStore import LDSDataStore
-from LDSReader.FileGDBDataStore import FileGDBDataStore
+from PostgreSQLDataStore import PostgreSQLDataStore
+from MSSQLSpatialDataStore import MSSQLSpatialDataStore
+from LDSDataStore import LDSDataStore
+from FileGDBDataStore import FileGDBDataStore
 
 from LDSReader.TransferProcessor import TransferProcessor
 
