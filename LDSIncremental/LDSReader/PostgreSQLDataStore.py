@@ -7,7 +7,6 @@ import gdal
 import logging
 
 from DataStore import DataStore
-from MetaLayerInformation import MetaLayerReader
 
 ldslog = logging.getLogger('LDS')
 
@@ -21,11 +20,13 @@ class PostgreSQLDataStore(DataStore):
         cons init driver
         '''
         
-        
-        super(PostgreSQLDataStore,self).__init__(conn_str)
-        
         self.DRIVER_NAME = "PostgreSQL"
-        #doesnt work with createlayer... but not needed if we overwrite FID with PK
+        self.CONFIG_XSL = "getcapabilities_initdb.xsl"
+        
+        super(PostgreSQLDataStore,self).__init__(conn_str,user_config)
+        
+        
+        #doesnt work with createlayer... but not needed if we want to overwrite FID with PK
         #self.PGSQL_OGR_FID = "ID"    
         #gdal.SetConfigOption("PGSQL_OGR_FID",self.PGSQL_OGR_FID)
         
@@ -35,16 +36,6 @@ class PostgreSQLDataStore(DataStore):
         
         self.PG_USE_BASE64 = "YES"
         gdal.SetConfigOption("PG_USE_BASE64",self.PG_USE_BASE64)
-        
-        self.getDriver(self.DRIVER_NAME)
-        
-        
-        self.mlr = MetaLayerReader(self,user_config,"postgresql.layer.properties")
-        
-        self.params = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
-        #use params to read layer config here or use driver on dst ds?
-        #self.readLayerConfig()
-        #self.mlr.setLayerConfig(params)
 
         (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite,self.config) = self.params
 
@@ -101,28 +92,7 @@ class PostgreSQLDataStore(DataStore):
         else:
             return
         ldslog.info("Index="+ref_index+". Execute "+cmd)
-        self._executeSQL(cmd)
+        self.executeSQL(cmd)
         
-        
-        
-    #Config stuff
-    
-    def readLayerConfig(self):
-        sqlstr = 'select * from lds_config;'
-        res = self._executeSQL(sqlstr)
-        if res is None:
-            res = self.initLayerConfig()
-        return res
-    
-    def writeLayerConfig(self):
-        pass
-    
-    def initLayerConfig(self):
-        sqlstr = 'create table ldsincr (id int);'
-        try:
-            r = self._executeSQL(sqlstr)
-        except:
-            print 'wtf'
-        return r
     
         

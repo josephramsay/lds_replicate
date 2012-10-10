@@ -6,7 +6,6 @@ Created on 9/08/2012
 import logging
 
 from DataStore import DataStore
-from MetaLayerInformation import MetaLayerReader
 from ProjectionReference import Geometry
 
 ldslog = logging.getLogger('LDS')
@@ -21,17 +20,12 @@ class MSSQLSpatialDataStore(DataStore):
         '''
         cons init driver
         '''
-            
-        super(MSSQLSpatialDataStore,self).__init__(conn_str)
-
         self.DRIVER_NAME = "MSSQLSpatial"
-        #MS driver doesnt have any documented config options
-  
-        self.getDriver(self.DRIVER_NAME)
+        self.CONFIG_XSL = "getcapabilities_initdb.xsl"  
+         
+        super(MSSQLSpatialDataStore,self).__init__(conn_str,user_config)
         
-        self.mlr = MetaLayerReader(self,user_config,"mssql.layer.properties")
-        
-        (self.odbc,self.server,self.dsn,self.trust,self.dbname,self.schema,self.usr,self.pwd) = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
+        (self.odbc,self.server,self.dsn,self.trust,self.dbname,self.schema,self.usr,self.pwd) = self.params
 
         
     def sourceURI(self,layer):
@@ -73,7 +67,7 @@ class MSSQLSpatialDataStore(DataStore):
             cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+self.sanitise(clst),dst_layer_name,clst)
         else:
             return
-        self._executeSQL(cmd)
+        self.executeSQL(cmd)
                 
 
     def getOptions(self,layer_id):

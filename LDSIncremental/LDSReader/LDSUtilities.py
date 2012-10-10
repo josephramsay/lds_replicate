@@ -89,94 +89,34 @@ class LDSUtilities(object):
     
 
 class ConfigInitialiser(object):
-    '''Initialises configurationa t forst run'''
+    '''Initialises configuration, for use at first run'''
 
     @classmethod
-    def buildTransform(cls,src,dst):
+    def buildConfiguration(cls,src,dst):
         '''Given a destination DS use this to select an XSL transform object and generate an output document that will initialise a new config file/table'''
         #df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
         
         uri = src.getCapabilities()
         xml = src.readDocument(uri)
         
-
-        print os.getcwd()
-        
-        if dst.DRIVER_NAME == 'PostgreSQL':
-            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_initdb.xsl'),'r').read()
-        elif dst.DRIVER_NAME == 'MSSQL':
-            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_initdb.xsl'),'r').read()
-        elif dst.DRIVER_NAME == 'SQLite':
-            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_initdb.xsl'),'r').read()
-        elif dst.DRIVER_NAME == 'FileGDB':
-            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_initdb.xsl'),'r').read()
+        '''if we're going to the trouble of building a config initialiser then we're probably gonna want to run it'''
+        if dst.config=='internal' and dst.CONFIG_XSL is not None:
+            page = open(os.path.join(os.path.dirname(__file__), '../',dst.CONFIG_XSL),'r').read()
         else:
             page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_config.xsl'),'r').read()
-        print page
+
         
         xslt = etree.XML(page)
         transform = etree.XSLT(xslt)
         
         doc = etree.parse(StringIO(xml))
         res = transform(doc)
+        ldslog.debug(res)
+        
+        if dst.config=='internal':
+            dst.executeSQL(str(res))
+        else:
+            open(os.path.join(os.path.dirname(__file__), '../',dst.DRIVER_NAME.lower()+".layer.properties"),'w').write(str(res))
         
         return res
-      
-    
-    def initialiseConfig(self):
-        pass
-#    #no longer used
-#    
-#    def parseLayerList(self,ds):
-#        layers = ()
-#        for li in range(0,ds.GetLayerCount()):
-#            layer = ds.GetLayerByIndex(li)
-#
-#            print "layer",layer.GetName()#,layer.GetLayerDefn()
-#            layers += (layer.GetName(),)
-#
-#        return layers
-#
-#    
-#    def parseFeatureList(self,ds,layername):
-#        head = ()
-#        body = ()
-#        
-#        #lep = self.constructEndpoint(layername)
-#        #lds = self.connect(lep)
-#        #geo = ds.GetGeomType()
-#        #sref = ds.GetSpatialRef()
-#        '''get the first row and use it to build a headers list = ((colname,coltype),)'''
-#        layer = ds.GetLayerByName(layername)
-#        feat = layer.GetNextFeature()
-#        for fc in range(0,feat.GetFieldCount()):
-#            fdef = feat.GetFieldDefnRef(fc)
-#
-#            head += ((fdef.GetName(),fdef.GetType()),) 
-#        print "head",layer.GetName(),head
-#        
-#        '''get data by column header'''
-#        while feat is not None:
-#            '''put the geo obj in the first col'''
-#            data = (feat.GetGeometryRef().ExportToWkt(),)
-#            for col in head:
-#                data += (feat.GetField(col[0]),)
-#                
-#            print "data",data
-#            body += (data,) 
-#            
-#            feat = layer.GetNextFeature()
-#        return (head,body)
-#            
-#                
-#    def parseFieldList(self,ds,layername):
-#        head = ()
-#        layer = ds.GetLayerByName(layername)
-#        feat = layer.GetNextFeature()
-#        for fc in range(0,feat.GetFieldCount()):
-#            fdef = feat.GetFieldDefnRef(fc)
-#
-#            head += ((fdef.GetName(),fdef.GetType()),) 
-#            
-#        print "head",layer.GetName(),head
         

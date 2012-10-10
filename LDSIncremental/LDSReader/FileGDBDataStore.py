@@ -18,16 +18,13 @@ class FileGDBDataStore(ESRIDataStore):
     '''
 
     def __init__(self,conn_str=None,user_config=None):
-
-        super(FileGDBDataStore,self).__init__(conn_str)
         
         self.DRIVER_NAME = "FileGDB"
+        self.CONFIG_XSL = "getcapabilities_initdb.xsl"
         
-        self.getDriver(self.DRIVER_NAME)
+        super(FileGDBDataStore,self).__init__(conn_str,user_config)
         
-        self.mlr = MetaLayerReader(self,user_config,"filegdb.layer.properties")
-        
-        self.path = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
+        (self.path) = self.params
         
         self.suffix = '.gdb'
 

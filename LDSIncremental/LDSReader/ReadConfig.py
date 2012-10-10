@@ -35,9 +35,9 @@ class ReaderFile(object):
         '''
         thisdir = os.path.dirname(__file__)
 
-        self.fname=os.path.join(thisdir,params)
+        self.filename=os.path.join(thisdir,params)
             
-        self._readConfigFile(self.fname)
+        self._readConfigFile(self.filename)
         
         
     def getSections(self):
@@ -266,7 +266,7 @@ class ReaderFile(object):
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
-            group = self.cp.get(layer, 'group')
+            group = self.cp.get(layer, 'category')
         except NoOptionError:
             ldslog.debug("Group List: No Groups defined for this layer")
             group = None
@@ -321,7 +321,9 @@ class ReaderFile(object):
             self.cp.write(conffile)
         
         
-#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------
+# File Reader /\ Table Reader \/
+#------------------------------------------------------------------------------------------------------------------------------
              
         
         
@@ -337,7 +339,7 @@ class ReaderTable(object):
         Constructor
         '''
         #tablename = tableprefix+'_lds_config'
-        tablename = 'lds_config'
+        tablename = 'LDS_CONFIG'
             
         self._readConfigFile(parent,tablename)
 
@@ -349,12 +351,22 @@ class ReaderTable(object):
         self.tablename = tablename
 
         
-    def parseConnStr(self,params):
-        pass
+    def getSections(self):
+        '''List of sections (layernames/datasources)'''
+        result = self.ds.executeSQL('SELECT ID FROM {}'.format(self.tablename))
+        lid = []
+        row = result.GetNextFeature()
+        while row is not None:
+            try:
+                lid.append(row.GetField('ID'))
+                row = result.GetNextFeature()
+            except:
+                ldslog.debug("ID column not found")
+        return lid
     
     def findLayerIdByName(self,name):
         '''Lookup of id (section header in CP) by associated name, finds first occurance only'''
-        result = self.ds._executeSQL('SELECT ID FROM {} WHERE NAME = {}'.format(self.tablename,name))
+        result = self.ds.executeSQL('SELECT ID FROM {} WHERE NAME = {}'.format(self.tablename,name))
         row = result.GetNextFeature()
         try:
             lid =  row.GetField('ID')
@@ -365,9 +377,9 @@ class ReaderTable(object):
     
     def readLayerSchemaConfig(self,layer):
         '''Full Layer config reader'''
-        result = self.ds._executeSQL('SELECT * FROM {} WHERE ID = {}'.format(self.tablename,layer))
+        result = self.ds.executeSQL("SELECT * FROM {} WHERE ID = '{}'".format(self.tablename,layer))
         
-        #Assume layer id is unique in the config table
+        #Assume layer id is unique in the config table... it had better be
         row = result.GetNextFeature()
         try:
             pkey =  row.GetField('PKEY')
@@ -387,7 +399,7 @@ class ReaderTable(object):
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
-            group = row.GetField('GROUP')
+            group = row.GetField('CATEGORY')
         except:
             ldslog.debug("Group List: No Groups defined for this layer")
             group = None
@@ -434,7 +446,7 @@ class ReaderTable(object):
     def writeLayerSchemaConfig(self,layer,lmod):
         '''Write changes to layer config file'''
         try:
-            self.ds._executeSQL('UPDATE {} SET LASTMODIFIED = {} WHERE ID = {}'.format(self.tablename,lmod,layer))
+            self.ds.executeSQL('UPDATE {} SET LASTMODIFIED = {} WHERE ID = {}'.format(self.tablename,lmod,layer))
         except:
             ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
         

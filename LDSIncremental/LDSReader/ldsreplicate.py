@@ -25,6 +25,7 @@ python LDSReader/ldsreplicate.py -l <layer_id>
     -t (--todate) Date in yyyy-mm-dd format for end of incremental range (omission assumes auto incremental bounds)
     -l (--layer) Layer name/id in format v:x### (IMPORTANT. Omission assumes all layers)
     -g (--group) Layer sub group list for layer selection, comma separated
+    -e (--epsg) Destination EPSG. Layers will be converted to this SRS
     -s (--source) Connection string for source DS
     -d (--destination) Connection string for destination DS
     -c (--cql) Filter definition in CQL format
@@ -75,6 +76,7 @@ def main():
     fd = None
     ly = None
     gp = None
+    ep = None
     sc = None
     dc = None
     cq = None
@@ -87,7 +89,7 @@ def main():
     
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvf:t:l:g:s:d:c:", ["help","version","fromdate=","todate=","layer=","group=","source=","destination=","cql="])
+        opts, args = getopt.getopt(sys.argv[1:], "hvf:t:l:g:e:s:d:c:", ["help","version","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql="])
         ldslog.info("OPTS:"+str(opts))
         ldslog.info("ARGS:"+str(args))
     except getopt.error, msg:
@@ -100,7 +102,7 @@ def main():
         if opt in ("-h", "--help"):
             print __doc__
             sys.exit(0)
-        if opt in ("-v", "--version"):
+        elif opt in ("-v", "--version"):
             print __version__
             sys.exit(0)
         elif opt in ("-f","--fromdate"):
@@ -111,6 +113,8 @@ def main():
             ly = val
         elif opt in ("-g","--group"):
             gp = val
+        elif opt in ("-e","--epsg"):
+            ep = val
         elif opt in ("-s","--source"):
             sc = val
         elif opt in ("-d","--destination"):
@@ -125,6 +129,7 @@ def main():
             "-t (--todate) Date in yyyy-mm-dd format for end of incremental range (omission assumes auto incremental bounds)," \
             "-l (--layer) Layer name/id in format v:x### (IMPORTANT. Omission assumes all layers)," \
             "-g (--group) Layer sub group list for layer selection, comma separated" \
+            "-e (--epsg) Destination EPSG. Layers will be converted to this SRS" \
             "-s (--source) Connection string for source DS," \
             "-d (--destination) Connection string for destination DS," \
             "-c (--cql) Filter definition in CQL format," \
@@ -137,21 +142,27 @@ def main():
 #        raise InputMisconfigurationException("Layer name required (-l)")
 #        sys.exit(1)
         
-    tp = TransferProcessor(ly,gp,fd,td,sc,dc,cq,uc)
-    
+    tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc)
+    proc = None
     #output format
     if len(args)==0:
         print __doc__
         sys.exit(0)
     else: 
         for arg in args:
-            if arg in ("full", "full_replicate"):
+            if arg in ("init", "initialise", "initalize"):
+                ldslog.info("Initialisation of configuration files/tables requested. Implies FULL rebuild")
+                tp.clearIncremental()
+                tp.setInitConfig()
+            elif arg in ("full", "full_replicate"):
                 ldslog.info("FULL Replication of layer requested")
                 tp.clearIncremental()
             elif arg in ("pg", "postgres"):
-                tp.processLDS2PG()
+                proc = tp.processLDS2PG
+                break
             elif arg in ("ms", "mssql"):
-                tp.processLDS2MSSQL()
+                proc = tp.processLDS2MSSQL
+                break
     #        elif arg in ("mi", "mapinfo"):
     #            tp.processLDS2Mapinfo()
     #        elif arg in ("shp", "shapefile"):
@@ -159,14 +170,19 @@ def main():
     #        elif arg in ("csv", "csvfile"):
     #            tp.processLDS2CSV()
             elif arg in ("slite", "spatialite"):
-                tp.processLDS2SpatiaLite()
+                proc = tp.processLDS2SpatiaLite
+                break
             elif arg in ("fgdb", "filegdb"):
-                tp.processLDS2FileGDB()
+                proc = tp.processLDS2FileGDB
+                break
     #        elif arg in ("arc", "sde", "arcsde"):
     #            tp.processLDS2ArcSDE()
             else:
                 print __doc__
                 raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) and optional 'full' declaration required")
+            
+        #now run the selected func
+        proc()
             
 
 def versionCheck(name,cmd,min):

@@ -7,7 +7,6 @@ Created on 9/08/2012
 import logging
 
 from DataStore import DataStore
-from MetaLayerInformation import MetaLayerReader
 
 ldslog = logging.getLogger('LDS')
 
@@ -20,17 +19,12 @@ class SpatiaLiteDataStore(DataStore):
         '''
         cons init driver
         '''
-            
-        
-        super(SpatiaLiteDataStore,self).__init__(conn_str)
-        
         self.DRIVER_NAME = "SQLite"
+        self.CONFIG_XSL = "getcapabilities_initdb.xsl"  
+        
+        super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 
-        self.getDriver(self.DRIVER_NAME)
-
-        self.mlr = MetaLayerReader(self,user_config,"spatialite.layer.properties")
-
-        self.file = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
+        (self.file) = self.params
 
         
     def sourceURI(self,layer):

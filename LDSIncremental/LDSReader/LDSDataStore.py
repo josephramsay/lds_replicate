@@ -38,7 +38,9 @@ class LDSDataStore(WFSDataStore):
         '''GetCapabilities endpoint constructor'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
-        uri = self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
+        #uri = self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
+        #keyword specifier different between 1.0.0 (<ows:Keywords><ows:Keyword>) and 1.1.0 (<Keywords>) We enforce 1.1.0 to return per keyword version and more accurately parse layer groups
+        uri = self.url+self.key+"/wfs?service=WFS&version=1.1.0&request=GetCapabilities"
         ldslog.debug(uri)
         return uri
     

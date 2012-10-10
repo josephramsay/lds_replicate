@@ -12,14 +12,15 @@ import osr
 import re
 import logging
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from abc import ABCMeta, abstractmethod
 
-from LDSUtilities import LDSUtilities
+from LDSUtilities import LDSUtilities, ConfigInitialiser
 from ProjectionReference import Projection
+from MetaLayerInformation import MetaLayerReader
 
 ldslog = logging.getLogger('LDS')
-#Enabling exceptions halts program when no criotical error detected
+#Enabling exceptions halts program on non critical errors ie create DS throws exception but builds valid DS anyway 
 #ogr.UseExceptions()
 
 #exceptions
@@ -35,8 +36,6 @@ class InvalidLayerException(LDSReaderException): pass
 class InvalidFeatureException(LDSReaderException): pass
 
 
-
-
 class DataStore(object):
     '''
     DataStore superclasses PostgreSQL, LDS(WFS), FileGDB and SpatiaLite datastores.
@@ -46,9 +45,9 @@ class DataStore(object):
 
 
 
-    def __init__(self,conn_str=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
-        Constructor inits driver and some date specific settings
+        Constructor inits driver and some date specific settings. Arguments are for config overrides 
         '''
 
         if conn_str is not None:
@@ -56,13 +55,19 @@ class DataStore(object):
             
             
         self.DATE_FORMAT='%Y-%m-%dT%H:%M:%S'
-        self.EARLIEST_INIT_DATE = '2000-01-01'
+        self.EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
 
         #default clear the INCR flag
         self.setOverwrite()
-        self.clearIncremental()
+        self.clearIncremental()        
         
-        '''set of <potential> columns not needed in final output. ogc_fid can be discarded if alternative PK is used'''
+        self.getDriver(self.DRIVER_NAME)
+            
+        self.mlr = MetaLayerReader(self,user_config,self.DRIVER_NAME.lower()+".layer.properties")
+        self.params = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
+        
+        
+        '''set of <potential> columns not needed in final output, global'''
         self.optcols = set(['__change__','gml_id'])
         
         
@@ -123,15 +128,8 @@ class DataStore(object):
     #def buildExternalLayerDefinition(self,name,fdef_list):
     #    raise NotImplementedError("Abstract method buildExternalLayerDefinition not implemented")
     
-    def read(self,dsn):
-        '''Main DS read method'''
-        ldslog.info("DS read"+dsn.split(":")[0])
-        self.ds = self.driver.Open(dsn)
-    
-    def write(self,src,dsn):
-        '''Main DS write method. Attempts to open or alternatively, create a datasource'''
-        
-        ldslog.info("DS Write "+dsn)#.split(":")[0]
+    def initDS(self,dsn):
+        '''initialise a DS for writing'''
         try:
             self.ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
             if self.ds is None:
@@ -148,11 +146,23 @@ class DataStore(object):
                 ldslog.error(dsre2)
                 raise
             except RuntimeError as rte:
+                '''this is only caught if ogr.UseExceptions() is enabled'''
                 print "GDAL RuntimeError",rte
                 ldslog.error(rte)
-
-        #here seems like the logical place to do the layer config stuff     
-        self.readLayerConfig()   
+        
+    
+    def read(self,dsn):
+        '''Main DS read method'''
+        ldslog.info("DS read"+dsn.split(":")[0])
+        #5050 initDS for consistency and utilise if-ds-is-none check OR quick open and overwrite
+        #self.initDS(dsn)
+        self.ds = self.driver.Open(dsn)
+    
+    def write(self,src,dsn):
+        '''Main DS write method. Attempts to open or alternatively, create a datasource'''
+        
+        ldslog.info("DS Write "+dsn)#.split(":")[0]
+        self.initDS(dsn)
         
         if src.getIncremental():
             # change col in delete list and as change indicator
@@ -213,7 +223,7 @@ class DataStore(object):
             '''parse discard columns'''
             self.optcols |= set(ref_disc.strip('[]{}()').split(',') if ref_disc is not None else [])
             
-            #check for user a defined projection
+            #check for user defined projection
             self.transform = None
             dst_sref = src_layer_sref#not necessary but for clarity
             if ref_epsg is not None and ref_epsg != '':
@@ -421,16 +431,19 @@ class DataStore(object):
         else:
             return
         ldslog.info("Index="+ref_index+". Execute "+cmd)
-        self._executeSQL(cmd)
+        self.executeSQL(cmd)
 
     
     # private methods
         
-    def _executeSQL(self,sql):
+    def executeSQL(self,sql):
         '''Executes arbitrary SQL on the datasource'''
         '''Tagged private since we only want it called from well controlled methods'''
+        '''TODO. step through multi line queries?'''
+        retval = None
         
         ldslog.debug("SQL: "+sql)
+        '''validating sql as a block acts as a sort of transaction mechanism'''
         if self._validateSQL(sql):
             try:
                 retval = self.ds.ExecuteSQL(sql)
@@ -438,23 +451,31 @@ class DataStore(object):
                 ldslog.warning("Unable to execute SQL:"+sql,exc_info=1)
         return retval
             
+
     def _validateSQL(self,sql):
-        '''Validates SQL against a list of allowed queries'''
-        '''TODO. Better validation'''
-        
+        '''Validates SQL against a list of allowed queries. Not trying to restrict queries here, rather catch invalid SQL'''
+        '''TODO. Better validation.'''
         sql = sql.lower()
-        #first match 'create index'
-        if re.match('(?:create|drop)(?:\s+spatial)?\s+index',sql):
-            return True
+        for line in sql.split('\n'):
+            #ignore comments/blanks
+            if re.match('^(?:#|--)|^\s*$',line):
+                continue
+            #first match 'create/drop index'
+            if re.match('(?:create|drop)(?:\s+spatial)?\s+index',line):
+                continue
+            #match 'create/drop index/table'
+            if re.match('(?:create|drop)\s+(?:index|table)',line):
+                continue
+            #match 'select'
+            if re.match('select\s+(?:\w+|\*)\s+from',line):
+                continue
+            #match 'insert'
+            if re.match('insert\s+(?:\w+|\*)\s+',line):
+                continue
+            
+            return False
         
-        if re.match('(?:create|drop)\s+(?:index|table)',sql):
-            return True
-        
-        #second match 'drop index'
-        if re.match('select\s+(?:\w+|\*)\s+from',sql):
-            return True
-        
-        return False
+        return True
         
     def _cleanLayer(self,layer):
         '''Deletes a layer from the DS'''
@@ -487,10 +508,10 @@ class DataStore(object):
         if re.match('\A\d',name):
             name = "_"+name
         #replace unwanted chars with _ and compress multiple and remove trailing
-        sani = re.sub('_+','_',re.sub('[ \-,.\\\\/:;{}()\[\]]','_',name.lower())).rstrip('_')
-        #unexpected name subst source of a few bugs, log as debug
-        ldslog.debug("Sanitise:raw="+name+" name="+sani)
-        return sani
+        sanitised = re.sub('_+','_',re.sub('[ \-,.\\\\/:;{}()\[\]]','_',name.lower())).rstrip('_')
+        #unexpected name substitutions can be a source of bugs, log as debug
+        ldslog.debug("Sanitise: raw="+name+" name="+sanitised)
+        return sanitised
     
 
     @classmethod

@@ -29,15 +29,11 @@ class WFSDataStore(DataStore):
         Init driver and read config
         '''
 
-        
-        super(WFSDataStore,self).__init__(conn_str)
-        
         self.DRIVER_NAME = "WFS"
-        self.getDriver(self.DRIVER_NAME)
         
-        self.mlr = MetaLayerReader(self,user_config)#"wfs.layer.properties")
+        super(WFSDataStore,self).__init__(conn_str,user_config)
         
-        (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
+        (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
         
             
         

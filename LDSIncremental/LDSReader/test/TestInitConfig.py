@@ -25,12 +25,27 @@ class TestInitConfig(unittest.TestCase):
     def test1PGInit(self):
         lds = LDSDataStore() 
         pgds = PostgreSQLDataStore()
+        pgds.initDS(pgds.destinationURI(None))
 
         ConfigInitialiser.buildTransform(lds,pgds)
         
-    def test2PGReadTable(self):
-        lds = LDSDataStore() 
-        pgds = PostgreSQLDataStore()
+#    def test2PGReadTable(self):
+#        #lds = LDSDataStore() 
+#        pgds = PostgreSQLDataStore()
+#        
+#        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.mlr.readAllLayerParameters('v:x772')
+#        
+#        assert name == 'NZ Primary Parcels'
+#        
+#    def test3PGReadFile(self):
+#        lds = LDSDataStore() 
+#        pgds = PostgreSQLDataStore()
+#        
+#        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.mlr.readAllLayerParameters('v:x772')
+#        
+#        assert name == 'NZ Primary Parcels'
+        
+        
 
 
     

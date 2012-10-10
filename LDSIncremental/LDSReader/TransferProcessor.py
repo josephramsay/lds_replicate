@@ -19,7 +19,8 @@ import logging
 
 from datetime import datetime 
 
-from LDSDataStore import LDSDataStore,LDSUtilities
+from LDSDataStore import LDSDataStore
+from LDSUtilities import LDSUtilities, ConfigInitialiser
 #from ArcSDEDataStore import ArcSDEDataStore
 #from CSVDataStore import CSVDataStore
 from FileGDBDataStore import FileGDBDataStore
@@ -39,7 +40,7 @@ class InputMisconfigurationException(Exception): pass
 class TransferProcessor(object):
     '''Primary class controlling data transfer objects and the parameters for these'''
 
-    def __init__(self,ly=None,gp=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
+    def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
         #ldsu? lnl?
         #self.src = LDSDataStore() 
         #self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
@@ -47,9 +48,16 @@ class TransferProcessor(object):
         #do and incremental copy unless requested otherwise
         self.setIncremental()
         
+        #only do a config file rebuild if requested
+        self.clearInitConfig()
+        
         self.group = None
         if gp != None:
             self.group = gp
+            
+        self.epsg = None
+        if ep != None:
+            self.epsg = ep
             
         self.fromdate = None
         if fd != None:
@@ -90,6 +98,16 @@ class TransferProcessor(object):
     def getIncremental(self):
         return self.INCR
     
+    #initilaise config flags
+    def setInitConfig(self):
+        self.INITCONF = True
+         
+    def clearInitConfig(self):
+        self.INITCONF = False
+         
+    def getInitConfig(self):
+        return self.INITCONF
+    
     
     
     def processLDS2PG(self):
@@ -102,7 +120,7 @@ class TransferProcessor(object):
         
     def processLDS2SpatiaLite(self):
         '''process LDS to SpatiaLite convenience method'''
-        self.processLDS(SpatiaLiteDataStore(self.destination_str,self.user_config))   
+        self.processLDS(SpatiaLiteDataStore(self.destination_str,self.user_config))
         
     def processLDS2FileGDB(self):
         '''process LDS to FileGDB convenience method'''
@@ -146,25 +164,36 @@ class TransferProcessor(object):
         tdate = None
         
         self.dst = dst
-        self.src = LDSDataStore(self.source_str,self.user_config)       
+        self.src = LDSDataStore(self.source_str,self.user_config)
         
+        #because we need to read a new config from the SRC and write it to the DST config both of these must be initialised
+        if self.getInitConfig():
+            dst.initDS(self.dst.destinationURI(None))
+            ConfigInitialiser.buildConfiguration(self.src,self.dst)
+        
+        #reads the existing layerconfig
+        dst.mlr.setupLayerConfig()
+            
         #full LDS layer name list
         lds_full = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
         #list of configured layers
-        lds_config = self.dst.mlr.getLayerNames()
+        lds_read = self.dst.mlr.getLayerNames()
         
-        lds_valid = map(lambda x: x.lstrip(PREFIX),set(lds_full).intersection(set(lds_config)))
+        lds_valid = map(lambda x: x.lstrip(PREFIX),set(lds_full).intersection(set(lds_read)))
         
         #Filter by group designation
 
         self.lnl = ()
-        lg = set(self.group.split(','))
-        for lid in lds_valid:
-            if set(self.dst.mlr.readLayerGroups(PREFIX+lid).split(',')).intersection(lg):
-                self.lnl += (lid,)
+        if self.group is not None:
+            lg = set(self.group.split(','))
+            for lid in lds_valid:
+                if set(self.dst.mlr.readLayerGroups(PREFIX+lid).split(',')).intersection(lg):
+                    self.lnl += (lid,)
+        else:
+            self.lnl = lds_valid
         
         #override config file dates with command line dates if provided
-        ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}".format(len(lds_full),len(lds_config),len(self.lnl)))
+        ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}".format(len(lds_full),len(lds_read),len(self.lnl)))
         ldslog.debug("Layer List:"+str(self.lnl))
         
         
@@ -218,7 +247,7 @@ class TransferProcessor(object):
 
     def fullReplicateLayer(self,layer):
         '''Replicate the requested layer non-incrementally'''
-        self.src.read(self.src.sourceURI(layer))
+        self.src.read(          self.src.sourceURI(layer))
         self.dst.write(self.src,self.dst.destinationURI(layer))
         '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
         i.e. retained since dates may change between successive calls depending on the start time of the process'''
@@ -249,7 +278,7 @@ class TransferProcessor(object):
         
         self.src.setFilter(self.establishCQLPrecedence(self.cql,self.src.getFilter(),self.dst.mlr.readCQLFilter(LDSUtilities.cropChangeset(layer_i))))
         
-        if datetime.strptime(tdate,'%Y-%m-%d') > datetime.strptime(fdate,'%Y-%m-%d'):
+        if datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S') > datetime.strptime(fdate,'%Y-%m-%dT%H:%M:%S'):
             #Set Incremental determines whether we use the incremental or full endpoint construction
             self.src.setIncremental()
             self.src.read(self.src.sourceURI_incrd(layer_i,fdate,tdate))

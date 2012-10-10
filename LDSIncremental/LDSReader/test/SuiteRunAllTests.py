@@ -15,13 +15,30 @@ Created on 24/07/2012
 @author: jramsay
 '''
 import unittest
+import os
+import logging
+
 
 #from TestTransferTypes import TestIncrementalDates
-from TestTransferTypes import TestIncrementalDestinations
-from TestConnectivity import TestConnect
-from TestUI import TestUI
-from TestLayerTypes import TestLayerTypes
+#from TestTransferTypes import TestIncrementalDestinations
+#from TestConnectivity import TestConnect
+#from TestUI import TestUI
+#from TestLayerTypes import TestLayerTypes
+from TestInitConfig import TestInitConfig
 
+
+ldslog = logging.getLogger('LDS')
+ldslog.setLevel(logging.DEBUG)
+
+
+df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../debug.log"))
+#df = '../debug.log'
+fh = logging.FileHandler(df,'w')
+fh.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('* %(asctime)s - %(levelname)s - %(module)s - %(message)s')
+fh.setFormatter(formatter)
+ldslog.addHandler(fh)
 
 class FullSuite(unittest.TestSuite):
 
@@ -75,9 +92,9 @@ def main():
     #s3b = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDestinations) 
     #s4a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
     #s5a = unittest.TestLoader().loadTestsFromTestCase(TestLayerTypes)
-    s6 = unittest.TestLoader().loadTestsFromTestCase(TestInitConfig)
+    s6a = unittest.TestLoader().loadTestsFromTestCase(TestInitConfig)
     
-    ss = unittest.TestSuite([s6])
+    ss = unittest.TestSuite([s6a])
     runner.run(ss)
     
 if __name__ == "__main__":
