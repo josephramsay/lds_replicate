@@ -84,7 +84,18 @@ class LDSUtilities(object):
             return "&cql_filter="+cql
         else:
             return ""
-    
+        
+    @classmethod    
+    def precedence(cls,cmdline_arg,config_arg,layer_arg):
+        '''Decide which CQL filter to apply based on scope and availability'''
+        '''Currently we have; CommandLine > Config-File > Layer-Properties but maybe its better for individual layers to override a global setting... '''
+        if cmdline_arg is not None and cmdline_arg != '':
+            return cmdline_arg
+        elif config_arg is not None and config_arg != '':
+            return config_arg
+        elif layer_arg is not None and layer_arg != '':
+            return layer_arg
+        return None
     
     
 

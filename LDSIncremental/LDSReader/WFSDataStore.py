@@ -33,7 +33,7 @@ class WFSDataStore(DataStore):
         
         super(WFSDataStore,self).__init__(conn_str,user_config)
         
-        (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
+        #(self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
         
             
         

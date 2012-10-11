@@ -31,6 +31,8 @@ class LDSDataStore(WFSDataStore):
         super(LDSDataStore,self).__init__(conn_str,user_config)
         
         self.CHANGE_COL = "__change__"
+        
+        (self.url,self.key,self.svc,self.ver,self.fmt) = self.params
 
 
         

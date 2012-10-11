@@ -56,6 +56,8 @@ class DataStore(object):
             
         self.DATE_FORMAT='%Y-%m-%dT%H:%M:%S'
         self.EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
+        
+        self.SRS = None
 
         #default clear the INCR flag
         self.setOverwrite()
@@ -64,7 +66,7 @@ class DataStore(object):
         self.getDriver(self.DRIVER_NAME)
             
         self.mlr = MetaLayerReader(self,user_config,self.DRIVER_NAME.lower()+".layer.properties")
-        self.params = self.mlr.readDSSpecificParameters(self.DRIVER_NAME)
+        self.params = self.mlr.readDSParameters(self.DRIVER_NAME)
         
         
         '''set of <potential> columns not needed in final output, global'''
@@ -79,14 +81,21 @@ class DataStore(object):
             sys.exit(1)
 
 
-    #filter/cql (applicable for source type)
+    #filter/cql (applicable to source type)
     def setFilter(self,cql):
         self.cql = cql
          
     def getFilter(self):
-        if self.cql is not None and self.cql != '': 
-            return self.cql
-        return None
+        return self.cql
+    
+    #SRS
+    def setSRS(self,srs):
+        self.srs = srs
+         
+    def getSRS(self):
+        return self.srs       
+    
+    #--------------------------  
     
     #incr flag
     def setIncremental(self):
@@ -107,6 +116,7 @@ class DataStore(object):
          
     def getOverwrite(self):
         return self.OVERWRITE      
+    
     
     def getOptions(self):
         '''Returns common options, overridden in subclasses for source specifc options'''
@@ -178,7 +188,7 @@ class DataStore(object):
               
     def cloneDS(self,src_ds,dst_ds):
         '''Copy from source to destination using the driver copy and without manipulating data'''
-        '''TODO. address problems with this approach if a user has changed a tablename, specified ignore columns etc'''
+        '''TODO. address problems with this approach if a user has changed a tablename, specified ignore columns etc (though this doesnt seem possible)'''
 
         ldslog.info("Using cloneDS. Non-Incremental driver copy")
         for li in range(0,src_ds.GetLayerCount()):
@@ -186,7 +196,7 @@ class DataStore(object):
             src_layer_name = src_layer.GetName()
             
             #ref_name = self.mlr.readConvertedLayerName(src_layer_name)
-            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(src_layer_name)
+            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readLayerParameters(src_layer_name)
             
             dst_layer_name = self.schema+"."+self.sanitise(ref_name) if self.schema is not None else self.sanitise(ref_name)
             dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name)) 
@@ -215,7 +225,7 @@ class DataStore(object):
             ref_layer_name = LDSUtilities.cropChangeset(src_layer_name)
             
             '''retrieve per-layer settings from props'''
-            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readAllLayerParameters(ref_layer_name)
+            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readLayerParameters(ref_layer_name)
             
             dst_layer_name = self.schema+"."+self.sanitise(ref_name) if hasattr(self,'schema') and self.schema is not None else self.sanitise(ref_name)
             ldslog.info("Dest layer: "+dst_layer_name)
@@ -223,61 +233,19 @@ class DataStore(object):
             '''parse discard columns'''
             self.optcols |= set(ref_disc.strip('[]{}()').split(',') if ref_disc is not None else [])
             
-            #check for user defined projection
-            self.transform = None
-            dst_sref = src_layer_sref#not necessary but for clarity
-            if ref_epsg is not None and ref_epsg != '':
-                trans_sref = Projection.validateEPSG(ref_epsg)
-                if trans_sref is not None:
-                    self.transform = osr.CoordinateTransformation(src_layer_sref, trans_sref)
-                    if self.transform is not None:
-                        dst_sref = trans_sref
-            
-            #new_layer_flag = False # used if we del/ins features instead of setting them            
-            
+            #check for user defined projections
+            #this should be done in TP.defIncr now
+            #if self.getSRS() is not None:
+            #    ref_epsg = self.getSRS()
+            dst_sref = self.transform(src_layer_sref)
+               
             #assuming output layer name will be the same... confusion if this isnt so
             dst_layer = dst_ds.GetLayer(dst_layer_name)
             if dst_layer is None:
                 new_layer = True
-                '''create a new layer if a similarly named existing layer can't be found on the dst'''
                 ldslog.warning(dst_layer_name+" does not exist. Creating new layer")
-                #new_layer_flag = True
-                
-                #read defns of each field
-                fdef_list = []
-                for fi in range(0,src_layer_defn.GetFieldCount()):
-                    fdef_list.append(src_layer_defn.GetFieldDefn(fi))
-                
-                #use the field defns to build a schema since this needs to be loaded as a create_layer option
-                opts = self.getOptions(ref_layer_name)
-                
-                '''build layer replacing poly with multi and revert to def if that doesn't work'''
-                if src_layer_geom is ogr.wkbPolygon:
-                    dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,ogr.wkbMultiPolygon,opts)
-                else:
-                    dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
-                    
-                if dst_layer is None:
-                    #overwrite the dst_sref if its causing trouble (ie GDAL general function errors)
-                    dst_sref = Projection.getDefaultSpatialRef()
-                    ldslog.warning("Could not initialise Layer with specified SRID {"+str(src_layer_sref)+"}.\n\nUsing Default {"+str(dst_sref)+"} instead")
-                    if src_layer_geom is ogr.wkbPolygon:
-                        dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,ogr.wkbMultiPolygon,opts)
-                    else:
-                        dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
-                        
-                if dst_layer is None:
-                    ldslog.error(dst_layer_name+" cannot be created")
-                    raise LayerCreateException(dst_layer_name+" cannot be created")
-                
-                #dst_layer.SetFID("id")
-            
-                '''setup layer headers for new layer etc'''                
-                for fdef in fdef_list:
-                    #print "field:",fi
-                    if fdef.GetName() not in self.optcols:# and fdef.GetName() in reqdcols:
-                        dst_layer.CreateField(fdef)
-                        #could check for any change tags and throw exception if none
+                '''create a new layer if a similarly named existing layer can't be found on the dst'''
+                dst_layer = self.buildNewDSTLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
             
             #add/copy features
             #src_layer.ResetReading()
@@ -288,49 +256,11 @@ class DataStore(object):
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
             
             while src_feat is not None:
-                #print src_feat.GetFID()
+                '''identify the change in the WFS doc (INS,UPD,DEL)'''
                 change =  src_feat.GetField(changecol) if changecol is not None and len(changecol)>0 else "INSERT"
-                #src_fid = src_feat.GetFieldAsInteger(ref_pkey)
-
-                #self._showFeatureData(new_feat)
-                src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
-                ldslog.debug("CHANGE:"+change+" "+str(src_pkey))
-                
-                try:
-                    if change == "INSERT":
-                        '''build new feature from defn and insert'''
-                        new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_gcol)
-                        err = dst_layer.CreateFeature(new_feat)
-                        dst_fid = new_feat.GetFID()
-                    elif change == "DELETE":
-                        '''lookup and delete using fid matching ID of feature being deleted'''
-                        #if not new_layer_flag: 
-                        dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
-                        if dst_fid is not None:
-                            err = dst_layer.DeleteFeature(dst_fid)
-                        else:
-                            ldslog.error("No match for FID with ID="+str(src_pkey)+" on "+change,exc_info=1)
-                            raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on "+change)
-                    elif change == "UPDATE":
-                        '''build new feature, assign it the looked-up matching fid and overwrite on dst'''
-                        #if not new_layer_flag: 
-                        dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
-                        new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_gcol)
-                        if dst_fid is not None:
-                            new_feat.SetFID(dst_fid)
-                            err = dst_layer.SetFeature(new_feat)
-                        else:
-                            ldslog.error("No match for FID with ID="+str(src_pkey)+" on "+change,exc_info=1)
-                            raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on "+change)
-                        
-                    if err!=0: 
-                        ldslog.error("Driver Error ["+str(err)+"] using FID="+str(dst_fid)+" on "+change,exc_info=1)
-                        raise InvalidFeatureException("Driver Error ["+str(err)+"] using FID="+str(dst_fid)+" on "+change)
-                    
-                except InvalidFeatureException as ife:
-                    ldslog.error(ife,exc_info=1)
-                    #print "InvalidFeatureException",ife
-                               
+                '''not just copy but possuble delete or update a feature on the DST layer'''
+                self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
+                                               
                 src_feat = src_layer.GetNextFeature()
 
             #self._showLayerData(dst_layer)
@@ -343,7 +273,102 @@ class DataStore(object):
             src_layer.ResetReading()
             dst_layer.ResetReading()
 
-
+    def transformSRS(self,src_layer_sref):
+        '''transform from one SRS to another provided supplied EPSG is correct and coordinates can be transformed'''
+        self.transform = None
+        dst_sref = src_layer_sref#not necessary but for clarity
+        selected_sref = self.getSRS()
+        if selected_sref is not None and selected_sref != '':
+            #if the selected SRS fails to validate assume error and flag but dont silently drop back to default
+            trans_sref = Projection.validateEPSG(selected_sref)
+            if trans_sref is not None:
+                self.transform = osr.CoordinateTransformation(src_layer_sref, trans_sref)
+                if self.transform is not None:
+                    dst_sref = trans_sref
+            else:
+                ldslog.warn("Unable to validate selected SRS, epsg="+str(selected_sref))
+                    
+        return dst_sref
+    
+    def copyFeature(self,change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol):
+        '''Insert, Delete or Update a feature to match WFS change set'''
+        #self._showFeatureData(new_feat)
+        src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
+        ldslog.debug("CHANGE:"+change+" "+str(src_pkey))
+        
+        try:
+            if change == "INSERT":
+                '''build new feature from defn and insert'''
+                new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_gcol)
+                err = dst_layer.CreateFeature(new_feat)
+                dst_fid = new_feat.GetFID()
+            elif change == "DELETE":
+                '''lookup and delete using fid matching ID of feature being deleted'''
+                #if not new_layer_flag: 
+                dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
+                if dst_fid is not None:
+                    err = dst_layer.DeleteFeature(dst_fid)
+                else:
+                    ldslog.error("No match for FID with ID="+str(src_pkey)+" on "+change,exc_info=1)
+                    raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on "+change)
+            elif change == "UPDATE":
+                '''build new feature, assign it the looked-up matching fid and overwrite on dst'''
+                #if not new_layer_flag: 
+                dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
+                new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_gcol)
+                if dst_fid is not None:
+                    new_feat.SetFID(dst_fid)
+                    err = dst_layer.SetFeature(new_feat)
+                else:
+                    ldslog.error("No match for FID with ID="+str(src_pkey)+" on "+change,exc_info=1)
+                    raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on "+change)
+                
+            if err!=0: 
+                ldslog.error("Driver Error ["+str(err)+"] using FID="+str(dst_fid)+" on "+change,exc_info=1)
+                raise InvalidFeatureException("Driver Error ["+str(err)+"] using FID="+str(dst_fid)+" on "+change)
+            
+        except InvalidFeatureException as ife:
+            ldslog.error(ife,exc_info=1)
+            #print "InvalidFeatureException",ife
+    
+                    
+    def buildNewDSTLayer(self,dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name):        
+        #read defns of each field
+        fdef_list = []
+        for fi in range(0,src_layer_defn.GetFieldCount()):
+            fdef_list.append(src_layer_defn.GetFieldDefn(fi))
+        
+        #use the field defns to build a schema since this needs to be loaded as a create_layer option
+        opts = self.getOptions(ref_layer_name)
+        
+        '''build layer replacing poly with multi and revert to def if that doesn't work'''
+        if src_layer_geom is ogr.wkbPolygon:
+            dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,ogr.wkbMultiPolygon,opts)
+        else:
+            dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
+            
+        if dst_layer is None:
+            #overwrite the dst_sref if its causing trouble (ie GDAL general function errors)
+            dst_sref = Projection.getDefaultSpatialRef()
+            ldslog.warning("Could not initialise Layer with specified SRID {"+str(src_layer_sref)+"}.\n\nUsing Default {"+str(dst_sref)+"} instead")
+            if src_layer_geom is ogr.wkbPolygon:
+                dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,ogr.wkbMultiPolygon,opts)
+            else:
+                dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
+                
+        if dst_layer is None:
+            ldslog.error(dst_layer_name+" cannot be created")
+            raise LayerCreateException(dst_layer_name+" cannot be created")
+    
+        '''setup layer headers for new layer etc'''                
+        for fdef in fdef_list:
+            #print "field:",fi
+            if fdef.GetName() not in self.optcols:# and fdef.GetName() in reqdcols:
+                dst_layer.CreateField(fdef)
+                #could check for any change tags and throw exception if none
+                
+        return dst_layer
+                                           
     def partialCloneFeature(self,fin,fout_def,ref_gcol):
         '''Builds a feature using a passed in feature definition. Must still ignore discarded columns since they will be in the source'''
 

@@ -24,7 +24,7 @@ class SpatiaLiteDataStore(DataStore):
         
         super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 
-        (self.file) = self.params
+        (self.file,self.config,self.srs,self.cql) = self.params
 
         
     def sourceURI(self,layer):

@@ -24,7 +24,7 @@ class FileGDBDataStore(ESRIDataStore):
         
         super(FileGDBDataStore,self).__init__(conn_str,user_config)
         
-        (self.path) = self.params
+        (self.path,self.config,self.srs,self.cql) = self.params
         
         self.suffix = '.gdb'
 

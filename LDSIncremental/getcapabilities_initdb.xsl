@@ -14,6 +14,7 @@
 </xsl:template>
 
 <xsl:template match="wfs:FeatureTypeList">
+	<xsl:text>DROP TABLE IF EXISTS LDS_CONFIG;&#xa;</xsl:text>
 	<xsl:text>CREATE TABLE LDS_CONFIG (ID VARCHAR(8), PKEY VARCHAR(32) DEFAULT 'ID', NAME VARCHAR(128), CATEGORY VARCHAR(256), LASTMODIFIED TIMESTAMP DEFAULT NULL, GEOCOLUMN VARCHAR(32) DEFAULT 'SHAPE',EPSG INT DEFAULT NULL,DISCARD VARCHAR(256) DEFAULT NULL,CQL VARCHAR(256) DEFAULT NULL);&#xa;</xsl:text>
 	<xsl:for-each select="wfs:FeatureType">
 		<xsl:sort select="wfs:Name"/>

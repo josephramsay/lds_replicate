@@ -16,8 +16,8 @@ The basic usage of the script is:
 Where valid output specifiers include; pg (postgres), ms (mssql), slite (spatialite) and fgdb (filegdb)
 
 | Where options are:
-| ``-f ( --fromdate)`` Date in yyyy-mm-dd format start of incremental range (omission assumes auto incremental bounds)
-| ``-t (--todate)`` Date in yyyy-mm-dd format for end of incremental range (omission assumes auto incremental bounds)
+| ``-f (--fromdate)`` Date in yyyy-mm-dd format start of incremental range (Omission assumes auto incremental bounds)
+| ``-t (--todate)`` Date in yyyy-mm-dd format for end of incremental range (Omission assumes auto incremental bounds)
 | ``-l (--layer)`` Layer name/id in format v:x### (IMPORTANT. Omission assumes ALL layers)
 | ``-s (--source)`` Connection string for source DS
 | ``-d (--destination)`` Connection string for destination DS

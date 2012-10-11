@@ -37,7 +37,7 @@ class PostgreSQLDataStore(DataStore):
         self.PG_USE_BASE64 = "YES"
         gdal.SetConfigOption("PG_USE_BASE64",self.PG_USE_BASE64)
 
-        (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite,self.config) = self.params
+        (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite,self.config,self.srs,self.cql) = self.params
 
         
     def sourceURI(self,layer):

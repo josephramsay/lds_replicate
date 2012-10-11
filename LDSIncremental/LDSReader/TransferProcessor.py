@@ -82,7 +82,6 @@ class TransferProcessor(object):
         self.cql = None
         if cql != None:
             self.cql = cql     
-            self.ldslog.info("CQL:"+str(cql))
             
         self.user_config = None
         if uc != None:
@@ -164,6 +163,8 @@ class TransferProcessor(object):
         tdate = None
         
         self.dst = dst
+        self.dst.setSRS(self.epsg)
+        
         self.src = LDSDataStore(self.source_str,self.user_config)
         
         #because we need to read a new config from the SRC and write it to the DST config both of these must be initialised
@@ -187,7 +188,7 @@ class TransferProcessor(object):
         if self.group is not None:
             lg = set(self.group.split(','))
             for lid in lds_valid:
-                if set(self.dst.mlr.readLayerGroups(PREFIX+lid).split(',')).intersection(lg):
+                if set(self.dst.mlr.readLayerCategories(PREFIX+lid).split(',')).intersection(lg):
                     self.lnl += (lid,)
         else:
             self.lnl = lds_valid
@@ -250,7 +251,7 @@ class TransferProcessor(object):
         self.src.read(          self.src.sourceURI(layer))
         self.dst.write(self.src,self.dst.destinationURI(layer))
         '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
-        i.e. retained since dates may change between successive calls depending on the start time of the process'''
+        Retained since dates may change between successive calls depending on the start time of the process'''
         self.dst.setLastModified(layer,self.dst.getCurrent())
     
     
@@ -275,8 +276,11 @@ class TransferProcessor(object):
     def definedIncremental(self,layer_i,fdate,tdate):
         '''Making sure the date ranges are sequential, read/write and set last modified'''
         #Once an individual layer has been defined...
-        
-        self.src.setFilter(self.establishCQLPrecedence(self.cql,self.src.getFilter(),self.dst.mlr.readCQLFilter(LDSUtilities.cropChangeset(layer_i))))
+        croplayer = LDSUtilities.cropChangeset(layer_i)
+        #Filters are set on the SRC since theyre build into the URL, they are however specified per DST    
+        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.mlr.readCQLFilter(croplayer)))
+        #SRS are set in the DST since the conversion takes place during the write process
+        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.mlr.readLayerEPSG(croplayer)))
         
         if datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S') > datetime.strptime(fdate,'%Y-%m-%dT%H:%M:%S'):
             #Set Incremental determines whether we use the incremental or full endpoint construction
@@ -289,15 +293,4 @@ class TransferProcessor(object):
         return tdate
     
     
-    def establishCQLPrecedence(self,cmdline_cql,config_cql,layer_cql):
-        '''
-        Decide which CQL filter to apply.
-        CommandLine > Config-File > Layer-Properties
-        '''
-        if cmdline_cql is not None:
-            return cmdline_cql
-        elif config_cql is not None and config_cql != '':
-            return config_cql
-        elif layer_cql is not None and layer_cql != '':
-            return layer_cql
-        return None
+

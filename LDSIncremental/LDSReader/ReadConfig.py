@@ -72,8 +72,20 @@ class ReaderFile(object):
         except NoOptionError:
             ldslog.debug("PG: Overwrite not specified, Setting to True")
             over = True
+            
+        try:
+            epsg = self.cp.get('PostgreSQL', 'epsg')
+        except NoOptionError:
+            ldslog.debug("PG: EPSG not specified, default to none keeping existing SRS")
+            epsg = True
+            
+        try: 
+            cql = self.cp.get('PostgreSQL', 'cql')
+        except NoOptionError:
+            ldslog.debug("PG: No CQL Filter specified, fetching all results")
+            cql = None
         
-        return (host,port,dbname,schema,usr,pwd,over,config)
+        return (host,port,dbname,schema,usr,pwd,over,config,epsg,cql)
     
     def readMSSQLConfig(self):
         '''MSSQL specific config file reader'''
@@ -92,8 +104,20 @@ class ReaderFile(object):
         except NoOptionError:
             ldslog.debug("MSSQL: No config preference specified, default to 'external'")
             config = 'external'
+            
+        try:
+            epsg = self.cp.get('MSSQL', 'epsg')
+        except NoOptionError:
+            ldslog.debug("MS: EPSG not specified, default to none keeping existing SRS")
+            epsg = True
+            
+        try: 
+            cql = self.cp.get('MSSQL', 'cql')
+        except NoOptionError:
+            ldslog.debug("MS: No CQL Filter specified, fetching all results")
+            cql = None
         
-        return (odbc,server,dsn,trust,dbname,schema,usr,pwd,config)
+        return (odbc,server,dsn,trust,dbname,schema,usr,pwd,config,epsg,cql)
     
     def readSpatiaLiteConfig(self):
         '''SpatiaLite specific config file reader'''
@@ -104,8 +128,50 @@ class ReaderFile(object):
         except NoOptionError:
             ldslog.debug("SpatiaLite: No config preference specified, default to 'external'")
             config = 'external'
+            
+        try:
+            epsg = self.cp.get('SpatiaLite', 'epsg')
+        except NoOptionError:
+            ldslog.debug("SL: EPSG not specified, default to none keeping existing SRS")
+            epsg = True
+            
+        try: 
+            cql = self.cp.get('SpatiaLite', 'cql')
+        except NoOptionError:
+            ldslog.debug("SL: No CQL Filter specified, fetching all results")
+            cql = None
         
-        return (path,config)
+        return (path,config,epsg,cql)
+    
+    
+    
+    def readFileGDBConfig(self):
+        '''FileGDB specific config file reader'''
+        try: 
+            path = self.cp.get('FileGDB', 'path')
+        except NoOptionError:
+            ldslog.debug("FileGDB: No path specified, default to Home directory")
+            path = "~"
+            
+        try:
+            config = self.cp.get('FileGDB', 'config')
+        except NoOptionError:
+            ldslog.debug("FileGDB: No config preference specified, default to 'external'")
+            config = 'external'
+            
+        try:
+            epsg = self.cp.get('FileGDB', 'epsg')
+        except NoOptionError:
+            ldslog.debug("FG: EPSG not specified, default to none keeping existing SRS")
+            epsg = True
+            
+        try: 
+            cql = self.cp.get('FileGDB', 'cql')
+        except NoOptionError:
+            ldslog.debug("FG: No CQL Filter specified, fetching all results")
+            cql = None
+        
+        return (path,config,epsg,cql)
     
     
 #    def readOracleConfig(self):
@@ -154,45 +220,39 @@ class ReaderFile(object):
 #        
 #        return (prefix,path)
     
-    def readFileGDBConfig(self):
-        '''FileGDB specific config file reader'''
-        try: 
-            path = self.cp.get('FileGDB', 'path')
-        except NoOptionError:
-            ldslog.debug("FileGDB: No path specified, default to Home directory")
-            path = "~"
-            
-        try:
-            config = self.cp.get('FileGDB', 'config')
-        except NoOptionError:
-            ldslog.debug("FileGDB: No config preference specified, default to 'external'")
-            config = 'external'
-        
-        return (path,config)
-    
     
     #web
     
     def readWFSConfig(self):
-        '''Generic WFS specific config file reader'''
-        url = self.cp.get('WFS', 'url') 
-        key = self.cp.get('WFS', 'key') 
-        svc = self.cp.get('WFS', 'svc') 
-        ver = self.cp.get('WFS', 'ver')
-        fmt = self.cp.get('WFS', 'fmt')
-        cql = self.cp.get('WFS', 'cql')
+        '''Generic WFS config file reader'''
+        '''Since this now keys on the driver name WFS is read before LDS and LDS not at all, So...'''
         
-        
-        return (url,key,svc,ver,fmt,cql)    
+        return self.readLDSConfig()
+    
+#        url = self.cp.get('WFS', 'url') 
+#        key = self.cp.get('WFS', 'key') 
+#        svc = self.cp.get('WFS', 'svc') 
+#        ver = self.cp.get('WFS', 'ver')
+#        fmt = self.cp.get('WFS', 'fmt')
+#        cql = self.cp.get('WFS', 'cql')    
+#        
+#        return (url,key,svc,ver,fmt,cql)    
     
     def readLDSConfig(self):
         '''LDs specific config file reader'''
         try:
             url = self.cp.get('LDS', 'url')
         except NoOptionError:
+            ldslog.debug("LDS: Default URL assumed")
             url = "http://wfs.data.linz.govt/"
         except NoSectionError:
             ldslog.debug("LDS: No LDS Section... Cannot recover, quitting")
+            sys.exit(1)
+            
+        try:   
+            key = self.cp.get('LDS', 'key') 
+        except NoOptionError, NoSectionError:
+            ldslog.debug("LDS: Key required to connect to LDS... Cannot recover, quitting")
             sys.exit(1)
             
         try: 
@@ -212,13 +272,18 @@ class ReaderFile(object):
         except NoOptionError:
             ldslog.debug("LDS: No Version specified, assuming WFS and default to version 1.0.0")
             ver = "1.0.0"
+            
+        try: 
+            cql = self.cp.get('LDS', 'cql')
+        except NoOptionError:
+            ldslog.debug("LDS: No CQL Filter specified, fetching all results")
+            cql = None
+
         
-        key = self.cp.get('LDS', 'key') 
-        
-        return (url,key,svc,ver,fmt)
+        return (url,key,svc,ver,fmt,cql)
     
     def readProxyConfig(self):
-        '''Proxy config reader is needed. Not really supported anymore'''
+        '''Proxy config reader if needed. Not really supported anymore'''
         host = self.cp.get('Proxy', 'host') 
         port = self.cp.get('Proxy', 'port') 
         usr = self.cp.get('Proxy', 'user') 
@@ -238,12 +303,21 @@ class ReaderFile(object):
                 return section_name
         return name
     
+    def readLayerProperty(self,layer,key):
+        try:
+            value = self.cp.get(layer, key)
+        except:
+            '''return a default value otherwise none which would also be a default for some keys'''
+            return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
+        return value
+    
+    
     def readLayerSchemaConfig(self,layer):
-        '''Full Layer config reader'''
+        '''Full Layer config reader. Returns the config values for the whole layer or makes sensible guesses for defaults'''
         try:
             defn = self.cp.get(layer, 'sql')
-            #if the user has gone to the trouble of defining their own schema in SQL who are we to argue. assume pk and geo defined within
-            return (defn,None,None)
+            #if the user has gone to the trouble of defining their own schema in SQL just return that
+            return (defn,None,None,None,None,None,None,None,None)
         except:
             pass
         
@@ -252,7 +326,7 @@ class ReaderFile(object):
             pkey = self.cp.get(layer, 'pkey')
         except NoOptionError:
             ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
-            pkey = '(ID, Integer)'
+            pkey = 'ID'
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
@@ -374,6 +448,18 @@ class ReaderTable(object):
             ldslog.debug("LayerSchema: No matching ID column found")
         return lid
 
+
+    def readLayerProperty(self,layer,key):
+        
+        result = self.ds.executeSQL("SELECT {} FROM {} WHERE ID = '{}'".format(key,self.tablename,layer))
+        row = result.GetNextFeature()
+        try:
+            value = row.GetField(key)
+        except:
+            '''return a default value otherwise none which would also be a default for some keys'''
+            return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
+        return value
+    
     
     def readLayerSchemaConfig(self,layer):
         '''Full Layer config reader'''
@@ -385,7 +471,7 @@ class ReaderTable(object):
             pkey =  row.GetField('PKEY')
         except:
             ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
-            pkey = '(ID, Integer)'
+            pkey = 'ID'
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:

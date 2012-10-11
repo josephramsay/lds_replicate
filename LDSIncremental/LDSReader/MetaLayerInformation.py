@@ -29,6 +29,8 @@ class MetaLayerReader(object):
         '''this is not a ogr function so we dont need a driver and therefore wont call super'''
         #some layer config properties may not be needed and wont be read eg WFS so None arg wont set layerconfig
         
+        
+        self.CONFIG_FILE = "ldsincr.conf"
         #reference to calling class
         self.parent = parent
         #name of properties file
@@ -45,12 +47,12 @@ class MetaLayerReader(object):
         self.userconfig = None
         if config_file is not None:
             self.userconfig = ReaderFile("../"+config_file)
-        self.mainconfig = ReaderFile("../ldsincr.conf")
+        self.mainconfig = ReaderFile("../"+self.CONFIG_FILE)
         
     def setupLayerConfig(self):
         '''Adds a layerconfig object'''
         #HACK. Assumes last value is the config value. Might be better to search all params for either external or internal
-        config = self.readDSSpecificParameters(self.parent.DRIVER_NAME)[-1:][0]
+        config = self.readDSParameters(self.parent.DRIVER_NAME)[-1:][0]
         
         if config.lower() == 'internal':
             self.layerconfig = ReaderTable(self.parent)
@@ -68,14 +70,22 @@ class MetaLayerReader(object):
         '''Returns configured layers for respective layer properties file'''
         return self.layerconfig.getSections()
     
-    def readLayerGroups(self,layer_id):
+    def readLayerCalegories(self,layer_id):
         '''Reads configured name for a provided layer id'''
-        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-        return group
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        category = self.layerconfig.readLayerProperty(layer_id,'category')
+        return category
+    
+    def readLayerEPSG(self,layer_id):
+        '''Reads configured SRS for a provided layer id'''
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        epsg = self.layerconfig.readLayerProperty(layer_id,'epsg')
+        return epsg
     
     def readConvertedLayerName(self,layer_id):
         '''Reads configured name for a provided layer id'''
-        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        name = self.layerconfig.readLayerProperty(layer_id,'name')
         return name
     
     def lookupConvertedLayerName(self,layer_name):
@@ -87,7 +97,8 @@ class MetaLayerReader(object):
 
     def readLastModified(self,layer_id):
         '''Reads last modified date for a provided layer id per destination'''
-        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        lmod = self.layerconfig.readLayerProperty(layer_id,'lastmodified')
         return lmod
         
     def writeLastModified(self,layer_id,lmod):
@@ -100,39 +111,44 @@ class MetaLayerReader(object):
 
     def readOptionalColmuns(self,layer_id):
         '''Returns a list of columns being discarded for the named layer (with removal of brackets)'''
-        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        disc = self.layerconfig.readLayerProperty(layer_id,'discard')
         return disc.strip('[]{}()').split(',') if disc is not None else []
     
     def readPrimaryKey(self,layer_id):
         '''Returns a list of columns being discarded for the named layer'''
-        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        pkey = self.layerconfig.readLayerProperty(layer_id,'pkey')
         return pkey
     
     def readIndexRef(self,layer_id):
         '''Returns a list of columns being discarded for the named layer'''
-        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        index = self.layerconfig.readLayerProperty(layer_id,'index')
         return index
     
     def readCQLFilter(self,layer_id):
         '''Reads the CQL filter for the layer if provided'''
-        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        cql = self.layerconfig.readLayerProperty(layer_id,'cql')
         return cql
     
     
     
     def readGeometryColumnName(self,layer_id):
         '''Returns preferred geometry column name. If not provided uses the existing layer name'''
-        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
+        gcol = self.layerconfig.readLayerProperty(layer_id,'geocolumn')
         return gcol
     
     
-    def readAllLayerParameters(self,layer_id):
+    def readLayerParameters(self,layer_id):
         '''Returns a list of all layer parameters'''
         return self.layerconfig.readLayerSchemaConfig(layer_id)
         
     #unless there is a pk change we wont need to write pk
 
-    def readDSSpecificParameters(self,drv):
+    def readDSParameters(self,drv):
         '''Returns the datasource parameters. By request updated to let users override parts of the basic config file'''
         ul = ()
 

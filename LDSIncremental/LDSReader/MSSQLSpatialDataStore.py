@@ -25,7 +25,7 @@ class MSSQLSpatialDataStore(DataStore):
          
         super(MSSQLSpatialDataStore,self).__init__(conn_str,user_config)
         
-        (self.odbc,self.server,self.dsn,self.trust,self.dbname,self.schema,self.usr,self.pwd) = self.params
+        (self.odbc,self.server,self.dsn,self.trust,self.dbname,self.schema,self.usr,self.pwd,self.srs,self.cql) = self.params
 
         
     def sourceURI(self,layer):
@@ -57,6 +57,7 @@ class MSSQLSpatialDataStore(DataStore):
                     'GRIDS = (LEVEL_1 = MEDIUM, LEVEL_2 = MEDIUM, LEVEL_3 = MEDIUM, LEVEL_4 = MEDIUM),' \
                     'CELLS_PER_OBJECT = 256)'.format(str(bb[0]),str(bb[1]),str(bb[2]),str(bb[3]))
             cmd = cmd1+cmd2
+            
             #magic command...
             cmd = 'create spatial index on '+dst_layer_name
         elif ref_index == 'pkey' or ref_index == 'p':
