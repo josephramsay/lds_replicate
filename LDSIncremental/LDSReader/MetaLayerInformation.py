@@ -51,14 +51,15 @@ class MetaLayerReader(object):
         
     def setupLayerConfig(self):
         '''Adds a layerconfig object'''
-        #HACK. Assumes last value is the config value. Might be better to search all params for either external or internal
-        config = self.readDSParameters(self.parent.DRIVER_NAME)[-1:][0]
-        
-        if config.lower() == 'internal':
+        lowered = map(lambda x: x.lower() if type(x) is str else x,self.readDSParameters(self.parent.DRIVER_NAME))
+        if 'internal' in lowered:
+            #self.parent is not None:
             self.layerconfig = ReaderTable(self.parent)
-        elif self.properties is not None:
-            if config is None:
-                ldslog.warning('No config type specified')
+        elif 'external' in lowered:
+            #self.properties is not None:
+            self.layerconfig = ReaderFile("../"+self.properties)
+        else:
+            ldslog.warning('No config type specified, default to external')
             self.layerconfig = ReaderFile("../"+self.properties)
         
 #    def setLayerConfig(self,layerconfig):

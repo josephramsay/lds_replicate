@@ -20,7 +20,7 @@ class SpatiaLiteDataStore(DataStore):
         cons init driver
         '''
         self.DRIVER_NAME = "SQLite"
-        self.CONFIG_XSL = "getcapabilities_initdb.xsl"  
+        self.CONFIG_XSL = "getcapabilities.sqlite.xsl"  
         
         super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 

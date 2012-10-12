@@ -242,11 +242,11 @@ class ReaderFile(object):
         '''LDs specific config file reader'''
         try:
             url = self.cp.get('LDS', 'url')
-        except NoOptionError:
-            ldslog.debug("LDS: Default URL assumed")
+        except NoOptionError as noe:
+            ldslog.debug("LDS: Default URL assumed "+str(noe))
             url = "http://wfs.data.linz.govt/"
-        except NoSectionError:
-            ldslog.debug("LDS: No LDS Section... Cannot recover, quitting")
+        except NoSectionError as nse:
+            ldslog.debug("LDS: No LDS Section... Cannot recover, quitting. "+str(nse))
             sys.exit(1)
             
         try:   
@@ -399,6 +399,8 @@ class ReaderFile(object):
 # File Reader /\ Table Reader \/
 #------------------------------------------------------------------------------------------------------------------------------
              
+#NOTES. If syntax between different destinations RT will need to be moved/rebuilt for each DST case. If there is any crossover 
+#can still subclass ReadConfig but write Module in DST connector file
         
         
 class ReaderTable(object):
@@ -415,10 +417,10 @@ class ReaderTable(object):
         #tablename = tableprefix+'_lds_config'
         tablename = 'LDS_CONFIG'
             
-        self._readConfigFile(parent,tablename)
+        self._setConfigFile(parent,tablename)
 
         
-    def _readConfigFile(self,parent,tablename):
+    def _setConfigFile(self,parent,tablename):
         '''Reads named config location'''
         #Split off so you can override the config file on the same reader object if needed
         self.ds = parent

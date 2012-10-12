@@ -21,7 +21,7 @@ class PostgreSQLDataStore(DataStore):
         '''
         
         self.DRIVER_NAME = "PostgreSQL"
-        self.CONFIG_XSL = "getcapabilities_initdb.xsl"
+        self.CONFIG_XSL = "getcapabilities.postgresql.xsl"
         
         super(PostgreSQLDataStore,self).__init__(conn_str,user_config)
         

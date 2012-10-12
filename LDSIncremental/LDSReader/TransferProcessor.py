@@ -169,7 +169,8 @@ class TransferProcessor(object):
         
         #because we need to read a new config from the SRC and write it to the DST config both of these must be initialised
         if self.getInitConfig():
-            dst.initDS(self.dst.destinationURI(None))
+            #TODO
+            dst.initDS(self.dst.destinationURI('lds_config'))
             ConfigInitialiser.buildConfiguration(self.src,self.dst)
         
         #reads the existing layerconfig

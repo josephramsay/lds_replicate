@@ -185,15 +185,15 @@ def main():
         proc()
             
 
-def versionCheck(name,cmd,min):
+def versionCheck(name,cmd,mnm):
     out = subprocess.Popen(cmd+' --version',shell=True,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     ver = re.search('\d.\d.\d',str(out.stdout.readlines())).group(0)
     #alpha compare
-    if ver<min: 
-        print name,'version',ver,"is earlier than",min
-        ldslog.error(name+' version '+ver+' is earlier than '+min)
+    if ver<mnm: 
+        print name,'version',ver,"is earlier than",mnm
+        ldslog.error(name+' version '+ver+' is earlier than '+mnm)
         sys.exit(1)
-    ldslog.info(name+' version '+ver+' is later than '+min)
+    ldslog.info(name+' version '+ver+' is later than '+mnm)
 
 
 if __name__ == "__main__":

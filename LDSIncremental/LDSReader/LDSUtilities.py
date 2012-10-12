@@ -114,7 +114,7 @@ class ConfigInitialiser(object):
         if dst.config=='internal' and dst.CONFIG_XSL is not None:
             page = open(os.path.join(os.path.dirname(__file__), '../',dst.CONFIG_XSL),'r').read()
         else:
-            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities_config.xsl'),'r').read()
+            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities.file.xsl'),'r').read()
 
         
         xslt = etree.XML(page)

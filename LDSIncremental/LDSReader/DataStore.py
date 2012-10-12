@@ -34,6 +34,7 @@ class DatasourceOpenException(DSReaderException): pass
 class LayerCreateException(LDSReaderException): pass
 class InvalidLayerException(LDSReaderException): pass
 class InvalidFeatureException(LDSReaderException): pass
+class ExecuteSQLException(LDSReaderException): pass
 
 
 class DataStore(object):
@@ -144,6 +145,7 @@ class DataStore(object):
             self.ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
             if self.ds is None:
                 raise DSReaderException("Error opening DS on Destination "+str(dsn)+", attempting DS Create")
+        #catch runtime error but don't fail since we'll try to init a new DS
         except (RuntimeError,DSReaderException) as dsre1:
             print "DSReaderException",dsre1 
             ldslog.error(dsre1)
@@ -152,13 +154,14 @@ class DataStore(object):
                 if self.ds is None:
                     raise DSReaderException("Error creating DS on Destination "+str(dsn)+", quitting")
             except DSReaderException as dsre2:
-                print "DSReaderException",dsre2
-                ldslog.error(dsre2)
+                print "DSReaderException, Cannot create DS.",dsre2
+                ldslog.error(dsre2,exc_info=1)
                 raise
             except RuntimeError as rte:
                 '''this is only caught if ogr.UseExceptions() is enabled'''
-                print "GDAL RuntimeError",rte
-                ldslog.error(rte)
+                print "GDAL RuntimeError. Error creating DS.",rte
+                ldslog.error(rte,exc_info=1)
+                raise
         
     
     def read(self,dsn):
@@ -237,7 +240,7 @@ class DataStore(object):
             #this should be done in TP.defIncr now
             #if self.getSRS() is not None:
             #    ref_epsg = self.getSRS()
-            dst_sref = self.transform(src_layer_sref)
+            dst_sref = self.transformSRS(src_layer_sref)
                
             #assuming output layer name will be the same... confusion if this isnt so
             dst_layer = dst_ds.GetLayer(dst_layer_name)
@@ -466,14 +469,28 @@ class DataStore(object):
         '''Tagged private since we only want it called from well controlled methods'''
         '''TODO. step through multi line queries?'''
         retval = None
-        
+        ogr.UseExceptions()
         ldslog.debug("SQL: "+sql)
-        '''validating sql as a block acts as a sort of transaction mechanism'''
+        '''validating sql as a block acts as a sort of transaction mechanism and means we can execute the entire statement which is faster'''
         if self._validateSQL(sql):
             try:
-                retval = self.ds.ExecuteSQL(sql)
-            except:
-                ldslog.warning("Unable to execute SQL:"+sql,exc_info=1)
+                #retval = self.ds.ExecuteSQL(sql)
+                
+                for r2 in sql.split('\n'):
+                    print "**********",r2
+                    self.ds.ExecuteSQL("INSERT INTO LDS_CONFIG (ID,NAME,CATEGORY) VALUES('v:x100','SIMPLE)','A1,B2');")
+                    self.ds.ExecuteSQL(r2)
+                    
+                #if retval is None:
+                #    raise ExecuteSQLException("")
+            except RuntimeError as rex:
+                ldslog.error("Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
+                #this is probably a bad thing so we want to stop ie no lds_config -> no layer list etc
+                raise
+            except Exception as ex:
+                ldslog.error("Unable to execute SQL:"+sql+". Catchall Error "+str(ex),exc_info=1)
+                #raise
+                
         return retval
             
 
@@ -496,6 +513,8 @@ class DataStore(object):
                 continue
             #match 'insert'
             if re.match('insert\s+(?:\w+|\*)\s+',line):
+                continue
+            if re.match('if\s+object_id\(',line):
                 continue
             
             return False

@@ -20,7 +20,7 @@ class FileGDBDataStore(ESRIDataStore):
     def __init__(self,conn_str=None,user_config=None):
         
         self.DRIVER_NAME = "FileGDB"
-        self.CONFIG_XSL = "getcapabilities_initdb.xsl"
+        self.CONFIG_XSL = "getcapabilities.filegdb.xsl"
         
         super(FileGDBDataStore,self).__init__(conn_str,user_config)
         

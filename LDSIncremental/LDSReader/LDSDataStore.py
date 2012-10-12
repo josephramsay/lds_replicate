@@ -32,7 +32,7 @@ class LDSDataStore(WFSDataStore):
         
         self.CHANGE_COL = "__change__"
         
-        (self.url,self.key,self.svc,self.ver,self.fmt) = self.params
+        (self.url,self.key,self.svc,self.ver,self.fmt,self.config) = self.params
 
 
         

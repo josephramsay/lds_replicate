@@ -21,11 +21,11 @@ class MSSQLSpatialDataStore(DataStore):
         cons init driver
         '''
         self.DRIVER_NAME = "MSSQLSpatial"
-        self.CONFIG_XSL = "getcapabilities_initdb.xsl"  
+        self.CONFIG_XSL = "getcapabilities.mssqlspatial.xsl"  
          
         super(MSSQLSpatialDataStore,self).__init__(conn_str,user_config)
         
-        (self.odbc,self.server,self.dsn,self.trust,self.dbname,self.schema,self.usr,self.pwd,self.srs,self.cql) = self.params
+        (self.odbc,self.server,self.dsn,self.trust,self.dbname,self.schema,self.usr,self.pwd,self.config,self.srs,self.cql) = self.params
 
         
     def sourceURI(self,layer):
