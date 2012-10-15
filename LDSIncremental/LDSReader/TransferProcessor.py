@@ -167,10 +167,10 @@ class TransferProcessor(object):
         
         self.src = LDSDataStore(self.source_str,self.user_config)
         
+        #init a new DS for the DST to read config table (not needed for config file...)
+        ###self.dst.initDS(self.dst.destinationURI('lds_config'))
         #because we need to read a new config from the SRC and write it to the DST config both of these must be initialised
         if self.getInitConfig():
-            #TODO
-            dst.initDS(self.dst.destinationURI('lds_config'))
             ConfigInitialiser.buildConfiguration(self.src,self.dst)
         
         #reads the existing layerconfig

@@ -183,6 +183,7 @@ def main():
             
         #now run the selected func
         proc()
+        print '*** FIN ***'
             
 
 def versionCheck(name,cmd,mnm):

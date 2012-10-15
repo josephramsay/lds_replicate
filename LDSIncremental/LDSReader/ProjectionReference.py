@@ -93,7 +93,7 @@ class Geometry(object):
     
     def getBoundingBox(self):
         '''A bounding box covering NZ'''
-        '''TODO... this properly'''
+        '''TODO... remove this once MS bounding box statement tested'''
         return (self.XMIN,self.YMIN,self.XMAX,self.YMAX)
     
     

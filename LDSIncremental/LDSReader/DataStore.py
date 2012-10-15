@@ -58,11 +58,14 @@ class DataStore(object):
         self.DATE_FORMAT='%Y-%m-%dT%H:%M:%S'
         self.EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
         
-        self.SRS = None
+        self.setSRS(None)
+        self.setFilter(None)     
 
         #default clear the INCR flag
         self.setOverwrite()
-        self.clearIncremental()        
+        self.clearIncremental()
+        
+        
         
         self.getDriver(self.DRIVER_NAME)
             
@@ -145,7 +148,7 @@ class DataStore(object):
             self.ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
             if self.ds is None:
                 raise DSReaderException("Error opening DS on Destination "+str(dsn)+", attempting DS Create")
-        #catch runtime error but don't fail since we'll try to init a new DS
+        #catches DSReader (but not runtime) error, but don't fail since we'll try to init a new DS
         except (RuntimeError,DSReaderException) as dsre1:
             print "DSReaderException",dsre1 
             ldslog.error(dsre1)
@@ -469,23 +472,20 @@ class DataStore(object):
         '''Tagged private since we only want it called from well controlled methods'''
         '''TODO. step through multi line queries?'''
         retval = None
-        ogr.UseExceptions()
+        #ogr.UseExceptions()
         ldslog.debug("SQL: "+sql)
         '''validating sql as a block acts as a sort of transaction mechanism and means we can execute the entire statement which is faster'''
         if self._validateSQL(sql):
             try:
-                #retval = self.ds.ExecuteSQL(sql)
-                
-                for r2 in sql.split('\n'):
-                    print "**********",r2
-                    self.ds.ExecuteSQL("INSERT INTO LDS_CONFIG (ID,NAME,CATEGORY) VALUES('v:x100','SIMPLE)','A1,B2');")
-                    self.ds.ExecuteSQL(r2)
-                    
-                #if retval is None:
-                #    raise ExecuteSQLException("")
+                retval = self.ds.ExecuteSQL(sql)        
+                #for r2 in sql.split('\n'):
+                    #print "**********",r2
+                    #self.ds.ExecuteSQL(r2)   
+                if retval is None:
+                    raise ExecuteSQLException("SQL block failed to execute. "+sql)
             except RuntimeError as rex:
                 ldslog.error("Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
-                #this is probably a bad thing so we want to stop ie no lds_config -> no layer list etc
+                #this is probably a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
                 raise
             except Exception as ex:
                 ldslog.error("Unable to execute SQL:"+sql+". Catchall Error "+str(ex),exc_info=1)
@@ -512,11 +512,12 @@ class DataStore(object):
             if re.match('select\s+(?:\w+|\*)\s+from',line):
                 continue
             #match 'insert'
-            if re.match('insert\s+(?:\w+|\*)\s+',line):
+            if re.match('(?:update|insert)\s+(?:\w+|\*)\s+',line):
                 continue
             if re.match('if\s+object_id\(',line):
                 continue
             
+            ldslog.error("Line in SQL failed to validate. "+line)
             return False
         
         return True

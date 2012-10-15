@@ -8,7 +8,6 @@ Created on 9/08/2012
 import os
 
 from ESRIDataStore import ESRIDataStore
-from MetaLayerInformation import MetaLayerReader
 
 #from osr import SpatialReference 
 

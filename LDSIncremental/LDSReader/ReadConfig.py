@@ -202,23 +202,7 @@ class ReaderFile(object):
 #        password = self.cp.get('ArcSDE', 'pass')
 #        
 #        return (server, instance, database, username, password) 
-#    
-#    #file    
-#    
-#    def readFileConfig(self):
-#        '''Generic File-storage-type config file reader, could be used for FileGDB, SpatiaLite, Mapinfo, Shapefile since these only need a filename'''
-#        try:
-#            prefix = self.cp.get('File', 'prefix')
-#        except NoOptionError:
-#            prefix = None
-#        
-#        try: 
-#            path = self.cp.get('File', 'path')
-#        except NoOptionError:
-#            ldslog.debug("File: No path specified, default to Home directory")
-#            path = "~"
-#        
-#        return (prefix,path)
+
     
     
     #web
@@ -538,6 +522,8 @@ class ReaderTable(object):
         except:
             ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
         
+        
+
         
         
     

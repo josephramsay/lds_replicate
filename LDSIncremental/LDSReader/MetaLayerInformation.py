@@ -49,11 +49,14 @@ class MetaLayerReader(object):
             self.userconfig = ReaderFile("../"+config_file)
         self.mainconfig = ReaderFile("../"+self.CONFIG_FILE)
         
+        
     def setupLayerConfig(self):
-        '''Adds a layerconfig object'''
+        '''Adds a layerconfig object which will be file or db/table depending whether the main config file specifies external or internal resp'''
         lowered = map(lambda x: x.lower() if type(x) is str else x,self.readDSParameters(self.parent.DRIVER_NAME))
         if 'internal' in lowered:
             #self.parent is not None:
+            '''its only once we know that internal is requested that should init a DB connection'''
+            self.parent.initDS(self.parent.destinationURI('lds_config'))
             self.layerconfig = ReaderTable(self.parent)
         elif 'external' in lowered:
             #self.properties is not None:
@@ -61,10 +64,6 @@ class MetaLayerReader(object):
         else:
             ldslog.warning('No config type specified, default to external')
             self.layerconfig = ReaderFile("../"+self.properties)
-        
-#    def setLayerConfig(self,layerconfig):
-#        '''Setter for Layerconfig, useful for external classes'''
-#        self.layerconfig = layerconfig
         
         
     def getLayerNames(self):

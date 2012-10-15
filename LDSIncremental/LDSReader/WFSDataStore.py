@@ -17,7 +17,6 @@ Created on 23/07/2012
 
 from DataStore import DataStore
 #from ReadConfig import ReaderFile
-from MetaLayerInformation import MetaLayerReader
 
 class WFSDataStore(DataStore):
     '''
@@ -49,9 +48,6 @@ class WFSDataStore(DataStore):
         '''URI method returns destination file name'''
         return NotImplementedError("No destination for WFS")
 
-#    def read(self,dsn):
-#        self.ds = self.driver.Open(dsn)
-#        return self.ds
     
     def write(self,src_ds,dsn):
         '''Write method deliberately raises exception discouraging writing to a WFS source'''

@@ -94,5 +94,17 @@ class PostgreSQLDataStore(DataStore):
         ldslog.info("Index="+ref_index+". Execute "+cmd)
         self.executeSQL(cmd)
         
+        
+    # testing: layers as config storage
+    def buildConfigLayer(self,config_array):
+        config_layer = self.ds.CreateLayer()
+        for row in config_array:
+            config_feat = config_layer.addFeature()
+            config_feat.setField()
+        
+        pass
+    def readLayerConfig(self,layer):
+        pass
+        
     
         
