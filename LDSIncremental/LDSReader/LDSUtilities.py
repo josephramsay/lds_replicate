@@ -10,6 +10,8 @@ Created on 28/08/2012
 import re
 import os
 import logging
+import json
+
 from StringIO import StringIO
 
 from lxml import etree
@@ -97,6 +99,65 @@ class LDSUtilities(object):
             return layer_arg
         return None
     
+    @classmethod
+    def extractFields(cls,feat):
+        '''Extracts named fields from a layer config feature'''
+        '''Not strictly independent but common and potentially used by a number of other classes'''
+        try:
+            pkey =  feat.GetField('PKEY')
+        except:
+            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
+            pkey = 'ID'
+            
+        '''names are/can-be stored so we can reverse search by layer name'''
+        try:
+            name = feat.GetField('NAME')
+        except:
+            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
+            name = None
+            
+        '''names are/can-be stored so we can reverse search by layer name'''
+        try:
+            group = feat.GetField('CATEGORY')
+        except:
+            ldslog.debug("Group List: No Groups defined for this layer")
+            group = None
+                  
+        try:
+            gcol = feat.GetField('GEOCOLUMN')
+        except:
+            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
+            gcol = 'SHAPE'
+            
+        try:
+            index = feat.GetField('INDEX')
+        except:
+            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
+            index = None
+            
+        try:
+            epsg = feat.GetField('EPSG')
+        except:
+            #print "No Projection Transformation defined"#don't really need to state the default occurance
+            epsg = None
+            
+        try:
+            lmod = feat.GetField('LASTMODIFIED')
+        except:
+            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
+            lmod = None
+            
+        try:
+            disc = feat.GetField('DISCARD')
+        except:
+            disc = None 
+            
+        try:
+            cql = feat.GetField('CQL')
+        except:
+            cql = None
+            
+        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
     
 
 class ConfigInitialiser(object):
@@ -112,12 +173,13 @@ class ConfigInitialiser(object):
         
         '''if we're going to the trouble of building a config initialiser then we're probably gonna want to run it'''
         if dst.config=='internal' and dst.CONFIG_XSL is not None:
-            page = open(os.path.join(os.path.dirname(__file__), '../',dst.CONFIG_XSL),'r').read()
+            #converter = open(os.path.join(os.path.dirname(__file__), '../',dst.CONFIG_XSL),'r').read()
+            converter = open(os.path.join(os.path.dirname(__file__), '../getcapabilities.json.xsl'),'r').read()
         else:
-            page = open(os.path.join(os.path.dirname(__file__), '../getcapabilities.file.xsl'),'r').read()
+            converter = open(os.path.join(os.path.dirname(__file__), '../getcapabilities.file.xsl'),'r').read()
 
         
-        xslt = etree.XML(page)
+        xslt = etree.XML(converter)
         transform = etree.XSLT(xslt)
         
         doc = etree.parse(StringIO(xml))
@@ -125,9 +187,12 @@ class ConfigInitialiser(object):
         ldslog.debug(res)
         
         if dst.config=='internal':
-            dst.executeSQL(str(res))
+            #execute the resulting SQL on the dst layer
+            #dst.executeSQL(str(res))
+            #decode the resulting JSON document and use it to build a new config layer 
+            dst.buildConfigLayer(str(res))
         else:
             open(os.path.join(os.path.dirname(__file__), '../',dst.DRIVER_NAME.lower()+".layer.properties"),'w').write(str(res))
         
-        return res
+
         

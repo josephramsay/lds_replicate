@@ -54,7 +54,9 @@ class PostgreSQLDataStore(DataStore):
             return self.conn_str
         #can't put schema in quotes, causes error but without quotes tables get created in public anyway, still need schema.table syntax
         sstr = " active_schema={}".format(self.schema) if self.schema is not None and self.schema !='' else ""
-        uri = "PG:dbname='{}' host='{}' port='{}' user='{}' password='{}'".format(self.dbname, self.host, self.port, self.usr, self.pwd)+sstr
+        usr = " user='{}'".format(self.usr) if self.usr is not None else ""
+        pwd = " password='{}'".format(self.pwd) if self.pwd is not None else ""
+        uri = "PG:dbname='{}' host='{}' port='{}'".format(self.dbname, self.host, self.port)+usr+pwd+sstr
         ldslog.debug(uri)
         return uri
 
@@ -95,16 +97,4 @@ class PostgreSQLDataStore(DataStore):
         self.executeSQL(cmd)
         
         
-    # testing: layers as config storage
-    def buildConfigLayer(self,config_array):
-        config_layer = self.ds.CreateLayer()
-        for row in config_array:
-            config_feat = config_layer.addFeature()
-            config_feat.setField()
-        
-        pass
-    def readLayerConfig(self,layer):
-        pass
-        
     
-        

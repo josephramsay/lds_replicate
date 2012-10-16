@@ -11,6 +11,7 @@ import ogr
 import osr
 import re
 import logging
+import json
 
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
@@ -55,6 +56,7 @@ class DataStore(object):
             self.conn_str = conn_str
             
             
+        self.LDS_CONFIG_TABLE = 'lds_config'
         self.DATE_FORMAT='%Y-%m-%dT%H:%M:%S'
         self.EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
         
@@ -264,7 +266,7 @@ class DataStore(object):
             while src_feat is not None:
                 '''identify the change in the WFS doc (INS,UPD,DEL)'''
                 change =  src_feat.GetField(changecol) if changecol is not None and len(changecol)>0 else "INSERT"
-                '''not just copy but possuble delete or update a feature on the DST layer'''
+                '''not just copy but possubly delete or update a feature on the DST layer'''
                 self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
                                                
                 src_feat = src_layer.GetNextFeature()
@@ -533,14 +535,16 @@ class DataStore(object):
             self.cleanLayer(li)
     
     
-    def _findMatchingFID(self,dst_layer,ref_pkey,key):
+    def _findMatchingFID(self,search_layer,ref_pkey,key):
         '''Find the FID matching a primary key value'''
-        qry = ref_pkey+" = "+str(key)
-        dst_layer.SetAttributeFilter(qry)
-        found_feat = dst_layer.GetNextFeature()
-        if found_feat is not None:
-            return found_feat.GetFID()
-        return None
+        return self._findMatchingFeature(self,search_layer,ref_pkey,key).GetFID()
+        
+    
+    def _findMatchingFeature(self,search_layer,ref_pkey,key):
+        '''Find the Feature matching a primary key value'''
+        qry = ref_pkey+" = '"+str(key)+"'"
+        search_layer.SetAttributeFilter(qry)
+        return search_layer.GetNextFeature()
             
     
     # utility methods
@@ -585,3 +589,69 @@ class DataStore(object):
             feat = layer.GetNextFeature()                
                 
 
+
+#=======================TESTING!============================
+
+
+    
+    def buildConfigLayer(self,config_array):
+        '''Builds the config table into and using the active DS'''
+        #TODO unify the naming for the config tables
+        lname = 'lds_config'
+        
+        #open('/home/jramsay/temp/pyary','w').write(json.dumps(cc))
+        #json.loads(open('/home/jramsay/temp/pyary','r').read())
+
+        cols = ('id','pkey','name','category','lastmodified','geocolumn','epsg','discard','cql')
+        config_layer = self.ds.CreateLayer(lname,Projection.getDefaultSpatialRef(),ogr.wkbPoint,['OVERWRITE=YES'])
+        #config_layer = self.ds.CreateLayer(lname,None,None,['OVERWRITE=YES'])
+        feat_def = ogr.FeatureDefn()
+        for name in cols:
+            fld_def = ogr.FieldDefn(name)
+            feat_def.AddFieldDefn(fld_def)
+            config_layer.CreateField(fld_def)
+        
+        for row in json.loads(config_array):
+            config_feat = ogr.Feature(feat_def)
+            config_feat.SetField('id',str(row[0]))
+            config_feat.SetField('pkey',str(row[1]))
+            config_feat.SetField('name',str(row[2]))
+            config_feat.SetField('category',str(','.join(row[3])))
+            config_feat.SetField('lastmodified',str(row[4]))
+            config_feat.SetField('geocolumn',str(row[5]))
+            config_feat.SetField('epsg',str(row[6]))
+            config_feat.SetField('discard',str(','.join(row[7])))
+            config_feat.SetField('cql',str(row[8]))
+            
+            config_layer.CreateFeature(config_feat)
+            
+        config_layer.ResetReading()
+        
+        
+    def getLayerNames(self):
+        '''Returns configured layers for respective layer properties file'''
+        namelist = ()
+        layer = self.ds.GetLayer('lds_config')
+        layer.ResetReading()
+        feat = layer.GetNextFeature() 
+        while feat is not None:
+            print feat.GetField('name'),feat.GetField('id')
+            namelist += (feat.GetField('name'),)
+            feat = layer.GetNextFeature()
+        
+        return namelist
+
+      
+    def readLayerSchemaConfig(self,pkey):
+        '''Full Layer config reader'''
+        layer = self.ds.GetLayer('lds_config')
+        feat = self._findMatchingFeature(layer, 'id', pkey)
+        return LDSUtilities.extractFields(feat)
+        
+        
+    def readLayerProperty(self,pkey,property):
+        layer = self.ds.GetLayer('lds_config')
+        feat = self._findMatchingFeature(layer, 'id', pkey)
+        return feat.GetFieldAsString(property)
+
+        

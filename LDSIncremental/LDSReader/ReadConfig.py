@@ -20,6 +20,7 @@ import logging
 import ConfigParser
 
 from ConfigParser import NoOptionError,NoSectionError,Error
+from LDSUtilities import LDSUtilities
 
 ldslog = logging.getLogger('LDS')
 
@@ -266,15 +267,6 @@ class ReaderFile(object):
         
         return (url,key,svc,ver,fmt,cql)
     
-    def readProxyConfig(self):
-        '''Proxy config reader if needed. Not really supported anymore'''
-        host = self.cp.get('Proxy', 'host') 
-        port = self.cp.get('Proxy', 'port') 
-        usr = self.cp.get('Proxy', 'user') 
-        pwd = self.cp.get('Proxy', 'pass')
-        
-        return (host,port,usr,pwd)
-    
     
     # Functions above relate to connection config info
     #----------------------------------------------------------------------------------------------
@@ -298,6 +290,9 @@ class ReaderFile(object):
     
     def readLayerSchemaConfig(self,layer):
         '''Full Layer config reader. Returns the config values for the whole layer or makes sensible guesses for defaults'''
+        
+        effunc = self.cp.get
+        
         try:
             defn = self.cp.get(layer, 'sql')
             #if the user has gone to the trouble of defining their own schema in SQL just return that
@@ -453,65 +448,68 @@ class ReaderTable(object):
         
         #Assume layer id is unique in the config table... it had better be
         row = result.GetNextFeature()
-        try:
-            pkey =  row.GetField('PKEY')
-        except:
-            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
-            pkey = 'ID'
-            
-        '''names are/can-be stored so we can reverse search by layer name'''
-        try:
-            name = row.GetField('NAME')
-        except:
-            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
-            name = layer
-            
-        if name is None:
-            name = layer
-            
-        '''names are/can-be stored so we can reverse search by layer name'''
-        try:
-            group = row.GetField('CATEGORY')
-        except:
-            ldslog.debug("Group List: No Groups defined for this layer")
-            group = None
-            
-            
-        try:
-            gcol = row.GetField('GEOCOLUMN')
-        except:
-            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
-            gcol = 'SHAPE'
-            
-        try:
-            index = row.GetField('INDEX')
-        except:
-            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
-            index = None
-            
-        try:
-            epsg = row.GetField('EPSG')
-        except:
-            #print "No Projection Transformation defined"#don't really need to state the default occurance
-            epsg = None
-            
-        try:
-            lmod = row.GetField('LASTMODIFIED')
-        except:
-            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
-            lmod = None
-            
-        try:
-            disc = row.GetField('DISCARD')
-        except:
-            disc = None 
-            
-        try:
-            cql = row.GetField('CQL')
-        except:
-            cql = None
-            
-        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
+        
+        return LDSUtilities.extractFields(row)
+        
+#        try:
+#            pkey =  row.GetField('PKEY')
+#        except:
+#            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
+#            pkey = 'ID'
+#            
+#        '''names are/can-be stored so we can reverse search by layer name'''
+#        try:
+#            name = row.GetField('NAME')
+#        except:
+#            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
+#            name = layer
+#            
+#        if name is None:
+#            name = layer
+#            
+#        '''names are/can-be stored so we can reverse search by layer name'''
+#        try:
+#            group = row.GetField('CATEGORY')
+#        except:
+#            ldslog.debug("Group List: No Groups defined for this layer")
+#            group = None
+#            
+#            
+#        try:
+#            gcol = row.GetField('GEOCOLUMN')
+#        except:
+#            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
+#            gcol = 'SHAPE'
+#            
+#        try:
+#            index = row.GetField('INDEX')
+#        except:
+#            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
+#            index = None
+#            
+#        try:
+#            epsg = row.GetField('EPSG')
+#        except:
+#            #print "No Projection Transformation defined"#don't really need to state the default occurance
+#            epsg = None
+#            
+#        try:
+#            lmod = row.GetField('LASTMODIFIED')
+#        except:
+#            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
+#            lmod = None
+#            
+#        try:
+#            disc = row.GetField('DISCARD')
+#        except:
+#            disc = None 
+#            
+#        try:
+#            cql = row.GetField('CQL')
+#        except:
+#            cql = None
+#            
+#        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
     
     
     

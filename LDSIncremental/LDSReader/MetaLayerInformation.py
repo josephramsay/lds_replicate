@@ -70,7 +70,7 @@ class MetaLayerReader(object):
         '''Returns configured layers for respective layer properties file'''
         return self.layerconfig.getSections()
     
-    def readLayerCalegories(self,layer_id):
+    def readLayerCategories(self,layer_id):
         '''Reads configured name for a provided layer id'''
         #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
         category = self.layerconfig.readLayerProperty(layer_id,'category')
@@ -146,7 +146,7 @@ class MetaLayerReader(object):
         '''Returns a list of all layer parameters'''
         return self.layerconfig.readLayerSchemaConfig(layer_id)
         
-    #unless there is a pk change we wont need to write pk
+    #==============MAINCONFIG===========================================================
 
     def readDSParameters(self,drv):
         '''Returns the datasource parameters. By request updated to let users override parts of the basic config file'''

@@ -89,7 +89,7 @@ def main():
     
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvf:t:l:g:e:s:d:c:", ["help","version","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql="])
+        opts, args = getopt.getopt(sys.argv[1:], "hvf:t:l:g:e:s:d:c:u:", ["help","version","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
         ldslog.info("OPTS:"+str(opts))
         ldslog.info("ARGS:"+str(args))
     except getopt.error, msg:
