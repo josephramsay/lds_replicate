@@ -9,6 +9,7 @@ from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
 from LDSReader.MSSQLSpatialDataStore import MSSQLSpatialDataStore
 from LDSReader.LDSDataStore import LDSDataStore
 from LDSReader.FileGDBDataStore import FileGDBDataStore
+from LDSReader.SpatiaLiteDataStore import SpatiaLiteDataStore
 
 
 class TestConnect(unittest.TestCase):
@@ -48,7 +49,10 @@ class TestConnect(unittest.TestCase):
     
 #    def test6ArcSDEConnect(self):
 #        print "ASDE"
-#        self.assertIsNotNone(ArcSDEDataStore(),"ArcSDE init fail")
+#        self.assertIsNotNone(ArcSDEDataStore(),"ArcSDE init fail")    
+
+    def test7SpatiaLiteConnect(self):
+        self.assertIsNotNone(SpatiaLiteDataStore(),"SpatiaLite init fail")
 
 
 if __name__ == "__main__":

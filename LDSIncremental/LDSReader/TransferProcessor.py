@@ -16,8 +16,11 @@ Created on 26/07/2012
 '''
 
 import logging
+import os
 
 from datetime import datetime 
+
+from DataStore import DataStore
 
 from LDSDataStore import LDSDataStore
 from LDSUtilities import LDSUtilities, ConfigInitialiser
@@ -30,6 +33,7 @@ from PostgreSQLDataStore import PostgreSQLDataStore
 from MSSQLSpatialDataStore import MSSQLSpatialDataStore
 from SpatiaLiteDataStore import SpatiaLiteDataStore
 
+from ReadConfig import LayerFileReader
 
 ldslog = logging.getLogger('LDS')
 
@@ -45,7 +49,7 @@ class TransferProcessor(object):
         #self.src = LDSDataStore() 
         #self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
         
-        #do and incremental copy unless requested otherwise
+        #do an incremental copy unless requested otherwise
         self.setIncremental()
         
         #only do a config file rebuild if requested
@@ -162,24 +166,42 @@ class TransferProcessor(object):
         fdate = None
         tdate = None
         
+        fname = dst.DRIVER_NAME.lower()+".layer.properties"
+        
         self.dst = dst
         self.dst.setSRS(self.epsg)
+        #might as well initds here, its going to be needed eventually
+        self.dst.ds = self.dst.initDS(self.dst.destinationURI(DataStore.LDS_CONFIG_TABLE))
         
         self.src = LDSDataStore(self.source_str,self.user_config)
         
         #init a new DS for the DST to read config table (not needed for config file...)
-        ###self.dst.initDS(self.dst.destinationURI('lds_config'))
         #because we need to read a new config from the SRC and write it to the DST config both of these must be initialised
+        self.dst.setupLayerConfig()
         if self.getInitConfig():
-            ConfigInitialiser.buildConfiguration(self.src,self.dst)
+            uri = self.src.getCapabilities()
+            xml = LDSDataStore.readDocument(uri)
+            if dst.isConfInternal():
+                res = ConfigInitialiser.buildConfiguration(xml,'json')
+                #open the internal layer table and populate with res 
+                self.dst.buildConfigLayer(str(res))
+            else:
+                res = ConfigInitialiser.buildConfiguration(xml,'file')
+                #open and write res to the external layer config file
+                open(os.path.join(os.path.dirname(__file__), '../',fname),'w').write(str(res))
+                
+        if dst.isConfInternal():
+            #set the layerconf to access functions (which just happen to be in the DST)
+            self.dst.layerconf = self.dst
+        else:
+            #set the layerconf to a reader that accesses the external file
+            self.dst.layerconf = LayerFileReader(fname)
         
-        #reads the existing layerconfig
-        dst.mlr.setupLayerConfig()
             
         #full LDS layer name list
         lds_full = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
         #list of configured layers
-        lds_read = self.dst.mlr.getLayerNames()
+        lds_read = self.dst.layerconf.getLayerNames()
         
         lds_valid = map(lambda x: x.lstrip(PREFIX),set(lds_full).intersection(set(lds_read)))
         
@@ -189,7 +211,7 @@ class TransferProcessor(object):
         if self.group is not None:
             lg = set(self.group.split(','))
             for lid in lds_valid:
-                if set(self.dst.mlr.readLayerCategories(PREFIX+lid).split(',')).intersection(lg):
+                if set(self.dst.layerconf.readLayerProperty(PREFIX+lid,'categories').split(',')).intersection(lg):
                     self.lnl += (lid,)
         else:
             self.lnl = lds_valid
@@ -268,7 +290,9 @@ class TransferProcessor(object):
                       
     def autoIncrementLayer(self,layer_i):
         '''For a specified layer read date ranges and call incremental'''
-        fdate = self.dst.getLastModified(layer_i)
+        fdate = self.dst.layerconf.readLayerProperty(layer_i,'lastmodified')
+        if fdate is None or fdate == '':
+            fdate = DataStore.EARLIEST_INIT_DATE
         tdate = self.dst.getCurrent()
         
         self.definedIncremental(layer_i,fdate,tdate)
@@ -279,9 +303,9 @@ class TransferProcessor(object):
         #Once an individual layer has been defined...
         croplayer = LDSUtilities.cropChangeset(layer_i)
         #Filters are set on the SRC since theyre build into the URL, they are however specified per DST    
-        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.mlr.readCQLFilter(croplayer)))
+        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(croplayer,'cql')))
         #SRS are set in the DST since the conversion takes place during the write process
-        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.mlr.readLayerEPSG(croplayer)))
+        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.layerconf.readLayerProperty(croplayer,'epsg')))
         
         if datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S') > datetime.strptime(fdate,'%Y-%m-%dT%H:%M:%S'):
             #Set Incremental determines whether we use the incremental or full endpoint construction

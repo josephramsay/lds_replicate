@@ -18,7 +18,8 @@ from abc import ABCMeta, abstractmethod
 
 from LDSUtilities import LDSUtilities, ConfigInitialiser
 from ProjectionReference import Projection
-from MetaLayerInformation import MetaLayerReader
+from ConfigWrapper import ConfigWrapper
+from ReadConfig import LayerFileReader
 
 ldslog = logging.getLogger('LDS')
 #Enabling exceptions halts program on non critical errors ie create DS throws exception but builds valid DS anyway 
@@ -46,7 +47,11 @@ class DataStore(object):
     __metaclass__ = ABCMeta
 
 
-
+    LDS_CONFIG_TABLE = 'lds_config'
+    DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
+    EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
+    
+    
     def __init__(self,conn_str=None,user_config=None):
         '''
         Constructor inits driver and some date specific settings. Arguments are for config overrides 
@@ -54,11 +59,6 @@ class DataStore(object):
 
         if conn_str is not None:
             self.conn_str = conn_str
-            
-            
-        self.LDS_CONFIG_TABLE = 'lds_config'
-        self.DATE_FORMAT='%Y-%m-%dT%H:%M:%S'
-        self.EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
         
         self.setSRS(None)
         self.setFilter(None)     
@@ -67,12 +67,11 @@ class DataStore(object):
         self.setOverwrite()
         self.clearIncremental()
         
-        
-        
         self.getDriver(self.DRIVER_NAME)
             
-        self.mlr = MetaLayerReader(self,user_config,self.DRIVER_NAME.lower()+".layer.properties")
-        self.params = self.mlr.readDSParameters(self.DRIVER_NAME)
+        self.confwrapper = ConfigWrapper(user_config)
+        
+        self.params = self.confwrapper.readDSParameters(self.DRIVER_NAME)
         
         
         '''set of <potential> columns not needed in final output, global'''
@@ -99,7 +98,17 @@ class DataStore(object):
         self.srs = srs
          
     def getSRS(self):
-        return self.srs       
+        return self.srs  
+    
+    #config (internal/external)
+    def setConfInternal(self):
+        self.config = True
+            
+    def setConfExternal(self):
+        self.config = False
+         
+    def isConfInternal(self):
+        return self.config       
     
     #--------------------------  
     
@@ -121,8 +130,7 @@ class DataStore(object):
         self.OVERWRITE = "NO"
          
     def getOverwrite(self):
-        return self.OVERWRITE      
-    
+        return self.OVERWRITE    
     
     def getOptions(self):
         '''Returns common options, overridden in subclasses for source specifc options'''
@@ -131,12 +139,12 @@ class DataStore(object):
     '''Both Source and Destination URI for the generic situation where we want to transfer between similar Ds formats. e.g. PG->PG'''
     
     @abstractmethod
-    def sourceURI(self):
+    def sourceURI(self,layer):
         '''Abstract URI method for returning source. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method sourceURI not implemented")
     
     @abstractmethod
-    def destinationURI(self):
+    def destinationURI(self,layer):
         '''Abstract URI method for returning destination. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method destinationURI not implemented")
 
@@ -147,16 +155,16 @@ class DataStore(object):
     def initDS(self,dsn):
         '''initialise a DS for writing'''
         try:
-            self.ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
-            if self.ds is None:
+            ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
+            if ds is None:
                 raise DSReaderException("Error opening DS on Destination "+str(dsn)+", attempting DS Create")
         #catches DSReader (but not runtime) error, but don't fail since we'll try to init a new DS
         except (RuntimeError,DSReaderException) as dsre1:
             print "DSReaderException",dsre1 
             ldslog.error(dsre1)
             try:
-                self.ds = self.driver.CreateDataSource(dsn)
-                if self.ds is None:
+                ds = self.driver.CreateDataSource(dsn)
+                if ds is None:
                     raise DSReaderException("Error creating DS on Destination "+str(dsn)+", quitting")
             except DSReaderException as dsre2:
                 print "DSReaderException, Cannot create DS.",dsre2
@@ -167,11 +175,12 @@ class DataStore(object):
                 print "GDAL RuntimeError. Error creating DS.",rte
                 ldslog.error(rte,exc_info=1)
                 raise
+        return ds
         
     
     def read(self,dsn):
         '''Main DS read method'''
-        ldslog.info("DS read"+dsn.split(":")[0])
+        ldslog.info("DS read "+dsn)#.split(":")[0])
         #5050 initDS for consistency and utilise if-ds-is-none check OR quick open and overwrite
         #self.initDS(dsn)
         self.ds = self.driver.Open(dsn)
@@ -180,7 +189,8 @@ class DataStore(object):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
         
         ldslog.info("DS Write "+dsn)#.split(":")[0]
-        self.initDS(dsn)
+        if not hasattr(self,'ds') or self.ds is None:
+            self.ds = self.initDS(dsn)
         
         if src.getIncremental():
             # change col in delete list and as change indicator
@@ -203,15 +213,22 @@ class DataStore(object):
             src_layer = src_ds.GetLayer(li)
             src_layer_name = src_layer.GetName()
             
-            #ref_name = self.mlr.readConvertedLayerName(src_layer_name)
-            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readLayerParameters(src_layer_name)
+            #ref_name = self.layerconf.readConvertedLayerName(src_layer_name)
+            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
             
-            dst_layer_name = self.schema+"."+self.sanitise(ref_name) if self.schema is not None else self.sanitise(ref_name)
+            dst_layer_name = self.schema+"."+DataStore.sanitise(ref_name) if self.schema is not None else DataStore.sanitise(ref_name)
             dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name)) 
             if ref_index is not None:
                 self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
             
         src_layer.ResetReading()
+
+        #Delete unwanted columns... wont work with some drivers and others under certain conditions only
+        self.optcols |= set(ref_disc.strip('[]{}()').split(',') if ref_disc is not None else [])
+        
+        dst_layer = dst_ds.GetLayer(dst_layer_name)
+        for del_fld in self.optcols:
+            dst_layer.DeleteField(del_fld)
 
     
     
@@ -233,7 +250,7 @@ class DataStore(object):
             ref_layer_name = LDSUtilities.cropChangeset(src_layer_name)
             
             '''retrieve per-layer settings from props'''
-            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.mlr.readLayerParameters(ref_layer_name)
+            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(ref_layer_name)
             
             dst_layer_name = self.schema+"."+self.sanitise(ref_name) if hasattr(self,'schema') and self.schema is not None else self.sanitise(ref_name)
             ldslog.info("Dest layer: "+dst_layer_name)
@@ -432,7 +449,7 @@ class DataStore(object):
     def getLastModified(self,layer):
         '''Gets the last modification time of a layer to use for incremental "fromdate" calls. This is intended to be run 
         as a destination method since the destination is the DS being modified i.e. dst.getLastModified'''
-        lmd = self.mlr.readLastModified(layer)
+        lmd = self.layerconf.readLastModified(layer)
         if lmd is None or lmd == '':
             lmd = self.EARLIEST_INIT_DATE
         return lmd
@@ -440,7 +457,7 @@ class DataStore(object):
         
     def setLastModified(self,layer,newdate):
         '''Sets the last modification time of a layer following a successful incremental copy operation'''
-        self.mlr.writeLastModified(layer, newdate)    
+        self.layerconf.writeLayerLastModified(layer, newdate)    
 
     def getCurrent(self):
         '''Gets the current timestamp for incremental todate calls. 
@@ -459,8 +476,8 @@ class DataStore(object):
             cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string
-            clst = ','.join(self.parseStringList(ref_index))
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+self.sanitise(clst),dst_layer_name,clst)
+            clst = ','.join(DataStore.parseStringList(ref_index))
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
         else:
             return
         ldslog.info("Index="+ref_index+". Execute "+cmd)
@@ -524,15 +541,15 @@ class DataStore(object):
         
         return True
         
-    def _cleanLayer(self,layer):
+    def _cleanLayer(self,ds,layer):
         '''Deletes a layer from the DS'''
         ldslog.info("DS clean")
-        self.ds.DeleteLayer(layer)
+        ds.DeleteLayer(layer)
         
     def _clean(self):
         '''Deletes the entire DS layer by layer'''
         for li in range(0,self.ds.GetLayerCount()):
-            self.cleanLayer(li)
+            self._cleanLayer(self.ds,li)
     
     
     def _findMatchingFID(self,search_layer,ref_pkey,key):
@@ -549,8 +566,8 @@ class DataStore(object):
     
     # utility methods
     
-    @classmethod
-    def sanitise(cls,name):
+    @staticmethod
+    def sanitise(name):
         '''Manually substitute potential table naming errors implemented as a common function to retain naming convention across all outputs.
         No guarantees are made that this feature won't cause naming conflicts e.g. A-B-C -> a_b_c <- a::{b}::c'''
         #append _ to name beginning with a number
@@ -563,48 +580,59 @@ class DataStore(object):
         return sanitised
     
 
-    @classmethod
-    def parseStringList(cls,st):
+    @staticmethod
+    def parseStringList(st):
         '''QaD List-as-String to List parser'''
         return st.rstrip(')]').lstrip('[(').split(',') if st.find(',')>-1 else st
     
     # debugging methods
     
-    @classmethod
-    def _showFeatureData(cls,feature):
+    @staticmethod
+    def _showFeatureData(feature):
         '''Prints feature/fid info. Useful for debugging'''
         ldslog.debug("Feat:FID:"+str(feature.GetFID()))
         for field_no in range(0,feature.GetFieldCount()):
             ldslog.debug("fid={},fld_no={},fld_data={}".format(feature.GetFID(),field_no,feature.GetFieldAsString(field_no)))
             
-    @classmethod
+    @staticmethod
     def _showLayerData(cls,layer):
         '''Prints layer and embedded feature data. Useful for debugging'''
         ldslog.debug("Layer:Name:"+layer.GetName())
         layer.ResetReading()
         feat = layer.GetNextFeature()
         while feat is not None:
-            #cls is okay here since _showFeatureData is also a @classmethod
-            cls._showFeatureData(feat)
+            DataStore._showFeatureData(feat)
             feat = layer.GetNextFeature()                
                 
 
 
 #=======================TESTING!============================
 
+    def setupLayerConfig(self):
+        '''Read internal OR external from main config file and set, default to internal'''
+        
+        if 'external' in map(lambda x: x.lower() if type(x) is str else x,self.confwrapper.readDSParameters(self.DRIVER_NAME)):
+            self.setConfExternal()
+        else:
+            self.setConfInternal()
 
     
     def buildConfigLayer(self,config_array):
         '''Builds the config table into and using the active DS'''
+        if not hasattr(self,'ds') or self.ds is None:
+            self.ds = self.initDS(self.destinationURI(DataStore.LDS_CONFIG_TABLE))
+        #bypass if external (alternatively set [layerconf = self or layerconf = self.confwrapper])
+        if not self.isConfInternal():
+            return self.layerconf.buildConfigLayer()
         #TODO unify the naming for the config tables
-        lname = 'lds_config'
+
         
         #open('/home/jramsay/temp/pyary','w').write(json.dumps(cc))
         #json.loads(open('/home/jramsay/temp/pyary','r').read())
 
         cols = ('id','pkey','name','category','lastmodified','geocolumn','epsg','discard','cql')
-        config_layer = self.ds.CreateLayer(lname,Projection.getDefaultSpatialRef(),ogr.wkbPoint,['OVERWRITE=YES'])
-        #config_layer = self.ds.CreateLayer(lname,None,None,['OVERWRITE=YES'])
+        config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,Projection.getDefaultSpatialRef(),ogr.wkbNone,['OVERWRITE=YES'])
+        #config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,None,None,['OVERWRITE=YES'])
         feat_def = ogr.FeatureDefn()
         for name in cols:
             fld_def = ogr.FieldDefn(name)
@@ -620,38 +648,52 @@ class DataStore(object):
             config_feat.SetField('lastmodified',str(row[4]))
             config_feat.SetField('geocolumn',str(row[5]))
             config_feat.SetField('epsg',str(row[6]))
-            config_feat.SetField('discard',str(','.join(row[7])))
+            config_feat.SetField('discard',None if row[7] is None else str(','.join(row[7])))
             config_feat.SetField('cql',str(row[8]))
             
             config_layer.CreateFeature(config_feat)
             
         config_layer.ResetReading()
+        config_layer.SyncToDisk()
         
-        
+
     def getLayerNames(self):
         '''Returns configured layers for respective layer properties file'''
         namelist = ()
-        layer = self.ds.GetLayer('lds_config')
+        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
         layer.ResetReading()
         feat = layer.GetNextFeature() 
         while feat is not None:
-            print feat.GetField('name'),feat.GetField('id')
-            namelist += (feat.GetField('name'),)
+            namelist += (feat.GetField('id'),)
             feat = layer.GetNextFeature()
         
         return namelist
 
       
-    def readLayerSchemaConfig(self,pkey):
+    def readLayerParameters(self,pkey):
         '''Full Layer config reader'''
-        layer = self.ds.GetLayer('lds_config')
+        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
         feat = self._findMatchingFeature(layer, 'id', pkey)
         return LDSUtilities.extractFields(feat)
         
         
     def readLayerProperty(self,pkey,property):
-        layer = self.ds.GetLayer('lds_config')
+        print pkey,property
+        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
         feat = self._findMatchingFeature(layer, 'id', pkey)
-        return feat.GetFieldAsString(property)
+        prop = feat.GetField(property)
+        return None if prop == 'None' else prop
+
+
+
+    def writeLayerLastModified(self,pkey,lmod):
+        '''Write changes to layer config table'''
+        #ogr.UseExceptions()
+        try:
+            layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+        except Exception as e:
+            print e
+        feat = self._findMatchingFeature(layer, 'id', pkey)
+        feat.SetField('lastmodified',lmod)
 
         

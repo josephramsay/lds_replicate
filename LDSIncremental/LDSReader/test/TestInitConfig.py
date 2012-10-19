@@ -33,7 +33,7 @@ class TestInitConfig(unittest.TestCase):
 #        #lds = LDSDataStore() 
 #        pgds = PostgreSQLDataStore()
 #        
-#        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.mlr.readLayerParameters('v:x772')
+#        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.layerconf.readLayerParameters('v:x772')
 #        
 #        assert name == 'NZ Primary Parcels'
 #        
@@ -41,7 +41,7 @@ class TestInitConfig(unittest.TestCase):
 #        lds = LDSDataStore() 
 #        pgds = PostgreSQLDataStore()
 #        
-#        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.mlr.readLayerParameters('v:x772')
+#        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.layerconf.readLayerParameters('v:x772')
 #        
 #        assert name == 'NZ Primary Parcels'
         

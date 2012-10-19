@@ -51,7 +51,7 @@ class MSSQLSpatialDataStore(DataStore):
         '''Builds an index creation string for a new full replicate'''
         ref_index = ref_index.lower()
         if ref_index == 'spatial' or ref_index == 's':
-            bb = Geometry().getBoundingBox()
+            bb = Geometry.getBoundingBox()
             cmd1 = 'CREATE SPATIAL INDEX {}_SK ON {}({}) '.format(dst_layer_name.split('.')[-1]+"_"+ref_gcol,dst_layer_name,ref_gcol)
             cmd2 = 'USING GEOMETRY_GRID WITH ( BOUNDING_BOX = (XMIN = {}, YMIN = {}, XMAX = {}, YMAX = {}),' \
                     'GRIDS = (LEVEL_1 = MEDIUM, LEVEL_2 = MEDIUM, LEVEL_3 = MEDIUM, LEVEL_4 = MEDIUM),' \
@@ -64,8 +64,8 @@ class MSSQLSpatialDataStore(DataStore):
             cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string
-            clst = ','.join(self.parseStringList(ref_index))
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+self.sanitise(clst),dst_layer_name,clst)
+            clst = ','.join(DataStore.parseStringList(ref_index))
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
         else:
             return
         self.executeSQL(cmd)
@@ -74,7 +74,7 @@ class MSSQLSpatialDataStore(DataStore):
     def getOptions(self,layer_id):
         '''Get MS options for GEO_NAME'''
         local_opts = []
-        gname = self.mlr.readGeometryColumnName(layer_id)
+        gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
         if gname is not None:
             local_opts += ['GEOM_NAME='+gname]

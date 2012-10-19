@@ -22,31 +22,31 @@ class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
 
     
-    @classmethod
-    def splitLayerName(cls,layername):
+    @staticmethod
+    def splitLayerName(layername):
         '''Splits a layer name typically in the format v:x### into /v/x### for URI inclusion'''
         return "/"+layername.split(":")[0]+"/"+layername.split(":")[1]
     
-    @classmethod
-    def cropChangeset(cls,layername):
+    @staticmethod
+    def cropChangeset(layername):
         '''Removes changeset identifier from layer name'''
         return layername.rstrip("-changeset")
     
-    @classmethod
-    def checkDateFormat(cls,xdate):
+    @staticmethod
+    def checkDateFormat(xdate):
         '''Checks a date parameter conforms to yyyy-MM-ddThh:mm:ss format'''        
         return type(xdate) is str and re.search('^\d{4}\-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?)$',xdate)
 
     # 772 time test string
     # http://wfs.data.linz.govt.nz/ldskey/v/x772-changeset/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=v:x772-changeset&viewparams=from:2012-09-29T07:00:00;to:2012-09-29T07:30:00&outputFormat=GML2
     
-    @classmethod
-    def checkLayerName(cls,lname):
+    @staticmethod
+    def checkLayerName(lname):
         '''Makes sure a layer name conforms to v:x format'''
         return type(lname) is str and re.search('^v:x\d+$',lname) 
         
-    @classmethod
-    def checkCQL(cls,cql):
+    @staticmethod
+    def checkCQL(cql):
         '''Since CQL commands are freeform strings we need to try and validate at least the most basic errors. This is very simple
         RE matcher that just looks for valid predicates.
         
@@ -87,8 +87,8 @@ class LDSUtilities(object):
         else:
             return ""
         
-    @classmethod    
-    def precedence(cls,cmdline_arg,config_arg,layer_arg):
+    @staticmethod    
+    def precedence(cmdline_arg,config_arg,layer_arg):
         '''Decide which CQL filter to apply based on scope and availability'''
         '''Currently we have; CommandLine > Config-File > Layer-Properties but maybe its better for individual layers to override a global setting... '''
         if cmdline_arg is not None and cmdline_arg != '':
@@ -99,8 +99,8 @@ class LDSUtilities(object):
             return layer_arg
         return None
     
-    @classmethod
-    def extractFields(cls,feat):
+    @staticmethod
+    def extractFields(feat):
         '''Extracts named fields from a layer config feature'''
         '''Not strictly independent but common and potentially used by a number of other classes'''
         try:
@@ -163,21 +163,10 @@ class LDSUtilities(object):
 class ConfigInitialiser(object):
     '''Initialises configuration, for use at first run'''
 
-    @classmethod
-    def buildConfiguration(cls,src,dst):
+    @staticmethod
+    def buildConfiguration(xml, fileid):
         '''Given a destination DS use this to select an XSL transform object and generate an output document that will initialise a new config file/table'''
-        #df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
-        
-        uri = src.getCapabilities()
-        xml = src.readDocument(uri)
-        
-        '''if we're going to the trouble of building a config initialiser then we're probably gonna want to run it'''
-        if dst.config=='internal' and dst.CONFIG_XSL is not None:
-            #converter = open(os.path.join(os.path.dirname(__file__), '../',dst.CONFIG_XSL),'r').read()
-            converter = open(os.path.join(os.path.dirname(__file__), '../getcapabilities.json.xsl'),'r').read()
-        else:
-            converter = open(os.path.join(os.path.dirname(__file__), '../getcapabilities.file.xsl'),'r').read()
-
+        converter = open(os.path.join(os.path.dirname(__file__), '../getcapabilities.'+fileid+'.xsl'),'r').read()
         
         xslt = etree.XML(converter)
         transform = etree.XSLT(xslt)
@@ -186,13 +175,7 @@ class ConfigInitialiser(object):
         res = transform(doc)
         ldslog.debug(res)
         
-        if dst.config=='internal':
-            #execute the resulting SQL on the dst layer
-            #dst.executeSQL(str(res))
-            #decode the resulting JSON document and use it to build a new config layer 
-            dst.buildConfigLayer(str(res))
-        else:
-            open(os.path.join(os.path.dirname(__file__), '../',dst.DRIVER_NAME.lower()+".layer.properties"),'w').write(str(res))
+        return res
         
 
         

@@ -36,7 +36,7 @@ class TestConfigLayerBuild(unittest.TestCase):
 
     @classmethod
     def tearDownClass(self):
-        pass
+        self.ds = None
 
 
     def test1MSConfigLayer_SelectedProperty(self):
@@ -50,7 +50,7 @@ class TestConfigLayerBuild(unittest.TestCase):
         
     def test3MSConfigLayer_PropsFromLayer(self):
         
-        assert self.ds.readLayerSchemaConfig('v:x772')[1] == 'NZ Primary Parcels', 'Full layer props faulire'  
+        assert self.ds.readLayerParameters('v:x772')[1] == 'NZ Primary Parcels', 'Full layer props faulire'  
         
         
 

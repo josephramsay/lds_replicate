@@ -5,6 +5,7 @@ Created on 9/08/2012
 '''
 
 import logging
+import os
 
 from DataStore import DataStore
 
@@ -24,7 +25,10 @@ class SpatiaLiteDataStore(DataStore):
         
         super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 
-        (self.file,self.config,self.srs,self.cql) = self.params
+        (self.path,self.config,self.srs,self.cql) = self.params 
+        #because sometimes ~ isnt translated to home
+        self.path = os.path.expanduser(self.path)
+        self.suffix = '.db'
 
         
     def sourceURI(self,layer):
@@ -40,6 +44,7 @@ class SpatiaLiteDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
         return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
+        return os.path.join(self.path,DataStore.LDS_CONFIG_TABLE+self.suffix)
 
 #    def read(self,dsn):
 #        print "PG read"
@@ -52,8 +57,7 @@ class SpatiaLiteDataStore(DataStore):
     def getOptions(self,layer_id):
         '''add PG options for SCHEMA and GEO_NAME'''
         local_opts = []
-        gname = self.mlr.readGeometryColumnName(layer_id)
-        #index = self.mlr.readIndexRef(layer_id).lower()
+        gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
         #TODO Figure out how to set geom_name for SL... this wont do it
         if gname is not None:

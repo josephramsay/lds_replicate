@@ -24,7 +24,7 @@ from LDSUtilities import LDSUtilities
 
 ldslog = logging.getLogger('LDS')
 
-class ReaderFile(object):
+class MainFileReader(object):
     '''
     Config file reader/writer
     '''
@@ -270,7 +270,30 @@ class ReaderFile(object):
     
     # Functions above relate to connection config info
     #----------------------------------------------------------------------------------------------
-    # Functions below relate to layer config data
+    # Functions [4] below relate to layer config data
+    
+class LayerFileReader(object):
+    
+    def __init__(self,fname):
+        '''
+        Constructor
+        '''
+
+        self.filename=os.path.join(os.path.dirname(__file__), '../',fname)
+            
+        self._readConfigFile(self.filename)
+        
+        
+    def _readConfigFile(self,fname):
+        '''Reads named config file'''
+        #Split off so you can override the config file on the same reader object if needed
+        self.cp = ConfigParser.ConfigParser()
+        self.cp.read(fname)
+        
+        
+    def getSections(self):
+        '''List of sections (layernames/datasources)'''
+        return self.cp.sections()    
     
     def findLayerIdByName(self,name):
         '''Reverse lookup of section by associated name, finds first occurance only'''
@@ -287,8 +310,13 @@ class ReaderFile(object):
             return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
         return value
     
+    #KEEP
+    def getLayerNames(self):
+        '''Returns sections from properties file'''
+        return self.cp.sections()
     
-    def readLayerSchemaConfig(self,layer):
+    def readLayerParameters(self,layer):
+    #def readLayerSchemaConfig(self,layer):
         '''Full Layer config reader. Returns the config values for the whole layer or makes sensible guesses for defaults'''
         
         effunc = self.cp.get
@@ -363,162 +391,160 @@ class ReaderFile(object):
     
     
     
-    def writeLayerSchemaConfig(self,layer,lmod):
+    def writeLayerLastModified(self,layer,lmod):
         '''Write changes to layer config file'''
         try:
             self.cp.set(layer,'lastmodified',lmod)
         except Error:
             ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
         
-        with open(self.fname,'wb') as conffile:
-            self.cp.write(conffile)
+        #with open(self.fname,'wb') as conffile:
+        #    self.cp.write(conffile)
         
         
-#------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------------
 # File Reader /\ Table Reader \/
-#------------------------------------------------------------------------------------------------------------------------------
-             
-#NOTES. If syntax between different destinations RT will need to be moved/rebuilt for each DST case. If there is any crossover 
-#can still subclass ReadConfig but write Module in DST connector file
-        
-        
-class ReaderTable(object):
-    '''
-    Config file reader/writer for internal storage subclasses normal reader to use file reading capabilities
-    but overrides the layer data functions
-    '''
-
-
-    def __init__(self,parent):
-        '''
-        Constructor
-        '''
-        #tablename = tableprefix+'_lds_config'
-        tablename = 'LDS_CONFIG'
-            
-        self._setConfigFile(parent,tablename)
-
-        
-    def _setConfigFile(self,parent,tablename):
-        '''Reads named config location'''
-        #Split off so you can override the config file on the same reader object if needed
-        self.ds = parent
-        self.tablename = tablename
-
-        
-    def getSections(self):
-        '''List of sections (layernames/datasources)'''
-        result = self.ds.executeSQL('SELECT ID FROM {}'.format(self.tablename))
-        lid = []
-        row = result.GetNextFeature()
-        while row is not None:
-            try:
-                lid.append(row.GetField('ID'))
-                row = result.GetNextFeature()
-            except:
-                ldslog.debug("ID column not found")
-        return lid
-    
-    def findLayerIdByName(self,name):
-        '''Lookup of id (section header in CP) by associated name, finds first occurance only'''
-        result = self.ds.executeSQL('SELECT ID FROM {} WHERE NAME = {}'.format(self.tablename,name))
-        row = result.GetNextFeature()
-        try:
-            lid =  row.GetField('ID')
-        except:
-            ldslog.debug("LayerSchema: No matching ID column found")
-        return lid
-
-
-    def readLayerProperty(self,layer,key):
-        
-        result = self.ds.executeSQL("SELECT {} FROM {} WHERE ID = '{}'".format(key,self.tablename,layer))
-        row = result.GetNextFeature()
-        try:
-            value = row.GetField(key)
-        except:
-            '''return a default value otherwise none which would also be a default for some keys'''
-            return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
-        return value
-    
-    
-    def readLayerSchemaConfig(self,layer):
-        '''Full Layer config reader'''
-        result = self.ds.executeSQL("SELECT * FROM {} WHERE ID = '{}'".format(self.tablename,layer))
-        
-        #Assume layer id is unique in the config table... it had better be
-        row = result.GetNextFeature()
-        
-        return LDSUtilities.extractFields(row)
-        
+# ----------------------------------------------------------------------------------------------------------------------------
+#             
+# NOTES. If syntax between different destinations RT will need to be moved/rebuilt for each DST case. If there is any crossover 
+# can still subclass ReadConfig but write Module in DST connector file
+#        
+#        
+#class LayerTableReader(object):
+#    '''
+#    Config file reader/writer for internal storage subclasses normal reader to use file reading capabilities
+#    but overrides the layer data functions
+#    '''
+#
+#
+#    def __init__(self,parent):
+#        '''
+#        Constructor
+#        '''
+#        import DataStore
+#        self._setConfigFile(parent,DataStore.LDS_CONFIG_TABLE)
+#
+#        
+#    def _setConfigFile(self,parent,tablename):
+#        '''Reads named config location'''
+#        #Split off so you can override the config file on the same reader object if needed
+#        self.ds = parent
+#        self.tablename = tablename
+#
+#        
+#    def getSections(self):
+#        '''List of sections (layernames/datasources)'''
+#        result = self.ds.executeSQL('SELECT ID FROM {}'.format(self.tablename))
+#        lid = []
+#        row = result.GetNextFeature()
+#        while row is not None:
+#            try:
+#                lid.append(row.GetField('ID'))
+#                row = result.GetNextFeature()
+#            except:
+#                ldslog.debug("ID column not found")
+#        return lid
+#    
+#    def findLayerIdByName(self,name):
+#        '''Lookup of id (section header in CP) by associated name, finds first occurance only'''
+#        result = self.ds.executeSQL('SELECT ID FROM {} WHERE NAME = {}'.format(self.tablename,name))
+#        row = result.GetNextFeature()
 #        try:
-#            pkey =  row.GetField('PKEY')
+#            lid =  row.GetField('ID')
 #        except:
-#            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
-#            pkey = 'ID'
-#            
-#        '''names are/can-be stored so we can reverse search by layer name'''
+#            ldslog.debug("LayerSchema: No matching ID column found")
+#        return lid
+#
+#
+#    def readLayerProperty(self,layer,key):
+#        
+#        result = self.ds.executeSQL("SELECT {} FROM {} WHERE ID = '{}'".format(key,self.tablename,layer))
+#        row = result.GetNextFeature()
 #        try:
-#            name = row.GetField('NAME')
+#            value = row.GetField(key)
 #        except:
-#            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
-#            name = layer
-#            
-#        if name is None:
-#            name = layer
-#            
-#        '''names are/can-be stored so we can reverse search by layer name'''
+#            '''return a default value otherwise none which would also be a default for some keys'''
+#            return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
+#        return value
+#    
+#    
+#    def readLayerSchemaConfig(self,layer):
+#        '''Full Layer config reader'''
+#        result = self.ds.executeSQL("SELECT * FROM {} WHERE ID = '{}'".format(self.tablename,layer))
+#        
+#        #Assume layer id is unique in the config table... it had better be
+#        row = result.GetNextFeature()
+#        
+#        return LDSUtilities.extractFields(row)
+#        
+##        try:
+##            pkey =  row.GetField('PKEY')
+##        except:
+##            ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
+##            pkey = 'ID'
+##            
+##        '''names are/can-be stored so we can reverse search by layer name'''
+##        try:
+##            name = row.GetField('NAME')
+##        except:
+##            ldslog.debug("LayerSchema: No Name saved in config for this layer, returning ID")
+##            name = layer
+##            
+##        if name is None:
+##            name = layer
+##            
+##        '''names are/can-be stored so we can reverse search by layer name'''
+##        try:
+##            group = row.GetField('CATEGORY')
+##        except:
+##            ldslog.debug("Group List: No Groups defined for this layer")
+##            group = None
+##            
+##            
+##        try:
+##            gcol = row.GetField('GEOCOLUMN')
+##        except:
+##            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
+##            gcol = 'SHAPE'
+##            
+##        try:
+##            index = row.GetField('INDEX')
+##        except:
+##            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
+##            index = None
+##            
+##        try:
+##            epsg = row.GetField('EPSG')
+##        except:
+##            #print "No Projection Transformation defined"#don't really need to state the default occurance
+##            epsg = None
+##            
+##        try:
+##            lmod = row.GetField('LASTMODIFIED')
+##        except:
+##            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
+##            lmod = None
+##            
+##        try:
+##            disc = row.GetField('DISCARD')
+##        except:
+##            disc = None 
+##            
+##        try:
+##            cql = row.GetField('CQL')
+##        except:
+##            cql = None
+##            
+##        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
+#    
+#    
+#    
+#    def writeLayerSchemaConfig(self,layer,lmod):
+#        '''Write changes to layer config file'''
 #        try:
-#            group = row.GetField('CATEGORY')
+#            self.ds.executeSQL('UPDATE {} SET LASTMODIFIED = {} WHERE ID = {}'.format(self.tablename,lmod,layer))
 #        except:
-#            ldslog.debug("Group List: No Groups defined for this layer")
-#            group = None
-#            
-#            
-#        try:
-#            gcol = row.GetField('GEOCOLUMN')
-#        except:
-#            ldslog.debug("LayerSchema: No Geo Column defined, default to 'SHAPE'")
-#            gcol = 'SHAPE'
-#            
-#        try:
-#            index = row.GetField('INDEX')
-#        except:
-#            ldslog.debug("LayerSchema: No Index Column/Specification defined, default to None")
-#            index = None
-#            
-#        try:
-#            epsg = row.GetField('EPSG')
-#        except:
-#            #print "No Projection Transformation defined"#don't really need to state the default occurance
-#            epsg = None
-#            
-#        try:
-#            lmod = row.GetField('LASTMODIFIED')
-#        except:
-#            ldslog.debug("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
-#            lmod = None
-#            
-#        try:
-#            disc = row.GetField('DISCARD')
-#        except:
-#            disc = None 
-#            
-#        try:
-#            cql = row.GetField('CQL')
-#        except:
-#            cql = None
-#            
-#        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
-    
-    
-    
-    def writeLayerSchemaConfig(self,layer,lmod):
-        '''Write changes to layer config file'''
-        try:
-            self.ds.executeSQL('UPDATE {} SET LASTMODIFIED = {} WHERE ID = {}'.format(self.tablename,lmod,layer))
-        except:
-            ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
+#            ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
         
         
 

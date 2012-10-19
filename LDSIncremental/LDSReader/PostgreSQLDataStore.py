@@ -14,7 +14,7 @@ class PostgreSQLDataStore(DataStore):
     '''
     PostgreSQL DataStore
     '''
-
+    
     def __init__(self,conn_str=None,user_config=None):
         '''
         cons init driver
@@ -72,7 +72,7 @@ class PostgreSQLDataStore(DataStore):
         '''add PG options for SCHEMA and GEO_NAME'''
         #Should default to geometry but doesn't, creates bytea instead
         local_opts = ['GEOM_TYPE=GEOMETRY']
-        gname = self.mlr.readGeometryColumnName(layer_id)
+        gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
         if gname is not None:
             local_opts += ['GEOMETRY_NAME='+gname]
@@ -89,8 +89,8 @@ class PostgreSQLDataStore(DataStore):
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string. This wont work for spatial columns since GIST needed
             #TODO. Detect when gcol is in the col list and build a "mixed-spatial"? index...
-            clst = ','.join(self.parseStringList(ref_index))
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+self.sanitise(clst),dst_layer_name,clst)
+            clst = ','.join(DataStore.parseStringList(ref_index))
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
         else:
             return
         ldslog.info("Index="+ref_index+". Execute "+cmd)

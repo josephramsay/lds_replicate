@@ -32,16 +32,16 @@
 					</xsl:otherwise>
 				</xsl:choose>
 		</xsl:for-each>
-		<xsl:text>"",</xsl:text>
+		<xsl:text>null,</xsl:text>
 		<xsl:text>"shape",</xsl:text>
-		<xsl:text>"",</xsl:text>
-		<xsl:text>"",</xsl:text>
+		<xsl:text>null,</xsl:text>
+		<xsl:text>null,</xsl:text>
 		<xsl:choose>
 			<xsl:when test="position() != last()">
-				<xsl:text>""],&#xa;</xsl:text>
+				<xsl:text>null],&#xa;</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
-				<xsl:text>""]&#xa;</xsl:text>
+				<xsl:text>null]&#xa;</xsl:text>
 			</xsl:otherwise>
 		</xsl:choose>
 	</xsl:for-each>

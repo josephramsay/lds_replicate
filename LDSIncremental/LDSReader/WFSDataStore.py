@@ -16,7 +16,6 @@ Created on 23/07/2012
 '''
 
 from DataStore import DataStore
-#from ReadConfig import ReaderFile
 
 class WFSDataStore(DataStore):
     '''
