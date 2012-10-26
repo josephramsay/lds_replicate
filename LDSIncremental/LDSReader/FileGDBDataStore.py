@@ -24,10 +24,10 @@ class FileGDBDataStore(ESRIDataStore):
         
         super(FileGDBDataStore,self).__init__(conn_str,user_config)
         
-        (self.path,self.config,self.srs,self.cql) = self.params
+        (self.path,self.name,self.config,self.srs,self.cql) = self.params
         #because sometimes ~ (if included) isnt translated to home
         self.path = os.path.expanduser(self.path)
-        self.suffix = '.gdb'
+        self.SUFFIX = '.gdb'
 
         
     def sourceURI(self,layer):
@@ -44,7 +44,7 @@ class FileGDBDataStore(ESRIDataStore):
         '''FileGDB organises tables as individual .gdb file/directories into which contents are written. The layer is configured as if it were a file'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
-        return os.path.join(self.path,DataStore.LDS_CONFIG_TABLE+self.suffix)
+        return os.path.join(self.path,self.name+self.SUFFIX)
         
         
     def getOptions(self,layer_id):

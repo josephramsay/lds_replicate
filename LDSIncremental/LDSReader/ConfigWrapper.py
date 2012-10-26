@@ -43,8 +43,8 @@ class ConfigWrapper(object):
         Userconfig is not mean't to replace mainconfig, just overwrite the parts the user has decided to customise'''
         self.userconfig = None
         if userconfig is not None:
-            self.userconfig = MainFileReader("../"+userconfig)
-        self.mainconfig = MainFileReader("../"+self.CONFIG_FILE)
+            self.userconfig = MainFileReader("../"+userconfig,False)
+        self.mainconfig = MainFileReader("../"+self.CONFIG_FILE,True)
         
         
     def setupLayerConfig(self,filename):

@@ -25,7 +25,7 @@ class SpatiaLiteDataStore(DataStore):
         
         super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 
-        (self.path,self.config,self.srs,self.cql) = self.params 
+        (self.path,self.name,self.config,self.srs,self.cql) = self.params 
         #because sometimes ~ isnt translated to home
         self.path = os.path.expanduser(self.path)
         self.suffix = '.db'
@@ -43,8 +43,8 @@ class SpatiaLiteDataStore(DataStore):
         '''Since SpatiaLite databases are self contained files this only needs to return a file path'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
-        return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
-        return os.path.join(self.path,DataStore.LDS_CONFIG_TABLE+self.suffix)
+        #return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
+        return os.path.join(self.path,self.name+self.suffix)
 
 #    def read(self,dsn):
 #        print "PG read"

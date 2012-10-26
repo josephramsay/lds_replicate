@@ -160,7 +160,7 @@ class DataStore(object):
                 raise DSReaderException("Error opening DS on Destination "+str(dsn)+", attempting DS Create")
         #catches DSReader (but not runtime) error, but don't fail since we'll try to init a new DS
         except (RuntimeError,DSReaderException) as dsre1:
-            print "DSReaderException",dsre1 
+            #print "DSReaderException",dsre1 
             ldslog.error(dsre1)
             try:
                 ds = self.driver.CreateDataSource(dsn)
@@ -199,10 +199,11 @@ class DataStore(object):
             # no cols to delete and no operational instructions
             self.cloneDS(src.ds,self.ds)
         
-        ldslog.info("Sync output")
+
+    def closeDS(self):
+        ldslog.info("Sync DS and Close")
         self.ds.SyncToDisk()
         self.ds.Destroy()  
-
               
     def cloneDS(self,src_ds,dst_ds):
         '''Copy from source to destination using the driver copy and without manipulating data'''
@@ -270,7 +271,7 @@ class DataStore(object):
                 new_layer = True
                 ldslog.warning(dst_layer_name+" does not exist. Creating new layer")
                 '''create a new layer if a similarly named existing layer can't be found on the dst'''
-                dst_layer = self.buildNewDSTLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
+                dst_layer = self.buildNewDataLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
             
             #add/copy features
             #src_layer.ResetReading()
@@ -357,7 +358,7 @@ class DataStore(object):
             #print "InvalidFeatureException",ife
     
                     
-    def buildNewDSTLayer(self,dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name):        
+    def buildNewDataLayer(self,dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name):        
         #read defns of each field
         fdef_list = []
         for fi in range(0,src_layer_defn.GetFieldCount()):
@@ -457,7 +458,7 @@ class DataStore(object):
         
     def setLastModified(self,layer,newdate):
         '''Sets the last modification time of a layer following a successful incremental copy operation'''
-        self.layerconf.writeLayerLastModified(layer, newdate)    
+        self.layerconf.writeLayerProperty(layer, 'lastmodified', newdate)  
 
     def getCurrent(self):
         '''Gets the current timestamp for incremental todate calls. 
@@ -595,7 +596,7 @@ class DataStore(object):
             ldslog.debug("fid={},fld_no={},fld_data={}".format(feature.GetFID(),field_no,feature.GetFieldAsString(field_no)))
             
     @staticmethod
-    def _showLayerData(cls,layer):
+    def _showLayerData(layer):
         '''Prints layer and embedded feature data. Useful for debugging'''
         ldslog.debug("Layer:Name:"+layer.GetName())
         layer.ResetReading()
@@ -619,9 +620,10 @@ class DataStore(object):
     
     def buildConfigLayer(self,config_array):
         '''Builds the config table into and using the active DS'''
+        #TODO check initds for conf table name
         if not hasattr(self,'ds') or self.ds is None:
             self.ds = self.initDS(self.destinationURI(DataStore.LDS_CONFIG_TABLE))
-        #bypass if external (alternatively set [layerconf = self or layerconf = self.confwrapper])
+        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.confwrapper])
         if not self.isConfInternal():
             return self.layerconf.buildConfigLayer()
         #TODO unify the naming for the config tables
@@ -630,14 +632,25 @@ class DataStore(object):
         #open('/home/jramsay/temp/pyary','w').write(json.dumps(cc))
         #json.loads(open('/home/jramsay/temp/pyary','r').read())
 
+        #self.ds.DeleteLayer(DataStore.LDS_CONFIG_TABLE)
+
         cols = ('id','pkey','name','category','lastmodified','geocolumn','epsg','discard','cql')
-        config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,Projection.getDefaultSpatialRef(),ogr.wkbNone,['OVERWRITE=YES'])
-        #config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,None,None,['OVERWRITE=YES'])
+        #HACK even though the config table is not a geometry table MSSQLSpatiaLite needs a physical geo type to build a layer
+
+        if self.DRIVER_NAME == 'MSSQLSpatial':
+            config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,None,ogr.wkbPoint,['OVERWRITE=YES'])
+        else:
+            config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,None,ogr.wkbNone,['OVERWRITE=YES'])
+        
+        
         feat_def = ogr.FeatureDefn()
         for name in cols:
-            fld_def = ogr.FieldDefn(name)
+            #create new field defn with name=name and type OFTString
+            fld_def = ogr.FieldDefn(name,ogr.OFTString)
+            #in the feature defn, define a new field
             feat_def.AddFieldDefn(fld_def)
-            config_layer.CreateField(fld_def)
+            #also add a field to the table definition, i.e. column
+            config_layer.CreateField(fld_def,True)                
         
         for row in json.loads(config_array):
             config_feat = ogr.Feature(feat_def)
@@ -673,27 +686,34 @@ class DataStore(object):
     def readLayerParameters(self,pkey):
         '''Full Layer config reader'''
         layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+        layer.ResetReading()
         feat = self._findMatchingFeature(layer, 'id', pkey)
         return LDSUtilities.extractFields(feat)
         
         
-    def readLayerProperty(self,pkey,property):
-        print pkey,property
+    def readLayerProperty(self,pkey,field):
+
         layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+        layer.ResetReading()
         feat = self._findMatchingFeature(layer, 'id', pkey)
-        prop = feat.GetField(property)
+        if feat is None:
+            return None
+        prop = feat.GetField(field)
         return None if prop == 'None' else prop
 
 
 
-    def writeLayerLastModified(self,pkey,lmod):
+    def writeLayerProperty(self,pkey,field,value):
         '''Write changes to layer config table'''
         #ogr.UseExceptions()
         try:
             layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+            feat = self._findMatchingFeature(layer, 'id', pkey)
+            feat.SetField(field,value)
+            layer.SetFeature(feat)
+            ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
         except Exception as e:
-            print e
-        feat = self._findMatchingFeature(layer, 'id', pkey)
-        feat.SetField('lastmodified',lmod)
+            ldslog.error(e)
+
 
         

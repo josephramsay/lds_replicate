@@ -43,6 +43,7 @@ import re
 
 from TransferProcessor import TransferProcessor
 from TransferProcessor import InputMisconfigurationException
+from VersionChecker import VersionChecker
 
 ldslog = logging.getLogger('LDS')
 ldslog.setLevel(logging.DEBUG)
@@ -84,8 +85,26 @@ def main():
     
     
     #first check required libs
-    versionCheck('GDAL','gdal-config','1.9.1') 
-    versionCheck('PostgreSQL','psql','9.0.0')         
+    #versionCheck('GDAL','gdal-config','1.9.1') 
+    #versionCheck('PostgreSQL','psql','9.0.0')      
+    
+    GDAL_MIN = '1.9.1'
+    PostgreSQL_MIN = '9.0'
+    
+    message = ''
+    pgis = VersionChecker.getPostGISVersion()   
+    pg = VersionChecker.getPostgreSQLVersion()
+       
+    if VersionChecker.compareVersions(GDAL_MIN,pgis.get('GDAL')): 
+        message += 'GDAL '+pgis.get('GDAL')+'<'+GDAL_MIN+'\n'
+    if VersionChecker.compareVersions(PostgreSQL_MIN,pg.get('PostgreSQL')): 
+        message += 'PostgreSQL '+pg.get('PostgreSQL')+'<'+PostgreSQL_MIN+'\n'
+    
+    if message != '':
+        print 'Version checks failed: ',message
+        sys.exit(1)
+    
+    
     
     # parse command line options
     try:
@@ -183,18 +202,7 @@ def main():
             
         #now run the selected func
         proc()
-        print '*** FIN ***'
-            
-
-def versionCheck(name,cmd,mnm):
-    out = subprocess.Popen(cmd+' --version',shell=True,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    ver = re.search('\d.\d.\d',str(out.stdout.readlines())).group(0)
-    #alpha compare
-    if ver<mnm: 
-        print name,'version',ver,"is earlier than",mnm
-        ldslog.error(name+' version '+ver+' is earlier than '+mnm)
-        sys.exit(1)
-    ldslog.info(name+' version '+ver+' is later than '+mnm)
+        print '*** Complete ***'
 
 
 if __name__ == "__main__":

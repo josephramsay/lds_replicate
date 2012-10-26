@@ -19,8 +19,7 @@ import os
 import logging
 import ConfigParser
 
-from ConfigParser import NoOptionError,NoSectionError,Error
-from LDSUtilities import LDSUtilities
+from ConfigParser import NoOptionError,NoSectionError
 
 ldslog = logging.getLogger('LDS')
 
@@ -30,13 +29,14 @@ class MainFileReader(object):
     '''
 
 
-    def __init__(self,params):
+    def __init__(self,cfpath,use_defaults):
         '''
         Constructor
         '''
         thisdir = os.path.dirname(__file__)
 
-        self.filename=os.path.join(thisdir,params)
+        self.use_defaults = use_defaults
+        self.filename=os.path.join(thisdir,cfpath)
             
         self._readConfigFile(self.filename)
         
@@ -55,13 +55,60 @@ class MainFileReader(object):
     #database
         
     def readPostgreSQLConfig(self):
-        '''PostgreSQL specific config file reader'''
-        host = self.cp.get('PostgreSQL', 'host')
-        port = self.cp.get('PostgreSQL', 'port')
-        dbname = self.cp.get('PostgreSQL', 'dbname')
-        schema = self.cp.get('PostgreSQL', 'schema')
-        usr = self.cp.get('PostgreSQL', 'user')
-        pwd = self.cp.get('PostgreSQL', 'pass')
+        '''PostgreSQL specific config file reader'''            
+        
+        usr = None
+        pwd = None
+        over = None
+        epsg = None
+        cql = None
+        
+        if self.use_defaults:
+            host = "127.0.0.1"
+            port = 5432
+            dbname = "ldsincr"
+            schema = "lds"
+            config = "internal"
+        else:
+            host = None
+            port = None
+            dbname = None
+            schema = None
+            config = None
+        
+        
+        try:
+            host = self.cp.get('PostgreSQL', 'host')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            port = self.cp.get('PostgreSQL', 'port')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            dbname = self.cp.get('PostgreSQL', 'dbname')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            schema = self.cp.get('PostgreSQL', 'schema')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            usr = self.cp.get('PostgreSQL', 'user')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            pwd = self.cp.get('PostgreSQL', 'pass')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        
+        
         try:
             config = self.cp.get('PostgreSQL', 'config')
         except NoOptionError:
@@ -88,91 +135,184 @@ class MainFileReader(object):
         
         return (host,port,dbname,schema,usr,pwd,over,config,epsg,cql)
     
+    
+    
     def readMSSQLConfig(self):
         '''MSSQL specific config file reader'''
-        odbc = self.cp.get('MSSQL', 'odbc')
-        server = self.cp.get('MSSQL', 'server')
-        dsn = self.cp.get('MSSQL', 'dsn')
-        trust = self.cp.get('MSSQL', 'trust')
-        dbname = self.cp.get('MSSQL', 'dbname')
-        schema = self.cp.get('MSSQL', 'schema')
         
-        usr = self.cp.get('MSSQL', 'user')
-        pwd = self.cp.get('MSSQL', 'pass')
+        usr = None
+        pwd = None
+        epsg = None
+        cql = None
+        
+        if self.use_defaults:
+            odbc = "FreeTDS"
+            server = "127.0.0.1\SQLExpress"
+            dbname = "LDSINCR"
+            schema = "dbo"
+            trust = "yes"
+            dsn = "LDSINCR"
+            config = "internal"
+        else:
+            odbc = None
+            server = None
+            dbname = None
+            schema = None
+            trust = None
+            dsn = None
+            config = None
+        
+        
+        
+        try:
+            odbc = self.cp.get('MSSQL', 'odbc')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            server = self.cp.get('MSSQL', 'server')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            dsn = self.cp.get('MSSQL', 'dsn')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            trust = self.cp.get('MSSQL', 'trust')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            dbname = self.cp.get('MSSQL', 'dbname')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            schema = self.cp.get('MSSQL', 'schema')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            usr = self.cp.get('MSSQL', 'user')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+            
+        try:
+            pwd = self.cp.get('MSSQL', 'pass')
+        except NoOptionError as noe:
+            ldslog.error(noe)
+        
+
         
         try:
             config = self.cp.get('MSSQL', 'config')
         except NoOptionError:
             ldslog.debug("MSSQL: No config preference specified, default to 'external'")
-            config = 'external'
+            config = 'internal'
             
         try:
             epsg = self.cp.get('MSSQL', 'epsg')
         except NoOptionError:
-            ldslog.debug("MS: EPSG not specified, default to none keeping existing SRS")
-            epsg = True
+            ldslog.debug("MSSQL: EPSG not specified, default to None keeping existing SRS")
             
         try: 
             cql = self.cp.get('MSSQL', 'cql')
         except NoOptionError:
-            ldslog.debug("MS: No CQL Filter specified, fetching all results")
+            ldslog.debug("MSSQL: No CQL Filter specified, fetching all results")
             cql = None
         
         return (odbc,server,dsn,trust,dbname,schema,usr,pwd,config,epsg,cql)
     
     def readSpatiaLiteConfig(self):
         '''SpatiaLite specific config file reader'''
-        path = self.cp.get('SpatiaLite', 'path')
         
+
+        epsg = None
+        cql = None
+        
+        if self.use_defaults:
+            path = "~"
+            name = "LDSSLITE"
+            config = "internal"
+        else:
+            path = None
+            name = None
+            config = None
+
+        
+        try: 
+            path = self.cp.get('SpatiaLite', 'path')
+        except NoOptionError:
+            ldslog.debug("SpatiaLite: No path specified, default to Home directory, "+str(path))
+        
+        try:
+            name = self.cp.get('SpatiaLite', 'name')
+        except NoOptionError:
+            ldslog.debug("SpatiaLite: No DB name provided, default to "+str(name))
+            
         try:
             config = self.cp.get('SpatiaLite', 'config')
         except NoOptionError:
-            ldslog.debug("SpatiaLite: No config preference specified, default to 'external'")
-            config = 'external'
+            ldslog.debug("SpatiaLite: No config preference specified, default to "+str(config))
+            config = 'internal'
             
         try:
             epsg = self.cp.get('SpatiaLite', 'epsg')
         except NoOptionError:
-            ldslog.debug("SL: EPSG not specified, default to none keeping existing SRS")
-            epsg = True
+            ldslog.debug("SL: EPSG not specified, default to "+str(epsg)+" keeping existing SRS")
             
         try: 
             cql = self.cp.get('SpatiaLite', 'cql')
         except NoOptionError:
             ldslog.debug("SL: No CQL Filter specified, fetching all results")
-            cql = None
         
-        return (path,config,epsg,cql)
+        return (path,name,config,epsg,cql)
     
     
     
     def readFileGDBConfig(self):
         '''FileGDB specific config file reader'''
+        epsg = None
+        cql = None
+        
+        if self.use_defaults:
+            path = "~"
+            name = "LDSFGDB"
+            config = "internal"
+        else:
+            path = None
+            name = None
+            config = None
+
+        
         try: 
             path = self.cp.get('FileGDB', 'path')
         except NoOptionError:
-            ldslog.debug("FileGDB: No path specified, default to Home directory")
-            path = "~"
+            ldslog.debug("FileGDB: No path specified, default to Home directory, "+str(path))
+            
+        try:
+            name = self.cp.get('FileGDB', 'name')
+        except NoOptionError:
+            ldslog.debug("FileGDB: No DB name provided, default to "+str(name))
             
         try:
             config = self.cp.get('FileGDB', 'config')
         except NoOptionError:
-            ldslog.debug("FileGDB: No config preference specified, default to 'external'")
-            config = 'external'
+            ldslog.debug("FileGDB: No config preference specified, default to "+str(config))
             
         try:
             epsg = self.cp.get('FileGDB', 'epsg')
         except NoOptionError:
-            ldslog.debug("FG: EPSG not specified, default to none keeping existing SRS")
-            epsg = True
+            ldslog.debug("FileGDB: EPSG not specified, default to "+str(epsg)+" none keeping existing SRS")
             
         try: 
             cql = self.cp.get('FileGDB', 'cql')
         except NoOptionError:
-            ldslog.debug("FG: No CQL Filter specified, fetching all results")
-            cql = None
+            ldslog.debug("FileGDB: No CQL Filter specified, fetching all results")
         
-        return (path,config,epsg,cql)
+        return (path,name,config,epsg,cql)
     
     
 #    def readOracleConfig(self):
@@ -210,7 +350,7 @@ class MainFileReader(object):
     
     def readWFSConfig(self):
         '''Generic WFS config file reader'''
-        '''Since this now keys on the driver name WFS is read before LDS and LDS not at all, So...'''
+        '''Since this now keys on the driver name, WFS is read before LDS and LDS not at all, So...'''
         
         return self.readLDSConfig()
     
@@ -225,44 +365,55 @@ class MainFileReader(object):
     
     def readLDSConfig(self):
         '''LDs specific config file reader'''
+        
+        #use_defaults determines whether we use default values. For a user config this may not be wise
+        #since a user config is a custom file relying on the main config for absent values not last-resort defaults
+        cql = None
+        key = None
+        
+        if self.use_defaults:
+            url = "http://wfs.data.linz.govt.nz/"
+            fmt = "GML2"
+            svc = "WFS"
+            ver = "1.0.0"
+        else:
+            url = None
+            fmt = None
+            svc = None
+            ver = None
+        
         try:
             url = self.cp.get('LDS', 'url')
         except NoOptionError as noe:
             ldslog.debug("LDS: Default URL assumed "+str(noe))
-            url = "http://wfs.data.linz.govt/"
         except NoSectionError as nse:
-            ldslog.debug("LDS: No LDS Section... Cannot recover, quitting. "+str(nse))
-            sys.exit(1)
+            ldslog.debug("LDS: No LDS Section... "+str(nse))
             
         try:   
             key = self.cp.get('LDS', 'key') 
         except NoOptionError, NoSectionError:
-            ldslog.debug("LDS: Key required to connect to LDS... Cannot recover, quitting")
-            sys.exit(1)
+            ldslog.debug("LDS: Key required to connect to LDS...")
             
         try: 
             fmt = self.cp.get('LDS', 'fmt')
         except NoOptionError:
-            ldslog.debug("LDS: No output format specified, default to GML2")
-            fmt = "GML2"
+            ldslog.debug("LDS: No output format specified")
         
         try: 
             svc = self.cp.get('LDS', 'svc')
         except NoOptionError:
-            ldslog.debug("LDS: No service type specified, default to WFS")
-            svc = "WFS"
+            ldslog.debug("LDS: No service type specified, default to "+str(svc))
         
         try: 
             ver = self.cp.get('LDS', 'ver')
         except NoOptionError:
-            ldslog.debug("LDS: No Version specified, assuming WFS and default to version 1.0.0")
-            ver = "1.0.0"
+            ldslog.debug("LDS: No Version specified, assuming WFS and default to version "+str(ver))        
             
         try: 
             cql = self.cp.get('LDS', 'cql')
         except NoOptionError:
             ldslog.debug("LDS: No CQL Filter specified, fetching all results")
-            cql = None
+            
 
         
         return (url,key,svc,ver,fmt,cql)
@@ -310,7 +461,7 @@ class LayerFileReader(object):
             return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
         return value
     
-    #KEEP
+
     def getLayerNames(self):
         '''Returns sections from properties file'''
         return self.cp.sections()
@@ -388,20 +539,19 @@ class LayerFileReader(object):
             cql = None
             
         return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
-    
-    
-    
-    def writeLayerLastModified(self,layer,lmod):
-        '''Write changes to layer config file'''
-        try:
-            self.cp.set(layer,'lastmodified',lmod)
-        except Error:
-            ldslog.debug("LayerSchema(W): Last-Modified date not saved!")
+
         
-        #with open(self.fname,'wb') as conffile:
-        #    self.cp.write(conffile)
-        
-        
+    def writeLayerProperty(self,layer,field,value):
+        '''Write changes to layer config table'''
+        try:            
+            self.cp.set(layer,field,value)
+            with open(self.filename, 'w') as configfile:
+                self.cp.write(configfile)
+            ldslog.debug("Check "+field+" for layer "+layer+" is set to "+value+" : GetField="+self.cp.get(layer, field))                                                                                        
+        except Exception as e:
+            ldslog.error('Problem writing LM date to layer config file. '+e)
+
+
 # ----------------------------------------------------------------------------------------------------------------------------
 # File Reader /\ Table Reader \/
 # ----------------------------------------------------------------------------------------------------------------------------

@@ -57,19 +57,7 @@ class LDSDataStore(WFSDataStore):
         uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
         ldslog.debug(uri)
         return uri
-    
-    
-    def sourceURI_incr(self,layername):
-        '''Endpoint constructor without date fields but uses the .../v/xXXX addressing construct. Only really useful for testing the incremental URL format'''
-        if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.conn_str
-        cql = self._buildCQLStr()
-        vep = LDSUtilities.splitLayerName(layername)+"-changeset"
-        typ = "&typeName="+layername+"-changeset"
-        fmt = "&outputFormat="+self.fmt
-        uri = self.url+self.key+vep+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
-        ldslog.debug(uri)
-        return uri
+
         
     def sourceURI_incrd(self,layername,fromdate,todate):
         '''Endpoint constructor fetching specific layer with incremental date fields'''
@@ -109,6 +97,7 @@ class LDSDataStore(WFSDataStore):
     @staticmethod
     def readDocument(url):
         '''Non-Driver method for fetching LDS DS as a document'''
+        ldslog.debug("LDs URL "+url)
         lds = urlopen(url)
         data = lds.read()
         lds.close()

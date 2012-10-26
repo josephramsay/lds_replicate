@@ -310,9 +310,12 @@ class TransferProcessor(object):
         if datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S') > datetime.strptime(fdate,'%Y-%m-%dT%H:%M:%S'):
             #Set Incremental determines whether we use the incremental or full endpoint construction
             self.src.setIncremental()
+            #source read from URI
             self.src.read(self.src.sourceURI_incrd(layer_i,fdate,tdate))
+            #destination write the SRC to the dest URI
             self.dst.write(self.src,self.dst.destinationURI(layer_i))
             self.dst.setLastModified(layer_i,tdate)
+            self.dst.closeDS()
         else:
             ldslog.info("No update required for layer "+layer_i+" since [start:"+fdate+" > finish:"+tdate+"]")
         return tdate
