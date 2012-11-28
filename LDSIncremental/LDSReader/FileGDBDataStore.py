@@ -1,26 +1,35 @@
 '''
-FileGDB wrapper class.
+v.0.0.1
+
+LDSIncremental -  FileGDB
+
+Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved
+
+This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.
 
 Created on 9/08/2012
 
 @author: jramsay
 '''
+
+import logging
 import os
 
 from ESRIDataStore import ESRIDataStore
-from DataStore import DataStore
 
-#from osr import SpatialReference 
+ldslog = logging.getLogger('LDS')
 
 class FileGDBDataStore(ESRIDataStore):
     '''
     FileGDB DataStore wrapper for file location and options 
     '''
+    DRIVER_NAME = "FileGDB"
 
     def __init__(self,conn_str=None,user_config=None):
         
-        self.DRIVER_NAME = "FileGDB"
-        self.CONFIG_XSL = "getcapabilities.filegdb.xsl"
         
         super(FileGDBDataStore,self).__init__(conn_str,user_config)
         
@@ -47,6 +56,15 @@ class FileGDBDataStore(ESRIDataStore):
         return os.path.join(self.path,self.name+self.SUFFIX)
         
         
+    def deleteFieldFromLayer(self,layer,field_id,field_name):
+        '''per DS delete field since some do not support this'''
+        dsql = "alter table "+layer.GetName()+" drop column "+field_name
+        self.executeSQL(dsql)
+        
+    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+        ldslog.warn('Table indexing not supported by '+self.DRIVER_NAME+' at present')
+        return
+    
     def getOptions(self,layer_id):
         '''Adds FileGDB options for GEOMETRY_NAME'''
         local_opts = []
@@ -56,4 +74,10 @@ class FileGDBDataStore(ESRIDataStore):
             local_opts += ['GEOMETRY_NAME='+gname]
         
         return super(FileGDBDataStore,self).getOptions(layer_id) + local_opts
+    
+    def _findMatchingFeature(self,search_layer,ref_pkey,key):
+        '''Find the Feature matching a primary key value. FileGDB version doesnt use string quotes'''
+        qry = ref_pkey+" = "+str(key)
+        search_layer.SetAttributeFilter(qry)
+        return search_layer.GetNextFeature()
         

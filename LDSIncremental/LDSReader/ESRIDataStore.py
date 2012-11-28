@@ -36,20 +36,14 @@ class ESRIDataStore(DataStore):
 #    def read(self,dsn):
 #        self.ds = self.driver.Open(dsn)
 #    
-    def write(self,src_ds,dsn):
-        '''ESRI specific write method used as entry point for converDataSourceESRI'''
+    def write(self,src_ds,dsn,incr):
+        '''ESRI specific write method used as entry point for convertDataSourceESRI'''
         '''TODO. No need to do the poly to multi conversion but incremental __change__ removal still reqd'''
         #naive implementation? change SR per layer in place
         self.convertDataSourceESRI(src_ds.ds)
-        super(ESRIDataStore,self).write(src_ds,dsn)
+        super(ESRIDataStore,self).write(src_ds,dsn,incr)
         #self.ds = self.driver.CopyDataSource(src_ds, dsn)
         
-        
-    #def convertDatasetESRI(self,dataset):
-    #    '''morphs raster datasets, not so useful with datasources'''
-    #    pr1 = dataset.GetProjectionRef()
-    #    pr2 = SpatialReference(pr1).MorphToESRI()
-    #    return dataset.SetProjectionRef(pr2)
     
     def convertDataSourceESRI(self,datasource):
         '''Spatial Reference method to "Morph" datasource layer by layer, in place'''

@@ -21,18 +21,27 @@
 		<xsl:text>name = </xsl:text><xsl:value-of select="normalize-space(wfs:Title)"/><xsl:text>&#xa;</xsl:text>
 		<xsl:text>category = </xsl:text>
 		<xsl:for-each select="ows:Keywords/ows:Keyword">
-				<xsl:value-of select="normalize-space(.)"/>
-				<xsl:choose>
-					<xsl:when test="position() != last()">
-						<xsl:text>,</xsl:text>
-					</xsl:when>
-					<xsl:otherwise>
-						<xsl:text>&#xa;</xsl:text>
-					</xsl:otherwise>
-				</xsl:choose>
+			<xsl:value-of select="normalize-space(.)"/>
+			<xsl:choose>
+				<xsl:when test="position() != last()">
+					<xsl:text>,</xsl:text>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:text>&#xa;</xsl:text>
+				</xsl:otherwise>
+			</xsl:choose>
 		</xsl:for-each>
 		<xsl:text>lastmodified = &#xa;</xsl:text>
-		<xsl:text>geocolumn = shape&#xa;</xsl:text>
+		<xsl:choose>
+			<xsl:when test="starts-with(wfs:Title,'ASP')">		
+				<xsl:text>geocolumn = &#xa;</xsl:text>
+				<xsl:text>index = primary&#xa;</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text>geocolumn = shape&#xa;</xsl:text>
+				<xsl:text>index = spatial&#xa;</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
 		<xsl:text>epsg = &#xa;</xsl:text>
 		<xsl:text>discard = &#xa;</xsl:text>
 		<xsl:text>cql = &#xa;</xsl:text>
@@ -44,5 +53,6 @@
         WARNING: Unmatched element: <xsl:value-of select="name()"/>
     </xsl:message>
 </xsl:template>
+
 
 </xsl:stylesheet>

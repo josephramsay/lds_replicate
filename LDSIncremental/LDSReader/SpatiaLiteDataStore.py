@@ -1,4 +1,15 @@
 '''
+v.0.0.1
+
+LDSIncremental -  SpatiaLiteDataStore
+
+Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved
+
+This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.
+
 Created on 9/08/2012
 
 @author: jramsay
@@ -13,15 +24,16 @@ ldslog = logging.getLogger('LDS')
 
 class SpatiaLiteDataStore(DataStore):
     '''
-    PostgreSQL DataStore
+    SpatiaLite  DataStore
     '''
-
+    
+    DRIVER_NAME = "SQLite"
+      
     def __init__(self,conn_str=None,user_config=None):
         '''
         cons init driver
         '''
-        self.DRIVER_NAME = "SQLite"
-        self.CONFIG_XSL = "getcapabilities.sqlite.xsl"  
+
         
         super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 
@@ -45,14 +57,7 @@ class SpatiaLiteDataStore(DataStore):
             return self.conn_str
         #return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
         return os.path.join(self.path,self.name+self.suffix)
-
-#    def read(self,dsn):
-#        print "PG read"
-#        self.ds = self.driver.Open(dsn)
-#    
-#    def write(self,src,dsn):
-#        print "PG write",dsn
-#        super.write(self,src,dsn)
+    
 
     def getOptions(self,layer_id):
         '''add PG options for SCHEMA and GEO_NAME'''
@@ -69,6 +74,25 @@ class SpatiaLiteDataStore(DataStore):
         
         return super(SpatiaLiteDataStore,self).getOptions() + local_opts
         
+
+    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+        '''Default index string builder for new fully replicated layers'''
+        ref_index = DataStore.parseStringList(ref_index)
+        if ref_index.intersection(set(('spatial','s'))):
+            ldslog.warn('Spatial indexing is only supported at layer creation and is enabled by default')
+            return
+        elif ref_index.intersection(set(('primary','pkey','p'))):
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
+        elif ref_index is not None:
+            #maybe the user wants a non pk/spatial index? Try to filter the string
+            clst = ','.join(ref_index)
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
+        else:
+            return
+        ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
+        self.executeSQL(cmd)
+
+
 
     '''
     returned by ogr.GetFieldTypeName(i)

@@ -144,12 +144,12 @@ class MainFileReader(object):
         pwd = None
         epsg = None
         cql = None
+        schema = None
         
         if self.use_defaults:
             odbc = "FreeTDS"
             server = "127.0.0.1\SQLExpress"
             dbname = "LDSINCR"
-            schema = "dbo"
             trust = "yes"
             dsn = "LDSINCR"
             config = "internal"
@@ -157,7 +157,6 @@ class MainFileReader(object):
             odbc = None
             server = None
             dbname = None
-            schema = None
             trust = None
             dsn = None
             config = None
@@ -544,12 +543,12 @@ class LayerFileReader(object):
     def writeLayerProperty(self,layer,field,value):
         '''Write changes to layer config table'''
         try:            
-            self.cp.set(layer,field,value)
+            self.cp.set(layer,field,value if value is not None else '')
             with open(self.filename, 'w') as configfile:
                 self.cp.write(configfile)
-            ldslog.debug("Check "+field+" for layer "+layer+" is set to "+value+" : GetField="+self.cp.get(layer, field))                                                                                        
+            ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
         except Exception as e:
-            ldslog.error('Problem writing LM date to layer config file. '+e)
+            ldslog.error('Problem writing LM date to layer config file. '+str(e))
 
 
 # ----------------------------------------------------------------------------------------------------------------------------

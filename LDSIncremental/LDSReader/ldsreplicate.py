@@ -38,8 +38,6 @@ import sys
 import os
 import getopt
 import logging
-import subprocess
-import re
 
 from TransferProcessor import TransferProcessor
 from TransferProcessor import InputMisconfigurationException
@@ -92,17 +90,21 @@ def main():
     PostgreSQL_MIN = '9.0'
     
     message = ''
-    pgis = VersionChecker.getPostGISVersion()   
-    pg = VersionChecker.getPostgreSQLVersion()
+    gdal_ver = VersionChecker.getGDALVersion()   
+    pgis_ver = VersionChecker.getPostGISVersion()   
+    pg_ver = VersionChecker.getPostgreSQLVersion()
        
-    if VersionChecker.compareVersions(GDAL_MIN,pgis.get('GDAL')): 
-        message += 'GDAL '+pgis.get('GDAL')+'<'+GDAL_MIN+'\n'
-    if VersionChecker.compareVersions(PostgreSQL_MIN,pg.get('PostgreSQL')): 
-        message += 'PostgreSQL '+pg.get('PostgreSQL')+'<'+PostgreSQL_MIN+'\n'
+    if VersionChecker.compareVersions(GDAL_MIN,gdal_ver.get('GDAL') if gdal_ver.get('GDAL') is not None else GDAL_MIN): 
+        message += 'GDAL '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'\n'
+    if VersionChecker.compareVersions(GDAL_MIN,pgis_ver.get('GDAL') if pgis_ver.get('GDAL') is not None else GDAL_MIN): 
+        message += 'GDAL(pgis) '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'\n'
+    if VersionChecker.compareVersions(PostgreSQL_MIN,pg_ver.get('PostgreSQL') if pgis_ver.get('PostgreSQL') is not None else PostgreSQL_MIN): 
+        message += 'PostgreSQL '+pg_ver.get('PostgreSQL')+'<'+PostgreSQL_MIN+'\n'
     
     if message != '':
-        print 'Version checks failed: ',message
-        sys.exit(1)
+        print 'Version checks failed:\n',message
+        ldslog.warn('Version checks failed:\n'+message)
+        #sys.exit(1)
     
     
     
@@ -162,47 +164,45 @@ def main():
 #        sys.exit(1)
         
     tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc)
+        
     proc = None
     #output format
     if len(args)==0:
         print __doc__
         sys.exit(0)
     else: 
+        '''since we're not breaking the switch the last arg read will be the DST used, ie proc gets overwritten'''
         for arg in args:
-            if arg in ("init", "initialise", "initalize"):
+            if arg.lower() in ("init", "initialise", "initalize"):
                 ldslog.info("Initialisation of configuration files/tables requested. Implies FULL rebuild")
-                tp.clearIncremental()
                 tp.setInitConfig()
-            elif arg in ("full", "full_replicate"):
-                ldslog.info("FULL Replication of layer requested")
-                tp.clearIncremental()
-            elif arg in ("pg", "postgres"):
+            elif arg in ("clean"):
+                ldslog.info("Cleaning named layer")
+                tp.setCleanConfig()
+            elif arg.lower() in ("pg", "postgres"):
                 proc = tp.processLDS2PG
-                break
-            elif arg in ("ms", "mssql"):
+            elif arg.lower() in ("ms", "mssql"):
                 proc = tp.processLDS2MSSQL
-                break
     #        elif arg in ("mi", "mapinfo"):
     #            tp.processLDS2Mapinfo()
     #        elif arg in ("shp", "shapefile"):
     #            tp.processLDS2Shape() 
     #        elif arg in ("csv", "csvfile"):
     #            tp.processLDS2CSV()
-            elif arg in ("slite", "spatialite"):
+            elif arg.lower() in ("sl","slite", "spatialite"):
                 proc = tp.processLDS2SpatiaLite
-                break
-            elif arg in ("fgdb", "filegdb"):
+            elif arg.lower() in ("fg","fgdb", "filegdb"):
                 proc = tp.processLDS2FileGDB
-                break
     #        elif arg in ("arc", "sde", "arcsde"):
     #            tp.processLDS2ArcSDE()
             else:
                 print __doc__
-                raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) and optional 'full' declaration required")
+                raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) declaration required")
             
         #now run the selected func
         proc()
         print '*** Complete ***'
+
 
 
 if __name__ == "__main__":

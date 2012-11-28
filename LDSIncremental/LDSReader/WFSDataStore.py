@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSIncremental -  LDS Incremental Utilities
+LDSIncremental -  WFSDataStore
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -22,12 +22,12 @@ class WFSDataStore(DataStore):
     PostgreSQL DataStore
     '''
 
+    DRIVER_NAME = "WFS"
+    
     def __init__(self,conn_str=None,user_config=None):
         '''
         Init driver and read config
         '''
-
-        self.DRIVER_NAME = "WFS"
         
         super(WFSDataStore,self).__init__(conn_str,user_config)
         

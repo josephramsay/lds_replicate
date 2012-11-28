@@ -49,11 +49,12 @@ class TransferProcessor(object):
         #self.src = LDSDataStore() 
         #self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
         
-        #do an incremental copy unless requested otherwise
-        self.setIncremental()
+        #do a driver copy unless valid dates have been provided indicating changeset
+        self.clearIncremental()
         
         #only do a config file rebuild if requested
         self.clearInitConfig()
+        self.clearCleanConfig()
         
         self.group = None
         if gp != None:
@@ -109,7 +110,16 @@ class TransferProcessor(object):
         self.INITCONF = False
          
     def getInitConfig(self):
-        return self.INITCONF
+        return self.INITCONF 
+    
+    def setCleanConfig(self):
+        self.CLEANCONF = True
+         
+    def clearCleanConfig(self):
+        self.CLEANCONF = False
+         
+    def getCleanConfig(self):
+        return self.CLEANCONF
     
     
     
@@ -171,7 +181,7 @@ class TransferProcessor(object):
         self.dst = dst
         self.dst.setSRS(self.epsg)
         #might as well initds here, its going to be needed eventually
-        self.dst.ds = self.dst.initDS(self.dst.destinationURI(DataStore.LDS_CONFIG_TABLE))
+        self.dst.ds = self.dst.initDS(self.dst.destinationURI(None))#DataStore.LDS_CONFIG_TABLE))
         
         self.src = LDSDataStore(self.source_str,self.user_config)
         
@@ -198,6 +208,12 @@ class TransferProcessor(object):
             self.dst.layerconf = LayerFileReader(fname)
         
             
+        if self.getCleanConfig():
+            '''clean a selected layer (once the layer conf file has been established)'''
+            if self.dst._cleanLayerByRef(self.dst.ds,self.layer):
+                self.dst.setLastModified(self.layer,None)
+            return
+            
         #full LDS layer name list
         lds_full = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
         #list of configured layers
@@ -218,20 +234,23 @@ class TransferProcessor(object):
         
         #override config file dates with command line dates if provided
         ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}".format(len(lds_full),len(lds_read),len(self.lnl)))
-        ldslog.debug("Layer List:"+str(self.lnl))
+        #ldslog.debug("Layer List:"+str(self.lnl))
         
         
+        '''if valid dates are provided we assume copyDS'''
         if self.todate is not None:
-            if LDSUtilities.checkDateFormat(self.todate):
-                tdate = self.todate
-            else:
+            tdate = LDSUtilities.checkDateFormat(self.todate)
+            if tdate is None:
                 raise InputMisconfigurationException("To-Date provided but format incorrect {-td yyyy-MM-dd[Thh:mm:ss]}")
+            else:
+                self.setIncremental()
         
         if self.fromdate is not None:
-            if LDSUtilities.checkDateFormat(self.fromdate):
-                fdate = self.fromdate
-            else:
+            fdate = LDSUtilities.checkDateFormat(self.fromdate)
+            if fdate is None:
                 raise InputMisconfigurationException("From-Date provided but format incorrect {-fd yyyy-MM-dd[Thh:mm:ss}")
+            else:
+                self.setIncremental()
         
         if self.layer is None:
             layer = 'ALL'  
@@ -240,15 +259,16 @@ class TransferProcessor(object):
         else:
             raise InputMisconfigurationException("Layer name provided but format incorrect {-l v:x###}")
         
-        
-        '''if any date is 'ALL' full rep otherwise do auto unless we have proper dates'''
-        if self.getIncremental():#fdate=='ALL' or tdate=='ALL': 
+
+        #this is the first time we use the incremental flag to do something (and it should only be needed once?)
+        #if incremental is false we want a duplicate of the whole layer so fullreplicate
+        if not self.getIncremental():
             ldslog.info("Full Replicate on "+str(layer))
             self.fullReplicate(layer)
         elif fdate is None or tdate is None:
             '''do auto incremental'''
-            ldslog.info("Auto Incremental on "+str(layer)) 
-            self.autoIncrement(layer)
+            ldslog.info("Auto Incremental on "+str(layer)+" : "+str(fdate)+" to "+str(tdate)) 
+            self.autoIncrement(layer,fdate,tdate)
         else:
             '''do requested date range'''
             ldslog.info("Selected Replicate on "+str(layer)+" : "+str(fdate)+" to "+str(tdate))
@@ -261,7 +281,6 @@ class TransferProcessor(object):
     def fullReplicate(self,layer):
         '''Replicate across the whole date range'''
         if layer is 'ALL':
-            #layer should never be none... 'ALL' needed
             #TODO consider driver reported layer list
             for layer_i in self.lnl:
                 self.fullReplicateLayer(layer_i)
@@ -272,28 +291,29 @@ class TransferProcessor(object):
     def fullReplicateLayer(self,layer):
         '''Replicate the requested layer non-incrementally'''
         self.src.read(          self.src.sourceURI(layer))
-        self.dst.write(self.src,self.dst.destinationURI(layer))
+        self.dst.write(self.src,self.dst.destinationURI(layer),self.getIncremental())
         '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
         Retained since dates may change between successive calls depending on the start time of the process'''
-        self.dst.setLastModified(layer,self.dst.getCurrent())
+        self.dst.setLastModified(layer,self.dst.getCurrent())#DEBUG!!!!!!!!!!!!!!!!!!!!!!!!!
+        self.dst.closeDS()
     
     
-    
-    def autoIncrement(self,layer):
-        '''Auto-Increment reads last-mod and current time to construct incremental date ranges'''
+    def autoIncrement(self,layer,fdate,tdate):
         if layer is 'ALL':
             for layer_i in self.lnl:
-                self.autoIncrementLayer(layer_i)
+                self.autoIncrementLayer(layer_i,fdate,tdate)
         else:
-            self.autoIncrementLayer(layer)
+            self.autoIncrementLayer(layer,fdate,tdate)
             
-                      
-    def autoIncrementLayer(self,layer_i):
-        '''For a specified layer read date ranges and call incremental'''
-        fdate = self.dst.layerconf.readLayerProperty(layer_i,'lastmodified')
-        if fdate is None or fdate == '':
-            fdate = DataStore.EARLIEST_INIT_DATE
-        tdate = self.dst.getCurrent()
+    def autoIncrementLayer(self,layer_i,fdate,tdate):
+        '''For a specified layer read provided date ranges and call incremental'''
+        if fdate is None or fdate =='':    
+            fdate = self.dst.layerconf.readLayerProperty(layer_i,'lastmodified')
+            if fdate is None or fdate == '':
+                fdate = DataStore.EARLIEST_INIT_DATE
+                
+        if tdate is None or tdate =='':         
+            tdate = self.dst.getCurrent()
         
         self.definedIncremental(layer_i,fdate,tdate)
 
@@ -308,12 +328,10 @@ class TransferProcessor(object):
         self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.layerconf.readLayerProperty(croplayer,'epsg')))
         
         if datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S') > datetime.strptime(fdate,'%Y-%m-%dT%H:%M:%S'):
-            #Set Incremental determines whether we use the incremental or full endpoint construction
-            self.src.setIncremental()
             #source read from URI
             self.src.read(self.src.sourceURI_incrd(layer_i,fdate,tdate))
             #destination write the SRC to the dest URI
-            self.dst.write(self.src,self.dst.destinationURI(layer_i))
+            self.dst.write(self.src,self.dst.destinationURI(layer_i),self.getIncremental())
             self.dst.setLastModified(layer_i,tdate)
             self.dst.closeDS()
         else:

@@ -1,4 +1,15 @@
 '''
+v.0.0.1
+
+LDSIncremental -  PostgreSQLDataStore
+
+Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved
+
+This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.
+
 Created on 9/08/2012
 
 @author: jramsay
@@ -15,13 +26,12 @@ class PostgreSQLDataStore(DataStore):
     PostgreSQL DataStore
     '''
     
+    DRIVER_NAME = "PostgreSQL"
+    
     def __init__(self,conn_str=None,user_config=None):
         '''
         cons init driver
         '''
-        
-        self.DRIVER_NAME = "PostgreSQL"
-        self.CONFIG_XSL = "getcapabilities.postgresql.xsl"
         
         super(PostgreSQLDataStore,self).__init__(conn_str,user_config)
         
@@ -53,20 +63,13 @@ class PostgreSQLDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
         #can't put schema in quotes, causes error but without quotes tables get created in public anyway, still need schema.table syntax
-        sstr = " active_schema={}".format(self.schema) if self.schema is not None and self.schema !='' else ""
+        sch = " active_schema={}".format(self.schema) if self.schema is not None and self.schema !='' else ""
         usr = " user='{}'".format(self.usr) if self.usr is not None else ""
         pwd = " password='{}'".format(self.pwd) if self.pwd is not None else ""
-        uri = "PG:dbname='{}' host='{}' port='{}'".format(self.dbname, self.host, self.port)+usr+pwd+sstr
+        uri = "PG:dbname='{}' host='{}' port='{}'".format(self.dbname, self.host, self.port)+usr+pwd+sch
         ldslog.debug(uri)
         return uri
 
-#    def read(self,dsn):
-#        print "PG read"
-#        self.ds = self.driver.Open(dsn)
-#    
-#    def write(self,src,dsn):
-#        print "PG write",dsn
-#        super.write(self,src,dsn)
 
     def getOptions(self,layer_id):
         '''add PG options for SCHEMA and GEO_NAME'''
@@ -81,19 +84,19 @@ class PostgreSQLDataStore(DataStore):
     
     def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
         '''Builds an index creation string for a new full replicate in PG format'''
-        ref_index = ref_index.lower()
-        if ref_index == 'spatial' or ref_index == 's':
+        ref_index = DataStore.parseStringList(ref_index)
+        if ref_index.intersection(set(('spatial','s'))):
             cmd = 'CREATE INDEX {}_SK ON {} USING GIST({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_gcol,dst_layer_name,ref_gcol)
-        elif ref_index == 'pkey' or ref_index == 'p':
+        elif ref_index.intersection(set(('primary','pkey','p'))):
             cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string. This wont work for spatial columns since GIST needed
             #TODO. Detect when gcol is in the col list and build a "mixed-spatial"? index...
-            clst = ','.join(DataStore.parseStringList(ref_index))
+            clst = ','.join(ref_index)
             cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
         else:
             return
-        ldslog.info("Index="+ref_index+". Execute "+cmd)
+        ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
         self.executeSQL(cmd)
         
         

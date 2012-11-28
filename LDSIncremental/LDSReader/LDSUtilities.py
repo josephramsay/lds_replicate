@@ -6,6 +6,7 @@ Created on 28/08/2012
 @author: jramsay
 '''
 
+# for windows lxml binary from here http://www.lfd.uci.edu/~gohlke/pythonlibs/#lxml
 
 import re
 import os
@@ -35,7 +36,12 @@ class LDSUtilities(object):
     @staticmethod
     def checkDateFormat(xdate):
         '''Checks a date parameter conforms to yyyy-MM-ddThh:mm:ss format'''        
-        return type(xdate) is str and re.search('^\d{4}\-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?)$',xdate)
+        if type(xdate) is str:
+            if re.search('^\d{4}\-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$',xdate):
+                return xdate
+            elif re.search('^\d{4}\-\d{2}-\d{2}$',xdate):
+                return xdate+"T00:00:00"
+        return None
 
     # 772 time test string
     # http://wfs.data.linz.govt.nz/ldskey/v/x772-changeset/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=v:x772-changeset&viewparams=from:2012-09-29T07:00:00;to:2012-09-29T07:30:00&outputFormat=GML2
@@ -176,6 +182,7 @@ class ConfigInitialiser(object):
         ldslog.debug(res)
         
         return res
+    
         
 
         
