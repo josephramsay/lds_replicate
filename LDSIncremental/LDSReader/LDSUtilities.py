@@ -11,9 +11,11 @@ Created on 28/08/2012
 import re
 import os
 import logging
-import json
+import ast
 
+from urllib2 import urlopen
 from StringIO import StringIO
+
 
 from lxml import etree
 
@@ -21,7 +23,8 @@ ldslog = logging.getLogger('LDS')
 
 class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
-
+    
+    LDS_TN_PREFIX = 'v:x'
     
     @staticmethod
     def splitLayerName(layername):
@@ -49,16 +52,51 @@ class LDSUtilities(object):
     @staticmethod
     def checkLayerName(lname):
         '''Makes sure a layer name conforms to v:x format'''
-        return type(lname) is str and re.search('^v:x\d+$',lname) 
+        return type(lname) is str and re.search('^'+LDSUtilities.LDS_TN_PREFIX+'\d+$',lname) 
         
     @staticmethod
     def checkCQL(cql):
         '''Since CQL commands are freeform strings we need to try and validate at least the most basic errors. This is very simple
-        RE matcher that just looks for valid predicates.
+        RE matcher that just looks for valid predicates... for now
         
         <predicate> ::= <comparison predicate> | <text predicate> | <null predicate> | <temporal predicate> | <classification predicate> | <existence_predicate> | <between predicate> | <include exclude predicate>
                
-        BNF http://docs.geotools.org/latest/userguide/library/cql/internal.html'''
+        BNF http://docs.geotools.org/latest/userguide/library/cql/internal.html
+        
+        LDS expects the following;
+        Was expecting one of:
+            "not" ...
+            "include" ...
+            "exclude" ...
+            "(" ...
+            "[" ...
+            "id" ...
+            "in" ...
+            <IDENTIFIER> ...
+            "-" ...
+            <INTEGER_LITERAL> ...
+            <FLOATING_LITERAL> ...
+            <STRING_LITERAL> ...
+            <STRING_LITERAL> "*" ...
+            <STRING_LITERAL> "/" ...
+            <STRING_LITERAL> "+" ...
+            <STRING_LITERAL> "-" ...
+            <STRING_LITERAL> "not" ...
+            <STRING_LITERAL> "like" ...
+            <STRING_LITERAL> "exists" ...
+            <STRING_LITERAL> "does-not-exist" ...
+            <STRING_LITERAL> "is" ...
+            <STRING_LITERAL> "between" ...
+            <STRING_LITERAL> "before" ...
+            <STRING_LITERAL> "after" ...
+            <STRING_LITERAL> "during" ...
+            <STRING_LITERAL> "=" ...
+            <STRING_LITERAL> ">" ...
+            <STRING_LITERAL> "<" ...
+            <STRING_LITERAL> ">=" ...
+            <STRING_LITERAL> "<=" ...
+            <STRING_LITERAL> "<>"
+        '''
         v = 0
         
         #comp pred
@@ -165,6 +203,14 @@ class LDSUtilities(object):
             
         return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
     
+    @staticmethod
+    def readDocument(url):
+        '''Non-Driver method for fetching LDS DS as a document'''
+        ldslog.debug("LDs URL "+url)
+        lds = urlopen(url)
+        data = lds.read()
+        lds.close()
+        return data
 
 class ConfigInitialiser(object):
     '''Initialises configuration, for use at first run'''
@@ -179,10 +225,26 @@ class ConfigInitialiser(object):
         
         doc = etree.parse(StringIO(xml))
         res = transform(doc)
-        ldslog.debug(res)
+        #ldslog.debug(res)
         
         return res
     
+class SUFIExtractor(object):
+    '''XSL parser to read big int columns returning a dict of id<->col matches'''
+    @staticmethod
+    def readURI(xml,colname):
+        converter = open(os.path.join(os.path.dirname(__file__), '../sufiselector.xsl'),'r').read()
+
+        xslt = etree.XML(converter.replace('#REPLACE',colname))
+        transform = etree.XSLT(xslt)
+        
+        doc = etree.parse(StringIO(xml))
+        res = transform(doc)
+        
+        sufi = ast.literal_eval(str(res))
+        #ldslog.debug(sufi)
+        
+        return sufi
         
 
         

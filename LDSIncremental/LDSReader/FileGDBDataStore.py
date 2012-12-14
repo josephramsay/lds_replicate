@@ -75,6 +75,10 @@ class FileGDBDataStore(ESRIDataStore):
         
         return super(FileGDBDataStore,self).getOptions(layer_id) + local_opts
     
+    def changeColumnIntToString(self,table,column):
+        '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 
+        self.executeSQL('alter table '+table+' alter '+column+' type varchar')
+    
     def _findMatchingFeature(self,search_layer,ref_pkey,key):
         '''Find the Feature matching a primary key value. FileGDB version doesnt use string quotes'''
         qry = ref_pkey+" = "+str(key)

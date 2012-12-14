@@ -43,7 +43,7 @@ class LDSDataStore(WFSDataStore):
         
         self.CHANGE_COL = "__change__"
         
-        (self.url,self.key,self.svc,self.ver,self.fmt,self.config) = self.params
+        (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
 
 
         
@@ -85,7 +85,7 @@ class LDSDataStore(WFSDataStore):
     
     
     def _buildCQLStr(self):
-        '''Fetches and set filters and appends key part and does basic checking'''
+        '''Fetches filter set by utils precedence with some basic checking'''
         cqlfilter = self.getFilter()
         if cqlfilter is not None:
             cql = LDSUtilities.checkCQL(cqlfilter)
@@ -98,7 +98,7 @@ class LDSDataStore(WFSDataStore):
         '''Non-Driver method for fetching LDS layer ID's using standard URL open library.
         TODO. Investigate implementing this using the WFS driver and the relative expense for each'''
         res = []
-        mm = re.compile('<Name>(v:x\d+)<\/Name>')
+        mm = re.compile('<Name>('+LDSUtilities.LDS_TN_PREFIX+'\d+)<\/Name>')
         lds = urlopen(url)
         for line in lds:    
             res += re.findall(mm,line)

@@ -9,7 +9,9 @@ Created on 9/08/2012
 from DataStore import DataStore
 from ProjectionReference import Projection
 
+import logging
 #from osr import SpatialReference 
+ldslog = logging.getLogger('LDS')
 
 class ESRIDataStore(DataStore):
     '''
@@ -36,12 +38,12 @@ class ESRIDataStore(DataStore):
 #    def read(self,dsn):
 #        self.ds = self.driver.Open(dsn)
 #    
-    def write(self,src_ds,dsn,incr):
+    def write(self,src_ds,dsn,incr,fbf,sixtyfour):
         '''ESRI specific write method used as entry point for convertDataSourceESRI'''
         '''TODO. No need to do the poly to multi conversion but incremental __change__ removal still reqd'''
         #naive implementation? change SR per layer in place
         self.convertDataSourceESRI(src_ds.ds)
-        super(ESRIDataStore,self).write(src_ds,dsn,incr)
+        super(ESRIDataStore,self).write(src_ds,dsn,incr,fbf,sixtyfour)
         #self.ds = self.driver.CopyDataSource(src_ds, dsn)
         
     
@@ -51,14 +53,20 @@ class ESRIDataStore(DataStore):
             layer = datasource.GetLayer(li)
            
             sref = layer.GetSpatialRef()
-            #print "Original DS SR :: \nname={}\nlayerdefn={}\ngeocolumn={}\nspatialref={}".format(layer.GetName(),layer.GetLayerDefn(),layer.GetGeometryColumn(),sref)
-            #for f in range(0,l1.GetFeatureCount()):
-            #    print "FEAT:",l1.GetFeature(f)
+            ldslog.debug("Original DS SR ::\nname={}\nlayerdefn={}\ngeocolumn={}\nspatialref={}".format(layer.GetName(),layer.GetLayerDefn(),layer.GetGeometryColumn(),sref))
+
+
+            #Method 1 +  repaste authority + rename to an esri spec
+            ac = sref.GetAuthorityCode('GEOGCS')
             sref.MorphToESRI()
+            sref.SetAuthority("GEOGCS","EPSG",int(ac))
             sref = Projection.modifyMorphedSpatialReference(sref)
-            #HACK. morph strips node authority so add it back manually. TODO. What happens when we're reprojecting? Remove for now
-            #sref.SetAuthority("GEOGCS","EPSG",4167)
-            #print "Converted DS SR",sref 
+
+            ##Method 2
+            #sref = Projection.downloadESRISpatialReference(sref.GetAuthorityCode('GEOGCS'))
+            
+            
+            ldslog.debug("Converted DS SR ::\n"+str(sref)) 
             
         return datasource
         

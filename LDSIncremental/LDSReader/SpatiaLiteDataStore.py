@@ -17,6 +17,7 @@ Created on 9/08/2012
 
 import logging
 import os
+import ogr
 
 from DataStore import DataStore
 
@@ -65,7 +66,7 @@ class SpatiaLiteDataStore(DataStore):
         gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
         #TODO Figure out how to set geom_name for SL... this wont do it
-        if gname is not None:
+        if gname is not None and len(gname)>0:
             local_opts += ['GEOMETRY_NAME='+gname]
             
         #Not really needed since default is YES
@@ -93,30 +94,71 @@ class SpatiaLiteDataStore(DataStore):
         self.executeSQL(cmd)
 
 
+    def changeColumnIntToString(self,table,column):
+        '''SQLite column type changer. Used to change 64 bit integer columns to string. Brutal converter that deletes and recreates layer table'''
+        '''No longer needed but the method is useful so retained for reference''' 
+    
+        #sql_mstr = "select sql from sqlite_master where name = '"+table+"'";
+        sql_mstr = "select * from "+table
+        sql_tabl = self.executeSQL(sql_mstr)
+        feat_defn = sql_tabl.GetLayerDefn()
+        #/////not supported by the driver
+        #import ogr
+        #sql_tabl.DeleteField(2)
+        #sql_tabl.CreateField(ogr.FieldDefn(column))
+        #\\\\\
+        sql_build = "create table "+table+"(ogc_fid integer primary key," 
+        for field_no in range(0,feat_defn.GetFieldCount()):
+            field_def = feat_defn.GetFieldDefn(field_no)
+            field_name = field_def.GetName()
+            field_type = ogr.OFTString if field_name == column else field_def.GetType()
+            sql_build += field_name+" "+self.convertToDestinationType(field_type)+","
+        #"CREATE TABLE 'asp_name_associations' ( OGC_FID INTEGER PRIMARY KEY , 'id' INTEGER, 'name_1_sufi' INTEGER, 'name_2_sufi' INTEGER, 'alias' VARCHAR, 'status' VARCHAR, 'modified' VARCHAR)"
+        sql_repl=sql_build[:-1]+")"
+        #sql_repl = sql_tabl.replace("'"+column+"' INTEGER","'"+column+"' VARCHAR")
+        sql_drop = "drop table "+table
+        
+        self.executeSQL(sql_drop)
+        self.executeSQL(sql_repl)
+        
+        
 
-    '''
-    returned by ogr.GetFieldTypeName(i)
-    0 Integer
-    1 IntegerList
-    2 Real
-    3 RealList
-    4 String
-    5 StringList
-    6 (unknown)
-    7 (unknown)
-    8 Binary
-    9 Date
-    10 Time
-    11 DateTime
-    12 (unknown) ...
-    '''
+        #self.executeSQL('alter table '+table+' alter column '+column+' varchar(32)')
+        
+        
+#    '''
+#    returned by ogr.GetFieldTypeName(i)
+#    0 Integer
+#    1 IntegerList
+#    2 Real
+#    3 RealList
+#    4 String
+#    5 StringList
+#    6 (unknown)
+#    7 (unknown)
+#    8 Binary
+#    9 Date
+#    10 Time
+#    11 DateTime
+#    12 (unknown) ...
+#    '''
+#    def convertToDestinationType(self,key):
+#        return {0: 'integer', 1: 'integer',
+#                2: 'double precision', 3: 'double precision',
+#                4: 'character varying', 5: 'character varying',
+#                8: 'byte',
+#                9: 'date', 10: 'time', 11: 'timestamp'
+#         }.get(key,'character varying') 
+
+    '''Spatialite has datatypes INT, INTEGER, SMALLINT, TINYINT, DEC, DECIMAL, LONGCHAR, LONGVARCHAR, DATETIME, SMALLDATETIME which are only
+    remaned INTEGER, REAL, TEXT, BLOB and NULL. This converts and aggregates from gdal to these'''
     def convertToDestinationType(self,key):
-        return {0: 'integer', 1: 'integer',
-                2: 'double precision', 3: 'double precision',
-                4: 'character varying', 5: 'character varying',
-                8: 'byte',
-                9: 'date', 10: 'time', 11: 'timestamp'
-         }.get(key,'character varying')  
+            return {0: 'integer', 1: 'integer',
+                    2: 'real', 3: 'real',
+                    4: 'text', 5: 'text',
+                    8: 'byte',
+                    9: 'text', 10: 'text', 11: 'text'
+         }.get(key,'text')  
          
 
 

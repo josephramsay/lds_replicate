@@ -3,7 +3,10 @@ Created on 17/08/2012
 
 @author: jramsay
 '''
-import unittest, datetime
+import unittest
+import datetime
+
+import LDSIncrTestCase
 
 from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
 from LDSReader.MSSQLSpatialDataStore import MSSQLSpatialDataStore
@@ -15,7 +18,7 @@ from LDSReader.TransferProcessor import TransferProcessor
 # -----------------------------------------------------------------------------
 
 
-class TestTransfer(unittest.TestCase):
+class TestTransfer(LDSIncrTestCase):
 
     @classmethod
     def setUpClass(self):

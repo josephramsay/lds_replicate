@@ -38,12 +38,12 @@ class ConfigWrapper(object):
         #self.setupLayerConfig()
 
 
-    def setupMainConfig(self,userconfig):
+    def setupMainConfig(self,inituserconfig):
         '''Sets up a reader to the main configuration file or alternatively, a user specified config file.
         Userconfig is not mean't to replace mainconfig, just overwrite the parts the user has decided to customise'''
         self.userconfig = None
-        if userconfig is not None:
-            self.userconfig = MainFileReader("../"+userconfig,False)
+        if inituserconfig is not None:
+            self.userconfig = MainFileReader("../"+inituserconfig,False)
         self.mainconfig = MainFileReader("../"+self.CONFIG_FILE,True)
         
         
@@ -158,6 +158,11 @@ class ConfigWrapper(object):
             ml = self.mainconfig.readWFSConfig()
             if self.userconfig is not None:
                 ul = self.userconfig.readWFSConfig()
+        elif drv=='Misc':
+            '''Doesn't match a driver name, just misc global parameters'''
+            ml = self.mainconfig.readMiscConfig()
+            if self.userconfig is not None:
+                ul = self.userconfig.readMiscConfig()
         else:
             return None
         
@@ -166,5 +171,13 @@ class ConfigWrapper(object):
         
         return params
 
+
+    def readDSSingle(self,drv,prop):
+        '''gets a single property from a selected driver config'''
+        pval = self.userconfig.readMainProperty(drv,prop)
+        if pval is None:
+            pval = self.mainconfig.readMainProperty(drv,prop)
+
+        return pval
         
         

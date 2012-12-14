@@ -5,6 +5,8 @@ Created on 17/08/2012
 '''
 import unittest
 
+import LDSIncrTestCase
+
 from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
 from LDSReader.MSSQLSpatialDataStore import MSSQLSpatialDataStore
 from LDSReader.LDSDataStore import LDSDataStore
@@ -12,15 +14,9 @@ from LDSReader.FileGDBDataStore import FileGDBDataStore
 from LDSReader.SpatiaLiteDataStore import SpatiaLiteDataStore
 
 
-class TestConnect(unittest.TestCase):
+class TestConnect(LDSIncrTestCase):
     '''basic test of connectivity to configured destinations '''
 
-    def setUp(self):
-        pass
-
-
-    def tearDown(self):
-        pass
 
 
     def test1LDSConnect(self):

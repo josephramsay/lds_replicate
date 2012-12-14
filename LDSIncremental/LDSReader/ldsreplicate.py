@@ -56,7 +56,7 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(mess
 fh.setFormatter(formatter)
 ldslog.addHandler(fh)
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 
 
 def usage():
@@ -80,6 +80,8 @@ def main():
     dc = None
     cq = None
     uc = None
+    
+    fbf = None
     
     
     #first check required libs
@@ -110,7 +112,7 @@ def main():
     
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvf:t:l:g:e:s:d:c:u:", ["help","version","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
+        opts, args = getopt.getopt(sys.argv[1:], "hvbif:t:l:g:e:s:d:c:u:", ["help","version","block","item","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
         ldslog.info("OPTS:"+str(opts))
         ldslog.info("ARGS:"+str(args))
     except getopt.error, msg:
@@ -126,6 +128,12 @@ def main():
         elif opt in ("-v", "--version"):
             print __version__
             sys.exit(0)
+        elif opt in ("-b","--block"):
+            ldslog.info("Forcing Block (Driver controlled) Copy")
+            fbf = False
+        elif opt in ("-i","--item"):
+            ldslog.info("Forcing Itemised (Feature-By-Feature) Copy")
+            fbf = True
         elif opt in ("-f","--fromdate"):
             fd = val 
         elif opt in ("-t","--todate"):
@@ -136,12 +144,14 @@ def main():
             gp = val
         elif opt in ("-e","--epsg"):
             ep = val
+            fbf = True
         elif opt in ("-s","--source"):
             sc = val
         elif opt in ("-d","--destination"):
             dc = val
         elif opt in ("-c","--cql"):
             cq = val
+            #fbf = True#TODO. check this is required
         elif opt in ("-u","--userconf"):
             uc = val
         else:
@@ -155,6 +165,8 @@ def main():
             "-d (--destination) Connection string for destination DS," \
             "-c (--cql) Filter definition in CQL format," \
             "-u (--user) User defined config file used as partial override for ldsincr.conf," \
+            "-b (--block) Force driver level copy (faster method used for layer duplication ignoring data modifications)" \
+            "-i (--item) Force feature level copy (used for incremental updates" \
             "-h (--help) Display this message"
             sys.exit(2)
 
@@ -163,7 +175,7 @@ def main():
 #        raise InputMisconfigurationException("Layer name required (-l)")
 #        sys.exit(1)
         
-    tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc)
+    tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,fbf)
         
     proc = None
     #output format

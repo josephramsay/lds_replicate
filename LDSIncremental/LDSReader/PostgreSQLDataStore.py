@@ -99,5 +99,5 @@ class PostgreSQLDataStore(DataStore):
         ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
         self.executeSQL(cmd)
         
-        
+
     

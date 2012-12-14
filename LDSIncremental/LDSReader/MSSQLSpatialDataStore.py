@@ -30,6 +30,13 @@ class MSSQLSpatialDataStore(DataStore):
     '''
 
     DRIVER_NAME = "MSSQLSpatial"
+    #wkbNone removed
+    ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
+                      ogr.wkbPolygon, ogr.wkbMultiPoint, ogr.wkbMultiLineString, 
+                      ogr.wkbMultiPolygon, ogr.wkbGeometryCollection, 
+                      ogr.wkbLinearRing, ogr.wkbPoint25D, ogr.wkbLineString25D,
+                      ogr.wkbPolygon25D, ogr.wkbMultiPoint25D, ogr.wkbMultiLineString25D, 
+                      ogr.wkbMultiPolygon25D, ogr.wkbGeometryCollection25D)
       
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -60,6 +67,11 @@ class MSSQLSpatialDataStore(DataStore):
         return uri
         
 
+    def generateLayerName(self,ref_name):
+        '''compose a layer name with a schema prefix is one exists (has been specified)'''
+        return self.schema+"."+self.sanitise(ref_name) if (hasattr(self,'schema') and self.schema is not None and self.schema is not '') else self.sanitise(ref_name)
+
+        
     def deleteFieldFromLayer(self,layer,field_id,field_name):
         '''per DS delete field since some do not support this'''
         dsql = "alter table "+layer.GetName()+" drop column "+field_name
@@ -93,16 +105,27 @@ class MSSQLSpatialDataStore(DataStore):
 
     def getOptions(self,layer_id):
         '''Get MS options for GEO_NAME'''
-        local_opts = []
-        gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
+        #GEOM_TYPE default geometry
         
-        if gname is not None:
-            local_opts += ['GEOM_NAME='+gname]
+        local_opts = []
+        gc = self.layerconf.readLayerProperty(layer_id,'geocolumn')
+        if gc is not None and len(gc)>0:
+            local_opts += ['GEOM_NAME='+gc]
+            
+        schema = self.layerconf.readLayerProperty(layer_id,'schema')
+        if schema is None:
+            schema = self.schema
+        if schema is not None and len(schema)>0:
+            local_opts += ['SCHEMA='+schema]
+            
+        srid = self.layerconf.readLayerProperty(layer_id,'epsg')
+        if srid is not None and len(srid)>0:
+            local_opts += ['SRID='+srid]
         
         return super(MSSQLSpatialDataStore,self).getOptions() + local_opts
     
     #Possibly use this override if attempting to use FreeTDS or SQLServer for Linux
-    def buildConfigLayer_OVERRIDE_FOR_LNX2WIN(self,config_array):
+    def buildConfigLayer_OVERRIDE_WHEN_USING_MSSQL_DRIVER_ON_LINUX(self,config_array):
 
         '''Builds the config table into and using the active DS but does it using SQL commands since CreateLayer/Feature etc is flakey'''
         #TODO check initds for conf table name
@@ -140,7 +163,20 @@ class MSSQLSpatialDataStore(DataStore):
             sql_ins = sql_ins[:-1]+")"        
             print sql_ins    
             self.executeSQL(sql_ins)
+            
+    def selectValidGeom(self,geom):
+        '''To be overridden, eliminates geometry types that cause trouble for certain driver types'''
+        if geom in self.ValidGeometryType:
+            return geom
+        else: 
+            #default?
+            return ogr.wkbUnknown
 
+    def changeColumnIntToString(self,table,column):
+        '''MSSQL column type changer. Used to change 64 bit integer columns to string. NB Default varchar length for MS is 1!. so, 2^64 ~ 10^19 allow 32 chars''' 
+        '''No longer used!'''
+        self.executeSQL('alter table '+table+' alter column '+column+' varchar(32)')
+        
     def getConfigGeometry(self):
         return ogr.wkbPoint;
     

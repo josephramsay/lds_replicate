@@ -4,14 +4,14 @@ Created on 17/08/2012
 @author: jramsay
 '''
 import unittest
-
+import LDSIncrTestCase
 
 from LDSReader.LDSUtilities import ConfigInitialiser
 from LDSReader.LDSDataStore import LDSDataStore
 from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
 
 
-class TestInitConfig(unittest.TestCase):
+class TestInitConfig(LDSIncrTestCase):
     '''basic test of connectivity to configured destinations '''
 
     def setUp(self):
@@ -29,21 +29,23 @@ class TestInitConfig(unittest.TestCase):
 
         ConfigInitialiser.buildConfiguration(lds,pgds)
         
-#    def test2PGReadTable(self):
-#        #lds = LDSDataStore() 
-#        pgds = PostgreSQLDataStore()
-#        
-#        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.layerconf.readLayerParameters('v:x772')
-#        
-#        assert name == 'NZ Primary Parcels'
-#        
-#    def test3PGReadFile(self):
-#        lds = LDSDataStore() 
-#        pgds = PostgreSQLDataStore()
-#        
-#        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.layerconf.readLayerParameters('v:x772')
-#        
-#        assert name == 'NZ Primary Parcels'
+    def test2PGReadTable(self):
+        #lds = LDSDataStore() 
+        pgds = PostgreSQLDataStore()
+        pgds.setConfInternal()
+        
+        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.layerconf.readLayerParameters('v:x772')
+        
+        assert name == 'NZ Primary Parcels'
+        
+    def test3PGReadFile(self):
+        lds = LDSDataStore() 
+        pgds = PostgreSQLDataStore()
+        pgds.setConfExternal()
+        
+        (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.layerconf.readLayerParameters('v:x772')
+        
+        assert name == 'NZ Primary Parcels'
         
         
 
