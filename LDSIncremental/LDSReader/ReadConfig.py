@@ -575,7 +575,7 @@ class LayerFileReader(object):
             self.cp.set(layer,field,value if value is not None else '')
             with open(self.filename, 'w') as configfile:
                 self.cp.write(configfile)
-            ldslog.warning("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
+            ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
         except Exception as e:
             ldslog.error('Problem writing LM date to layer config file. '+str(e))
 

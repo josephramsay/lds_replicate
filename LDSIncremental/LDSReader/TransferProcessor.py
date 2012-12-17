@@ -22,6 +22,7 @@ from datetime import datetime
 
 from DataStore import DataStore
 from DataStore import ASpatialFailureException
+from DataStore import DatasourceOpenException
 
 from LDSDataStore import LDSDataStore
 from LDSUtilities import LDSUtilities, ConfigInitialiser
@@ -249,7 +250,8 @@ class TransferProcessor(object):
         if self.getCleanConfig():
             '''clean a selected layer (once the layer conf file has been established)'''
             if self.dst._cleanLayerByRef(self.dst.ds,self.layer):
-                self.dst.setLastModified(self.layer,None)
+                self.dst.clearLastModified(self.layer)
+            '''once a layer is cleaned don't need to continue so quit'''
             return
             
         #full LDS layer name listv:x

@@ -13,7 +13,11 @@ class TestUI(unittest.TestCase):
     '''Basic tests of ldsreplicate.py using command line arguments to see whether they work as expected'''
     
     #        WACA,    land-dist, name-assoc, antarctic (non-NZ sref, RSRGD)
-    LAYR = ('v:x836','v:x785',  'v:x1203',  'v:x789')
+    LAYER = ('v:x836','v:x785',  'v:x1203',  'v:x789')
+    LAYER_GEODETIC = ('v:x784','v:x786','v:x787','v:x788','v:x789','v:x817','v:x839','v:x1029')
+    LAYER_ASPATIAL = ('v:x1203','v:x1209','v:x1204','v:x1208','v:x1211','v:x1210','v:x1199')
+    LAYER_PROBLEM = ('v:x772',)
+    
     #2113=Wellington NZGD2000, 3788=AKL islands WGS84,2759=NAD83/HARN Alabama
     EPSG = (2113,3788,2759)
     DATE = '2012-03-20'
@@ -24,7 +28,7 @@ class TestUI(unittest.TestCase):
     PATH_L = '/home/jramsay/git/LDS/LDSIncremental/LDSReader/'
     PATH_W = 'C:\\data\\workspace\\LDS\\LDSIncremental\\LDSReader\\'
     PATH_C = '/cygdrive/c/data/workspace/LDS/LDSIncremental/LDSReader/'
-    OUTP_L = ('fg',)#'fg','sl')
+    OUTP_L = ('sl',)#'fg','sl')
     OUTP_W = ('ms',)
     CONF_L = 'ldsincr.external.conf'
     CONF_W = 'ldsincr.windows.conf' 
@@ -76,10 +80,8 @@ class TestUI(unittest.TestCase):
 
     def test00CleanDatabase(self):
         '''prep by cleaning used layers'''
-        some_other_layers = ('v:x772',  'v:x1203')
-        geodetic_layers = ('v:x784','v:x786','v:x787','v:x788','v:x789','v:x817','v:x839','v:x1029')
         for o in self.OUTP:
-            for l in TestUI.LAYR+some_other_layers+geodetic_layers:
+            for l in TestUI.LAYER+TestUI.LAYER_ASPATIAL+TestUI.LAYER_GEODETIC+TestUI.LAYER_PROBLEM:
                 self.prepLayer(l,o)
         
         
@@ -108,24 +110,22 @@ class TestUI(unittest.TestCase):
 #            print st2
 #            self.assertEquals(os.system(st2),0)
         
-    def test04HugeLayer(self):
-        '''Attempts to get 772. This is supposed to fail since 772 is in the "problemlayers" list'''
+    def test04ProblemLayer(self):
+        '''Attempts to get 772. These are supposed to fail since the layers are in the "problemlayers" list'''
         for o in self.OUTP:
-            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x772 '+o
-            print st
-            self.assertEquals(os.system(st),0)
+            for l in self.LAYER_PROBLEM:
+                st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' '+o
+                print st
+                self.assertEquals(os.system(st),0)
 
 
     def test05InitClone(self):
         '''Test INIT of layer config file and layer CLEAN functions'''
         for o in self.OUTP:
-            for l in self.LAYR:
+            for l in self.LAYER:
+                self.prepLayer(l,o)
                 #INIT: clone a layer from LDS
                 st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' init '+o
-                print st
-                self.assertEquals(os.system(st),0)
-                #CLEAN the layer from the DST and reset the conf  
-                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' clean '+o
                 print st
                 self.assertEquals(os.system(st),0)
                 
@@ -133,7 +133,7 @@ class TestUI(unittest.TestCase):
     def test06IncrCopy2Part(self):
         '''Test incremental functionality using an intermediate date, "data up To DATE" and "data From DATE to present"'''
         for o in self.OUTP:          
-            for l in self.LAYR:
+            for l in self.LAYER:
                 self.prepLayer(l,o)
                 #TO: incremental copy from first day to DATE
                 st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -t '+self.DATE+' '+o
@@ -149,7 +149,7 @@ class TestUI(unittest.TestCase):
     def test07IncrCopy2Auto(self):
         '''Test incremental functionality by "get data up To DATE" and "Incremental AUTO fill last DATE to present"'''
         for o in self.OUTP:
-            for l in self.LAYR:
+            for l in self.LAYER:
                 self.prepLayer(l,o)
                 #TO: incremental copy from first day to DATE
                 st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -t '+self.DATE+' '+o
@@ -163,7 +163,7 @@ class TestUI(unittest.TestCase):
                 
     def test08AutoConnOverride(self):
         '''Test -d option overriding connection string''' 
-        for l in self.LAYR:
+        for l in self.LAYER:
             self.prepLayer(l,self.CONN_STR.lower()[0:2])
             #auto fill using a command line configured connection string
             st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -d "'+self.CONN_STR+'" '+self.CONN_STR.lower()[0:2]
@@ -261,6 +261,7 @@ class TestUI(unittest.TestCase):
     def prepLayer(self,l,o):
         '''Common layer clean function'''
         stc = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' clean '+o
+        print stc
         os.system(stc)
         
 

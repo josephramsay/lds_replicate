@@ -120,10 +120,7 @@ class SpatiaLiteDataStore(DataStore):
         
         self.executeSQL(sql_drop)
         self.executeSQL(sql_repl)
-        
-        
 
-        #self.executeSQL('alter table '+table+' alter column '+column+' varchar(32)')
         
         
 #    '''

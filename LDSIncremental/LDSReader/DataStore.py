@@ -622,6 +622,10 @@ class DataStore(object):
     def setLastModified(self,layer,newdate):
         '''Sets the last modification time of a layer following a successful incremental copy operation'''
         self.layerconf.writeLayerProperty(layer, 'lastmodified', newdate)  
+        
+    def clearLastModified(self,layer):
+        '''Clears the last modification time of a layer following a successful clean operation'''
+        self.layerconf.writeLayerProperty(layer, 'lastmodified', None)  
 
     def getCurrent(self):
         '''Gets the current timestamp for incremental todate calls. 
@@ -667,7 +671,8 @@ class DataStore(object):
                     #self.ds.ExecuteSQL(r2)
             except RuntimeError as rex:
                 ldslog.error("Runtime Error. Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
-                #this is probably a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
+                #this can be a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
+                #but also indicate no problem, e.g. deleting a layer already deleted
                 raise
             except Exception as ex:
                 ldslog.error("Exception. Unable to execute SQL:"+sql+". Exception: "+str(ex),exc_info=1)
@@ -716,7 +721,7 @@ class DataStore(object):
         try:
             ds.DeleteLayer(layer_i)
         except ValueError as ve:
-            ldslog.error('error deleting layer with index '+str(layer_i)+'. '+str(ve))
+            ldslog.error('Error deleting layer with index '+str(layer_i)+'. '+str(ve))
             #since we dont want to alter lastmodified on failure
             return False
         return True
@@ -737,18 +742,33 @@ class DataStore(object):
                     #since we only want to alter lastmodified on success return flag=True
                     #we return here too since we assume user only wants to delete one layer, re-indexing issues occur for more than one deletion
                     return True
+            ldslog.warning('Matching layer name not found, '+name+'. Attempting base level delete.')
+            if self._baseDeleteLayer(name):
+                ldslog.error('Unable to clean layer, '+str(self.layer))
+                raise DatasourceOpenException('Unable to clean layer, '+str(self.layer))
+            return True
+                
                     
         except ValueError as ve:
             ldslog.error('Error deleting layer '+str(layer)+'. '+str(ve))
+            raise
         except Exception as e:
             ldslog.error("Generic error in layer "+str(layer)+' delete. '+str(e))
+            raise
         return False
+    
+    def _baseDeleteLayer(self,table):
+        '''Basic delete function intended for aspatial tables which are not returned by queries to the spatialite DS'''
+        #TODO. Implement for all DS types
+        sql_mstr = "drop table "+table
+        return self.executeSQL(sql_mstr)
         
     def _clean(self):
         '''Deletes the entire DS layer by layer'''
         #for PG, indices decrement as layers are deleted so delete i=0, N times
         for li in range(0,self.ds.GetLayerCount()):
-            self._cleanLayerByIndex(self.ds,0)
+            if self._cleanLayerByIndex(self.ds,0):
+                self.clearLastModified(li)
     
     
     def _findMatchingFID(self,search_layer,ref_pkey,key):

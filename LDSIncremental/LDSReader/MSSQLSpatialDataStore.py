@@ -72,6 +72,19 @@ class MSSQLSpatialDataStore(DataStore):
         return self.schema+"."+self.sanitise(ref_name) if (hasattr(self,'schema') and self.schema is not None and self.schema is not '') else self.sanitise(ref_name)
 
         
+    def deleteOptionalColumns(self,dst_layer):
+        '''Delete unwanted columns from layer, MSSQL version doesn't decrement index on column delete'''
+        #might be better to do a "for col in optcols; delete col" assuming sg like 'get col names' is possible
+        #because column deletion behaviour is different for each driver (advancing index or not) split out and subclass
+        dst_layer_defn = dst_layer.GetLayerDefn()
+        #loop layer fields and discard the unwanted columns
+        for fi in range(0,dst_layer_defn.GetFieldCount()):
+            fdef = dst_layer_defn.GetFieldDefn(fi)
+            fdef_nm = fdef.GetName()
+            #print '>>>>>',fi,fi-offset,fdef_nm
+            if fdef is not None and fdef_nm in self.optcols:
+                self.deleteFieldFromLayer(dst_layer, fi,fdef_nm)
+                
     def deleteFieldFromLayer(self,layer,field_id,field_name):
         '''per DS delete field since some do not support this'''
         dsql = "alter table "+layer.GetName()+" drop column "+field_name
@@ -184,5 +197,6 @@ class MSSQLSpatialDataStore(DataStore):
         '''Deletes the entire DS layer by layer'''
         #for MSSQL deleted indices don't decrement
         for li in range(0,self.ds.GetLayerCount()):
-            self._cleanLayerByIndex(self.ds,li)
+            if self._cleanLayerByIndex(self.ds,li):
+                self.clearLastModified(li)
     
