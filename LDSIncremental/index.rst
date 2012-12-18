@@ -1,22 +1,21 @@
-.. LDSINCR documentation master file, created by
-   sphinx-quickstart on Fri Sep 28 12:10:18 2012.
+.. LDSIncr documentation master file, created by
+   sphinx-quickstart on Wed Dec 19 09:02:59 2012.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-LDSINCR Documentation Page
-==========================
+Welcome to LDSIncr's documentation!
+===================================
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
    
-   overview
-   
+   front
 
 
 
-Indices and Tables
+Indices and tables
 ==================
 
 * :ref:`genindex`

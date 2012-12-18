@@ -138,7 +138,7 @@ class MSSQLSpatialDataStore(DataStore):
         return super(MSSQLSpatialDataStore,self).getOptions() + local_opts
     
     #Possibly use this override if attempting to use FreeTDS or SQLServer for Linux
-    def buildConfigLayer_OVERRIDE_WHEN_USING_MSSQL_DRIVER_ON_LINUX(self,config_array):
+    def buildConfigLayer_DELETE_CAPS_TO_OVERRIDE_WHEN_USING_MSSQL_DRIVER_ON_LINUX(self,config_array):
 
         '''Builds the config table into and using the active DS but does it using SQL commands since CreateLayer/Feature etc is flakey'''
         #TODO check initds for conf table name
@@ -179,7 +179,7 @@ class MSSQLSpatialDataStore(DataStore):
             
     def selectValidGeom(self,geom):
         '''To be overridden, eliminates geometry types that cause trouble for certain driver types'''
-        if geom in self.ValidGeometryType:
+        if geom in self.ValidGeometryTypes:
             return geom
         else: 
             #default?

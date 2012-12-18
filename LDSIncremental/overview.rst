@@ -47,16 +47,20 @@ EXAMPLES
 
 3. Copy the 'NZ Non-Primary Parcels' for all dates but only the Otago region into an MSSQL Spatial database whose parameters are stored in the configuration file
 
-   ``python ldsreplicate.py -l v:x782 -fd ALL -c "land_district = 'Otago'" mssql``
+   ``python ldsreplicate.py -l v:x782 -c "land_district = 'Otago'" mssql``
 
 4. Copy the 'NZ Land Districts' layer into the FileGDB database file somefile.gdb using incremental range determined by lastmodified and current date. 
 
    ``python ldsreplicate.py -l v:x785 -d "C:\path\to\some\folder\somefile.gdb" fgdb``
+   
+5. Copy the ASpatial 'ASP Name Associations' layer to Postgres FileGDB database file somefile.gdb using incremental range determined by lastmodified and current date. 
+
+   ``python ldsreplicate.py -l v:x1209 -d "PG:"dbname='mypostgisdb' host='mypostgisdb.oracle.com' port='5432' user='scott' password='tiger'"``
 
   
 
 NOTES
------ 
+-----
 
 1. Connection options can be set up in the config file "ldsincr.conf" but command line options can be used instead and will override configuration file settings. There is no checking done on command line connection strings
 2. A valid layer name or the keyword ALL is required on the command line prefixed by the -l option flag
@@ -72,12 +76,21 @@ NOTES
 12. Beneath the section header property values include {pkey, name, lastmodified, geocolumn, epsg, cql}
 
    * 12.1. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' this may very per layer.
-   * 12.2. Property 'name'. Used as the name for the output table/file these are not guaranteed to be unique. Nominally set to LDS layer name.
-   * 12.3. Property 'lastmodified'. This is a date string (yyyy-mm-dd) indicating the age of the data copied to output. It is used as a start point when doing auto-incremental updates.
-   * 12.4. Property 'geocolumn'. Used as the name for the output geometry column
-   * 12.5. Property 'epsg'. Specifies the required EPSG number to affect a projection change. If left blank the source projection will be retained
-   * 12.6. Property 'cql'. Sets a cql filter for the layer. 
-      * 12.6.1. The user is responsible for constructing well-formed CQL filters. 
-      * 12.6.2. Layer filters will be overriden globally in the config file or on the command line.
+   * 12.2. Property 'name'. Used as the name for the output table/file. Nominally set to LDS layer name which are not guaranteed to be unique
+   * 12.3. Property 'category'. User editable field to enable grouping of common layers. Nominally initialised with the WFS keyword field.
+   * 12.4. Property 'lastmodified'. This is a date string (yyyy-mm-dd) indicating the age of the data copied to output. It is used as a start point when doing auto-incremental updates.
+   * 12.5. Property 'geocolumn'. The name for the output geometry column
+   * 12.6. Property 'index'. Value indicating the type of index to create on the output table; 'spatial' or 'primary'. Alternatively the user can specify columns individually
+   * 12.7. Property 'epsg'. Specifies the required EPSG number to affect a projection change. If left blank the source projection will be retained
+   * 12.8. Property 'discard'. User specified fields to be excluded from output.
+   * 12.9. Property 'cql'. Sets a cql filter for the layer. 
+      * 12.9.1. The user is responsible for constructing well-formed CQL filters (for their platform)
+      * 12.9.2. Layer filters will be overriden globally in the config file or on the command line.
+      
+13. The SpatiaLite driver will not return ASpatial layers. This is problematic when attempting to update Aspatial layers since we cannot read previously stored layers. An easy workaround is to completely reload aspatial layers as needed.
+14. FileGDB fails to create layers with non ESRI formatted Spatial References. When importing to FileGDB we employ the OGR MorphtoESRI function but success is not assured. SR title overwriting works but may result in spatial inconsistencies. Users should be aware of these potential issues
+15. GDAL does not support 64 bit integers. The current workaround forces the use of the feature-by-feature copy mechanism where we can transform the integer fiekds to string. Presently these fields are identified when they contain the string key 'sufi' in their name and for named tables only. Tables are listed in the main config file under [Misc]/64bitlayers
+16. Large layers are delivered incomplete over WFS. The main layer where we see this is NZ Primary Parcels, v:x772. For now we ignore such layers by listing them in the main config file under [Misc]/problemlayers  
+
 
 - Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July  

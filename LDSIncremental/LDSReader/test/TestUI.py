@@ -34,7 +34,7 @@ class TestUI(unittest.TestCase):
     CONF_W = 'ldsincr.windows.conf' 
     
     _CONN_STR_L = "PG:dbname='jrdb' host='144.66.6.86' port='5432' user='pguser' password='pgpass'"
-    _CONN_STR_W = "MSSQL:server={LZ104588-VM\SQLExpress};database={LDSINCR};UID={mssqluser};PWD={mssqlpass};Driver={MSSQLSpatial}"
+    _CONN_STR_W = "MSSQL:server=LZ104588-VM\SQLExpress;database=LDSINCR;UID=mssqluser;PWD=mssqlpass"
     
     
 #    @classmethod
@@ -42,10 +42,8 @@ class TestUI(unittest.TestCase):
 #        some_other_layers = ('v:x772',  'v:x1203')
 #        geodetic_layers = ('v:x784','v:x786','v:x787','v:x788','v:x789','v:x817','v:x839','v:x1029')
 #        for o in TestUI.OUTP:
-#            for l in TestUI.LAYR+some_other_layers+geodetic_layers:
-#                st = 'python '+TestUI.PATH+'ldsreplicate.py -l '+l+' -u '+TestUI.CONF+' clean '+o
-#                print st
-#                TestUI.assertEquals(os.system(st),0)
+#            for l in TestUI.LAYER+TestUI.LAYER_ASPATIAL+TestUI.LAYER_GEODETIC+TestUI.LAYER_PROBLEM:
+#                TestUI.prepLayer(l,o)
                 
     
     def setUp(self):
@@ -211,23 +209,32 @@ class TestUI(unittest.TestCase):
                 
     def test13CQLSelection(self):
         '''Test different SR conversions. Doesnt really affect processing since this is serverside'''
+
         for o in self.OUTP:    
-                
-            self.prepLayer('v:x785',o)
-            st = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c 'id=1001' "+o
-            print st
-            self.assertEquals(os.system(st),0) 
             
-            '''NB. Need to take care single quoting alphabetic values'''
+            if 'inux' in sys.platform:
+                st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c 'id=1001' "+o
+                '''NB. Need to take care single quoting alphabetic values'''
+                st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name=\\'Southland\\' "+o
+                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
+            elif sys.platform == 'win32':
+                st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c id=1001 "+o
+                st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name='Southland' "+o
+                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
+            else:
+                return
+                           
             self.prepLayer('v:x785',o)
-            st = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name=\\'Southland\\' "+o
-            print st
-            self.assertEquals(os.system(st),0) 
+            print st1
+            self.assertEquals(os.system(st1),0) 
             
             self.prepLayer('v:x785',o)
-            st = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c 'bbox(shape,164.88,-47.46,169.45,-43.85)' "+o
-            print st
-            self.assertEquals(os.system(st),0)
+            print st2
+            self.assertEquals(os.system(st2),0) 
+            
+            self.prepLayer('v:x785',o)
+            print st3
+            self.assertEquals(os.system(st3),0)
         
 
     def countdown(self):

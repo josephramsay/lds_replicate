@@ -64,12 +64,12 @@ class DataStore(object):
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
     
-#    ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
-#                      ogr.wkbPolygon, ogr.wkbMultiPoint, ogr.wkbMultiLineString, 
-#                      ogr.wkbMultiPolygon, ogr.wkbGeometryCollection, ogr.wkbNone, 
-#                      ogr.wkbLinearRing, ogr.wkbPoint25D, ogr.wkbLineString25D,
-#                      ogr.wkbPolygon25D, ogr.wkbMultiPoint25D, ogr.wkbMultiLineString25D, 
-#                      ogr.wkbMultiPolygon25D, ogr.wkbGeometryCollection25D)
+    ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
+                      ogr.wkbPolygon, ogr.wkbMultiPoint, ogr.wkbMultiLineString, 
+                      ogr.wkbMultiPolygon, ogr.wkbGeometryCollection, ogr.wkbNone, 
+                      ogr.wkbLinearRing, ogr.wkbPoint25D, ogr.wkbLineString25D,
+                      ogr.wkbPolygon25D, ogr.wkbMultiPoint25D, ogr.wkbMultiLineString25D, 
+                      ogr.wkbMultiPolygon25D, ogr.wkbGeometryCollection25D)
     
     
     def __init__(self,conn_str=None,user_config=None):
@@ -460,12 +460,11 @@ class DataStore(object):
         #use the field defns to build a schema since this needs to be loaded as a create_layer option
         opts = self.getOptions(ref_layer_name)
         
+        dst_layer_geom = ogr.wkbMultiPolygon if src_layer_geom is ogr.wkbPolygon else self.selectValidGeom(src_layer_geom)
+        
         '''build layer replacing poly with multi and revert to def if that doesn't work'''
         try:
-            if src_layer_geom is ogr.wkbPolygon:
-                dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,ogr.wkbMultiPolygon,opts)
-            else:
-                dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
+            dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,dst_layer_geom,opts)
         except RuntimeError as re:
             ldslog.error("Cannot create layer. "+str(re))
             if 'already exists' in str(re):
@@ -483,10 +482,7 @@ class DataStore(object):
             #overwrite the dst_sref if its causing trouble (ie GDAL general function errors)
             dst_sref = Projection.getDefaultSpatialRef()
             ldslog.warning("Could not initialise Layer with specified SRID {"+str(src_layer_sref)+"}.\n\nUsing Default {"+str(dst_sref)+"} instead")
-            if src_layer_geom is ogr.wkbPolygon:
-                dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,ogr.wkbMultiPolygon,opts)
-            else:
-                dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,self.selectValidGeom(src_layer_geom),opts)
+            dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,dst_layer_geom,opts)
                 
         if dst_layer is None:
             ldslog.error(dst_layer_name+" cannot be created")
@@ -521,11 +517,11 @@ class DataStore(object):
                            
     def changeColumnIntToString(self,table,column):
         '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 
-        '''No longer used!'''
+        '''NOTE. No longer used! column change done at build time'''
         self.executeSQL('alter table '+table+' alter '+column+' type character varying')
         
     def identify64Bit(self,name):
-        '''common 64bit column identification function (just sufi for now)'''
+        '''Common 64bit column identification function (just picks out the key text 'sufi' in the column name, for now)'''
         return 'sufi' in name     
                                            
     def partialCloneFeature(self,fin,fout_def):
@@ -589,7 +585,7 @@ class DataStore(object):
 
     
     def partialCloneFeatureDef(self,fin):
-        '''Builds a feature definition ignoring the __change__ and any discarded columns'''
+        '''Builds a feature definition ignoring optcols i.e. {gml_id, __change__} and any other discarded columns'''
         #create blank feat defn
         fout_def = ogr.FeatureDefn()
         #read input feat defn
@@ -666,9 +662,6 @@ class DataStore(object):
             try:
                 #cast to STR since unicode raises exception in driver 
                 retval = self.ds.ExecuteSQL(str(sql))
-                #for r2 in sql.split('\n'):
-                    #print "**********",r2
-                    #self.ds.ExecuteSQL(r2)
             except RuntimeError as rex:
                 ldslog.error("Runtime Error. Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
                 #this can be a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
@@ -758,10 +751,16 @@ class DataStore(object):
         return False
     
     def _baseDeleteLayer(self,table):
-        '''Basic delete function intended for aspatial tables which are not returned by queries to the spatialite DS'''
+        '''Basic layer delete function intended for aspatial tables which are not returned by queries to the DS. Should work on most DS types'''
         #TODO. Implement for all DS types
-        sql_mstr = "drop table "+table
-        return self.executeSQL(sql_mstr)
+        sql_str = "drop table "+table
+        return self.executeSQL(sql_str)    
+    
+    def _baseDeleteColumn(self,table,column):
+        '''Basic column delete function for when regular deletes fail. Intended for aspatial tables which are not returned by queries to the DS'''
+        #TODO. Implement for all DS types
+        sql_str = "alter table "+table+" drop column "+column
+        return self.executeSQL(sql_str)
         
     def _clean(self):
         '''Deletes the entire DS layer by layer'''

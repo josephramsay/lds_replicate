@@ -121,7 +121,40 @@ class SpatiaLiteDataStore(DataStore):
         self.executeSQL(sql_drop)
         self.executeSQL(sql_repl)
 
+    def _baseDeleteColumn(self,table,column):
+        '''Basic column delete function for when regular deletes fail. Spatialite doesn't do column drops so we recreate instead'''
+
+        sql_mstr = "select * from "+table
+        sql_tabl = self.executeSQL(sql_mstr)
+        feat_defn = sql_tabl.GetLayerDefn()
+
+        sql_build = "create table "+table+"(ogc_fid integer primary key," 
+        for field_no in range(0,feat_defn.GetFieldCount()):
+            field_def = feat_defn.GetFieldDefn(field_no)
+            field_name = field_def.GetName()
+            if field_name != column:
+                sql_build += field_name+" "+self.convertToDestinationType(field_def.GetType())+","
+        #"CREATE TABLE 'asp_name_associations' ( OGC_FID INTEGER PRIMARY KEY , 'id' INTEGER, 'name_1_sufi' INTEGER, 'name_2_sufi' INTEGER, 'alias' VARCHAR, 'status' VARCHAR, 'modified' VARCHAR)"
+        sql_repl=sql_build[:-1]+")"
+        #sql_repl = sql_tabl.replace("'"+column+"' INTEGER","'"+column+"' VARCHAR")
+        sql_drop = "drop table "+table
         
+        self.executeSQL(sql_drop)
+        self.executeSQL(sql_repl)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        #TODO. Implement for all DS types
+        sql_str = "alter table "+table+" drop column "+column
+        return self.executeSQL(sql_str)
         
 #    '''
 #    returned by ogr.GetFieldTypeName(i)

@@ -42,10 +42,13 @@ class LDSDataStore(WFSDataStore):
         super(LDSDataStore,self).__init__(conn_str,user_config)
         
         self.CHANGE_COL = "__change__"
+        self.psize = None
         
         (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
 
-
+    #TEST. data partitions
+    def setPartitionSize(self,psize):
+        self.psize = psize
         
     def getCapabilities(self):
         '''GetCapabilities endpoint constructor'''
@@ -73,7 +76,7 @@ class LDSDataStore(WFSDataStore):
     def sourceURI_incrd(self,layername,fromdate,todate):
         '''Endpoint constructor fetching specific layer with incremental date fields'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.conn_str
+            return self.conn_str            
         cql = self._buildCQLStr()
         vep = LDSUtilities.splitLayerName(layername)+"-changeset"
         typ = "&typeName="+layername+"-changeset"
@@ -82,6 +85,7 @@ class LDSDataStore(WFSDataStore):
         uri = self.url+self.key+vep+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+inc+fmt+cql
         ldslog.debug(uri)
         return uri
+    
     
     
     def _buildCQLStr(self):
