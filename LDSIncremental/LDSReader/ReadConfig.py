@@ -420,7 +420,9 @@ class MainFileReader(object):
     def readMiscConfig(self):
         
         sixtyfourlayers = None
-        problayers = None
+        partitionlayers = None
+        #NB. for v:x772 ps=1000000 is too small, 100000-1999999 returns None but ps=10000000 is too large, hangs or quits on XML parse fail
+        partitionsize = None
         
         try: 
             sixtyfourlayers = map(lambda s: s if s[:3]=='v:x' else 'v:x'+s, self.cp.get('Misc', '64bitlayers').split(','))
@@ -430,13 +432,20 @@ class MainFileReader(object):
             ldslog.warning("Misc: No 64bit Layers specified. NB. '64bitlayers'")
             
         try: 
-            problayers = map(lambda s: s if s[:3]=='v:x' else 'v:x'+s, self.cp.get('Misc', 'problemlayers').split(','))
+            partitionlayers = map(lambda s: s if s[:3]=='v:x' else 'v:x'+s, self.cp.get('Misc', 'partitionlayers').split(','))
         except NoSectionError:
             ldslog.warning("Misc: No Misc section detected looking for Problem Layer specification")
         except NoOptionError:
-            ldslog.warning("Misc: No Problem Layers specified. NB. 'problemlayers'")
+            ldslog.warning("Misc: No Partition Layers specified. NB. 'partitionlayers'")
+            
+        try: 
+            partitionsize = self.cp.get('Misc', 'partitionsize')
+        except NoSectionError:
+            ldslog.warning("Misc: No Misc section detected looking for Partition Size specification. Default = "+str(partitionsize)+". NB. 'partitionsize'")
+        except NoOptionError:
+            ldslog.warning("Misc: No Partition Size specified. Default = "+str(partitionsize)+". NB. 'partitionsize'")
         
-        return (sixtyfourlayers,problayers)
+        return (sixtyfourlayers,partitionlayers,partitionsize)
         
     
     def readMainProperty(self,driver,key):

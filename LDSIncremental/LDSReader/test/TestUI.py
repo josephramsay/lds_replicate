@@ -79,7 +79,7 @@ class TestUI(unittest.TestCase):
     def test00CleanDatabase(self):
         '''prep by cleaning used layers'''
         for o in self.OUTP:
-            for l in TestUI.LAYER+TestUI.LAYER_ASPATIAL+TestUI.LAYER_GEODETIC+TestUI.LAYER_PROBLEM:
+            for l in TestUI.LAYER+TestUI.LAYER_ASPATIAL+TestUI.LAYER_GEODETIC: #+TestUI.LAYER_PROBLEM:
                 self.prepLayer(l,o)
         
         
@@ -109,7 +109,9 @@ class TestUI(unittest.TestCase):
 #            self.assertEquals(os.system(st2),0)
         
     def test04ProblemLayer(self):
-        '''Attempts to get 772. These are supposed to fail since the layers are in the "problemlayers" list'''
+        '''Attempts to get 772. Tests data partitioning solution... Don't run this its too slow!'''
+        return
+     
         for o in self.OUTP:
             for l in self.LAYER_PROBLEM:
                 st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' '+o

@@ -205,6 +205,7 @@ class DataStore(object):
         #mild hack. src_link created so we can re-query the source to get 64bit ints as strings
         self.src_link = src
         self.sixtyfour = sixtyfour
+        max_key = None
         #ldslog.info("DS Write "+dsn)#.split(":")[0]
         #shouldnt be needed but sometimes instances of DS disconnect occur
         if not hasattr(self,'ds') or self.ds is None:
@@ -212,13 +213,15 @@ class DataStore(object):
         
         if incr:
             # standard incremental copyDS. change_col used in delete list and as change (INS/DEL/UPD) indicator
-            self.copyDS(src.ds,self.ds,src.CHANGE_COL)
+            max_key = self.copyDS(src.ds,self.ds,src.CHANGE_COL)
         elif sixtyfour or fbf:
             #do a copyDS if override asks or if a table has big ints
-            self.copyDS(src.ds,self.ds,None)
+            max_key = self.copyDS(src.ds,self.ds,None)
         else:
-            # no cols to delete and no operational instructions, just duplicate
-            self.cloneDS(src.ds,self.ds) 
+            # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
+            max_key = self.cloneDS(src.ds,self.ds)
+            
+        return max_key
         
 
     def closeDS(self):
@@ -226,10 +229,12 @@ class DataStore(object):
         ldslog.info("Sync DS and Close")
         self.ds.SyncToDisk()
         self.ds.Destroy()  
+    
+                
               
     def cloneDS(self,src_ds,dst_ds):
         '''Copy from source to destination using the driver copy and without manipulating data'''
-
+        
         ldslog.info("Using cloneDS. Non-Incremental driver copy")
         for li in range(0,src_ds.GetLayerCount()):
             src_layer = src_ds.GetLayer(li)
@@ -246,7 +251,7 @@ class DataStore(object):
                 ldslog.warn("Cannot delete layer "+dst_layer_name+". It probably doesn't exist. "+str(ve))
                 
             try:
-                dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name))
+                layer = dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name))
             except RuntimeError as re:
                 if 'General function failure' in str(re):
                     # **HACK** the only way to get around this seems to be by doing a feature-by-feature copyDS and changing the sref 
@@ -254,13 +259,12 @@ class DataStore(object):
                 else:
                     raise
 
-                
-            layer = dst_ds.GetLayer(dst_layer_name)
+            #if the copy succeeded we now need to build an index and delete unwanted columns so get the new layer     
+            #layer = dst_ds.GetLayer(dst_layer_name)
             if layer is None:
-                # **HACK** the only way to get around this seems to be by doing a feature-by-feature copyDS and changing the sref 
+                # **HACK** the only way to get around driver copy failures seems to be by doing a feature-by-feature copyDS and changing the sref 
                 ldslog.error('Layer not created, attempting feature-by-feature copy')
-                self.copyDS(src_ds,dst_ds,None)
-                return
+                return self.copyDS(src_ds,dst_ds,None)
 
             if ref_index is not None:
                 self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
@@ -272,7 +276,8 @@ class DataStore(object):
             #self.optcols |= set(['latitude','longitude'])#for testing
 
             self.deleteOptionalColumns(layer)
-
+            
+        return 1
         
         
 
@@ -306,7 +311,7 @@ class DataStore(object):
         #TDOD. decide whether C_C is better as an arg or a src.prop
         '''DataStore feature-by-feature replication for incremental queries'''
         #build new layer by duplicating source layers  
-            
+        remaining = None
         ldslog.info("Using copyDS. Per-feature copy")
         for li in range(0,src_ds.GetLayerCount()):
             new_layer = False
@@ -350,6 +355,8 @@ class DataStore(object):
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
                 
             while src_feat is not None:
+                #if we find a feature then this partition contains some data
+                remaining = src_feat.GetField(self.src_link.pkey)
                 '''identify the change in the WFS doc (INS,UPD,DEL)'''
                 change =  (src_feat.GetField(changecol) if changecol is not None and len(changecol)>0 else "insert").lower()
                 '''not just copy but possubly delete or update a feature on the DST layer'''
@@ -389,6 +396,8 @@ class DataStore(object):
             
             src_layer.ResetReading()
             dst_layer.ResetReading()
+            
+        return remaining
             
             
 

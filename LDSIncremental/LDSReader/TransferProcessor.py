@@ -48,7 +48,7 @@ class TransferProcessor(object):
     
     #Hack for testing, these layers that {are too big, dont have PKs} crash the program so we'll just avoid them. Its not definitive, just ones we've come across while testing
     #1029 has no PK though Koordinates are working on this
-    layers_that_crash = map(lambda s: 'v:x'+s, ('772','839','1029','817'))
+    ###layers_that_crash = map(lambda s: 'v:x'+s, ('772','839','1029','817'))
     
     
     #Hack. To read 64bit integers we have to translate tables without GDAL's driver copy mechanism. 
@@ -56,8 +56,9 @@ class TransferProcessor(object):
     #Step 2 identify tables where 64 bit ints are used
     #Step 3 intercept feature build and copy and overwrite with string values
     #The tables listed below are ASP tables using a sufi number which is 64bit 
-    layers_with_64bit_ints = map(lambda s: 'v:x'+s, ('1203','1204','1205','1028','1029'))
-
+    ###layers_with_64bit_ints = map(lambda s: 'v:x'+s, ('1203','1204','1205','1028','1029'))
+    
+    
     def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,fbf=None):
         #ldsu? lnl?
         #self.src = LDSDataStore() 
@@ -220,7 +221,7 @@ class TransferProcessor(object):
         #might as well initds here, its going to be needed eventually
         self.dst.ds = self.dst.initDS(self.dst.destinationURI(None))#DataStore.LDS_CONFIG_TABLE))
         
-        (self.sixtyfourlayers,problemlayers) = self.dst.confwrapper.readDSParameters('Misc')
+        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize) = self.dst.confwrapper.readDSParameters('Misc')
         
         self.src = LDSDataStore(self.source_str,self.user_config) 
         capabilities = self.src.getCapabilities()
@@ -273,8 +274,8 @@ class TransferProcessor(object):
         else:
             self.lnl = lds_valid
             
-        # ***HACK*** big layer bypass
-        self.lnl = filter(lambda l: l not in problemlayers, self.lnl)
+        # ***HACK*** big layer bypass (address this with partitions)
+        #self.lnl = filter(lambda l: l not in self.partitionlayers, self.lnl)
         
         #override config file dates with command line dates if provided
         ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}".format(len(lds_full),len(lds_read),len(self.lnl)))
@@ -342,14 +343,28 @@ class TransferProcessor(object):
 
     def fullReplicateLayer(self,layer_i):
         '''Replicate the requested layer non-incrementally'''
-        #Set filters in URI call using layer    
+        #bypass if layer is identified as one we need to partition
+        if layer_i in self.partitionlayers:
+            self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
+            self.src.setPartitionStart(0)
+            self.src.setPartitionSize(self.partitionsize)
+            #self.setFBF()
+        
+        #Set filters in URI call using layer            
         self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(layer_i,'cql')))
-        
-        self.src.setURI(self.src.sourceURI(layer_i))
-        self.dst.setURI(self.dst.destinationURI(layer_i))
-        
-        self.src.read(          self.src.getURI())
-        self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
+
+        while (True):
+            self.src.setURI(self.src.sourceURI(layer_i))
+            self.dst.setURI(self.dst.destinationURI(layer_i))
+                
+            self.src.read(self.src.getURI())
+            maxkey = self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
+            if maxkey is not None:
+                self.src.setPartitionStart(maxkey)
+            else:
+                break
+            
+            
         '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
         Retained since dates may change between successive calls depending on the start time of the process'''
         self.dst.setLastModified(layer_i,self.dst.getCurrent())
@@ -405,23 +420,47 @@ class TransferProcessor(object):
         #SRS are set in the DST since the conversion takes place during the write process. These are only needed for Incremental
         self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.layerconf.readLayerProperty(layer_i,'epsg')))
         
-        
         td = datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S')
         fd = datetime.strptime(fdate,'%Y-%m-%dT%H:%M:%S')
         if (td-fd).days>0:
-            #set up URI
-            self.src.setURI(self.src.sourceURI_incrd(layer_i,fdate,tdate))
-            self.dst.setURI(self.dst.destinationURI(layer_i))
             
-            #source read from URI
-            self.src.read(self.src.getURI())
-            #destination write the SRC to the dest URI
-            self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
+            #TODO optimise
+            
+            if layer_i in self.partitionlayers:
+                self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
+                self.src.setPartitionStart(0)
+                self.src.setPartitionSize(self.partitionsize)
+                self.setFBF()
+                
+            while (True):
+                #set up URI
+                self.src.setURI(self.src.sourceURI_incrd(layer_i,fdate,tdate))
+                self.dst.setURI(self.dst.destinationURI(layer_i))
+            
+                #source read from URI
+                self.src.read(self.src.getURI())
+                #destination write the SRC to the dest URI
+                maxkey = self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
+                if maxkey is not None:
+                    self.src.setPartitionStart(maxkey)
+                else:
+                    break
+                
+#            else:
+#                
+#                self.src.setURI(self.src.sourceURI_incrd(layer_i,fdate,tdate))
+#                self.dst.setURI(self.dst.destinationURI(layer_i))
+#            
+#                #source read from URI
+#                self.src.read(self.src.getURI())
+#                #destination write the SRC to the dest URI
+#                self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
+                
             self.dst.setLastModified(layer_i,tdate)
             
         else:
             ldslog.info("No update required for layer "+layer_i+" since [start:"+fd.isoformat()+" >= finish:"+td.isoformat()+"] by at least 1 day")
-        return tdate
+        return
     
     
 

@@ -47,8 +47,14 @@ class LDSDataStore(WFSDataStore):
         (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
 
     #TEST. data partitions
+    def setPrimaryKey(self,pkey):
+        self.pkey = pkey
+        
     def setPartitionSize(self,psize):
         self.psize = psize
+        
+    def setPartitionStart(self,pstart):
+        self.pstart = pstart
         
     def getCapabilities(self):
         '''GetCapabilities endpoint constructor'''
@@ -65,7 +71,9 @@ class LDSDataStore(WFSDataStore):
         '''Basic Endpoint constructor'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
+
         cql = self._buildCQLStr()
+            
         typ = "&typeName="+layername
         fmt = "&outputFormat="+self.fmt
         uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
@@ -76,8 +84,10 @@ class LDSDataStore(WFSDataStore):
     def sourceURI_incrd(self,layername,fromdate,todate):
         '''Endpoint constructor fetching specific layer with incremental date fields'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.conn_str            
-        cql = self._buildCQLStr()
+            return self.conn_str       
+
+        cql = self._buildCQLStr()     
+        
         vep = LDSUtilities.splitLayerName(layername)+"-changeset"
         typ = "&typeName="+layername+"-changeset"
         inc = "&viewparams=from:"+fromdate+";to:"+todate
@@ -89,13 +99,20 @@ class LDSDataStore(WFSDataStore):
     
     
     def _buildCQLStr(self):
-        '''Fetches filter set by utils precedence with some basic checking'''
-        cqlfilter = self.getFilter()
-        if cqlfilter is not None:
-            cql = LDSUtilities.checkCQL(cqlfilter)
-        else:
-            cql=""
-        return cql
+        '''Builds a cql_filter string as set by the user adding a partitioning string if needed'''
+        cql = ()
+        maxfeat = ""
+        
+        if self.psize is not None:
+            cql += (self.pkey+">"+str(self.pstart),)
+            #sortBy used so last feature will have the new maximum key, saves a comparison
+            maxfeat = "&sortBy="+self.pkey+"&maxFeatures="+str(self.psize)
+
+        if self.getFilter() is not None:
+            cql += (LDSUtilities.checkCQL(self.getFilter()),)
+
+        return maxfeat+"&cql_filter="+';'.join(cql) if len(cql)>0 else ""
+    
     
     @staticmethod
     def fetchLayerNames(url):
@@ -120,7 +137,6 @@ class LDSDataStore(WFSDataStore):
         
         
 
-       
 
 #    def read(self,dsn):
 #        '''Simple Read method for LDS data store'''

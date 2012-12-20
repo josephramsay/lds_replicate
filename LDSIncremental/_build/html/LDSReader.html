@@ -1,0 +1,1633 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LDSReader Package &mdash; LDSIncr 0.0.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.0.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="LDSIncr 0.0.4 documentation" href="index.html" />
+    <link rel="up" title="LDSReader" href="modules.html" />
+    <link rel="next" title="test Package" href="LDSReader.test.html" />
+    <link rel="prev" title="LDSReader" href="modules.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="LDSReader.test.html" title="test Package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="LDSReader"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">LDSIncr 0.0.4 documentation</a> &raquo;</li>
+          <li><a href="modules.html" accesskey="U">LDSReader</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="ldsreader-package">
+<h1>LDSReader Package<a class="headerlink" href="#ldsreader-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="id1">
+<h2><tt class="xref py py-mod docutils literal"><span class="pre">LDSReader</span></tt> Package<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<span class="target" id="module-LDSReader.__init__"></span><div class="line-block">
+<div class="line">v.0.0.1</div>
+<div class="line"><br /></div>
+<div class="line">LDSIncremental -  LDS Incremental Utilities</div>
+<div class="line"><br /></div>
+<div class="line">Copyright 2011 Crown copyright (c)</div>
+<div class="line">Land Information New Zealand and the New Zealand Government.</div>
+<div class="line">All rights reserved</div>
+<div class="line"><br /></div>
+<div class="line">This program is released under the terms of the new BSD license. See the LICENSE file for more information.</div>
+<div class="line"><br /></div>
+<div class="line">Created on 23/07/2012</div>
+<div class="line"><br /></div>
+<div class="line">&#64;author: jramsay</div>
+<div class="line"><br /></div>
+<div class="line">Description:</div>
+<div class="line">This script replicates data in the LINZ Data Service to a local data store. Currently supported datastores include; PostgreSQL (PostGIS), MSSQL Spatial, FileGDB and SpatiaLite.</div>
+</div>
+</div>
+<div class="section" id="module-LDSReader.ConfigWrapper">
+<span id="configwrapper-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">ConfigWrapper</span></tt> Module<a class="headerlink" href="#module-LDSReader.ConfigWrapper" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  (Meta) Layer Reader</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 23/07/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.ConfigWrapper.ConfigWrapper">
+<em class="property">class </em><tt class="descclassname">LDSReader.ConfigWrapper.</tt><tt class="descname">ConfigWrapper</tt><big>(</big><em>config_file=None</em><big>)</big><a class="headerlink" href="#LDSReader.ConfigWrapper.ConfigWrapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Convenience wrapper class to config-file reader instances. Facade for file reader/table reader</p>
+<dl class="method">
+<dt id="LDSReader.ConfigWrapper.ConfigWrapper.getLayerNames">
+<tt class="descname">getLayerNames</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ConfigWrapper.ConfigWrapper.getLayerNames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns configured layers for respective layer properties file</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ConfigWrapper.ConfigWrapper.readDSParameters">
+<tt class="descname">readDSParameters</tt><big>(</big><em>drv</em><big>)</big><a class="headerlink" href="#LDSReader.ConfigWrapper.ConfigWrapper.readDSParameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the datasource parameters. By request updated to let users override parts of the basic config file</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ConfigWrapper.ConfigWrapper.readDSSingle">
+<tt class="descname">readDSSingle</tt><big>(</big><em>drv</em>, <em>prop</em><big>)</big><a class="headerlink" href="#LDSReader.ConfigWrapper.ConfigWrapper.readDSSingle" title="Permalink to this definition">¶</a></dt>
+<dd><p>gets a single property from a selected driver config</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ConfigWrapper.ConfigWrapper.setupLayerConfig">
+<tt class="descname">setupLayerConfig</tt><big>(</big><em>filename</em><big>)</big><a class="headerlink" href="#LDSReader.ConfigWrapper.ConfigWrapper.setupLayerConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a layerconfig file object which will be requested if external sepcified in main config</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ConfigWrapper.ConfigWrapper.setupMainConfig">
+<tt class="descname">setupMainConfig</tt><big>(</big><em>inituserconfig</em><big>)</big><a class="headerlink" href="#LDSReader.ConfigWrapper.ConfigWrapper.setupMainConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets up a reader to the main configuration file or alternatively, a user specified config file.
+Userconfig is not mean&#8217;t to replace mainconfig, just overwrite the parts the user has decided to customise</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.DataStore">
+<span id="datastore-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">DataStore</span></tt> Module<a class="headerlink" href="#module-LDSReader.DataStore" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  DataSource</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>DataStore is the base Datasource wrapper object</p>
+<p>Created on 9/08/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="exception">
+<dt id="LDSReader.DataStore.ASpatialFailureException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">ASpatialFailureException</tt><a class="headerlink" href="#LDSReader.DataStore.ASpatialFailureException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.LDSReaderException" title="LDSReader.DataStore.LDSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.LDSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.CannotInitialiseDriverType">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">CannotInitialiseDriverType</tt><a class="headerlink" href="#LDSReader.DataStore.CannotInitialiseDriverType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.LDSReaderException" title="LDSReader.DataStore.LDSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.LDSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.DSReaderException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">DSReaderException</tt><a class="headerlink" href="#LDSReader.DataStore.DSReaderException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></tt></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="LDSReader.DataStore.DataStore">
+<em class="property">class </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">DataStore</tt><big>(</big><em>conn_str=None</em>, <em>user_config=None</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>DataStore superclasses PostgreSQL, LDS(WFS), FileGDB and SpatiaLite datastores.
+This class contains the main copy functions for each datasource and sets up default connection parameters. Common options are also set up in this class 
+but variations are implemented in the appropriate subclasses</p>
+<dl class="attribute">
+<dt id="LDSReader.DataStore.DataStore.DATE_FORMAT">
+<tt class="descname">DATE_FORMAT</tt><em class="property"> = '%Y-%m-%dT%H:%M:%S'</em><a class="headerlink" href="#LDSReader.DataStore.DataStore.DATE_FORMAT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.DataStore.DataStore.EARLIEST_INIT_DATE">
+<tt class="descname">EARLIEST_INIT_DATE</tt><em class="property"> = '2000-01-01T00:00:00'</em><a class="headerlink" href="#LDSReader.DataStore.DataStore.EARLIEST_INIT_DATE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.DataStore.DataStore.LDS_CONFIG_TABLE">
+<tt class="descname">LDS_CONFIG_TABLE</tt><em class="property"> = 'lds_config'</em><a class="headerlink" href="#LDSReader.DataStore.DataStore.LDS_CONFIG_TABLE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.DataStore.DataStore.ValidGeometryTypes">
+<tt class="descname">ValidGeometryTypes</tt><em class="property"> = (0, 1, 2, 3, 4, 5, 6, 7, 100, 101, -2147483647, -2147483646, -2147483645, -2147483644, -2147483643, -2147483642, -2147483641)</em><a class="headerlink" href="#LDSReader.DataStore.DataStore.ValidGeometryTypes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.buildConfigLayer">
+<tt class="descname">buildConfigLayer</tt><big>(</big><em>config_array</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.buildConfigLayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds the config table into and using the active DS</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.buildIndex">
+<tt class="descname">buildIndex</tt><big>(</big><em>ref_index</em>, <em>ref_pkey</em>, <em>ref_gcol</em>, <em>dst_layer_name</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.buildIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default index string builder for new fully replicated layers</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.buildNewDataLayer">
+<tt class="descname">buildNewDataLayer</tt><big>(</big><em>dst_layer_name</em>, <em>dst_ds</em>, <em>dst_sref</em>, <em>src_layer_defn</em>, <em>src_layer_geom</em>, <em>src_layer_sref</em>, <em>ref_layer_name</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.buildNewDataLayer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.changeColumnIntToString">
+<tt class="descname">changeColumnIntToString</tt><big>(</big><em>table</em>, <em>column</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.changeColumnIntToString" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.clearLastModified">
+<tt class="descname">clearLastModified</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.clearLastModified" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clears the last modification time of a layer following a successful clean operation</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.clearOverwrite">
+<tt class="descname">clearOverwrite</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.clearOverwrite" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.cloneDS">
+<tt class="descname">cloneDS</tt><big>(</big><em>src_ds</em>, <em>dst_ds</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.cloneDS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy from source to destination using the driver copy and without manipulating data</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.closeDS">
+<tt class="descname">closeDS</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.closeDS" title="Permalink to this definition">¶</a></dt>
+<dd><p>close a DS with sync and destroy</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.copyDS">
+<tt class="descname">copyDS</tt><big>(</big><em>src_ds</em>, <em>dst_ds</em>, <em>changecol</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.copyDS" title="Permalink to this definition">¶</a></dt>
+<dd><p>DataStore feature-by-feature replication for incremental queries</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.deleteFeature">
+<tt class="descname">deleteFeature</tt><big>(</big><em>dst_layer</em>, <em>src_feat</em>, <em>ref_pkey</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.deleteFeature" title="Permalink to this definition">¶</a></dt>
+<dd><p>lookup and delete using fid matching ID of feature being deleted</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.deleteFieldFromLayer">
+<tt class="descname">deleteFieldFromLayer</tt><big>(</big><em>layer</em>, <em>field_id</em>, <em>fdef_nm</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.deleteFieldFromLayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>per DS delete field since some do not support this</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.deleteOptionalColumns">
+<tt class="descname">deleteOptionalColumns</tt><big>(</big><em>dst_layer</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.deleteOptionalColumns" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete unwanted columns from layer</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.destinationURI">
+<tt class="descname">destinationURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.destinationURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Abstract URI method for returning destination. Raises NotImplementedError if accessed directly</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.executeSQL">
+<tt class="descname">executeSQL</tt><big>(</big><em>sql</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.executeSQL" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes arbitrary SQL on the datasource</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.generateLayerName">
+<tt class="descname">generateLayerName</tt><big>(</big><em>ref_name</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.generateLayerName" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic layer name constructor</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getConfigGeometry">
+<tt class="descname">getConfigGeometry</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getConfigGeometry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getCurrent">
+<tt class="descname">getCurrent</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getCurrent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the current timestamp for incremental todate calls. 
+Time format is UTC for LDS compatibility.
+NB. Because the current date is generated to build the LDS URI the lastmodified time will reflect the request time and not the layer creation time</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getDriver">
+<tt class="descname">getDriver</tt><big>(</big><em>driver_name</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getDriver" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getFilter">
+<tt class="descname">getFilter</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getFilter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getLastModified">
+<tt class="descname">getLastModified</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getLastModified" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the last modification time of a layer to use for incremental &#8220;fromdate&#8221; calls. This is intended to be run 
+as a destination method since the destination is the DS being modified i.e. dst.getLastModified</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getLayerNames">
+<tt class="descname">getLayerNames</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getLayerNames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns configured layers for respective layer properties file</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getOptions">
+<tt class="descname">getOptions</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns common options, overridden in subclasses for source specifc options</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getOverwrite">
+<tt class="descname">getOverwrite</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getOverwrite" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getSRS">
+<tt class="descname">getSRS</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getSRS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.getURI">
+<tt class="descname">getURI</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.getURI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.identify64Bit">
+<tt class="descname">identify64Bit</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.identify64Bit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Common 64bit column identification function (just picks out the key text &#8216;sufi&#8217; in the column name, for now)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.initDS">
+<tt class="descname">initDS</tt><big>(</big><em>dsn</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.initDS" title="Permalink to this definition">¶</a></dt>
+<dd><p>initialise a DS for writing</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.insertFeature">
+<tt class="descname">insertFeature</tt><big>(</big><em>dst_layer</em>, <em>src_feat</em>, <em>new_feat_def</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.insertFeature" title="Permalink to this definition">¶</a></dt>
+<dd><p>insert a new feature</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.isConfInternal">
+<tt class="descname">isConfInternal</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.isConfInternal" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.DataStore.DataStore.params">
+<tt class="descname">params</tt><em class="property"> = None</em><a class="headerlink" href="#LDSReader.DataStore.DataStore.params" title="Permalink to this definition">¶</a></dt>
+<dd><p>set of &lt;potential&gt; columns not needed in final output, global</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.DataStore.DataStore.parseStringList">
+<em class="property">static </em><tt class="descname">parseStringList</tt><big>(</big><em>st</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.parseStringList" title="Permalink to this definition">¶</a></dt>
+<dd><p>QaD List-as-String to List parser</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.partialCloneFeature">
+<tt class="descname">partialCloneFeature</tt><big>(</big><em>fin</em>, <em>fout_def</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.partialCloneFeature" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds a feature using a passed in feature definition. Must still ignore discarded columns since they will be in the source</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.partialCloneFeatureDef">
+<tt class="descname">partialCloneFeatureDef</tt><big>(</big><em>fin</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.partialCloneFeatureDef" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds a feature definition ignoring optcols i.e. {gml_id, __change__} and any other discarded columns</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.read">
+<tt class="descname">read</tt><big>(</big><em>dsn</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main DS read method</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.readLayerParameters">
+<tt class="descname">readLayerParameters</tt><big>(</big><em>pkey</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.readLayerParameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Full Layer config reader</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.readLayerProperty">
+<tt class="descname">readLayerProperty</tt><big>(</big><em>pkey</em>, <em>field</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.readLayerProperty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.DataStore.DataStore.sanitise">
+<em class="property">static </em><tt class="descname">sanitise</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.sanitise" title="Permalink to this definition">¶</a></dt>
+<dd><p>Manually substitute potential table naming errors implemented as a common function to retain naming convention across all outputs.
+No guarantees are made that this feature won&#8217;t cause naming conflicts e.g. A-B-C -&gt; a_b_c &lt;- a::{b}::c</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.selectValidGeom">
+<tt class="descname">selectValidGeom</tt><big>(</big><em>geom</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.selectValidGeom" title="Permalink to this definition">¶</a></dt>
+<dd><p>To be overridden, eliminates geometry types that cause trouble for certain driver types</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.setConfExternal">
+<tt class="descname">setConfExternal</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.setConfExternal" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.setConfInternal">
+<tt class="descname">setConfInternal</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.setConfInternal" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.setFilter">
+<tt class="descname">setFilter</tt><big>(</big><em>cql</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.setFilter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.setLastModified">
+<tt class="descname">setLastModified</tt><big>(</big><em>layer</em>, <em>newdate</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.setLastModified" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets the last modification time of a layer following a successful incremental copy operation</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.setOverwrite">
+<tt class="descname">setOverwrite</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.setOverwrite" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.setSRS">
+<tt class="descname">setSRS</tt><big>(</big><em>srs</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.setSRS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.setURI">
+<tt class="descname">setURI</tt><big>(</big><em>uri</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.setURI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.setupLayerConfig">
+<tt class="descname">setupLayerConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.setupLayerConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read internal OR external from main config file and set, default to internal</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.sourceURI">
+<tt class="descname">sourceURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.sourceURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Abstract URI method for returning source. Raises NotImplementedError if accessed directly</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.transformSRS">
+<tt class="descname">transformSRS</tt><big>(</big><em>src_layer_sref</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.transformSRS" title="Permalink to this definition">¶</a></dt>
+<dd><p>transform from one SRS to another, provided the supplied EPSG is correct and coordinates can be transformed</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.updateFeature">
+<tt class="descname">updateFeature</tt><big>(</big><em>dst_layer</em>, <em>src_feat</em>, <em>new_feat_def</em>, <em>ref_pkey</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.updateFeature" title="Permalink to this definition">¶</a></dt>
+<dd><p>build new feature, assign it the looked-up matching fid and overwrite on dst</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.write">
+<tt class="descname">write</tt><big>(</big><em>src</em>, <em>dsn</em>, <em>incr</em>, <em>fbf</em>, <em>sixtyfour</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main DS write method. Attempts to open or alternatively, create a datasource</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.DataStore.DataStore.writeLayerProperty">
+<tt class="descname">writeLayerProperty</tt><big>(</big><em>pkey</em>, <em>field</em>, <em>value</em><big>)</big><a class="headerlink" href="#LDSReader.DataStore.DataStore.writeLayerProperty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write changes to layer config table</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.DatasourceCopyException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">DatasourceCopyException</tt><a class="headerlink" href="#LDSReader.DataStore.DatasourceCopyException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.LDSReaderException" title="LDSReader.DataStore.LDSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.LDSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.DatasourceCreateException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">DatasourceCreateException</tt><a class="headerlink" href="#LDSReader.DataStore.DatasourceCreateException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.LDSReaderException" title="LDSReader.DataStore.LDSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.LDSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.DatasourceOpenException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">DatasourceOpenException</tt><a class="headerlink" href="#LDSReader.DataStore.DatasourceOpenException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.DSReaderException" title="LDSReader.DataStore.DSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.DSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.IncompleteWFSRequestException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">IncompleteWFSRequestException</tt><a class="headerlink" href="#LDSReader.DataStore.IncompleteWFSRequestException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.LDSReaderException" title="LDSReader.DataStore.LDSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.LDSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.InvalidFeatureException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">InvalidFeatureException</tt><a class="headerlink" href="#LDSReader.DataStore.InvalidFeatureException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.LDSReaderException" title="LDSReader.DataStore.LDSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.LDSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.InvalidLayerException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">InvalidLayerException</tt><a class="headerlink" href="#LDSReader.DataStore.InvalidLayerException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.LDSReaderException" title="LDSReader.DataStore.LDSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.LDSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.LDSReaderException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">LDSReaderException</tt><a class="headerlink" href="#LDSReader.DataStore.LDSReaderException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.DSReaderException" title="LDSReader.DataStore.DSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.DSReaderException</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="LDSReader.DataStore.LayerCreateException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.DataStore.</tt><tt class="descname">LayerCreateException</tt><a class="headerlink" href="#LDSReader.DataStore.LayerCreateException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.LDSReaderException" title="LDSReader.DataStore.LDSReaderException"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.LDSReaderException</span></tt></a></p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.ESRIDataStore">
+<span id="esridatastore-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">ESRIDataStore</span></tt> Module<a class="headerlink" href="#module-LDSReader.ESRIDataStore" title="Permalink to this headline">¶</a></h2>
+<p>ESRI specific DS class super classing ESRI based data formats including FileGDB, ShapeFile and ArcSDE</p>
+<p>Created on 9/08/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.ESRIDataStore.ESRIDataStore">
+<em class="property">class </em><tt class="descclassname">LDSReader.ESRIDataStore.</tt><tt class="descname">ESRIDataStore</tt><big>(</big><em>conn_str=None</em>, <em>user_config=None</em><big>)</big><a class="headerlink" href="#LDSReader.ESRIDataStore.ESRIDataStore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.DataStore" title="LDSReader.DataStore.DataStore"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.DataStore</span></tt></a></p>
+<p>ESRI Specific superclass primarily used to do OSGEO to ESRI SpatialReference transformations</p>
+<dl class="method">
+<dt id="LDSReader.ESRIDataStore.ESRIDataStore.convertDataSourceESRI">
+<tt class="descname">convertDataSourceESRI</tt><big>(</big><em>datasource</em><big>)</big><a class="headerlink" href="#LDSReader.ESRIDataStore.ESRIDataStore.convertDataSourceESRI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Spatial Reference method to &#8220;Morph&#8221; datasource layer by layer, in place</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ESRIDataStore.ESRIDataStore.destinationURI">
+<tt class="descname">destinationURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.ESRIDataStore.ESRIDataStore.destinationURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method for returning destination calls private subclass common URI method</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ESRIDataStore.ESRIDataStore.getOptions">
+<tt class="descname">getOptions</tt><big>(</big><em>layer_id</em><big>)</big><a class="headerlink" href="#LDSReader.ESRIDataStore.ESRIDataStore.getOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Direct push through to super since no pan-ESRI specific options</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ESRIDataStore.ESRIDataStore.sourceURI">
+<tt class="descname">sourceURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.ESRIDataStore.ESRIDataStore.sourceURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method for returning source calls private subclass common URI method</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ESRIDataStore.ESRIDataStore.write">
+<tt class="descname">write</tt><big>(</big><em>src_ds</em>, <em>dsn</em>, <em>incr</em>, <em>fbf</em>, <em>sixtyfour</em><big>)</big><a class="headerlink" href="#LDSReader.ESRIDataStore.ESRIDataStore.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>ESRI specific write method used as entry point for convertDataSourceESRI</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.FileGDBDataStore">
+<span id="filegdbdatastore-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">FileGDBDataStore</span></tt> Module<a class="headerlink" href="#module-LDSReader.FileGDBDataStore" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  FileGDB</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 9/08/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.FileGDBDataStore.FileGDBDataStore">
+<em class="property">class </em><tt class="descclassname">LDSReader.FileGDBDataStore.</tt><tt class="descname">FileGDBDataStore</tt><big>(</big><em>conn_str=None</em>, <em>user_config=None</em><big>)</big><a class="headerlink" href="#LDSReader.FileGDBDataStore.FileGDBDataStore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.ESRIDataStore.ESRIDataStore" title="LDSReader.ESRIDataStore.ESRIDataStore"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.ESRIDataStore.ESRIDataStore</span></tt></a></p>
+<p>FileGDB DataStore wrapper for file location and options</p>
+<dl class="attribute">
+<dt id="LDSReader.FileGDBDataStore.FileGDBDataStore.DRIVER_NAME">
+<tt class="descname">DRIVER_NAME</tt><em class="property"> = 'FileGDB'</em><a class="headerlink" href="#LDSReader.FileGDBDataStore.FileGDBDataStore.DRIVER_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.FileGDBDataStore.FileGDBDataStore.buildIndex">
+<tt class="descname">buildIndex</tt><big>(</big><em>ref_index</em>, <em>ref_pkey</em>, <em>ref_gcol</em>, <em>dst_layer_name</em><big>)</big><a class="headerlink" href="#LDSReader.FileGDBDataStore.FileGDBDataStore.buildIndex" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.FileGDBDataStore.FileGDBDataStore.changeColumnIntToString">
+<tt class="descname">changeColumnIntToString</tt><big>(</big><em>table</em>, <em>column</em><big>)</big><a class="headerlink" href="#LDSReader.FileGDBDataStore.FileGDBDataStore.changeColumnIntToString" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.FileGDBDataStore.FileGDBDataStore.deleteFieldFromLayer">
+<tt class="descname">deleteFieldFromLayer</tt><big>(</big><em>layer</em>, <em>field_id</em>, <em>field_name</em><big>)</big><a class="headerlink" href="#LDSReader.FileGDBDataStore.FileGDBDataStore.deleteFieldFromLayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>per DS delete field since some do not support this</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.FileGDBDataStore.FileGDBDataStore.destinationURI">
+<tt class="descname">destinationURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.FileGDBDataStore.FileGDBDataStore.destinationURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns destination file name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.FileGDBDataStore.FileGDBDataStore.getOptions">
+<tt class="descname">getOptions</tt><big>(</big><em>layer_id</em><big>)</big><a class="headerlink" href="#LDSReader.FileGDBDataStore.FileGDBDataStore.getOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds FileGDB options for GEOMETRY_NAME</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.FileGDBDataStore.FileGDBDataStore.sourceURI">
+<tt class="descname">sourceURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.FileGDBDataStore.FileGDBDataStore.sourceURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns source file name</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.LDSDataStore">
+<span id="ldsdatastore-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">LDSDataStore</span></tt> Module<a class="headerlink" href="#module-LDSReader.LDSDataStore" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  LDSDataStore</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>LDSDataStore convenience subclass of WFSDataStore wrapping the LDS specific WFS instance.</p>
+<p>Created on 23/07/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.LDSDataStore.LDSDataStore">
+<em class="property">class </em><tt class="descclassname">LDSReader.LDSDataStore.</tt><tt class="descname">LDSDataStore</tt><big>(</big><em>conn_str=None</em>, <em>user_config=None</em><big>)</big><a class="headerlink" href="#LDSReader.LDSDataStore.LDSDataStore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.WFSDataStore.WFSDataStore" title="LDSReader.WFSDataStore.WFSDataStore"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.WFSDataStore.WFSDataStore</span></tt></a></p>
+<p>LDS DataStore provides standard options and URI methods along with convenience methods for common functions/documents expressed as 
+URI builders. For incremental specifically the change-column is defined here</p>
+<dl class="staticmethod">
+<dt id="LDSReader.LDSDataStore.LDSDataStore.fetchLayerNames">
+<em class="property">static </em><tt class="descname">fetchLayerNames</tt><big>(</big><em>url</em><big>)</big><a class="headerlink" href="#LDSReader.LDSDataStore.LDSDataStore.fetchLayerNames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-Driver method for fetching LDS layer ID&#8217;s using standard URL open library.
+TODO. Investigate implementing this using the WFS driver and the relative expense for each</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.LDSDataStore.LDSDataStore.getCapabilities">
+<tt class="descname">getCapabilities</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.LDSDataStore.LDSDataStore.getCapabilities" title="Permalink to this definition">¶</a></dt>
+<dd><p>GetCapabilities endpoint constructor</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSDataStore.LDSDataStore.readDocument">
+<em class="property">static </em><tt class="descname">readDocument</tt><big>(</big><em>url</em><big>)</big><a class="headerlink" href="#LDSReader.LDSDataStore.LDSDataStore.readDocument" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-Driver method for fetching LDS DS as a document</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.LDSDataStore.LDSDataStore.setPartitionSize">
+<tt class="descname">setPartitionSize</tt><big>(</big><em>psize</em><big>)</big><a class="headerlink" href="#LDSReader.LDSDataStore.LDSDataStore.setPartitionSize" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.LDSDataStore.LDSDataStore.sourceURI">
+<tt class="descname">sourceURI</tt><big>(</big><em>layername</em><big>)</big><a class="headerlink" href="#LDSReader.LDSDataStore.LDSDataStore.sourceURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Basic Endpoint constructor</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.LDSDataStore.LDSDataStore.sourceURI_incrd">
+<tt class="descname">sourceURI_incrd</tt><big>(</big><em>layername</em>, <em>fromdate</em>, <em>todate</em><big>)</big><a class="headerlink" href="#LDSReader.LDSDataStore.LDSDataStore.sourceURI_incrd" title="Permalink to this definition">¶</a></dt>
+<dd><p>Endpoint constructor fetching specific layer with incremental date fields</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.LDSUtilities">
+<span id="ldsutilities-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">LDSUtilities</span></tt> Module<a class="headerlink" href="#module-LDSReader.LDSUtilities" title="Permalink to this headline">¶</a></h2>
+<p>Simple LDS specific utilities class</p>
+<p>Created on 28/08/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.LDSUtilities.ConfigInitialiser">
+<em class="property">class </em><tt class="descclassname">LDSReader.LDSUtilities.</tt><tt class="descname">ConfigInitialiser</tt><a class="headerlink" href="#LDSReader.LDSUtilities.ConfigInitialiser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Initialises configuration, for use at first run</p>
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.ConfigInitialiser.buildConfiguration">
+<em class="property">static </em><tt class="descname">buildConfiguration</tt><big>(</big><em>xml</em>, <em>fileid</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.ConfigInitialiser.buildConfiguration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a destination DS use this to select an XSL transform object and generate an output document that will initialise a new config file/table</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="LDSReader.LDSUtilities.LDSUtilities">
+<em class="property">class </em><tt class="descclassname">LDSReader.LDSUtilities.</tt><tt class="descname">LDSUtilities</tt><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Does the LDS related stuff not specifically part of the datastore</p>
+<dl class="attribute">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.LDS_TN_PREFIX">
+<tt class="descname">LDS_TN_PREFIX</tt><em class="property"> = 'v:x'</em><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.LDS_TN_PREFIX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.checkCQL">
+<em class="property">static </em><tt class="descname">checkCQL</tt><big>(</big><em>cql</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.checkCQL" title="Permalink to this definition">¶</a></dt>
+<dd><p>Since CQL commands are freeform strings we need to try and validate at least the most basic errors. This is very simple
+RE matcher that just looks for valid predicates... for now</p>
+<p>&lt;predicate&gt; ::= &lt;comparison predicate&gt; | &lt;text predicate&gt; | &lt;null predicate&gt; | &lt;temporal predicate&gt; | &lt;classification predicate&gt; | &lt;existence_predicate&gt; | &lt;between predicate&gt; | &lt;include exclude predicate&gt;</p>
+<p>BNF <a class="reference external" href="http://docs.geotools.org/latest/userguide/library/cql/internal.html">http://docs.geotools.org/latest/userguide/library/cql/internal.html</a></p>
+<p>LDS expects the following;
+Was expecting one of:</p>
+<blockquote>
+<div>&#8220;not&#8221; ...
+&#8220;include&#8221; ...
+&#8220;exclude&#8221; ...
+&#8220;(&#8221; ...
+&#8220;[&#8221; ...
+&#8220;id&#8221; ...
+&#8220;in&#8221; ...
+&lt;IDENTIFIER&gt; ...
+&#8220;-&#8221; ...
+&lt;INTEGER_LITERAL&gt; ...
+&lt;FLOATING_LITERAL&gt; ...
+&lt;STRING_LITERAL&gt; ...
+&lt;STRING_LITERAL&gt; &#8220;*&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;/&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;+&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;-&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;not&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;like&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;exists&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;does-not-exist&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;is&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;between&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;before&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;after&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;during&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;=&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;&gt;&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;&lt;&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;&gt;=&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;&lt;=&#8221; ...
+&lt;STRING_LITERAL&gt; &#8220;&lt;&gt;&#8221;</div></blockquote>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.checkDateFormat">
+<em class="property">static </em><tt class="descname">checkDateFormat</tt><big>(</big><em>xdate</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.checkDateFormat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks a date parameter conforms to yyyy-MM-ddThh:mm:ss format</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.checkLayerName">
+<em class="property">static </em><tt class="descname">checkLayerName</tt><big>(</big><em>lname</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.checkLayerName" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes sure a layer name conforms to v:x format</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.cropChangeset">
+<em class="property">static </em><tt class="descname">cropChangeset</tt><big>(</big><em>layername</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.cropChangeset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes changeset identifier from layer name</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.extractFields">
+<em class="property">static </em><tt class="descname">extractFields</tt><big>(</big><em>feat</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.extractFields" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extracts named fields from a layer config feature</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.precedence">
+<em class="property">static </em><tt class="descname">precedence</tt><big>(</big><em>cmdline_arg</em>, <em>config_arg</em>, <em>layer_arg</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.precedence" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decide which CQL filter to apply based on scope and availability</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.readDocument">
+<em class="property">static </em><tt class="descname">readDocument</tt><big>(</big><em>url</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.readDocument" title="Permalink to this definition">¶</a></dt>
+<dd><p>Non-Driver method for fetching LDS DS as a document</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.LDSUtilities.splitLayerName">
+<em class="property">static </em><tt class="descname">splitLayerName</tt><big>(</big><em>layername</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.LDSUtilities.splitLayerName" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splits a layer name typically in the format v:x### into /v/x### for URI inclusion</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="LDSReader.LDSUtilities.SUFIExtractor">
+<em class="property">class </em><tt class="descclassname">LDSReader.LDSUtilities.</tt><tt class="descname">SUFIExtractor</tt><a class="headerlink" href="#LDSReader.LDSUtilities.SUFIExtractor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>XSL parser to read big int columns returning a dict of id&lt;-&gt;col matches</p>
+<dl class="staticmethod">
+<dt id="LDSReader.LDSUtilities.SUFIExtractor.readURI">
+<em class="property">static </em><tt class="descname">readURI</tt><big>(</big><em>xml</em>, <em>colname</em><big>)</big><a class="headerlink" href="#LDSReader.LDSUtilities.SUFIExtractor.readURI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.MSSQLSpatialDataStore">
+<span id="mssqlspatialdatastore-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">MSSQLSpatialDataStore</span></tt> Module<a class="headerlink" href="#module-LDSReader.MSSQLSpatialDataStore" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  MSSQLSpatialDataStore</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 9/08/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore">
+<em class="property">class </em><tt class="descclassname">LDSReader.MSSQLSpatialDataStore.</tt><tt class="descname">MSSQLSpatialDataStore</tt><big>(</big><em>conn_str=None</em>, <em>user_config=None</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.DataStore" title="LDSReader.DataStore.DataStore"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.DataStore</span></tt></a></p>
+<p>MS SQL DataStore
+MSSQL:server=.MSSQLSERVER2008;database=dbname;trusted_connection=yes</p>
+<dl class="attribute">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.DRIVER_NAME">
+<tt class="descname">DRIVER_NAME</tt><em class="property"> = 'MSSQLSpatial'</em><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.DRIVER_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.ValidGeometryTypes">
+<tt class="descname">ValidGeometryTypes</tt><em class="property"> = (0, 1, 2, 3, 4, 5, 6, 7, 101, -2147483647, -2147483646, -2147483645, -2147483644, -2147483643, -2147483642, -2147483641)</em><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.ValidGeometryTypes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.buildConfigLayer_DELETE_CAPS_TO_OVERRIDE_WHEN_USING_MSSQL_DRIVER_ON_LINUX">
+<tt class="descname">buildConfigLayer_DELETE_CAPS_TO_OVERRIDE_WHEN_USING_MSSQL_DRIVER_ON_LINUX</tt><big>(</big><em>config_array</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.buildConfigLayer_DELETE_CAPS_TO_OVERRIDE_WHEN_USING_MSSQL_DRIVER_ON_LINUX" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds the config table into and using the active DS but does it using SQL commands since CreateLayer/Feature etc is flakey</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.buildIndex">
+<tt class="descname">buildIndex</tt><big>(</big><em>ref_index</em>, <em>ref_pkey</em>, <em>ref_gcol</em>, <em>dst_layer_name</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.buildIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds an index creation string for a new full replicate</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.changeColumnIntToString">
+<tt class="descname">changeColumnIntToString</tt><big>(</big><em>table</em>, <em>column</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.changeColumnIntToString" title="Permalink to this definition">¶</a></dt>
+<dd><p>MSSQL column type changer. Used to change 64 bit integer columns to string. NB Default varchar length for MS is 1!. so, 2^64 ~ 10^19 allow 32 chars</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.deleteFieldFromLayer">
+<tt class="descname">deleteFieldFromLayer</tt><big>(</big><em>layer</em>, <em>field_id</em>, <em>field_name</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.deleteFieldFromLayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>per DS delete field since some do not support this</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.deleteOptionalColumns">
+<tt class="descname">deleteOptionalColumns</tt><big>(</big><em>dst_layer</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.deleteOptionalColumns" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete unwanted columns from layer, MSSQL version doesn&#8217;t decrement index on column delete</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.destinationURI">
+<tt class="descname">destinationURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.destinationURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns destination file name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.generateLayerName">
+<tt class="descname">generateLayerName</tt><big>(</big><em>ref_name</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.generateLayerName" title="Permalink to this definition">¶</a></dt>
+<dd><p>compose a layer name with a schema prefix is one exists (has been specified)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.getConfigGeometry">
+<tt class="descname">getConfigGeometry</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.getConfigGeometry" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.getOptions">
+<tt class="descname">getOptions</tt><big>(</big><em>layer_id</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.getOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get MS options for GEO_NAME</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.selectValidGeom">
+<tt class="descname">selectValidGeom</tt><big>(</big><em>geom</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.selectValidGeom" title="Permalink to this definition">¶</a></dt>
+<dd><p>To be overridden, eliminates geometry types that cause trouble for certain driver types</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.sourceURI">
+<tt class="descname">sourceURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.MSSQLSpatialDataStore.MSSQLSpatialDataStore.sourceURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns source file name</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.PostgreSQLDataStore">
+<span id="postgresqldatastore-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">PostgreSQLDataStore</span></tt> Module<a class="headerlink" href="#module-LDSReader.PostgreSQLDataStore" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  PostgreSQLDataStore</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 9/08/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.PostgreSQLDataStore.PostgreSQLDataStore">
+<em class="property">class </em><tt class="descclassname">LDSReader.PostgreSQLDataStore.</tt><tt class="descname">PostgreSQLDataStore</tt><big>(</big><em>conn_str=None</em>, <em>user_config=None</em><big>)</big><a class="headerlink" href="#LDSReader.PostgreSQLDataStore.PostgreSQLDataStore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.DataStore" title="LDSReader.DataStore.DataStore"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.DataStore</span></tt></a></p>
+<p>PostgreSQL DataStore</p>
+<dl class="attribute">
+<dt id="LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.DRIVER_NAME">
+<tt class="descname">DRIVER_NAME</tt><em class="property"> = 'PostgreSQL'</em><a class="headerlink" href="#LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.DRIVER_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.buildIndex">
+<tt class="descname">buildIndex</tt><big>(</big><em>ref_index</em>, <em>ref_pkey</em>, <em>ref_gcol</em>, <em>dst_layer_name</em><big>)</big><a class="headerlink" href="#LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.buildIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds an index creation string for a new full replicate in PG format</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.destinationURI">
+<tt class="descname">destinationURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.destinationURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns destination file name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.getOptions">
+<tt class="descname">getOptions</tt><big>(</big><em>layer_id</em><big>)</big><a class="headerlink" href="#LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.getOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>add PG options for SCHEMA and GEO_NAME</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.sourceURI">
+<tt class="descname">sourceURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.PostgreSQLDataStore.PostgreSQLDataStore.sourceURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns source file name</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.ProjectionReference">
+<span id="projectionreference-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">ProjectionReference</span></tt> Module<a class="headerlink" href="#module-LDSReader.ProjectionReference" title="Permalink to this headline">¶</a></h2>
+<p>Created on 17/08/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.ProjectionReference.Geometry">
+<em class="property">class </em><tt class="descclassname">LDSReader.ProjectionReference.</tt><tt class="descname">Geometry</tt><a class="headerlink" href="#LDSReader.ProjectionReference.Geometry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Geometry class providing common definitions</p>
+<dl class="attribute">
+<dt id="LDSReader.ProjectionReference.Geometry.DEF">
+<tt class="descname">DEF</tt><em class="property"> = 'SHAPE'</em><a class="headerlink" href="#LDSReader.ProjectionReference.Geometry.DEF" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.ProjectionReference.Geometry.XMAX">
+<tt class="descname">XMAX</tt><em class="property"> = 180</em><a class="headerlink" href="#LDSReader.ProjectionReference.Geometry.XMAX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.ProjectionReference.Geometry.XMIN">
+<tt class="descname">XMIN</tt><em class="property"> = 90</em><a class="headerlink" href="#LDSReader.ProjectionReference.Geometry.XMIN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.ProjectionReference.Geometry.YMAX">
+<tt class="descname">YMAX</tt><em class="property"> = 0</em><a class="headerlink" href="#LDSReader.ProjectionReference.Geometry.YMAX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="LDSReader.ProjectionReference.Geometry.YMIN">
+<tt class="descname">YMIN</tt><em class="property"> = -180</em><a class="headerlink" href="#LDSReader.ProjectionReference.Geometry.YMIN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="LDSReader.ProjectionReference.Geometry.getBoundingBox">
+<em class="property">classmethod </em><tt class="descname">getBoundingBox</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ProjectionReference.Geometry.getBoundingBox" title="Permalink to this definition">¶</a></dt>
+<dd><p>A bounding box covering NZ</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="LDSReader.ProjectionReference.Geometry.getGeoTransform">
+<em class="property">classmethod </em><tt class="descname">getGeoTransform</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ProjectionReference.Geometry.getGeoTransform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default Geo Column name</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="LDSReader.ProjectionReference.Projection">
+<em class="property">class </em><tt class="descclassname">LDSReader.ProjectionReference.</tt><tt class="descname">Projection</tt><a class="headerlink" href="#LDSReader.ProjectionReference.Projection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Utility Class performing common projection/spatial functions</p>
+<dl class="attribute">
+<dt id="LDSReader.ProjectionReference.Projection.EPSG">
+<tt class="descname">EPSG</tt><em class="property"> = {(2193, 'ogc'): 'PROJCS[&quot;NZGD2000 / New Zealand Transverse Mercator 2000&quot;,GEOGCS[&quot;NZGD2000&quot;,DATUM[&quot;New_Zealand_Geodetic_Datum_2000&quot;,SPHEROID[&quot;GRS 1980&quot;,6378137,298.257222101,AUTHORITY[&quot;EPSG&quot;,&quot;7019&quot;]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[&quot;EPSG&quot;,&quot;6167&quot;]],PRIMEM[&quot;Greenwich&quot;,0,AUTHORITY[&quot;EPSG&quot;,&quot;8901&quot;]],UNIT[&quot;degree&quot;,0.01745329251994328,AUTHORITY[&quot;EPSG&quot;,&quot;9122&quot;]],AUTHORITY[&quot;EPSG&quot;,&quot;4167&quot;]],UNIT[&quot;metre&quot;,1,AUTHORITY[&quot;EPSG&quot;,&quot;9001&quot;]],PROJECTION[&quot;Transverse_Mercator&quot;],PARAMETER[&quot;latitude_of_origin&quot;,0],PARAMETER[&quot;central_meridian&quot;,173],PARAMETER[&quot;scale_factor&quot;,0.9996],PARAMETER[&quot;false_easting&quot;,1600000],PARAMETER[&quot;false_northing&quot;,10000000],AUTHORITY[&quot;EPSG&quot;,&quot;2193&quot;],AXIS[&quot;Easting&quot;,EAST],AXIS[&quot;Northing&quot;,NORTH]]', (2193, 'esri'): 'PROJCS[&quot;NZGD2000 / New Zealand Transverse Mercator 2000&quot;,GEOGCS[&quot;NZGD2000&quot;,DATUM[&quot;D_NZGD_2000&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0],UNIT[&quot;Degree&quot;,0.017453292519943295]],PROJECTION[&quot;Transverse_Mercator&quot;],PARAMETER[&quot;latitude_of_origin&quot;,0],PARAMETER[&quot;central_meridian&quot;,173],PARAMETER[&quot;scale_factor&quot;,0.9996],PARAMETER[&quot;false_easting&quot;,1600000],PARAMETER[&quot;false_northing&quot;,10000000],UNIT[&quot;Meter&quot;,1]]', (4167, 'ogc'): 'GEOGCS[&quot;NZGD2000&quot;,DATUM[&quot;New_Zealand_Geodetic_Datum_2000&quot;,SPHEROID[&quot;GRS 1980&quot;,6378137,298.257222101,AUTHORITY[&quot;EPSG&quot;,&quot;7019&quot;]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY[&quot;EPSG&quot;,&quot;6167&quot;]],PRIMEM[&quot;Greenwich&quot;,0,AUTHORITY[&quot;EPSG&quot;,&quot;8901&quot;]],UNIT[&quot;degree&quot;,0.01745329251994328,AUTHORITY[&quot;EPSG&quot;,&quot;9122&quot;]],AUTHORITY[&quot;EPSG&quot;,&quot;4167&quot;]]', (4167, 'esri'): 'GEOGCS[&quot;NZGD2000&quot;,DATUM[&quot;D_NZGD_2000&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0],UNIT[&quot;Degree&quot;,0.017453292519943295]]', (27200, 'esri'): 'PROJCS[&quot;NZGD49 / New Zealand Map Grid&quot;,GEOGCS[&quot;NZGD49&quot;,DATUM[&quot;D_New_Zealand_1949&quot;,SPHEROID[&quot;International_1924&quot;,6378388,297]],PRIMEM[&quot;Greenwich&quot;,0],UNIT[&quot;Degree&quot;,0.017453292519943295]],PROJECTION[&quot;New_Zealand_Map_Grid&quot;],PARAMETER[&quot;latitude_of_origin&quot;,-41],PARAMETER[&quot;central_meridian&quot;,173],PARAMETER[&quot;false_easting&quot;,2510000],PARAMETER[&quot;false_northing&quot;,6023150],UNIT[&quot;Meter&quot;,1]]', (27200, 'ogc'): 'PROJCS[&quot;NZGD49 / New Zealand Map Grid&quot;,GEOGCS[&quot;NZGD49&quot;,DATUM[&quot;New_Zealand_Geodetic_Datum_1949&quot;,SPHEROID[&quot;International 1924&quot;,6378388,297,AUTHORITY[&quot;EPSG&quot;,&quot;7022&quot;]],TOWGS84[59.47,-5.04,187.44,0.47,-0.1,1.024,-4.5993],AUTHORITY[&quot;EPSG&quot;,&quot;6272&quot;]],PRIMEM[&quot;Greenwich&quot;,0,AUTHORITY[&quot;EPSG&quot;,&quot;8901&quot;]],UNIT[&quot;degree&quot;,0.01745329251994328,AUTHORITY[&quot;EPSG&quot;,&quot;9122&quot;]],AUTHORITY[&quot;EPSG&quot;,&quot;4272&quot;]],UNIT[&quot;metre&quot;,1,AUTHORITY[&quot;EPSG&quot;,&quot;9001&quot;]],PROJECTION[&quot;New_Zealand_Map_Grid&quot;],PARAMETER[&quot;latitude_of_origin&quot;,-41],PARAMETER[&quot;central_meridian&quot;,173],PARAMETER[&quot;false_easting&quot;,2510000],PARAMETER[&quot;false_northing&quot;,6023150],AUTHORITY[&quot;EPSG&quot;,&quot;27200&quot;],AXIS[&quot;Easting&quot;,EAST],AXIS[&quot;Northing&quot;,NORTH]]'}</em><a class="headerlink" href="#LDSReader.ProjectionReference.Projection.EPSG" title="Permalink to this definition">¶</a></dt>
+<dd><p>EPSG Projection 2193 - NZGD2000 / New Zealand Transverse Mercator 2000</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.ProjectionReference.Projection.downloadESRISpatialReference">
+<em class="property">static </em><tt class="descname">downloadESRISpatialReference</tt><big>(</big><em>srid</em><big>)</big><a class="headerlink" href="#LDSReader.ProjectionReference.Projection.downloadESRISpatialReference" title="Permalink to this definition">¶</a></dt>
+<dd><p>down load a working esri WKT from spatialrefrence.org. Looks like this is just the same as MorphTo0ESRI</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="LDSReader.ProjectionReference.Projection.getDefaultProjection">
+<em class="property">classmethod </em><tt class="descname">getDefaultProjection</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ProjectionReference.Projection.getDefaultProjection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns WKT of the 2193 Spatial Reference</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.ProjectionReference.Projection.getDefaultSpatialRef">
+<em class="property">static </em><tt class="descname">getDefaultSpatialRef</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ProjectionReference.Projection.getDefaultSpatialRef" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fallback Spatial Ref for LDS data sets. Probably not be appropriate in all cases</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="LDSReader.ProjectionReference.Projection.getProjection">
+<em class="property">classmethod </em><tt class="descname">getProjection</tt><big>(</big><em>pid</em>, <em>fmt</em><big>)</big><a class="headerlink" href="#LDSReader.ProjectionReference.Projection.getProjection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns WKT of commonly used projections</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.ProjectionReference.Projection.modifyMorphedSpatialReference">
+<em class="property">static </em><tt class="descname">modifyMorphedSpatialReference</tt><big>(</big><em>sref</em><big>)</big><a class="headerlink" href="#LDSReader.ProjectionReference.Projection.modifyMorphedSpatialReference" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hack to fix ESRI import of NZGD2000 GeogCS type, which it doesn&#8217;t seem to understand</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.ProjectionReference.Projection.validateEPSG">
+<em class="property">static </em><tt class="descname">validateEPSG</tt><big>(</big><em>epsg</em><big>)</big><a class="headerlink" href="#LDSReader.ProjectionReference.Projection.validateEPSG" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Spatial Reference privided a valid EPSG number</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.ReadConfig">
+<span id="readconfig-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">ReadConfig</span></tt> Module<a class="headerlink" href="#module-LDSReader.ReadConfig" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  ReadConfig</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 24/07/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.ReadConfig.LayerFileReader">
+<em class="property">class </em><tt class="descclassname">LDSReader.ReadConfig.</tt><tt class="descname">LayerFileReader</tt><big>(</big><em>fname</em><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.LayerFileReader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<dl class="method">
+<dt id="LDSReader.ReadConfig.LayerFileReader.findLayerIdByName">
+<tt class="descname">findLayerIdByName</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.LayerFileReader.findLayerIdByName" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reverse lookup of section by associated name, finds first occurance only</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.LayerFileReader.getLayerNames">
+<tt class="descname">getLayerNames</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.LayerFileReader.getLayerNames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns sections from properties file</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.LayerFileReader.getSections">
+<tt class="descname">getSections</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.LayerFileReader.getSections" title="Permalink to this definition">¶</a></dt>
+<dd><p>List of sections (layernames/datasources)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.LayerFileReader.readLayerParameters">
+<tt class="descname">readLayerParameters</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.LayerFileReader.readLayerParameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Full Layer config reader. Returns the config values for the whole layer or makes sensible guesses for defaults</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.LayerFileReader.readLayerProperty">
+<tt class="descname">readLayerProperty</tt><big>(</big><em>layer</em>, <em>key</em><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.LayerFileReader.readLayerProperty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.LayerFileReader.writeLayerProperty">
+<tt class="descname">writeLayerProperty</tt><big>(</big><em>layer</em>, <em>field</em>, <em>value</em><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.LayerFileReader.writeLayerProperty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write changes to layer config table</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="LDSReader.ReadConfig.MainFileReader">
+<em class="property">class </em><tt class="descclassname">LDSReader.ReadConfig.</tt><tt class="descname">MainFileReader</tt><big>(</big><em>cfpath</em>, <em>use_defaults</em><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Config file reader/writer</p>
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.getSections">
+<tt class="descname">getSections</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.getSections" title="Permalink to this definition">¶</a></dt>
+<dd><p>List of sections (layernames/datasources)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.readFileGDBConfig">
+<tt class="descname">readFileGDBConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.readFileGDBConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>FileGDB specific config file reader</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.readLDSConfig">
+<tt class="descname">readLDSConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.readLDSConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>LDs specific config file reader</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.readMSSQLConfig">
+<tt class="descname">readMSSQLConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.readMSSQLConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>MSSQL specific config file reader</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.readMainProperty">
+<tt class="descname">readMainProperty</tt><big>(</big><em>driver</em>, <em>key</em><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.readMainProperty" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.readMiscConfig">
+<tt class="descname">readMiscConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.readMiscConfig" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.readPostgreSQLConfig">
+<tt class="descname">readPostgreSQLConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.readPostgreSQLConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>PostgreSQL specific config file reader</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.readSpatiaLiteConfig">
+<tt class="descname">readSpatiaLiteConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.readSpatiaLiteConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>SpatiaLite specific config file reader</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.ReadConfig.MainFileReader.readWFSConfig">
+<tt class="descname">readWFSConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ReadConfig.MainFileReader.readWFSConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic WFS config file reader</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.SpatiaLiteDataStore">
+<span id="spatialitedatastore-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">SpatiaLiteDataStore</span></tt> Module<a class="headerlink" href="#module-LDSReader.SpatiaLiteDataStore" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  SpatiaLiteDataStore</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 9/08/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore">
+<em class="property">class </em><tt class="descclassname">LDSReader.SpatiaLiteDataStore.</tt><tt class="descname">SpatiaLiteDataStore</tt><big>(</big><em>conn_str=None</em>, <em>user_config=None</em><big>)</big><a class="headerlink" href="#LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.DataStore" title="LDSReader.DataStore.DataStore"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.DataStore</span></tt></a></p>
+<p>SpatiaLite  DataStore</p>
+<dl class="attribute">
+<dt id="LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.DRIVER_NAME">
+<tt class="descname">DRIVER_NAME</tt><em class="property"> = 'SQLite'</em><a class="headerlink" href="#LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.DRIVER_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.buildIndex">
+<tt class="descname">buildIndex</tt><big>(</big><em>ref_index</em>, <em>ref_pkey</em>, <em>ref_gcol</em>, <em>dst_layer_name</em><big>)</big><a class="headerlink" href="#LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.buildIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default index string builder for new fully replicated layers</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.changeColumnIntToString">
+<tt class="descname">changeColumnIntToString</tt><big>(</big><em>table</em>, <em>column</em><big>)</big><a class="headerlink" href="#LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.changeColumnIntToString" title="Permalink to this definition">¶</a></dt>
+<dd><p>SQLite column type changer. Used to change 64 bit integer columns to string. Brutal converter that deletes and recreates layer table</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.convertToDestinationType">
+<tt class="descname">convertToDestinationType</tt><big>(</big><em>key</em><big>)</big><a class="headerlink" href="#LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.convertToDestinationType" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.destinationURI">
+<tt class="descname">destinationURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.destinationURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns destination file name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.getOptions">
+<tt class="descname">getOptions</tt><big>(</big><em>layer_id</em><big>)</big><a class="headerlink" href="#LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.getOptions" title="Permalink to this definition">¶</a></dt>
+<dd><p>add PG options for SCHEMA and GEO_NAME</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.sourceURI">
+<tt class="descname">sourceURI</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.SpatiaLiteDataStore.SpatiaLiteDataStore.sourceURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns source file name</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.TransferProcessor">
+<span id="transferprocessor-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">TransferProcessor</span></tt> Module<a class="headerlink" href="#module-LDSReader.TransferProcessor" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  LDS Incremental Utilities</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 26/07/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="exception">
+<dt id="LDSReader.TransferProcessor.InputMisconfigurationException">
+<em class="property">exception </em><tt class="descclassname">LDSReader.TransferProcessor.</tt><tt class="descname">InputMisconfigurationException</tt><a class="headerlink" href="#LDSReader.TransferProcessor.InputMisconfigurationException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></tt></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="LDSReader.TransferProcessor.TransferProcessor">
+<em class="property">class </em><tt class="descclassname">LDSReader.TransferProcessor.</tt><tt class="descname">TransferProcessor</tt><big>(</big><em>ly=None</em>, <em>gp=None</em>, <em>ep=None</em>, <em>fd=None</em>, <em>td=None</em>, <em>sc=None</em>, <em>dc=None</em>, <em>cql=None</em>, <em>uc=None</em>, <em>fbf=None</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Primary class controlling data transfer objects and the parameters for these</p>
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.autoIncrement">
+<tt class="descname">autoIncrement</tt><big>(</big><em>layer</em>, <em>fdate</em>, <em>tdate</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.autoIncrement" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.autoIncrementLayer">
+<tt class="descname">autoIncrementLayer</tt><big>(</big><em>layer_i</em>, <em>fdate</em>, <em>tdate</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.autoIncrementLayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>For a specified layer read provided date ranges and call incremental</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.clearCleanConfig">
+<tt class="descname">clearCleanConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.clearCleanConfig" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.clearFBF">
+<tt class="descname">clearFBF</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.clearFBF" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.clearIncremental">
+<tt class="descname">clearIncremental</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.clearIncremental" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.clearInitConfig">
+<tt class="descname">clearInitConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.clearInitConfig" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.definedIncrement">
+<tt class="descname">definedIncrement</tt><big>(</big><em>layer</em>, <em>fdate</em>, <em>tdate</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.definedIncrement" title="Permalink to this definition">¶</a></dt>
+<dd><p>Final check on layer validity with provided dates</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.definedIncrementLayer">
+<tt class="descname">definedIncrementLayer</tt><big>(</big><em>layer_i</em>, <em>fdate</em>, <em>tdate</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.definedIncrementLayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Making sure the date ranges are sequential, read/write and set last modified</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.fullReplicate">
+<tt class="descname">fullReplicate</tt><big>(</big><em>layer</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.fullReplicate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Replicate across the whole date range</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.fullReplicateLayer">
+<tt class="descname">fullReplicateLayer</tt><big>(</big><em>layer_i</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.fullReplicateLayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Replicate the requested layer non-incrementally</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.getCleanConfig">
+<tt class="descname">getCleanConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.getCleanConfig" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.getFBF">
+<tt class="descname">getFBF</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.getFBF" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.getIncremental">
+<tt class="descname">getIncremental</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.getIncremental" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.getInitConfig">
+<tt class="descname">getInitConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.getInitConfig" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.getSixtyFour">
+<tt class="descname">getSixtyFour</tt><big>(</big><em>testlayer</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.getSixtyFour" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.processLDS">
+<tt class="descname">processLDS</tt><big>(</big><em>dst</em><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.processLDS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Process with LDS as a source and the destination supplied as an argument.</p>
+<p>The logic here is:</p>
+<p>if layer is not specified, do them all {$layer = All}
+else if a group is specified do the layers in that group
+else if layer specified do that layer {$layer = L[i]} (provided its in the group)</p>
+<p>ie layer&gt;group&gt;all</p>
+<p>if dates specified as &#8216;ALL&#8217; do full replication on $layer
+else if (both) dates are specified do incr on this range for $layer
+else do auto-increment on $layer (where auto picks last-mod and current dates as range)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.processLDS2FileGDB">
+<tt class="descname">processLDS2FileGDB</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.processLDS2FileGDB" title="Permalink to this definition">¶</a></dt>
+<dd><p>process LDS to FileGDB convenience method</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.processLDS2MSSQL">
+<tt class="descname">processLDS2MSSQL</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.processLDS2MSSQL" title="Permalink to this definition">¶</a></dt>
+<dd><p>process LDS to PG convenience method</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.processLDS2PG">
+<tt class="descname">processLDS2PG</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.processLDS2PG" title="Permalink to this definition">¶</a></dt>
+<dd><p>process LDS to PG convenience method</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.processLDS2SpatiaLite">
+<tt class="descname">processLDS2SpatiaLite</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.processLDS2SpatiaLite" title="Permalink to this definition">¶</a></dt>
+<dd><p>process LDS to SpatiaLite convenience method</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.setCleanConfig">
+<tt class="descname">setCleanConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.setCleanConfig" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.setFBF">
+<tt class="descname">setFBF</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.setFBF" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.setIncremental">
+<tt class="descname">setIncremental</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.setIncremental" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.TransferProcessor.TransferProcessor.setInitConfig">
+<tt class="descname">setInitConfig</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.TransferProcessor.TransferProcessor.setInitConfig" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.VersionChecker">
+<span id="versionchecker-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">VersionChecker</span></tt> Module<a class="headerlink" href="#module-LDSReader.VersionChecker" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  VersionChecker</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 24/10/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.VersionChecker.VersionChecker">
+<em class="property">class </em><tt class="descclassname">LDSReader.VersionChecker.</tt><tt class="descname">VersionChecker</tt><big>(</big><em>params</em><big>)</big><a class="headerlink" href="#LDSReader.VersionChecker.VersionChecker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>classdocs</p>
+<dl class="staticmethod">
+<dt id="LDSReader.VersionChecker.VersionChecker.compareVersions">
+<em class="property">static </em><tt class="descname">compareVersions</tt><big>(</big><em>v1</em>, <em>v2</em><big>)</big><a class="headerlink" href="#LDSReader.VersionChecker.VersionChecker.compareVersions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.VersionChecker.VersionChecker.getGDALVersion">
+<em class="property">static </em><tt class="descname">getGDALVersion</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.VersionChecker.VersionChecker.getGDALVersion" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.VersionChecker.VersionChecker.getPostGISVersion">
+<em class="property">static </em><tt class="descname">getPostGISVersion</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.VersionChecker.VersionChecker.getPostGISVersion" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="LDSReader.VersionChecker.VersionChecker.getPostgreSQLVersion">
+<em class="property">static </em><tt class="descname">getPostgreSQLVersion</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.VersionChecker.VersionChecker.getPostgreSQLVersion" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="LDSReader.VersionChecker.main">
+<tt class="descclassname">LDSReader.VersionChecker.</tt><tt class="descname">main</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.VersionChecker.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.WFSDataStore">
+<span id="wfsdatastore-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">WFSDataStore</span></tt> Module<a class="headerlink" href="#module-LDSReader.WFSDataStore" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.1</p>
+<p>LDSIncremental -  WFSDataStore</p>
+<p>Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved</p>
+<p>This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.</p>
+<p>Created on 23/07/2012</p>
+<p>&#64;author: jramsay</p>
+<dl class="class">
+<dt id="LDSReader.WFSDataStore.WFSDataStore">
+<em class="property">class </em><tt class="descclassname">LDSReader.WFSDataStore.</tt><tt class="descname">WFSDataStore</tt><big>(</big><em>conn_str=None</em>, <em>user_config=None</em><big>)</big><a class="headerlink" href="#LDSReader.WFSDataStore.WFSDataStore" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#LDSReader.DataStore.DataStore" title="LDSReader.DataStore.DataStore"><tt class="xref py py-class docutils literal"><span class="pre">LDSReader.DataStore.DataStore</span></tt></a></p>
+<p>PostgreSQL DataStore</p>
+<dl class="attribute">
+<dt id="LDSReader.WFSDataStore.WFSDataStore.DRIVER_NAME">
+<tt class="descname">DRIVER_NAME</tt><em class="property"> = 'WFS'</em><a class="headerlink" href="#LDSReader.WFSDataStore.WFSDataStore.DRIVER_NAME" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.WFSDataStore.WFSDataStore.destinationURI">
+<tt class="descname">destinationURI</tt><big>(</big><em>layername</em><big>)</big><a class="headerlink" href="#LDSReader.WFSDataStore.WFSDataStore.destinationURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns destination file name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.WFSDataStore.WFSDataStore.sourceURI">
+<tt class="descname">sourceURI</tt><big>(</big><em>layername</em><big>)</big><a class="headerlink" href="#LDSReader.WFSDataStore.WFSDataStore.sourceURI" title="Permalink to this definition">¶</a></dt>
+<dd><p>URI method returns source file name</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="LDSReader.WFSDataStore.WFSDataStore.write">
+<tt class="descname">write</tt><big>(</big><em>src_ds</em>, <em>dsn</em><big>)</big><a class="headerlink" href="#LDSReader.WFSDataStore.WFSDataStore.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write method deliberately raises exception discouraging writing to a WFS source</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-LDSReader.ldsreplicate">
+<span id="ldsreplicate-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">ldsreplicate</span></tt> Module<a class="headerlink" href="#module-LDSReader.ldsreplicate" title="Permalink to this headline">¶</a></h2>
+<p>v.0.0.3</p>
+<p>LDSIncremental -  LDS Incremental Utilities</p>
+<div class="line-block">
+<div class="line">Copyright 2011 Crown copyright (c)</div>
+<div class="line">Land Information New Zealand and the New Zealand Government.</div>
+<div class="line">All rights reserved</div>
+</div>
+<p>This program is released under the terms of the new BSD license. See the LICENSE file for more information.</p>
+<p>Created on 23/07/2012</p>
+<p>&#64;author: jramsay</p>
+<p>Python script to translate fetch an LDS update between two dates. Intended to be used in a batch process rather than interactively.</p>
+<p>Usage:</p>
+<dl class="docutils">
+<dt>python LDSReader/ldsreplicate.py -l &lt;layer_id&gt;</dt>
+<dd><p class="first">[-f &lt;from date&gt;|-t &lt;to date&gt;|-c &lt;cql filter&gt;|-s &lt;src conn str&gt;|-d &lt;dst conn str&gt;|-v|-h] 
+&lt;output&gt; [full]</p>
+<p class="last">-f (&#8211;fromdate) Date in yyyy-mm-dd format start of incremental range (omission assumes auto incremental bounds)
+-t (&#8211;todate) Date in yyyy-mm-dd format for end of incremental range (omission assumes auto incremental bounds)
+-l (&#8211;layer) Layer name/id in format v:x### (IMPORTANT. Omission assumes all layers)
+-g (&#8211;group) Layer sub group list for layer selection, comma separated
+-e (&#8211;epsg) Destination EPSG. Layers will be converted to this SRS
+-s (&#8211;source) Connection string for source DS
+-d (&#8211;destination) Connection string for destination DS
+-c (&#8211;cql) Filter definition in CQL format
+-h (&#8211;help) Display this message
+-v (&#8211;version) Display the version number&#8221;</p>
+</dd>
+</dl>
+<dl class="function">
+<dt id="LDSReader.ldsreplicate.main">
+<tt class="descclassname">LDSReader.ldsreplicate.</tt><tt class="descname">main</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ldsreplicate.main" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main entrypoint if the LDS incremental replication script</p>
+<dl class="docutils">
+<dt>usage: python LDSReader/ldsreplicate.py -l &lt;layer_id&gt;</dt>
+<dd>[-f &lt;from date&gt;|-t &lt;to date&gt;|-c &lt;cql filter&gt;|-s &lt;src conn str&gt;|-d &lt;dst conn str&gt;|-v|-h] 
+&lt;output&gt; [full]</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="LDSReader.ldsreplicate.usage">
+<tt class="descclassname">LDSReader.ldsreplicate.</tt><tt class="descname">usage</tt><big>(</big><big>)</big><a class="headerlink" href="#LDSReader.ldsreplicate.usage" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="LDSReader.test.html">test Package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="LDSReader.test.html#module-LDSReader.test.MSSQLSpatialwkbNoneTest"><tt class="docutils literal"><span class="pre">MSSQLSpatialwkbNoneTest</span></tt> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LDSReader.test.html#suiterunalltests-module"><tt class="docutils literal"><span class="pre">SuiteRunAllTests</span></tt> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LDSReader.test.html#testconfiglayer-module"><tt class="docutils literal"><span class="pre">TestConfigLayer</span></tt> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LDSReader.test.html#testconnectivity-module"><tt class="docutils literal"><span class="pre">TestConnectivity</span></tt> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LDSReader.test.html#testinitconfig-module"><tt class="docutils literal"><span class="pre">TestInitConfig</span></tt> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LDSReader.test.html#testlayertypes-module"><tt class="docutils literal"><span class="pre">TestLayerTypes</span></tt> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LDSReader.test.html#testtransfertypes-module"><tt class="docutils literal"><span class="pre">TestTransferTypes</span></tt> Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="LDSReader.test.html#module-LDSReader.test.TestUI"><tt class="docutils literal"><span class="pre">TestUI</span></tt> Module</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">LDSReader Package</a><ul>
+<li><a class="reference internal" href="#id1"><tt class="docutils literal"><span class="pre">LDSReader</span></tt> Package</a></li>
+<li><a class="reference internal" href="#module-LDSReader.ConfigWrapper"><tt class="docutils literal"><span class="pre">ConfigWrapper</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.DataStore"><tt class="docutils literal"><span class="pre">DataStore</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.ESRIDataStore"><tt class="docutils literal"><span class="pre">ESRIDataStore</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.FileGDBDataStore"><tt class="docutils literal"><span class="pre">FileGDBDataStore</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.LDSDataStore"><tt class="docutils literal"><span class="pre">LDSDataStore</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.LDSUtilities"><tt class="docutils literal"><span class="pre">LDSUtilities</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.MSSQLSpatialDataStore"><tt class="docutils literal"><span class="pre">MSSQLSpatialDataStore</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.PostgreSQLDataStore"><tt class="docutils literal"><span class="pre">PostgreSQLDataStore</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.ProjectionReference"><tt class="docutils literal"><span class="pre">ProjectionReference</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.ReadConfig"><tt class="docutils literal"><span class="pre">ReadConfig</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.SpatiaLiteDataStore"><tt class="docutils literal"><span class="pre">SpatiaLiteDataStore</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.TransferProcessor"><tt class="docutils literal"><span class="pre">TransferProcessor</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.VersionChecker"><tt class="docutils literal"><span class="pre">VersionChecker</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.WFSDataStore"><tt class="docutils literal"><span class="pre">WFSDataStore</span></tt> Module</a></li>
+<li><a class="reference internal" href="#module-LDSReader.ldsreplicate"><tt class="docutils literal"><span class="pre">ldsreplicate</span></tt> Module</a></li>
+<li><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="modules.html"
+                        title="previous chapter">LDSReader</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="LDSReader.test.html"
+                        title="next chapter">test Package</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/LDSReader.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="LDSReader.test.html" title="test Package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="LDSReader"
+             >previous</a> |</li>
+        <li><a href="index.html">LDSIncr 0.0.4 documentation</a> &raquo;</li>
+          <li><a href="modules.html" >LDSReader</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, jramsay.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

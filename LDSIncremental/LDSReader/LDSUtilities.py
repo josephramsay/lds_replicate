@@ -127,7 +127,7 @@ class LDSUtilities(object):
             
         ldslog.debug("CQL check:"+cql+":"+str(v))
         if v>0:
-            return "&cql_filter="+cql
+            return cql
         else:
             return ""
         
