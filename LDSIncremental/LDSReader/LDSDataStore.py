@@ -32,6 +32,8 @@ class LDSDataStore(WFSDataStore):
     LDS DataStore provides standard options and URI methods along with convenience methods for common functions/documents expressed as 
     URI builders. For incremental specifically the change-column is defined here
     '''
+    
+    LDS_PAGE_SIZE = 10000
 
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -46,12 +48,22 @@ class LDSDataStore(WFSDataStore):
         
         (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
 
+
+    def getOptions(self,layer_id):
+        '''Adds LDS options, pagination'''
+        local_opts = ['OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+LDSDataStore.LDS_PAGE_SIZE]
+        
+        return super(LDSDataStore,self).getOptions(layer_id) + local_opts
+    
     #TEST. data partitions
     def setPrimaryKey(self,pkey):
         self.pkey = pkey
         
     def setPartitionSize(self,psize):
         self.psize = psize
+        
+    def getPartitionSize(self):
+        return self.psize
         
     def setPartitionStart(self,pstart):
         self.pstart = pstart
@@ -73,6 +85,7 @@ class LDSDataStore(WFSDataStore):
             return self.conn_str
 
         cql = self._buildCQLStr()
+        #pql = self._buildPageStr()     
             
         typ = "&typeName="+layername
         fmt = "&outputFormat="+self.fmt
@@ -86,7 +99,8 @@ class LDSDataStore(WFSDataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str       
 
-        cql = self._buildCQLStr()     
+        cql = self._buildCQLStr()
+        #pql = self._buildPageStr()     
         
         vep = LDSUtilities.splitLayerName(layername)+"-changeset"
         typ = "&typeName="+layername+"-changeset"
@@ -98,15 +112,24 @@ class LDSDataStore(WFSDataStore):
     
     
     
+    def _buildPageStr(self):
+        '''Manual paging using startIndex instead of cql'''
+        page = ""
+        if self.psize is not None:
+            page = "&startIndex="+str(self.pstart)+"&pagingallowed=On&sortBy="+self.pkey+"&maxFeatures="+str(self.psize)
+            
+        return page
+    
     def _buildCQLStr(self):
         '''Builds a cql_filter string as set by the user adding a partitioning string if needed'''
         cql = ()
         maxfeat = ""
         
+        #if implementing pagination in cql      
         if self.psize is not None:
             cql += (self.pkey+">"+str(self.pstart),)
             #sortBy used so last feature will have the new maximum key, saves a comparison
-            maxfeat = "&sortBy="+self.pkey+"&maxFeatures="+str(self.psize)
+            maxfeat = "&sortBy="+self.pkey+"&maxFeatures="+str(self.psize)            
 
         if self.getFilter() is not None:
             cql += (LDSUtilities.checkCQL(self.getFilter()),)

@@ -219,9 +219,22 @@ class DataStore(object):
             max_key = self.copyDS(src.ds,self.ds,None)
         else:
             # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
-            max_key = self.cloneDS(src.ds,self.ds)
+            self.cloneDS(src.ds,self.ds)
             
         return max_key
+    
+    def postprocess(self,layer,ref_index,ref_pkey,ref_gcol,ref_disc,dst_layer_name):
+        '''Post create indices/delete unwanted columns etc'''
+        if ref_index is not None:
+            self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
+        
+        #src_layer.ResetReading()
+
+        #add discards to the unwanted columns list... wont work with some drivers and others under certain conditions only
+        self.optcols |= set(ref_disc.strip('[]{}()').split(',') if len(ref_disc)>0 else [])
+        #self.optcols |= set(['latitude','longitude'])#for testing
+
+        self.deleteOptionalColumns(layer)
         
 
     def closeDS(self):
@@ -246,7 +259,8 @@ class DataStore(object):
             dst_layer_name = self.generateLayerName(ref_name)
             try:
                 #TODO test on MSSQL since schemas sometimes needed ie non dbo
-                dst_ds.DeleteLayer(dst_layer_name)          
+                #dst_ds.DeleteLayer(dst_layer_name) 
+                pass         
             except ValueError as ve:
                 ldslog.warn("Cannot delete layer "+dst_layer_name+". It probably doesn't exist. "+str(ve))
                 
@@ -266,18 +280,22 @@ class DataStore(object):
                 ldslog.error('Layer not created, attempting feature-by-feature copy')
                 return self.copyDS(src_ds,dst_ds,None)
 
-            if ref_index is not None:
-                self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
+            #if last page
+            #if layer.GetFeatureCount()<int(self.src_link.getPartitionSize()):
+            self.postprocess(layer,ref_index,ref_pkey,ref_gcol,ref_disc,dst_layer_name)
             
-            src_layer.ResetReading()
-
-            #add discards to the unwanted columns list... wont work with some drivers and others under certain conditions only
-            self.optcols |= set(ref_disc.strip('[]{}()').split(',') if len(ref_disc)>0 else [])
-            #self.optcols |= set(['latitude','longitude'])#for testing
-
-            self.deleteOptionalColumns(layer)
+#            if ref_index is not None:
+#                self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
+#            
+#            src_layer.ResetReading()
+#
+#            #add discards to the unwanted columns list... wont work with some drivers and others under certain conditions only
+#            self.optcols |= set(ref_disc.strip('[]{}()').split(',') if len(ref_disc)>0 else [])
+#            #self.optcols |= set(['latitude','longitude'])#for testing
+#
+#            self.deleteOptionalColumns(layer)
             
-        return 1
+        return
         
         
 

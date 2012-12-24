@@ -33,7 +33,9 @@ class WFSDataStore(DataStore):
         
         #(self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
         
-            
+    def getOptions(self,layer_id):
+        '''Pass up getOptions call'''
+        return super(WFSDataStore,self).getOptions(layer_id)
         
     def sourceURI(self,layername):
         '''URI method returns source file name'''

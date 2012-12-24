@@ -344,25 +344,25 @@ class TransferProcessor(object):
     def fullReplicateLayer(self,layer_i):
         '''Replicate the requested layer non-incrementally'''
         #bypass if layer is identified as one we need to partition
-        if layer_i in self.partitionlayers:
-            self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
-            self.src.setPartitionStart(0)
-            self.src.setPartitionSize(self.partitionsize)
+        #if layer_i in self.partitionlayers:
+        #    self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
+        #    self.src.setPartitionStart(0)
+        #    self.src.setPartitionSize(self.partitionsize)
             #self.setFBF()
         
         #Set filters in URI call using layer            
         self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(layer_i,'cql')))
 
-        while (True):
-            self.src.setURI(self.src.sourceURI(layer_i))
-            self.dst.setURI(self.dst.destinationURI(layer_i))
+        #while (True):
+        self.src.setURI(self.src.sourceURI(layer_i))
+        self.dst.setURI(self.dst.destinationURI(layer_i))
                 
-            self.src.read(self.src.getURI())
-            maxkey = self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
-            if maxkey is not None:
-                self.src.setPartitionStart(maxkey)
-            else:
-                break
+        self.src.read(self.src.getURI())
+        self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
+#            if maxkey is not None:
+#                self.src.setPartitionStart(maxkey)
+#            else:
+#                break
             
             
         '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
@@ -409,8 +409,8 @@ class TransferProcessor(object):
             self.definedIncrementLayer(layer,fdate,tdate)
         else:
             ldslog.warn('Invalid layer selected, '+str(layer))
-        
     
+        
     def definedIncrementLayer(self,layer_i,fdate,tdate):
         '''Making sure the date ranges are sequential, read/write and set last modified'''
         #Once an individual layer has been defined...
