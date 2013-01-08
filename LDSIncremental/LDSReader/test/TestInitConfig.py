@@ -4,14 +4,13 @@ Created on 17/08/2012
 @author: jramsay
 '''
 import unittest
-import LDSIncrTestCase
 
 from LDSReader.LDSUtilities import ConfigInitialiser
 from LDSReader.LDSDataStore import LDSDataStore
 from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
 
 
-class TestInitConfig(LDSIncrTestCase):
+class TestInitConfig(unittest.TestCase):
     '''basic test of connectivity to configured destinations '''
 
     def setUp(self):

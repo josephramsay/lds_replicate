@@ -344,11 +344,11 @@ class TransferProcessor(object):
     def fullReplicateLayer(self,layer_i):
         '''Replicate the requested layer non-incrementally'''
         #bypass if layer is identified as one we need to partition
-        #if layer_i in self.partitionlayers:
-        #    self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
-        #    self.src.setPartitionStart(0)
-        #    self.src.setPartitionSize(self.partitionsize)
-            #self.setFBF()
+#        if layer_i in self.partitionlayers:
+#            self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
+#            self.src.setPartitionStart(0)
+#            self.src.setPartitionSize(self.partitionsize)
+#            #self.setFBF()
         
         #Set filters in URI call using layer            
         self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(layer_i,'cql')))
@@ -432,7 +432,7 @@ class TransferProcessor(object):
                 self.src.setPartitionSize(self.partitionsize)
                 self.setFBF()
                 
-            while (True):
+            while 1:
                 #set up URI
                 self.src.setURI(self.src.sourceURI_incrd(layer_i,fdate,tdate))
                 self.dst.setURI(self.dst.destinationURI(layer_i))

@@ -30,12 +30,11 @@ class PostgreSQLDataStore(DataStore):
     
     def __init__(self,conn_str=None,user_config=None):
         '''
-        cons init driver
+        PostgreSQL DataStore constructor
         '''
         
         super(PostgreSQLDataStore,self).__init__(conn_str,user_config)
-        
-        
+              
         #doesnt work with createlayer... but not needed if we want to overwrite FID with PK
         #self.PGSQL_OGR_FID = "ID"    
         #gdal.SetConfigOption("PGSQL_OGR_FID",self.PGSQL_OGR_FID)
@@ -51,11 +50,11 @@ class PostgreSQLDataStore(DataStore):
 
         
     def sourceURI(self,layer):
-        '''URI method returns source file name'''
+        '''URI method returns source DB instance'''
         return self._commonURI(layer)
     
     def destinationURI(self,layer):
-        '''URI method returns destination file name'''
+        '''URI method returns destination DB instance'''
         return self._commonURI(layer)
         
     def _commonURI(self,layer):
@@ -72,7 +71,7 @@ class PostgreSQLDataStore(DataStore):
 
 
     def getOptions(self,layer_id):
-        '''add PG options for SCHEMA and GEO_NAME'''
+        '''Add PG options for SCHEMA and GEO_NAME'''
         #Should default to geometry but doesn't, creates bytea instead
         local_opts = ['GEOM_TYPE=GEOMETRY']
         gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')

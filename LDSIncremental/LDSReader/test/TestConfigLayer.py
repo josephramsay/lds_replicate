@@ -7,7 +7,6 @@ import unittest
 import os
 import logging
 
-import LDSIncrTestCase
 
 from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
 from LDSReader.MSSQLSpatialDataStore import MSSQLSpatialDataStore
@@ -26,7 +25,7 @@ fh.setFormatter(formatter)
 ldslog.addHandler(fh)
 
 
-class TestConfigLayerBuild(LDSIncrTestCase):
+class TestConfigLayerBuild(unittest.TestCase):
     '''basic test of command line arguments and whether they work as expected'''
 
     @classmethod

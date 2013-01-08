@@ -60,7 +60,8 @@ __version__ = '0.0.4'
 
 
 def usage():
-    print "for help use --help"
+    print "Usage: python LDSReader/ldsreplicate.py -l <layer_id> [-f <from date>|-t <to date>|-c <cql filter>|-s <src conn str>|-d <dst conn str>|-v|-h] <output> [full]"
+    print "For help use --help"
 
 def main():
     '''Main entrypoint if the LDS incremental replication script
@@ -97,18 +98,19 @@ def main():
     pg_ver = VersionChecker.getPostgreSQLVersion()
        
     if VersionChecker.compareVersions(GDAL_MIN,gdal_ver.get('GDAL') if gdal_ver.get('GDAL') is not None else GDAL_MIN): 
-        message += 'GDAL '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'\n'
+        message += 'GDAL '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'(reqd) \n'
     if VersionChecker.compareVersions(GDAL_MIN,pgis_ver.get('GDAL') if pgis_ver.get('GDAL') is not None else GDAL_MIN): 
-        message += 'GDAL(pgis) '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'\n'
+        message += 'GDAL(pgis) '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'(reqd) \n'
     if VersionChecker.compareVersions(PostgreSQL_MIN,pg_ver.get('PostgreSQL') if pgis_ver.get('PostgreSQL') is not None else PostgreSQL_MIN): 
-        message += 'PostgreSQL '+pg_ver.get('PostgreSQL')+'<'+PostgreSQL_MIN+'\n'
+        message += 'PostgreSQL '+pg_ver.get('PostgreSQL')+'<'+PostgreSQL_MIN+' (reqd)\n'
     
     if message != '':
         print 'Version checks failed:\n',message
         ldslog.warn('Version checks failed:\n'+message)
-        #sys.exit(1)
-    
-    
+
+        if raw_input("Y to quit N to continue [y|N] : ").lower() == 'y':
+            sys.exit(1)
+
     
     # parse command line options
     try:
@@ -166,7 +168,7 @@ def main():
             "-c (--cql) Filter definition in CQL format," \
             "-u (--user) User defined config file used as partial override for ldsincr.conf," \
             "-b (--block) Force driver level copy (faster method used for layer duplication ignoring data modifications)" \
-            "-i (--item) Force feature level copy (used for incremental updates" \
+            "-i (--item) Force feature level copy (used for incremental updates)" \
             "-h (--help) Display this message"
             sys.exit(2)
 
@@ -214,7 +216,6 @@ def main():
         #now run the selected func
         proc()
         print '*** Complete ***'
-
 
 
 if __name__ == "__main__":

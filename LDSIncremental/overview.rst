@@ -3,7 +3,7 @@ LDSINCR
 
 This script replicates data in the LINZ Data Service to a local data store. Currently supported datastores include
 PostgreSQL (PostGIS), MSSQL Spatial, FileGDB and SpatiaLite. Support for other outputs is ongoing. 
-Running this script requires a destination (somewhere to write output) and valid LDS connection parameters.   
+Running this script requires a destination (somewhere to write output) a valid LDS key and the appropriate connection parameters.   
 
 
 USAGE
@@ -13,16 +13,21 @@ The basic usage of the script is:
 
 ``python ldsreplicate.py <options> output``        
 
-Where valid output specifiers include; pg (postgres), ms (mssql), slite (spatialite) and fgdb (filegdb)
+Where valid output specifiers include; pg (postgres), ms (mssql), sl (spatialite) and fg (filegdb)
 
 | Where options are:
-| ``-f (--fromdate)`` Date in yyyy-mm-dd format start of incremental range (Omission assumes auto incremental bounds)
-| ``-t (--todate)`` Date in yyyy-mm-dd format for end of incremental range (Omission assumes auto incremental bounds)
-| ``-l (--layer)`` Layer name/id in format v:x### (IMPORTANT. Omission assumes ALL layers)
+| ``-f (--fromdate)`` Date in yyyy-mm-dd format start of incremental range (omission assumes auto incremental bounds)
+| ``-t (--todate)`` Date in yyyy-mm-dd format for end of incremental range (omission assumes auto incremental bounds)
+| ``-l (--layer)`` Layer name/id in format v:x### (IMPORTANT. Omission assumes all layers)
+| ``-g (--group)`` Layer sub group list for layer selection, comma separated
+| ``-e (--epsg)`` Destination EPSG. Layers will be converted to this SRS
 | ``-s (--source)`` Connection string for source DS
 | ``-d (--destination)`` Connection string for destination DS
 | ``-c (--cql)`` Filter definition in CQL format
-| ``-h (--help)`` Display this message
+| ``-u (--user)`` User defined config file used as partial override for ldsincr.conf,
+| ``-h (--help)`` Display the help message
+| ``-v (--version)`` Display the version number"
+
 
 The fromdate and todate options when used together trigger a LDS request for the changeset between the two requested dates. Normally such a request would follow a full replication request and update an existing dataset.
 
@@ -89,8 +94,13 @@ NOTES
       
 13. The SpatiaLite driver will not return ASpatial layers. This is problematic when attempting to update Aspatial layers since we cannot read previously stored layers. An easy workaround is to completely reload aspatial layers as needed.
 14. FileGDB fails to create layers with non ESRI formatted Spatial References. When importing to FileGDB we employ the OGR MorphtoESRI function but success is not assured. SR title overwriting works but may result in spatial inconsistencies. Users should be aware of these potential issues
-15. GDAL does not support 64 bit integers. The current workaround forces the use of the feature-by-feature copy mechanism where we can transform the integer fiekds to string. Presently these fields are identified when they contain the string key 'sufi' in their name and for named tables only. Tables are listed in the main config file under [Misc]/64bitlayers
-16. Large layers are not completely delivered over WFS. The main layer where we see this is NZ Primary Parcels, v:x772. To get around oversize errors we split up the WFS requests using a CQL filter to request limited ranges of id's, partitions. Layers to be  treated like this are listed in the main config file under [Misc]/partitionlayers. [Misc]/partitionsize determines the maximum range of values per request]  
+15. GDAL does not support 64 bit integers. The current workaround forces the use of the feature-by-feature copy mechanism where we can transform the integer fields to string. Presently these fields are identified when they contain the string key 'sufi' in their name and for named tables only. Tables are listed in the main config file under [Misc]/64bitlayers
+16. Large layers are not completely delivered over WFS using incremental (With paging enabled driver copy methods work with a page size around 10k). The main layer where we see this is NZ Primary Parcels, v:x772. To get around oversize errors we split up the WFS requests using a CQL filter to request limited ranges of id's, partitions. Layers to be  treated like this are listed in the main config file under [Misc]/partitionlayers. [Misc]/partitionsize determines the maximum range of values per request]  
 
 
-- Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July  
+- Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July
+
+GOTCHAS
+-------
+
+Writing to an incomplete table: When initialising a layer copy a full snapshot of the LDS layer including meta columns and discarded columns is made. This is because when we do a full copy we are able to use the OGR CopyLayer function. This is generally faster and more reliable. Once these duplicates have been created the superfluous columns and requested discards are deleted. When incremental updates are made, because we expect to be inserting features into an already defined table, unwanted columns are removed from the features being added, before they are. This works well if the intialisation has happened correctly but if the extra columns have not been deleted, maybe due to a import error, problems can occur during subsequent updates. Look out for column number mismatches and reinitialise if necessary. 

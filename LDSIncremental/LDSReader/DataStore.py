@@ -35,7 +35,10 @@ from ConfigWrapper import ConfigWrapper
 
 ldslog = logging.getLogger('LDS')
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
-#ogr.UseExceptions()
+ogr.UseExceptions()
+
+#DISABLE: MSSQL - causes RuntimeError catch on "ds = self.driver.CreateDataSource(dsn)" preventing initialisation
+#ENABLE: SQLITE - 
 
 #exceptions
 class DSReaderException(Exception): pass
@@ -329,7 +332,7 @@ class DataStore(object):
         #TDOD. decide whether C_C is better as an arg or a src.prop
         '''DataStore feature-by-feature replication for incremental queries'''
         #build new layer by duplicating source layers  
-        remaining = None
+        max_index = None
         ldslog.info("Using copyDS. Per-feature copy")
         for li in range(0,src_ds.GetLayerCount()):
             new_layer = False
@@ -352,7 +355,7 @@ class DataStore(object):
             try:
                 dst_layer = dst_ds.GetLayer(dst_layer_name)
             except RuntimeError as re:
-                '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist'''
+                '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created'''
                 ldslog.warning("Runtime Error fetching layer. "+str(re))
                 dst_layer = None
                 
@@ -372,38 +375,45 @@ class DataStore(object):
             if src_feat is not None:
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
                 
-            while src_feat is not None:
-                #if we find a feature then this partition contains some data
-                remaining = src_feat.GetField(self.src_link.pkey)
-                '''identify the change in the WFS doc (INS,UPD,DEL)'''
-                change =  (src_feat.GetField(changecol) if changecol is not None and len(changecol)>0 else "insert").lower()
-                '''not just copy but possubly delete or update a feature on the DST layer'''
-                #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
-                
-                try:
-                    if change == 'insert': 
-                        e = self.insertFeature(dst_layer,src_feat,new_feat_def)
-                    elif change == 'delete': 
-                        e = self.deleteFeature(dst_layer,src_feat,             ref_pkey)
-                    elif change == 'update': 
-                        e = self.updateFeature(dst_layer,src_feat,new_feat_def,ref_pkey)
-                    else:
-                        ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
-                    #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
-                except InvalidFeatureException as ife:
-                    ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+                while 1:
+                    '''identify the change in the WFS doc (INS,UPD,DEL)'''
+                    change =  (src_feat.GetField(changecol) if changecol is not None and len(changecol)>0 else "insert").lower()
+                    '''not just copy but possubly delete or update a feature on the DST layer'''
+                    #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
                     
-                if e != 0:                  
-                    ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-                    if change=='update':
-                        ldslog.warn('Update failed on SetFeature, attempting delete/insert')
-                        #let delete and insert error handlers take care of any further exceptions
-                        e1 = self.deleteFeature(dst_layer,src_feat,ref_pkey)
-                        e2 = self.insertFeature(dst_layer,src_feat,new_feat_def)
-                        if e1+e2 != 0:
-                            raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
-                
-                src_feat = src_layer.GetNextFeature()
+                    try:
+                        if change == 'insert': 
+                            e = self.insertFeature(dst_layer,src_feat,new_feat_def)
+                        elif change == 'delete': 
+                            e = self.deleteFeature(dst_layer,src_feat,             ref_pkey)
+                        elif change == 'update': 
+                            e = self.updateFeature(dst_layer,src_feat,new_feat_def,ref_pkey)
+                        else:
+                            ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
+                        #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
+                    except InvalidFeatureException as ife:
+                        ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+                        
+                    if e != 0:                  
+                        ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
+                        if change=='update':
+                            ldslog.warn('Update failed on SetFeature, attempting delete/insert')
+                            #let delete and insert error handlers take care of any further exceptions
+                            e1 = self.deleteFeature(dst_layer,src_feat,ref_pkey)
+                            e2 = self.insertFeature(dst_layer,src_feat,new_feat_def)
+                            if e1+e2 != 0:
+                                raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
+                    
+                    
+                    next_feat = src_layer.GetNextFeature()
+                    #On no new features grab the last primary key index and break
+                    if next_feat is None:
+                        if hasattr(self.src_link, 'pkey'):
+                            max_index = src_feat.GetField(self.src_link.pkey)
+                        break
+                    else:
+                        src_feat = next_feat
+                    
 
             #self._showLayerData(dst_layer)
             
@@ -415,7 +425,7 @@ class DataStore(object):
             src_layer.ResetReading()
             dst_layer.ResetReading()
             
-        return remaining
+        return max_index
             
             
 
@@ -496,10 +506,13 @@ class DataStore(object):
             ldslog.error("Cannot create layer. "+str(re))
             if 'already exists' in str(re):
                 '''indicates the table has been created previously but was not returned with the getlayer command, SL does this with null geom tables'''
-                raise ASpatialFailureException('SpatiaLite driver cannot be used to update ASpatial layers')
-                #NB. DeleteLayer also wont work since the layer can't be found. One option might be to rebuild the layer at the SQL level
+                #raise ASpatialFailureException('SpatiaLite driver cannot be used to update ASpatial layers')
+                #NB. DeleteLayer also wont work since the layer can't be found.
                 #dst_ds.DeleteLayer(dst_layer_name)
                 #dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
+                #Option 2. Deleting the layer with SQL
+                self.executeSQL('drop table '+dst_layer_name)
+                dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
             elif 'General function failure' in str(re):
                 ldslog.error('Possible SR problem, continuing. '+str(re))
                 dst_layer = None

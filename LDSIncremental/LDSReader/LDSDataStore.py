@@ -33,11 +33,12 @@ class LDSDataStore(WFSDataStore):
     URI builders. For incremental specifically the change-column is defined here
     '''
     
+    '''Default GDAL page size'''
     LDS_PAGE_SIZE = 10000
 
     def __init__(self,conn_str=None,user_config=None):
         '''
-        cons init driver
+        LDS init/constructor subclassing WFSDataStore
         '''
         #super WFS sets WFS driver and gets WFS config params
         #supersuper DataStore sets def flags (eg INCR)
@@ -50,22 +51,24 @@ class LDSDataStore(WFSDataStore):
 
 
     def getOptions(self,layer_id):
-        '''Adds LDS options, pagination'''
-        local_opts = ['OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+LDSDataStore.LDS_PAGE_SIZE]
+        '''Adds GDAL options at driver initialisation, pagination_allowed and page_size'''
+        local_opts = ['OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
         
         return super(LDSDataStore,self).getOptions(layer_id) + local_opts
     
-    #TEST. data partitions
     def setPrimaryKey(self,pkey):
+        '''Sets the name of the primary key column in the datasource object'''
         self.pkey = pkey
         
     def setPartitionSize(self,psize):
+        '''Sets the partition size i.e. the number of features to be returned per WFS request'''
         self.psize = psize
         
     def getPartitionSize(self):
         return self.psize
         
     def setPartitionStart(self,pstart):
+        '''Sets the starts point for LDS requests using the primary key as the index. Assumes the request will also be sorted by this same key'''
         self.pstart = pstart
         
     def getCapabilities(self):
@@ -95,7 +98,7 @@ class LDSDataStore(WFSDataStore):
 
         
     def sourceURI_incrd(self,layername,fromdate,todate):
-        '''Endpoint constructor fetching specific layer with incremental date fields'''
+        '''Endpoint constructor fetching specific layers with incremental date fields'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str       
 
@@ -121,7 +124,7 @@ class LDSDataStore(WFSDataStore):
         return page
     
     def _buildCQLStr(self):
-        '''Builds a cql_filter string as set by the user adding a partitioning string if needed'''
+        '''Builds a cql_filter string as set by the user appending an 'id>...' partitioning string if needed. NB. Manual partitioning is accomplished using the parameters, 'maxFeatures' to set feature quantity, a page-by-page recorded 'id' value and a 'sortBy=id' argument'''
         cql = ()
         maxfeat = ""
         
@@ -139,7 +142,7 @@ class LDSDataStore(WFSDataStore):
     
     @staticmethod
     def fetchLayerNames(url):
-        '''Non-Driver method for fetching LDS layer ID's using standard URL open library.
+        '''Non-GDAL static method for fetching LDS layer ID's using standard URLopen library.
         TODO. Investigate implementing this using the WFS driver and the relative expense for each'''
         res = []
         mm = re.compile('<Name>('+LDSUtilities.LDS_TN_PREFIX+'\d+)<\/Name>')
@@ -151,7 +154,7 @@ class LDSDataStore(WFSDataStore):
     
     @staticmethod
     def readDocument(url):
-        '''Non-Driver method for fetching LDS DS as a document'''
+        '''Non-GDAL static method for fetching a LDS Datasource as a document'''
         ldslog.debug("LDs URL "+url)
         lds = urlopen(url)
         data = lds.read()
