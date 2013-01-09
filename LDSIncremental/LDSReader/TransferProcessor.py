@@ -221,7 +221,7 @@ class TransferProcessor(object):
         #might as well initds here, its going to be needed eventually
         self.dst.ds = self.dst.initDS(self.dst.destinationURI(None))#DataStore.LDS_CONFIG_TABLE))
         
-        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize) = self.dst.confwrapper.readDSParameters('Misc')
+        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize) = self.dst.mainconf.readDSParameters('Misc')
         
         self.src = LDSDataStore(self.source_str,self.user_config) 
         capabilities = self.src.getCapabilities()

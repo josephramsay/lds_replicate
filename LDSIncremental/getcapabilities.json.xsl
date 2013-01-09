@@ -33,15 +33,14 @@
 			</xsl:choose>
 		</xsl:for-each>
 		<xsl:text>null,</xsl:text>
-		<xsl:text>"shape",</xsl:text>
 		<xsl:choose>
 			<xsl:when test="starts-with(wfs:Title,'ASP')">
 				<xsl:text>null,</xsl:text>
-				<xsl:text>primary,</xsl:text>
+				<xsl:text>"primary",</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:text>"shape",</xsl:text>
-				<xsl:text>spatial,</xsl:text>
+				<xsl:text>"spatial",</xsl:text>
 			</xsl:otherwise>
 		</xsl:choose>
 		<xsl:text>null,</xsl:text>

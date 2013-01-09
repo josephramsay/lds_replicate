@@ -125,7 +125,7 @@ class MSSQLSpatialDataStore(DataStore):
         if gc is not None and len(gc)>0:
             local_opts += ['GEOM_NAME='+gc]
             
-        schema = self.layerconf.readLayerProperty(layer_id,'schema')
+        schema = self.mainconf.readDSProperty(self.DRIVER_NAME,'schema')
         if schema is None:
             schema = self.schema
         if schema is not None and len(schema)>0:
@@ -145,7 +145,7 @@ class MSSQLSpatialDataStore(DataStore):
         if not hasattr(self,'ds') or self.ds is None:
             self.ds = self.initDS(self.destinationURI(DataStore.LDS_CONFIG_TABLE))  
             
-        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.confwrapper])
+        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.mainconf])
         if not self.isConfInternal():
             return self.layerconf.buildConfigLayer()
         #TODO unify the naming for the config tables

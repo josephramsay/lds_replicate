@@ -8,6 +8,7 @@ import os
 import sys
 import time
 
+
 #class TestUI(LDSIncrTestCase):
 class TestUI(unittest.TestCase):
     '''Basic tests of ldsreplicate.py using command line arguments to see whether they work as expected'''
@@ -49,7 +50,6 @@ class TestUI(unittest.TestCase):
                 
     
     def setUp(self):
-        #print sys.platform
         #super(TestUI,self).setUp()
         if 'inux' in sys.platform:
             self.PATH = self.PATH_L
@@ -289,6 +289,7 @@ class TestUI(unittest.TestCase):
         stc = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' clean '+o
         print stc
         os.system(stc)
+        
         
 
 if __name__ == "__main__":

@@ -35,10 +35,7 @@ from ConfigWrapper import ConfigWrapper
 
 ldslog = logging.getLogger('LDS')
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
-ogr.UseExceptions()
-
-#DISABLE: MSSQL - causes RuntimeError catch on "ds = self.driver.CreateDataSource(dsn)" preventing initialisation
-#ENABLE: SQLITE - 
+#ogr.UseExceptions()
 
 #exceptions
 class DSReaderException(Exception): pass
@@ -67,6 +64,8 @@ class DataStore(object):
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
     
+    CONFIG_COLUMNS = ('id','pkey','name','category','lastmodified','geocolumn','index','epsg','discard','cql')
+    
     ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
                       ogr.wkbPolygon, ogr.wkbMultiPoint, ogr.wkbMultiLineString, 
                       ogr.wkbMultiPolygon, ogr.wkbGeometryCollection, ogr.wkbNone, 
@@ -92,9 +91,9 @@ class DataStore(object):
         
         self.getDriver(self.DRIVER_NAME)
             
-        self.confwrapper = ConfigWrapper(user_config)
+        self.mainconf = ConfigWrapper(user_config)
         
-        self.params = self.confwrapper.readDSParameters(self.DRIVER_NAME)
+        self.params = self.mainconf.readDSParameters(self.DRIVER_NAME)
         
         
         '''set of <potential> columns not needed in final output, global'''
@@ -171,6 +170,7 @@ class DataStore(object):
     #    raise NotImplementedError("Abstract method buildExternalLayerDefinition not implemented")
     
     def initDS(self,dsn):
+        ds = None
         '''initialise a DS for writing'''
         try:
             ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
@@ -561,7 +561,7 @@ class DataStore(object):
         self.executeSQL('alter table '+table+' alter '+column+' type character varying')
         
     def identify64Bit(self,name):
-        '''Common 64bit column identification function (just picks out the key text 'sufi' in the column name, for now)'''
+        '''Common 64bit column identification function (just picks out the key text 'sufi' in the column name since the sufi-id is the only 64 bit data type in use)'''
         return 'sufi' in name     
                                            
     def partialCloneFeature(self,fin,fout_def):
@@ -822,6 +822,7 @@ class DataStore(object):
         '''Find the Feature matching a primary key value'''
         qry = ref_pkey+" = '"+str(key)+"'"
         search_layer.SetAttributeFilter(qry)
+        search_layer.ResetReading()
         return search_layer.GetNextFeature()
             
 
@@ -873,7 +874,7 @@ class DataStore(object):
     def setupLayerConfig(self):
         '''Read internal OR external from main config file and set, default to internal'''
         
-        if 'external' in map(lambda x: x.lower() if type(x) is str else x,self.confwrapper.readDSParameters(self.DRIVER_NAME)):
+        if 'external' in map(lambda x: x.lower() if type(x) is str else x,self.mainconf.readDSParameters(self.DRIVER_NAME)):
             self.setConfExternal()
         else:
             self.setConfInternal()
@@ -885,13 +886,10 @@ class DataStore(object):
         if not hasattr(self,'ds') or self.ds is None:
             self.ds = self.initDS(self.destinationURI(DataStore.LDS_CONFIG_TABLE))  
             
-        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.confwrapper])
+        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.mainconf])
         if not self.isConfInternal():
             return self.layerconf.buildConfigLayer()
 
-
-        cols = ('id','pkey','name','category','lastmodified','geocolumn','epsg','discard','cql')
-        
         try:
             self.ds.DeleteLayer(DataStore.LDS_CONFIG_TABLE)
         except Exception as e:
@@ -901,7 +899,7 @@ class DataStore(object):
 
         
         feat_def = ogr.FeatureDefn()
-        for name in cols:
+        for name in self.CONFIG_COLUMNS:
             #create new field defn with name=name and type OFTString
             fld_def = ogr.FieldDefn(name,ogr.OFTString)
             #in the feature defn, define a new field
@@ -914,15 +912,16 @@ class DataStore(object):
             #HACK
             #if self.DRIVER_NAME == 'MSSQLSpatial':
             #    pass
-            config_feat.SetField(cols[0],str(row[0]))
-            config_feat.SetField(cols[1],str(row[1]))
-            config_feat.SetField(cols[2],str(row[2]))
-            config_feat.SetField(cols[3],str(','.join(row[3])))
-            config_feat.SetField(cols[4],str(row[4]))
-            config_feat.SetField(cols[5],str(row[5]))
-            config_feat.SetField(cols[6],str(row[6]))
-            config_feat.SetField(cols[7],None if row[7] is None else str(','.join(row[7])))
-            config_feat.SetField(cols[8],str(row[8]))
+            config_feat.SetField(self.CONFIG_COLUMNS[0],str(row[0]))
+            config_feat.SetField(self.CONFIG_COLUMNS[1],str(row[1]))
+            config_feat.SetField(self.CONFIG_COLUMNS[2],str(row[2]))
+            config_feat.SetField(self.CONFIG_COLUMNS[3],str(','.join(row[3])))
+            config_feat.SetField(self.CONFIG_COLUMNS[4],str(row[4]))
+            config_feat.SetField(self.CONFIG_COLUMNS[5],str(row[5]))
+            config_feat.SetField(self.CONFIG_COLUMNS[6],str(row[6]))
+            config_feat.SetField(self.CONFIG_COLUMNS[7],str(row[7]))
+            config_feat.SetField(self.CONFIG_COLUMNS[8],None if row[8] is None else str(','.join(row[8])))
+            config_feat.SetField(self.CONFIG_COLUMNS[9],str(row[9]))
             
             config_layer.CreateFeature(config_feat)
             
@@ -955,7 +954,7 @@ class DataStore(object):
  
         
     def readLayerProperty(self,pkey,field):
-
+        '''Single property reader'''
         layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
         layer.ResetReading()
         feat = self._findMatchingFeature(layer, 'id', pkey)
