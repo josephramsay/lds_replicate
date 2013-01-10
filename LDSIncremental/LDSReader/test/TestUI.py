@@ -81,70 +81,70 @@ class TestUI(unittest.TestCase):
         pass
 
 
-    def test00CleanDatabase(self):
-        '''prep by cleaning used layers'''
-        for o in self.OUTP:
-            for l in TestUI.LAYER+TestUI.LAYER_ASPATIAL+TestUI.LAYER_GEODETIC: #+TestUI.LAYER_PROBLEM:
-                self.prepLayer(l,o)
-        
-        
-    def test01RequestHelpPage(self):
-        st = 'python '+self.PATH+'ldsreplicate.py -h'
-        print st
-        self.assertEquals(os.system(st),0)
-        
-        
-    def test02AutoFillLayer(self):
-        '''Simple layer populate'''
-        for o in self.OUTP:
-            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 '+o
-            print st
-            self.assertEquals(os.system(st),0)
-        
-    def test03InternalExternal(self):
-        '''Tests for any differences in the use of internal vs external config files'''
-        for o in self.OUTP:
-            for l in self.LAYER:
-                self.prepLayer(l, o)
-                ste = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' '+o
-                print ste
-                self.assertEquals(os.system(ste),0)
-                
-                self.prepLayer(l, o)
-                sti = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF2+' -l '+l+' '+o
-                print sti
-                self.assertEquals(os.system(sti),0)
-            
-#    def test03IncrementalFillLayer(self):
-#        '''Layer clean and populate using supplied dates (following test 02 tests pop-clean-pop)'''
+#    def test00CleanDatabase(self):
+#        '''prep by cleaning used layers'''
 #        for o in self.OUTP:
-#            st1 = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 clean '+o
-#            print st1
-#            self.assertEquals(os.system(st1),0)
+#            for l in TestUI.LAYER+TestUI.LAYER_ASPATIAL+TestUI.LAYER_GEODETIC: #+TestUI.LAYER_PROBLEM:
+#                self.prepLayer(l,o)
+#        
+#        
+#    def test01RequestHelpPage(self):
+#        st = 'python '+self.PATH+'ldsreplicate.py -h'
+#        print st
+#        self.assertEquals(os.system(st),0)
+#        
+#        
+#    def test02AutoFillLayer(self):
+#        '''Simple layer populate'''
+#        for o in self.OUTP:
+#            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 '+o
+#            print st
+#            self.assertEquals(os.system(st),0)
+#        
+#    def test03InternalExternal(self):
+#        '''Tests for any differences in the use of internal vs external config files'''
+#        for o in self.OUTP:
+#            for l in self.LAYER:
+#                self.prepLayer(l, o)
+#                ste = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' '+o
+#                print ste
+#                self.assertEquals(os.system(ste),0)
+#                
+#                self.prepLayer(l, o)
+#                sti = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF2+' -l '+l+' '+o
+#                print sti
+#                self.assertEquals(os.system(sti),0)
 #            
-#            st2 = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 -f 2010-01-01 -t 2012-07-01 '+o
-#            print st2
-#            self.assertEquals(os.system(st2),0)
-        
-    def test04ProblemLayer(self):
-        '''Attempts to get 772. Tests data partitioning solution... This takes a while to run! return to bypass'''
-        return
-        for o in self.OUTP:
-            for l in self.LAYER_PROBLEM:
-                st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' '+o
-                print st
-                self.assertEquals(os.system(st),0)
-
-
-    def test05InitClone(self):
-        '''Test INIT of layer config file and layer CLEAN functions'''
-        for o in self.OUTP:
-            for l in self.LAYER:
-                self.prepLayer(l,o)
-                #INIT: clone a layer from LDS
-                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' init '+o
-                print st
-                self.assertEquals(os.system(st),0)
+##    def test03IncrementalFillLayer(self):
+##        '''Layer clean and populate using supplied dates (following test 02 tests pop-clean-pop)'''
+##        for o in self.OUTP:
+##            st1 = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 clean '+o
+##            print st1
+##            self.assertEquals(os.system(st1),0)
+##            
+##            st2 = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 -f 2010-01-01 -t 2012-07-01 '+o
+##            print st2
+##            self.assertEquals(os.system(st2),0)
+#        
+#    def test04ProblemLayer(self):
+#        '''Attempts to get 772. Tests data partitioning solution... This takes a while to run! return to bypass'''
+#        return
+#        for o in self.OUTP:
+#            for l in self.LAYER_PROBLEM:
+#                st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' '+o
+#                print st
+#                self.assertEquals(os.system(st),0)
+#
+#
+#    def test05InitClone(self):
+#        '''Test INIT of layer config file and layer CLEAN functions'''
+#        for o in self.OUTP:
+#            for l in self.LAYER:
+#                self.prepLayer(l,o)
+#                #INIT: clone a layer from LDS
+#                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' init '+o
+#                print st
+#                self.assertEquals(os.system(st),0)
                 
                 
     def test06IncrCopy2Part(self):
@@ -153,107 +153,107 @@ class TestUI(unittest.TestCase):
             for l in self.LAYER:
                 self.prepLayer(l,o)
                 #TO: incremental copy from first day to DATE
-                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -t '+self.DATE+' '+o
+                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF2+' -t '+self.DATE+' '+o
                 print st
                 self.assertEquals(os.system(st),0)
                 
                 #FROM: incremental from DATE to latest
-                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -f '+self.DATE+' '+o
+                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF2+' -f '+self.DATE+' '+o
                 print st
                 self.assertEquals(os.system(st),0)
                 
                 
-    def test07IncrCopy2Auto(self):
-        '''Test incremental functionality by "get data up To DATE" and "Incremental AUTO fill last DATE to present"'''
-        for o in self.OUTP:
-            for l in self.LAYER:
-                self.prepLayer(l,o)
-                #TO: incremental copy from first day to DATE
-                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -t '+self.DATE+' '+o
-                print st
-                self.assertEquals(os.system(st),0)
-                #FROM: incremental from DATE to latest
-                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' '+o
-                print st
-                self.assertEquals(os.system(st),0)
-                
-                
-    def test08AutoConnOverride(self):
-        '''Test -d option overriding connection string''' 
-        for l in self.LAYER:
-            self.prepLayer(l,self.CONN_STR.lower()[0:2])
-            #auto fill using a command line configured connection string
-            st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -d "'+self.CONN_STR+'" '+self.CONN_STR.lower()[0:2]
-            print st
-            self.assertEquals(os.system(st),0)    
-            
-            
-    def test09AutoFilterGeodetic(self):
-        '''Test group selection using -g option'''
-        for o in self.OUTP:
-            self.prepLayerGeodetic(o)              
-            #auto fill using a command line configured connection string
-            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -g Geodetic '+o
-            print st
-            self.assertEquals(os.system(st),0)
-        
-        
-    def test10AutoFilterWithDates(self):
-        '''TTest group selection using -g option and defined date ranges'''
-        for o in self.OUTP:
-            self.prepLayerGeodetic(o)        
-            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -g Geodetic -t '+self.DATE1+' -f '+self.DATE2+' '+o
-            print st
-            self.assertEquals(os.system(st),0)    
-            
-            
-    def test11AspatialClone(self):
-        '''Test an A-Spatial layer. (Layer 1203 also contains sufi's so this also tests the 64 bit workaround)'''
-        for o in self.OUTP:    
-            self.prepLayer('v:x1203',o)
-            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x1203 '+o
-            print st
-            self.assertEquals(os.system(st),0)
-    
-    
-    def test12EPSGChange(self):
-        '''Test different SR conversions'''
-        for o in self.OUTP:    
-            for e in self.EPSG: 
-                
-                self.prepLayer('v:x785',o)
-                st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x785 -e '+str(e)+' '+o
-                print st
-                self.assertEquals(os.system(st),0)
-                
-    def test13CQLSelection(self):
-        '''Test different SR conversions. Doesnt really affect processing since this is serverside'''
-
-        for o in self.OUTP:    
-            
-            if 'inux' in sys.platform:
-                st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c 'id=1001' "+o
-                '''NB. Need to take care single quoting alphabetic values'''
-                st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name=\\'Southland\\' "+o
-                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
-            elif sys.platform == 'win32':
-                st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c id=1001 "+o
-                st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name='Southland' "+o
-                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
-            else:
-                return
-                           
-            self.prepLayer('v:x785',o)
-            print st1
-            self.assertEquals(os.system(st1),0) 
-            
-            self.prepLayer('v:x785',o)
-            print st2
-            self.assertEquals(os.system(st2),0) 
-            
-            self.prepLayer('v:x785',o)
-            print st3
-            self.assertEquals(os.system(st3),0)
+#    def test07IncrCopy2Auto(self):
+#        '''Test incremental functionality by "get data up To DATE" and "Incremental AUTO fill last DATE to present"'''
+#        for o in self.OUTP:
+#            for l in self.LAYER:
+#                self.prepLayer(l,o)
+#                #TO: incremental copy from first day to DATE
+#                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -t '+self.DATE+' '+o
+#                print st
+#                self.assertEquals(os.system(st),0)
+#                #FROM: incremental from DATE to latest
+#                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' '+o
+#                print st
+#                self.assertEquals(os.system(st),0)
+#                
+#                
+#    def test08AutoConnOverride(self):
+#        '''Test -d option overriding connection string''' 
+#        for l in self.LAYER:
+#            self.prepLayer(l,self.CONN_STR.lower()[0:2])
+#            #auto fill using a command line configured connection string
+#            st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -d "'+self.CONN_STR+'" '+self.CONN_STR.lower()[0:2]
+#            print st
+#            self.assertEquals(os.system(st),0)    
+#            
+#            
+#    def test09AutoFilterGeodetic(self):
+#        '''Test group selection using -g option'''
+#        for o in self.OUTP:
+#            self.prepLayerGeodetic(o)              
+#            #auto fill using a command line configured connection string
+#            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -g Geodetic '+o
+#            print st
+#            self.assertEquals(os.system(st),0)
+#        
+#        
+#    def test10AutoFilterWithDates(self):
+#        '''TTest group selection using -g option and defined date ranges'''
+#        for o in self.OUTP:
+#            self.prepLayerGeodetic(o)        
+#            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -g Geodetic -t '+self.DATE1+' -f '+self.DATE2+' '+o
+#            print st
+#            self.assertEquals(os.system(st),0)    
+#            
+#            
+#    def test11AspatialClone(self):
+#        '''Test an A-Spatial layer. (Layer 1203 also contains sufi's so this also tests the 64 bit workaround)'''
+#        for o in self.OUTP:    
+#            self.prepLayer('v:x1203',o)
+#            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x1203 '+o
+#            print st
+#            self.assertEquals(os.system(st),0)
+#    
+#    
+#    def test12EPSGChange(self):
+#        '''Test different SR conversions'''
+#        for o in self.OUTP:    
+#            for e in self.EPSG: 
+#                
+#                self.prepLayer('v:x785',o)
+#                st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x785 -e '+str(e)+' '+o
+#                print st
+#                self.assertEquals(os.system(st),0)
+#                
+#    def test13CQLSelection(self):
+#        '''Test different SR conversions. Doesnt really affect processing since this is serverside'''
+#
+#        for o in self.OUTP:    
+#            
+#            if 'inux' in sys.platform:
+#                st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c 'id=1001' "+o
+#                '''NB. Need to take care single quoting alphabetic values'''
+#                st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name=\\'Southland\\' "+o
+#                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
+#            elif sys.platform == 'win32':
+#                st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c id=1001 "+o
+#                st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name='Southland' "+o
+#                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
+#            else:
+#                return
+#                           
+#            self.prepLayer('v:x785',o)
+#            print st1
+#            self.assertEquals(os.system(st1),0) 
+#            
+#            self.prepLayer('v:x785',o)
+#            print st2
+#            self.assertEquals(os.system(st2),0) 
+#            
+#            self.prepLayer('v:x785',o)
+#            print st3
+#            self.assertEquals(os.system(st3),0)
         
 
     def countdown(self):

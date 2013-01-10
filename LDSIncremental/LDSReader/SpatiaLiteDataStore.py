@@ -18,8 +18,11 @@ Created on 9/08/2012
 import logging
 import os
 import ogr
+import gdal
 
 from DataStore import DataStore
+
+gdal.SetConfigOption('SQLITE_LIST_ALL_TABLES','YES')
 
 ldslog = logging.getLogger('LDS')
 
@@ -35,7 +38,6 @@ class SpatiaLiteDataStore(DataStore):
         cons init driver
         '''
 
-        
         super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 
         (self.path,self.name,self.config,self.srs,self.cql) = self.params 
@@ -141,15 +143,6 @@ class SpatiaLiteDataStore(DataStore):
         
         self.executeSQL(sql_drop)
         self.executeSQL(sql_repl)
-        
-        
-        
-        
-        
-        
-        
-        
-        
         
         
         #TODO. Implement for all DS types

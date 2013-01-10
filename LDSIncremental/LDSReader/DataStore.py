@@ -419,7 +419,7 @@ class DataStore(object):
             
             '''Builds an index on a newly created layer'''
             #May need to be pushed out to subclasses depending on syntax differences
-            if new_layer and ref_index is not None:
+            if new_layer and ref_index is not None and ref_pkey is not None:
                 self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
             
             src_layer.ResetReading()
@@ -458,7 +458,12 @@ class DataStore(object):
     
     def updateFeature(self,dst_layer,src_feat,new_feat_def,ref_pkey):
         '''build new feature, assign it the looked-up matching fid and overwrite on dst'''
-        src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
+        if ref_pkey is None:
+            ref_pkey = self.getFieldNames(src_feat)
+            src_pkey = self.getFieldValues(src_feat)
+        else:
+            src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
+        
         ldslog.debug("UPDATE: "+str(src_pkey))
         #if not new_layer_flag: 
         new_feat = self.partialCloneFeature(src_feat,new_feat_def)
@@ -475,9 +480,14 @@ class DataStore(object):
     
     def deleteFeature(self,dst_layer,src_feat,ref_pkey): 
         '''lookup and delete using fid matching ID of feature being deleted'''
-        src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
+        #naive first implementation, might/will be slow 
+        if ref_pkey is None:
+            ref_pkey = self.getFieldNames(src_feat)
+            src_pkey = self.getFieldValues(src_feat)
+        else:
+            src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
+            
         ldslog.debug("DELETE: "+str(src_pkey))
-        #if not new_layer_flag: 
         dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
         if dst_fid is not None:
             e = dst_layer.DeleteFeature(dst_fid)
@@ -487,7 +497,19 @@ class DataStore(object):
         
         return e
         
-                    
+    def getFieldNames(self,feature):  
+        fnlist = ()
+        fdr = feature.GetDefnRef()
+        for i in range(0,fdr.GetFieldCount()):
+            fnlist += (fdr.GetFieldDefn(i).GetName(),)
+        return fnlist
+    
+    def getFieldValues(self,feature):  
+        fvlist = ()
+        for i in range(0,feature.GetFieldCount()):
+            fvlist += (feature.GetFieldAsString(i),)
+        return fvlist
+                      
     def buildNewDataLayer(self,dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name):        
         #read defns of each field
         fdef_list = []
@@ -810,18 +832,35 @@ class DataStore(object):
                 self.clearLastModified(li)
     
     
-    def _findMatchingFID(self,search_layer,ref_pkey,key):
+    
+    def _findMatchingFID(self,search_layer,ref_pkey,key_val):
         '''Find the FID matching a primary key value'''
-        newf = self._findMatchingFeature(search_layer,ref_pkey,key)
+        if isinstance(ref_pkey,basestring):
+            newf = self._findMatchingFeature(search_layer,ref_pkey,key_val)
+        else:
+            newf = self._findMatchingFeature_AllFields(search_layer,ref_pkey,key_val)
         if newf is None:
             return None
         return newf.GetFID()
+    
+    def _findMatchingFeature_AllFields(self,search_layer,col_list,row_vals):
+        '''
+        find a feature for a layer with no PK, to do this generically we have to query all fields'''
+        qt = ()
+        for col,val in zip(col_list,row_vals):
+            if col not in self.optcols and val is not '':
+                qt += (str(col)+" = '"+str(val)+"'",)        
+        search_layer.SetAttributeFilter(' and '.join(qt).replace("''","'"))
+        #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error"  
+        search_layer.ResetReading()
+        return search_layer.GetNextFeature()
         
     
-    def _findMatchingFeature(self,search_layer,ref_pkey,key):
+    def _findMatchingFeature(self,search_layer,ref_pkey,key_val):
         '''Find the Feature matching a primary key value'''
-        qry = ref_pkey+" = '"+str(key)+"'"
+        qry = ref_pkey+" = '"+str(key_val)+"'"
         search_layer.SetAttributeFilter(qry)
+        #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error"  
         search_layer.ResetReading()
         return search_layer.GetNextFeature()
             
@@ -869,7 +908,7 @@ class DataStore(object):
                 
 
 # INTERNAL CONFIG SECTION. The config section is written as part of the datastore to take advantage  
-# of its connection features when the internal config options is chosen.
+# of its connection features when the internal config options is chosen. Consider peeling this off into a subclass
 
     def setupLayerConfig(self):
         '''Read internal OR external from main config file and set, default to internal'''

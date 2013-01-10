@@ -15,12 +15,23 @@
 
 <xsl:template match="wfs:FeatureTypeList">
 	<xsl:for-each select="wfs:FeatureType">
+		<xsl:variable name="keyword" select="ows:Keywords/ows:Keyword"/>
+		<xsl:variable name="kflag">
+			<xsl:for-each select="$keyword">
+				<xsl:if test="contains(normalize-space(.),'Topographic') or contains(normalize-space(.),'Hydrographic')">true</xsl:if>
+			</xsl:for-each>
+		</xsl:variable>
+		
 		<xsl:sort select="wfs:Name"/>
 		<xsl:text>&#xa;[</xsl:text><xsl:value-of select="normalize-space(wfs:Name)"/><xsl:text>]&#xa;</xsl:text>
-		<xsl:text>pkey = id&#xa;</xsl:text>
+		<xsl:text>pkey = </xsl:text>
+		<xsl:if test="not(normalize-space($kflag) != '')">
+			<xsl:text>id</xsl:text>
+		</xsl:if>
+		<xsl:text>&#xa;</xsl:text>
 		<xsl:text>name = </xsl:text><xsl:value-of select="normalize-space(wfs:Title)"/><xsl:text>&#xa;</xsl:text>
 		<xsl:text>category = </xsl:text>
-		<xsl:for-each select="ows:Keywords/ows:Keyword">
+		<xsl:for-each select="$keyword">
 			<xsl:value-of select="normalize-space(.)"/>
 			<xsl:choose>
 				<xsl:when test="position() != last()">
