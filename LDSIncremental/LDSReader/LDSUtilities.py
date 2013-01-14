@@ -218,14 +218,11 @@ class ConfigInitialiser(object):
     @staticmethod
     def buildConfiguration(xml, fileid):
         '''Given a destination DS use this to select an XSL transform object and generate an output document that will initialise a new config file/table'''
-        converter = open(os.path.join(os.path.dirname(__file__), '../getcapabilities.'+fileid+'.xsl'),'r').read()
         
-        xslt = etree.XML(converter)
+        xslt = etree.parse(os.path.join(os.path.dirname(__file__), '../getcapabilities.'+fileid+'.xsl'))
         transform = etree.XSLT(xslt)
-        
         doc = etree.parse(StringIO(xml))
         res = transform(doc)
-        #ldslog.debug(res)
         
         return res
     

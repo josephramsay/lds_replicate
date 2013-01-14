@@ -22,8 +22,6 @@ import gdal
 
 from DataStore import DataStore
 
-gdal.SetConfigOption('SQLITE_LIST_ALL_TABLES','YES')
-
 ldslog = logging.getLogger('LDS')
 
 class SpatiaLiteDataStore(DataStore):
@@ -32,6 +30,7 @@ class SpatiaLiteDataStore(DataStore):
     '''
     
     DRIVER_NAME = "SQLite"
+    SQLITE_LIST_ALL_TABLES = 'YES'
       
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -39,6 +38,8 @@ class SpatiaLiteDataStore(DataStore):
         '''
 
         super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
+        
+        gdal.SetConfigOption('SQLITE_LIST_ALL_TABLES',self.SQLITE_LIST_ALL_TABLES)
 
         (self.path,self.name,self.config,self.srs,self.cql) = self.params 
         #because sometimes ~ isnt translated to home

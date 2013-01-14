@@ -15,6 +15,7 @@
 
 <xsl:template match="wfs:FeatureTypeList">
 	<xsl:for-each select="wfs:FeatureType">
+		<xsl:sort select="wfs:Name"/>
 		<xsl:variable name="keyword" select="ows:Keywords/ows:Keyword"/>
 		<xsl:variable name="kflag">
 			<xsl:for-each select="$keyword">
@@ -22,7 +23,6 @@
 			</xsl:for-each>
 		</xsl:variable>
 		
-		<xsl:sort select="wfs:Name"/>
 		<xsl:text>&#xa;[</xsl:text><xsl:value-of select="normalize-space(wfs:Name)"/><xsl:text>]&#xa;</xsl:text>
 		<xsl:text>pkey = </xsl:text>
 		<xsl:if test="not(normalize-space($kflag) != '')">
@@ -59,11 +59,13 @@
 	</xsl:for-each>
 </xsl:template>
 
+<xsl:template match="*"/>
+<!--
 <xsl:template match="*">
     <xsl:message terminate="no">
         WARNING: Unmatched element: <xsl:value-of select="name()"/>
     </xsl:message>
 </xsl:template>
-
+-->
 
 </xsl:stylesheet>

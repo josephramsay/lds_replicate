@@ -41,13 +41,14 @@ class ESRIDataStore(DataStore):
     def write(self,src_ds,dsn,incr,fbf,sixtyfour):
         '''ESRI specific write method used as entry point for convertDataSourceESRI'''
         '''TODO. No need to do the poly to multi conversion but incremental __change__ removal still reqd'''
-        #naive implementation? change SR per layer in place
-        self.convertDataSourceESRI(src_ds.ds)
+        #naive implementation? change SR per layer in place. Conversion not needed with latest GDAL
+        #self.convertDataSourceESRI(src_ds.ds)
         super(ESRIDataStore,self).write(src_ds,dsn,incr,fbf,sixtyfour)
         #self.ds = self.driver.CopyDataSource(src_ds, dsn)
         
     
     def convertDataSourceESRI(self,datasource):
+        #bypass to test gdal 1.9.1 SREF handling, its supposed to be fixed now
         '''Spatial Reference method to "Morph" datasource layer by layer, in place'''
         for li in range(0,datasource.GetLayerCount()):
             layer = datasource.GetLayer(li)
@@ -64,7 +65,6 @@ class ESRIDataStore(DataStore):
 
             ##Method 2
             #sref = Projection.downloadESRISpatialReference(sref.GetAuthorityCode('GEOGCS'))
-            
             
             ldslog.debug("Converted DS SR ::\n"+str(sref)) 
             

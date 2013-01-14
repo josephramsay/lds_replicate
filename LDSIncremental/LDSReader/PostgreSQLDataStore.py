@@ -27,6 +27,8 @@ class PostgreSQLDataStore(DataStore):
     '''
     
     DRIVER_NAME = "PostgreSQL"
+    PG_USE_COPY = "NO"
+    PG_USE_BASE64 = "YES"
     
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -40,10 +42,10 @@ class PostgreSQLDataStore(DataStore):
         #gdal.SetConfigOption("PGSQL_OGR_FID",self.PGSQL_OGR_FID)
         
         #do not use PG_USE_COPY if you want FID preserved
-        self.PG_USE_COPY = "NO"
+        #self.PG_USE_COPY = "NO"
         gdal.SetConfigOption("PG_USE_COPY",self.PG_USE_COPY)
         
-        self.PG_USE_BASE64 = "YES"
+        #self.PG_USE_BASE64 = "YES"
         gdal.SetConfigOption("PG_USE_BASE64",self.PG_USE_BASE64)
 
         (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite,self.config,self.srs,self.cql) = self.params

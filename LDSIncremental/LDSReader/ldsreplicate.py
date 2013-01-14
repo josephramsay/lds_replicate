@@ -39,6 +39,8 @@ import os
 import getopt
 import logging
 
+from datetime import datetime
+
 from TransferProcessor import TransferProcessor
 from TransferProcessor import InputMisconfigurationException
 from VersionChecker import VersionChecker
@@ -97,6 +99,9 @@ def main():
     pgis_ver = VersionChecker.getPostGISVersion()   
     pg_ver = VersionChecker.getPostgreSQLVersion()
        
+    #print 'GDAL',gdal_ver.get('GDAL'), pgis_ver.get('GDAL')
+    #print 'PG',pg_ver.get('PostgreSQL')
+    
     if VersionChecker.compareVersions(GDAL_MIN,gdal_ver.get('GDAL') if gdal_ver.get('GDAL') is not None else GDAL_MIN): 
         message += 'GDAL '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'(reqd) \n'
     if VersionChecker.compareVersions(GDAL_MIN,pgis_ver.get('GDAL') if pgis_ver.get('GDAL') is not None else GDAL_MIN): 
@@ -176,9 +181,10 @@ def main():
 #    if ly is None:
 #        raise InputMisconfigurationException("Layer name required (-l)")
 #        sys.exit(1)
-        
+    st = datetime.now()
+    print '*** Begin    ***',st.isoformat()
     tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,fbf)
-        
+    
     proc = None
     #output format
     if len(args)==0:
@@ -214,8 +220,10 @@ def main():
                 raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) declaration required")
             
         #now run the selected func
-        proc()
-        print '*** Complete ***'
+    proc()
+    et = datetime.now()
+    print '*** Complete ***',et.isoformat()
+    print '*** Duration ***',et-st
 
 
 if __name__ == "__main__":
