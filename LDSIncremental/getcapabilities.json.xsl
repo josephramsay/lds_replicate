@@ -24,9 +24,14 @@
 		</xsl:variable>		
 
 		<xsl:text>["</xsl:text><xsl:value-of select="normalize-space(wfs:Name)"/><xsl:text>",</xsl:text>
-		<xsl:if test="not(normalize-space($kflag) != '')">
-			<xsl:text>id</xsl:text>
-		</xsl:if>
+		<xsl:choose>
+			<xsl:when test="not(normalize-space($kflag) != '')">
+				<xsl:text>"id"</xsl:text>
+			</xsl:when>
+			<xsl:otherwise>
+				<xsl:text>null</xsl:text>
+			</xsl:otherwise>
+		</xsl:choose>
 		<xsl:text>,</xsl:text>
 		<xsl:text>"</xsl:text><xsl:value-of select="normalize-space(wfs:Title)"/><xsl:text>",</xsl:text>
 		<xsl:text>[</xsl:text>

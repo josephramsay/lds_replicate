@@ -51,7 +51,7 @@ ldslog.setLevel(logging.DEBUG)
 
 df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
 #df = '../debug.log'
-fh = logging.FileHandler(df,'w')
+fh = logging.FileHandler(df,'a')
 fh.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
@@ -119,7 +119,7 @@ def main():
     
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvbif:t:l:g:e:s:d:c:u:", ["help","version","block","item","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
+        opts, args = getopt.getopt(sys.argv[1:], "hv12f:t:l:g:e:s:d:c:u:", ["help","version","drivercopy","featurecopy","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
         ldslog.info("OPTS:"+str(opts))
         ldslog.info("ARGS:"+str(args))
     except getopt.error, msg:
@@ -135,11 +135,11 @@ def main():
         elif opt in ("-v", "--version"):
             print __version__
             sys.exit(0)
-        elif opt in ("-b","--block"):
-            ldslog.info("Forcing Block (Driver controlled) Copy")
+        elif opt in ("-1","--drivercopy"):
+            ldslog.info("Forcing DriverCopy")
             fbf = False
-        elif opt in ("-i","--item"):
-            ldslog.info("Forcing Itemised (Feature-By-Feature) Copy")
+        elif opt in ("-2","--featurecopy"):
+            ldslog.info("Forcing FeatureCopy")
             fbf = True
         elif opt in ("-f","--fromdate"):
             fd = val 
@@ -158,7 +158,6 @@ def main():
             dc = val
         elif opt in ("-c","--cql"):
             cq = val
-            #fbf = True#TODO. check this is required
         elif opt in ("-u","--userconf"):
             uc = val
         else:
@@ -182,7 +181,9 @@ def main():
 #        raise InputMisconfigurationException("Layer name required (-l)")
 #        sys.exit(1)
     st = datetime.now()
-    print '*** Begin    ***',st.isoformat()
+    m1 = '*** Begin    *** '+str(st.isoformat())
+    print m1
+    ldslog.info(m1)
     tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,fbf)
     
     proc = None
@@ -222,8 +223,15 @@ def main():
         #now run the selected func
     proc()
     et = datetime.now()
-    print '*** Complete ***',et.isoformat()
-    print '*** Duration ***',et-st
+    
+
+    m2 = '*** Complete *** '+str(et.isoformat())
+    print m2
+    ldslog.info(m2)
+    
+    m3 = '*** Duration *** '+str(et-st)
+    print m3
+    ldslog.info(m3)
 
 
 if __name__ == "__main__":

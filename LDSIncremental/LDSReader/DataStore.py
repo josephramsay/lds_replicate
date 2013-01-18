@@ -164,7 +164,7 @@ class DataStore(object):
     #def buildExternalLayerDefinition(self,name,fdef_list):
     #    raise NotImplementedError("Abstract method buildExternalLayerDefinition not implemented")
     
-    def initDS(self,dsn):
+    def initDS(self,dsn=None):
         ds = None
         '''initialise a DS for writing'''
         try:
@@ -197,9 +197,9 @@ class DataStore(object):
         #self.initDS(dsn)
         self.ds = self.driver.Open(dsn)
     
-    def write(self,src,dsn,incr,fbf,sixtyfour):
+    def write(self,src,dsn,incr_haspk,fbf,sixtyfour):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
-        #mild hack. src_link created so we can re-query the source to get 64bit ints as strings
+        #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
         self.src_link = src
         self.sixtyfour = sixtyfour
         max_key = None
@@ -211,9 +211,11 @@ class DataStore(object):
         if not hasattr(self,'ds') or self.ds is None:
             self.ds = self.initDS(dsn)
         
-        if incr:
+        #if incr&haspk then fC
+        if incr_haspk:
             # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
             max_key = self.featureCopyIncremental(src.ds,self.ds,src.CHANGE_COL)
+        #if not(incr&haspk) & 64b attempt fC
         elif sixtyfour or fbf:
             #do a featureCopyIncremental if override asks or if a table has big ints
             max_key = self.featureCopyIncremental(src.ds,self.ds,None)
@@ -234,7 +236,8 @@ class DataStore(object):
               
     def driverCopy(self,src_ds,dst_ds):
         '''Copy from source to destination using the driver copy and without manipulating data'''       
-        from MemoryDataStore import MemoryDataStore
+        #from TemporaryDataStore import GeoJSONDataStore
+        from TemporaryDataStore import TemporaryDataStore
         
         ldslog.info("Using driverCopy. Non-Incremental driver copy")
         for li in range(0,src_ds.GetLayerCount()):
@@ -254,12 +257,13 @@ class DataStore(object):
                 ldslog.warn("Cannot delete layer "+dst_layer_name+". It probably doesn't exist. "+str(ve))
                 
             try:
-                m_ds = MemoryDataStore().initDS('')
-                m_ly = m_ds.CopyLayer(src_layer,dst_layer_name,[])
-                self.deleteOptionalColumns(m_ly)
-                layer = dst_ds.CopyLayer(m_ly,dst_layer_name,self.getOptions(src_layer_name))
-                m_ds.SyncToDisk()
-                m_ds.Destroy()  
+                tds = TemporaryDataStore.getInstance(self, 'Memory')
+                tds_ds = tds.initDS()
+                tds_layer = tds_ds.CopyLayer(src_layer,dst_layer_name,[])
+                tds.deleteOptionalColumns(tds_layer)
+                layer = dst_ds.CopyLayer(tds_layer,dst_layer_name,self.getOptions(src_layer_name))
+                tds_ds.SyncToDisk()
+                tds_ds.Destroy()  
             except RuntimeError as re:
                 if 'General function failure' in str(re):
                     #GFF usually indicates a driver copy error (FGDB)
@@ -330,6 +334,7 @@ class DataStore(object):
             src_layer_sref = src_layer.GetSpatialRef()
             src_layer_geom = src_layer.GetGeomType()
             src_layer_defn = src_layer.GetLayerDefn()
+            #transforms from SRC to DST sref if user requests a different EPSG, otherwise SRC returned unchanged
             dst_sref = self.transformSRS(src_layer_sref)
             
             (dst_layer,new_layer) = self.buildNewDataLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
@@ -396,11 +401,6 @@ class DataStore(object):
                 src_layer_geom = src_layer.GetGeomType()
                 src_layer_defn = src_layer.GetLayerDefn()
                 dst_sref = self.transformSRS(src_layer_sref)
-                
-                rsr_esri = 'GEOGCS["RSRGD2000",DATUM["D_Ross_Sea_Region_Geodetic_Datum_2000",SPHEROID["GRS_1980",6378137,298.257222101]],                                                                         PRIMEM["Greenwich",0],                         UNIT["Degree",0.017453292519943295]]'
-                rsr_ogc =  'GEOGCS["RSRGD2000",DATUM[  "Ross_Sea_Region_Geodetic_Datum_2000",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6764"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4764"]]'
-                
-                dst_sref = osr.SpatialReference(rsr_esri)
                 (dst_layer,new_layer) = self.buildNewDataLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
             
             #add/copy features
@@ -409,7 +409,7 @@ class DataStore(object):
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
             if src_feat is not None:
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
-                
+                e = 0
                 while 1:
                     '''identify the change in the WFS doc (INS,UPD,DEL)'''
                     change =  (src_feat.GetField(changecol) if changecol is not None and len(changecol)>0 else "insert").lower()
@@ -485,8 +485,8 @@ class DataStore(object):
         
         e = dst_layer.CreateFeature(new_feat)
 
-        dst_fid = new_feat.GetFID()
-        ldslog.debug("INSERT: "+str(dst_fid))
+        #dst_fid = new_feat.GetFID()
+        #ldslog.debug("INSERT: "+str(dst_fid))
         return e
     
     def updateFeature(self,dst_layer,src_feat,new_feat_def,ref_pkey):
@@ -497,7 +497,7 @@ class DataStore(object):
         else:
             src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
         
-        ldslog.debug("UPDATE: "+str(src_pkey))
+        #ldslog.debug("UPDATE: "+str(src_pkey))
         #if not new_layer_flag: 
         new_feat = self.partialCloneFeature(src_feat,new_feat_def)
         dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
@@ -520,7 +520,7 @@ class DataStore(object):
         else:
             src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
             
-        ldslog.debug("DELETE: "+str(src_pkey))
+        #ldslog.debug("DELETE: "+str(src_pkey))
         dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
         if dst_fid is not None:
             e = dst_layer.DeleteFeature(dst_fid)

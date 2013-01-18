@@ -41,6 +41,7 @@ ldslog = logging.getLogger('LDS')
 
 
 class InputMisconfigurationException(Exception): pass
+class PrimaryKeyUnavailableException(Exception): pass
 
 
 class TransferProcessor(object):
@@ -57,6 +58,7 @@ class TransferProcessor(object):
     #Step 3 intercept feature build and copy and overwrite with string values
     #The tables listed below are ASP tables using a sufi number which is 64bit 
     ###layers_with_64bit_ints = map(lambda s: 'v:x'+s, ('1203','1204','1205','1028','1029'))
+    #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
     
     
     def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,fbf=None):
@@ -153,10 +155,17 @@ class TransferProcessor(object):
         return self.CLEANCONF
     
     def getSixtyFour(self,testlayer):
+        '''Pre check of named layers to see if they should be treated as 64bit integer containers needing int->string conversion'''
         #if self.layer in map(lambda a: 'v:x'+a, self.layers_with_64bit_ints):
         if testlayer in self.sixtyfourlayers:
             return True
         return False
+    
+    def hasPrimaryKey(self,testlayer):
+        '''Reads layer conf pkey identifier. If PK is None or something, use this to decide processing type i.e. no PK = driverCopy'''
+        if self.dst.layerconf.readLayerProperty(testlayer,'pkey') is None:
+            return False
+        return True
     
     
     def processLDS2PG(self):
@@ -274,6 +283,7 @@ class TransferProcessor(object):
         else:
             self.lnl = lds_valid
             
+            
         # ***HACK*** big layer bypass (address this with partitions)
         #self.lnl = filter(lambda l: l not in self.partitionlayers, self.lnl)
         
@@ -332,9 +342,9 @@ class TransferProcessor(object):
             for layer_i in self.lnl:
                 try:
                     self.fullReplicateLayer(str(layer_i))
-                except ASpatialFailureException as afe:
+                except (ASpatialFailureException, PrimaryKeyUnavailableException) as ee:
                     '''if we're processing a layer list, don't stop on an aspatial-only fault, the spatial layers might just work'''
-                    ldslog.error(str(afe))
+                    ldslog.error(str(ee))
         elif layer in self.lnl:
             self.fullReplicateLayer(layer)
         else:
@@ -343,12 +353,6 @@ class TransferProcessor(object):
 
     def fullReplicateLayer(self,layer_i):
         '''Replicate the requested layer non-incrementally'''
-        #bypass if layer is identified as one we need to partition
-#        if layer_i in self.partitionlayers:
-#            self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
-#            self.src.setPartitionStart(0)
-#            self.src.setPartitionSize(self.partitionsize)
-#            #self.setFBF()
         
         #Set filters in URI call using layer            
         self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(layer_i,'cql')))
@@ -358,7 +362,7 @@ class TransferProcessor(object):
         self.dst.setURI(self.dst.destinationURI(layer_i))
                 
         self.src.read(self.src.getURI())
-        self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
+        self.dst.write(self.src,self.dst.getURI(),self.getIncremental() and self.hasPrimaryKey(layer_i),self.getFBF(),self.getSixtyFour(layer_i))
 #            if maxkey is not None:
 #                self.src.setPartitionStart(maxkey)
 #            else:
@@ -402,9 +406,9 @@ class TransferProcessor(object):
             for layer_i in self.lnl:
                 try:
                     self.definedIncrementLayer(str(layer_i),fdate,tdate)
-                except ASpatialFailureException as afe:
+                except (ASpatialFailureException, PrimaryKeyUnavailableException) as ee:
                     '''if we're processing a layer list, don-t stop on an aspatial-only fault'''
-                    ldslog.error(str(afe))
+                    ldslog.error(str(ee))
         elif layer in self.lnl:
             self.definedIncrementLayer(layer,fdate,tdate)
         else:
@@ -425,8 +429,11 @@ class TransferProcessor(object):
         if (td-fd).days>0:
             
             #TODO optimise
+            haspk = self.hasPrimaryKey(layer_i)
             
             if layer_i in self.partitionlayers:
+                if not haspk:
+                    raise PrimaryKeyUnavailableException('Cannot partition layer '+str(layer_i)+'without a valid primary key')
                 self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
                 self.src.setPartitionStart(0)
                 self.src.setPartitionSize(self.partitionsize)
@@ -434,13 +441,13 @@ class TransferProcessor(object):
                 
             while 1:
                 #set up URI
-                self.src.setURI(self.src.sourceURI_incrd(layer_i,fdate,tdate))
+                self.src.setURI(self.src.sourceURI_incrd(layer_i,fdate,tdate) if haspk else self.src.sourceURI(layer_i))
                 self.dst.setURI(self.dst.destinationURI(layer_i))
             
                 #source read from URI
                 self.src.read(self.src.getURI())
                 #destination write the SRC to the dest URI
-                maxkey = self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
+                maxkey = self.dst.write(self.src,self.dst.getURI(),self.getIncremental() and haspk,self.getFBF(),self.getSixtyFour(layer_i))
                 if maxkey is not None:
                     self.src.setPartitionStart(maxkey)
                 else:

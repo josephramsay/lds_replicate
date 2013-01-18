@@ -100,7 +100,7 @@ NOTES
 
 
 - Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July
-- FileGDB SR conversion problems addressed in GDAL 1.9.2. Any GDAL build from 2013 will work here (Upgrade if seeing General Function Failures)
+- FileGDB SR conversion problems addressed in GDAL 1.9.2. GDAL builds from 2013 will work here (Upgrade if seeing General Function Failures)
 
 GOTCHAS
 -------
