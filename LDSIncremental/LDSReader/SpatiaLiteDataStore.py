@@ -69,7 +69,7 @@ class SpatiaLiteDataStore(DataStore):
         gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
         #TODO Figure out how to set geom_name for SL... this wont do it
-        if gname is not None and len(gname)>0:
+        if gname is not None:
             local_opts += ['GEOMETRY_NAME='+gname]
             
         #Not really needed since default is YES

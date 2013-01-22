@@ -22,6 +22,7 @@ import ogr
 import osr
 import re
 import logging
+import string
 
 import json
 
@@ -197,26 +198,33 @@ class DataStore(object):
         #self.initDS(dsn)
         self.ds = self.driver.Open(dsn)
     
-    def write(self,src,dsn,incr_haspk,fbf,sixtyfour):
+    def write(self,src,dsn,incr_haspk,fbf,sixtyfour,srsconv):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
         #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
         self.src_link = src
+        #we need to store 64 beyond fC/dC flag to identify need for sufi-to-str conversion
         self.sixtyfour = sixtyfour
         max_key = None
-        
-        #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
         
         #ldslog.info("DS Write "+dsn)#.split(":")[0]
         #shouldnt be needed but sometimes instances of DS disconnect occur
         if not hasattr(self,'ds') or self.ds is None:
             self.ds = self.initDS(dsn)
         
+        '''IF not(haspk) and(64 or srs) THEN what happens? 
+        1) no pk means we have to use dC
+        2) 64 or srs means we have to use fC
+        trying to do fC without a pk will fail if we have a partition table
+        trying to do dC with 64 means sufis get converted wrongly (ints will overflow)
+        trying to do dC with srs means the conversion wont happen
+        SO best option is attempt fC and hope we dont have to partition the table, if we do throw an exception!
+        ''' 
         #if incr&haspk then fC
         if incr_haspk:
             # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
             max_key = self.featureCopyIncremental(src.ds,self.ds,src.CHANGE_COL)
         #if not(incr&haspk) & 64b attempt fC
-        elif sixtyfour or fbf:
+        elif sixtyfour or srsconv or fbf:
             #do a featureCopyIncremental if override asks or if a table has big ints
             max_key = self.featureCopyIncremental(src.ds,self.ds,None)
         else:
@@ -248,7 +256,7 @@ class DataStore(object):
             (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
             
             dst_layer_name = self.generateLayerName(ref_name)
-            self.optcols |= set(ref_disc.strip('[]{}()').split(',') if len(ref_disc)>0 else [])
+            self.optcols |= set(ref_disc.strip('[]{}()').split(',') if all(i in string.whitespace for i in ref_disc) else [])
             
             try:
                 #TODO test on MSSQL since schemas sometimes needed ie non dbo
@@ -262,7 +270,7 @@ class DataStore(object):
                 tds_layer = tds_ds.CopyLayer(src_layer,dst_layer_name,[])
                 tds.deleteOptionalColumns(tds_layer)
                 layer = dst_ds.CopyLayer(tds_layer,dst_layer_name,self.getOptions(src_layer_name))
-                tds_ds.SyncToDisk()
+                #tds_ds.SyncToDisk()
                 tds_ds.Destroy()  
             except RuntimeError as re:
                 if 'General function failure' in str(re):
@@ -412,7 +420,7 @@ class DataStore(object):
                 e = 0
                 while 1:
                     '''identify the change in the WFS doc (INS,UPD,DEL)'''
-                    change =  (src_feat.GetField(changecol) if changecol is not None and len(changecol)>0 else "insert").lower()
+                    change =  (src_feat.GetField(changecol) if changecol is not None and all(i in string.whitespace for i in changecol) else "insert").lower()
                     '''not just copy but possubly delete or update a feature on the DST layer'''
                     #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
                     
@@ -463,17 +471,16 @@ class DataStore(object):
         return max_index          
 
     def transformSRS(self,src_layer_sref):
-        '''transform from one SRS to another, provided the supplied EPSG is correct and coordinates can be transformed'''
+        '''Defines the transform from one SRS to another. Doesn't actually do the transformation, just defines the transformation needed.
+        Requires the supplied EPSG be correct and coordinates can be transformed'''
         self.transform = None
         dst_sref = src_layer_sref#not necessary but for clarity
         selected_sref = self.getSRS()
-        if selected_sref is not None and selected_sref != '':
+        if selected_sref is not None and not all(i in string.whitespace for i in selected_sref):
             #if the selected SRS fails to validate assume error and flag but dont silently drop back to default
-            trans_sref = Projection.validateEPSG(selected_sref)
-            if trans_sref is not None:
-                self.transform = osr.CoordinateTransformation(src_layer_sref, trans_sref)
-                if self.transform is not None:
-                    dst_sref = trans_sref
+            dst_sref = Projection.validateEPSG(selected_sref)
+            if dst_sref is not None:
+                self.transform = osr.CoordinateTransformation(src_layer_sref, dst_sref)
             else:
                 ldslog.warn("Unable to validate selected SRS, epsg="+str(selected_sref))
                     
@@ -1026,7 +1033,7 @@ class DataStore(object):
         if feat is None:
             return None
         prop = feat.GetField(field)
-        return None if prop == 'None' else prop
+        return None if prop == 'None' or all(i in string.whitespace for i in prop) else prop
 
     def writeLayerProperty(self,pkey,field,value):
         '''Write changes to layer config table'''

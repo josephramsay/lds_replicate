@@ -122,7 +122,7 @@ class MSSQLSpatialDataStore(DataStore):
         
         local_opts = []
         gc = self.layerconf.readLayerProperty(layer_id,'geocolumn')
-        if gc is not None and len(gc)>0:
+        if gc is not None:
             local_opts += ['GEOM_NAME='+gc]
             
         schema = self.mainconf.readDSProperty(self.DRIVER_NAME,'schema')
@@ -132,7 +132,7 @@ class MSSQLSpatialDataStore(DataStore):
             local_opts += ['SCHEMA='+schema]
             
         srid = self.layerconf.readLayerProperty(layer_id,'epsg')
-        if srid is not None and len(srid)>0:
+        if srid is not None:
             local_opts += ['SRID='+srid]
         
         return super(MSSQLSpatialDataStore,self).getOptions() + local_opts

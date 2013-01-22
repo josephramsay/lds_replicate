@@ -16,6 +16,7 @@ Created on 24/07/2012
 '''
 
 import os
+import string
 import logging
 import ConfigParser
 
@@ -459,6 +460,8 @@ class MainFileReader(object):
     def readMainProperty(self,driver,key):
         try:
             value = self.cp.get(driver, key)
+            if value is None or all(i in string.whitespace for i in value):
+                return None
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
             ldslog.warn("Cannot find requested driver/key ("+str(driver)+"/"+str(key)+")combo")
@@ -503,8 +506,11 @@ class LayerFileReader(object):
     def readLayerProperty(self,layer,key):
         try:
             value = self.cp.get(layer, key)
+            if value is None or all(i in string.whitespace for i in value):
+                return None
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
+            #the logic here may be a bit suss, if the property is blank return none but if there is an error assume a default is needed?
             return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
         return value
     

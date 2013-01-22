@@ -15,6 +15,7 @@ Created on 23/07/2012
 @author: jramsay
 '''
 import logging
+import string
 
 from ReadConfig import MainFileReader, LayerFileReader
 
@@ -56,83 +57,9 @@ class ConfigWrapper(object):
         '''Returns configured layers for respective layer properties file'''
         return self.layerconfig.getSections()
     
-#    def readLayerCategories(self,layer_id):
-#        '''Reads configured name for a provided layer id'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        category = self.layerconfig.readLayerProperty(layer_id,'category')
-#        return category
-#    
-#    def readLayerEPSG(self,layer_id):
-#        '''Reads configured SRS for a provided layer id'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        epsg = self.layerconfig.readLayerProperty(layer_id,'epsg')
-#        return epsg
-#    
-#    def readConvertedLayerName(self,layer_id):
-#        '''Reads configured name for a provided layer id'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        name = self.layerconfig.readLayerProperty(layer_id,'name')
-#        return name
-#    
-#    def lookupConvertedLayerName(self,layer_name):
-#        '''Reverse lookup of layer id given a layer name, again using the layer properties file'''
-#        return self.layerconfig.findLayerIdByName(layer_name)
-#
-#
-#
-#
-#    def readLastModified(self,layer_id):
-#        '''Reads last modified date for a provided layer id per destination'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        lmod = self.layerconfig.readLayerProperty(layer_id,'lastmodified')
-#        return lmod
-#        
-#    def writeLastModified(self,layer_id,lmod):
-#        '''Writes a new last modified date for a provided layer id per destination'''
-#        ldslog.info("Writing "+lmod+" for layer="+layer_id+" to config file")
-#        self.layerconfig.writeLayerSchemaConfig(layer_id, lmod)
-#
-#        
-#
-#
-#    def readOptionalColmuns(self,layer_id):
-#        '''Returns a list of columns being discarded for the named layer (with removal of brackets)'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        disc = self.layerconfig.readLayerProperty(layer_id,'discard')
-#        return disc.strip('[]{}()').split(',') if disc is not None else []
-#    
-#    def readPrimaryKey(self,layer_id):
-#        '''Returns a list of columns being discarded for the named layer'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        pkey = self.layerconfig.readLayerProperty(layer_id,'pkey')
-#        return pkey
-#    
-#    def readIndexRef(self,layer_id):
-#        '''Returns a list of columns being discarded for the named layer'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        index = self.layerconfig.readLayerProperty(layer_id,'index')
-#        return index
-#    
-#    def readCQLFilter(self,layer_id):
-#        '''Reads the CQL filter for the layer if provided'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        cql = self.layerconfig.readLayerProperty(layer_id,'cql')
-#        return cql
-#    
-#    
-#    
-#    def readGeometryColumnName(self,layer_id):
-#        '''Returns preferred geometry column name. If not provided uses the existing layer name'''
-#        #(pkey,name,group,gcol,index,epsg,lmod,disc,cql) = self.layerconfig.readLayerSchemaConfig(layer_id)
-#        gcol = self.layerconfig.readLayerProperty(layer_id,'geocolumn')
-#        return gcol
-#    
-#    
-#    def readLayerParameters(self,layer_id):
-#        '''Returns a list of all layer parameters'''
-#        return self.layerconfig.readLayerSchemaConfig(layer_id)
-#        
+        
 #    #==============MAINCONFIG===========================================================
+
 
     def readDSParameters(self,drv):
         '''Returns the datasource parameters. By request updated to let users override parts of the basic config file'''

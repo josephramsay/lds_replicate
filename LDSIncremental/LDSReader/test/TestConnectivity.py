@@ -5,7 +5,6 @@ Created on 17/08/2012
 '''
 import unittest
 
-import LDSIncrTestCase
 
 from LDSReader.PostgreSQLDataStore import PostgreSQLDataStore
 from LDSReader.MSSQLSpatialDataStore import MSSQLSpatialDataStore
@@ -14,7 +13,7 @@ from LDSReader.FileGDBDataStore import FileGDBDataStore
 from LDSReader.SpatiaLiteDataStore import SpatiaLiteDataStore
 
 
-class TestConnect(LDSIncrTestCase):
+class TestConnect(unittest.TestCase):
     '''basic test of connectivity to configured destinations '''
 
 

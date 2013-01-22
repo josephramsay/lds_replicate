@@ -17,6 +17,7 @@ Created on 26/07/2012
 
 import logging
 import os
+import string
 
 from datetime import datetime 
 
@@ -161,9 +162,14 @@ class TransferProcessor(object):
             return True
         return False
     
+    def doSRSConvert(self):
+        '''Pre check of layer to see if an SRS conversion has been requested. NB Any entry here assumes conversion is needed, doesn't check against existing SRS'''
+        return False if self.dst.getSRS() is None else True
+    
     def hasPrimaryKey(self,testlayer):
         '''Reads layer conf pkey identifier. If PK is None or something, use this to decide processing type i.e. no PK = driverCopy'''
-        if self.dst.layerconf.readLayerProperty(testlayer,'pkey') is None:
+        hpk = self.dst.layerconf.readLayerProperty(testlayer,'pkey')
+        if hpk is None:
             return False
         return True
     
@@ -356,13 +362,21 @@ class TransferProcessor(object):
         
         #Set filters in URI call using layer            
         self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(layer_i,'cql')))
+        #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy
+        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.layerconf.readLayerProperty(layer_i,'epsg')))
 
         #while (True):
         self.src.setURI(self.src.sourceURI(layer_i))
         self.dst.setURI(self.dst.destinationURI(layer_i))
                 
         self.src.read(self.src.getURI())
-        self.dst.write(self.src,self.dst.getURI(),self.getIncremental() and self.hasPrimaryKey(layer_i),self.getFBF(),self.getSixtyFour(layer_i))
+        self.dst.write(self.src,
+                       self.dst.getURI(),
+                       self.getIncremental() and self.hasPrimaryKey(layer_i),
+                       self.getFBF(),
+                       self.getSixtyFour(layer_i),
+                       self.doSRSConvert()
+                    )
 #            if maxkey is not None:
 #                self.src.setPartitionStart(maxkey)
 #            else:
@@ -421,7 +435,7 @@ class TransferProcessor(object):
         #croplayer = LDSUtilities.cropChangeset(layer_i)
         #Filters are set on the SRC since they're built into the URL, they are however specified per DST    
         self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(layer_i,'cql')))
-        #SRS are set in the DST since the conversion takes place during the write process. These are only needed for Incremental
+        #SRS are set in the DST since the conversion takes place during the write process.
         self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.layerconf.readLayerProperty(layer_i,'epsg')))
         
         td = datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S')
@@ -447,21 +461,17 @@ class TransferProcessor(object):
                 #source read from URI
                 self.src.read(self.src.getURI())
                 #destination write the SRC to the dest URI
-                maxkey = self.dst.write(self.src,self.dst.getURI(),self.getIncremental() and haspk,self.getFBF(),self.getSixtyFour(layer_i))
+                maxkey = self.dst.write(self.src,
+                                        self.dst.getURI(),
+                                        self.getIncremental() and haspk,
+                                        self.getFBF(),
+                                        self.getSixtyFour(layer_i),
+                                        self.doSRSConvert()
+                                    )
                 if maxkey is not None:
                     self.src.setPartitionStart(maxkey)
                 else:
                     break
-                
-#            else:
-#                
-#                self.src.setURI(self.src.sourceURI_incrd(layer_i,fdate,tdate))
-#                self.dst.setURI(self.dst.destinationURI(layer_i))
-#            
-#                #source read from URI
-#                self.src.read(self.src.getURI())
-#                #destination write the SRC to the dest URI
-#                self.dst.write(self.src,self.dst.getURI(),self.getIncremental(),self.getFBF(),self.getSixtyFour(layer_i))
                 
             self.dst.setLastModified(layer_i,tdate)
             
