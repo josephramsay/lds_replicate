@@ -236,7 +236,7 @@ class TransferProcessor(object):
         #might as well initds here, its going to be needed eventually
         self.dst.ds = self.dst.initDS(self.dst.destinationURI(None))#DataStore.LDS_CONFIG_TABLE))
         
-        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize) = self.dst.mainconf.readDSParameters('Misc')
+        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.temptable) = self.dst.mainconf.readDSParameters('Misc')
         
         self.src = LDSDataStore(self.source_str,self.user_config) 
         capabilities = self.src.getCapabilities()
@@ -349,7 +349,7 @@ class TransferProcessor(object):
                 try:
                     self.fullReplicateLayer(str(layer_i))
                 except (ASpatialFailureException, PrimaryKeyUnavailableException) as ee:
-                    '''if we're processing a layer list, don't stop on an aspatial-only fault, the spatial layers might just work'''
+                    '''if we're processing a layer list, don't stop on an aspatial-only fault, other spatial layers might just work'''
                     ldslog.error(str(ee))
         elif layer in self.lnl:
             self.fullReplicateLayer(layer)
@@ -375,6 +375,7 @@ class TransferProcessor(object):
                        self.getIncremental() and self.hasPrimaryKey(layer_i),
                        self.getFBF(),
                        self.getSixtyFour(layer_i),
+                       self.temptable,
                        self.doSRSConvert()
                     )
 #            if maxkey is not None:
@@ -466,6 +467,7 @@ class TransferProcessor(object):
                                         self.getIncremental() and haspk,
                                         self.getFBF(),
                                         self.getSixtyFour(layer_i),
+                                        self.temptable,
                                         self.doSRSConvert()
                                     )
                 if maxkey is not None:

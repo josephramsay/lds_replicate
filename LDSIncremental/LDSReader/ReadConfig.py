@@ -428,10 +428,11 @@ class MainFileReader(object):
     
     def readMiscConfig(self):
         
-        sixtyfourlayers = None
-        partitionlayers = None
+        sixtyfourlayers = ()
+        partitionlayers = ()
         #NB. for v:x772 ps=1000000 is too small, 100000-1999999 returns None but ps=10000000 is too large, hangs or quits on XML parse fail
         partitionsize = None
+        temptable = None
         
         try: 
             sixtyfourlayers = map(lambda s: s if s[:3]=='v:x' else 'v:x'+s, self.cp.get(self.MISC, '64bitlayers').split(','))
@@ -452,9 +453,16 @@ class MainFileReader(object):
         except NoSectionError:
             ldslog.warning("Misc: No Misc section detected looking for Partition Size specification. Default = "+str(partitionsize)+". NB. 'partitionsize'")
         except NoOptionError:
-            ldslog.warning("Misc: No Partition Size specified. Default = "+str(partitionsize)+". NB. 'partitionsize'")
+            ldslog.warning("Misc: No Partition Size specified. Default = 'Memory'. NB. 'partitionsize'")
+            
+        try: 
+            temptable = self.cp.get(self.MISC, 'temptable')
+        except NoSectionError:
+            ldslog.warning("Misc: No Misc section detected looking for Temporary Table type. Default = "+str(temptable)+". NB. 'temptable'")
+        except NoOptionError:
+            ldslog.warning("Misc: No Temporary Table type specified. Default = 'Memory'. NB. 'temptable'")
         
-        return (sixtyfourlayers,partitionlayers,partitionsize)
+        return (sixtyfourlayers,partitionlayers,partitionsize,temptable)
         
     
     def readMainProperty(self,driver,key):

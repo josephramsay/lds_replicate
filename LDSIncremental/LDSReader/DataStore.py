@@ -50,6 +50,7 @@ class LayerCreateException(LDSReaderException): pass
 class InvalidLayerException(LDSReaderException): pass
 class InvalidFeatureException(LDSReaderException): pass
 class ASpatialFailureException(LDSReaderException): pass
+class UnknownTemporaryDSType(LDSReaderException): pass
 
 
 class DataStore(object):
@@ -66,6 +67,7 @@ class DataStore(object):
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
     
     CONFIG_COLUMNS = ('id','pkey','name','category','lastmodified','geocolumn','index','epsg','discard','cql')
+    #TEMP_DS_TYPES = ('Memory','ESRI Shapefile','Mapinfo File','GeoJSON','GMT','DXF')
     
     ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
                       ogr.wkbPolygon, ogr.wkbMultiPoint, ogr.wkbMultiLineString, 
@@ -120,6 +122,7 @@ class DataStore(object):
         return self.cql
     
     def setSRS(self,srs):
+        '''Sets the destination SRS EPSG code'''
         self.srs = srs
          
     def getSRS(self):
@@ -198,7 +201,7 @@ class DataStore(object):
         #self.initDS(dsn)
         self.ds = self.driver.Open(dsn)
     
-    def write(self,src,dsn,incr_haspk,fbf,sixtyfour,srsconv):
+    def write(self,src,dsn,incr_haspk,fbf,sixtyfour,temptable,srsconv):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
         #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
         self.src_link = src
@@ -211,7 +214,7 @@ class DataStore(object):
         if not hasattr(self,'ds') or self.ds is None:
             self.ds = self.initDS(dsn)
         
-        '''IF not(haspk) and(64 or srs) THEN what happens? 
+        '''IF not(haspk) and (64 or srs) THEN what happens? 
         1) no pk means we have to use dC
         2) 64 or srs means we have to use fC
         trying to do fC without a pk will fail if we have a partition table
@@ -229,7 +232,7 @@ class DataStore(object):
             max_key = self.featureCopyIncremental(src.ds,self.ds,None)
         else:
             # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
-            self.driverCopy(src.ds,self.ds) 
+            self.driverCopy(src.ds,self.ds,temptable) 
             
             #Alternative, bare feature copy. Still very slow though 10x slower than driverCopy
             #self.featureCopy(src.ds,self.ds,None)
@@ -242,9 +245,8 @@ class DataStore(object):
         self.ds.SyncToDisk()
         self.ds.Destroy()  
               
-    def driverCopy(self,src_ds,dst_ds):
+    def driverCopy(self,src_ds,dst_ds,temptable):
         '''Copy from source to destination using the driver copy and without manipulating data'''       
-        #from TemporaryDataStore import GeoJSONDataStore
         from TemporaryDataStore import TemporaryDataStore
         
         ldslog.info("Using driverCopy. Non-Incremental driver copy")
@@ -264,16 +266,24 @@ class DataStore(object):
             except ValueError as ve:
                 ldslog.warn("Cannot delete layer "+dst_layer_name+". It probably doesn't exist. "+str(ve))
                 
+
             try:
-                tds = TemporaryDataStore.getInstance(self, 'Memory')
-                tds_ds = tds.initDS()
-                tds_layer = tds_ds.CopyLayer(src_layer,dst_layer_name,[])
-                tds.deleteOptionalColumns(tds_layer)
-                layer = dst_ds.CopyLayer(tds_layer,dst_layer_name,self.getOptions(src_layer_name))
-                #tds_ds.SyncToDisk()
-                tds_ds.Destroy()  
-            except RuntimeError as re:
-                if 'General function failure' in str(re):
+                if temptable == 'DIRECT':                    
+                    layer = dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name))
+                    self.deleteOptionalColumns(layer)
+                elif temptable in TemporaryDataStore.TEMP_MAP.keys():
+                    tds = TemporaryDataStore.getInstance(temptable)()
+                    tds_ds = tds.initDS()
+                    tds_layer = tds_ds.CopyLayer(src_layer,dst_layer_name,[])
+                    tds.deleteOptionalColumns(tds_layer)
+                    layer = dst_ds.CopyLayer(tds_layer,dst_layer_name,self.getOptions(src_layer_name))
+                    #tds_ds.SyncToDisk()
+                    tds_ds.Destroy()  
+                else:
+                    ldslog.error('Cannot match DS type "'+str(temptable)+'" with known types '+str(TemporaryDataStore.TEMP_MAP.keys()))
+                    raise UnknownTemporaryDSType('Cannot match DS type "'+str(temptable)+'" with known types '+str(TemporaryDataStore.TEMP_MAP.keys()))
+            except RuntimeError as rte:
+                if 'General function failure' in str(rte):
                     #GFF usually indicates a driver copy error (FGDB)
                     ldslog.error('GFF on driver copy. Recommend upgrade to GDAL > 1.9.2')
                 else:
@@ -290,6 +300,7 @@ class DataStore(object):
                 self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
             
         return
+    
         
     def deleteOptionalColumns(self,dst_layer):
         '''Delete unwanted columns from layer'''
@@ -411,6 +422,8 @@ class DataStore(object):
                 dst_sref = self.transformSRS(src_layer_sref)
                 (dst_layer,new_layer) = self.buildNewDataLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
             
+            dst_layer.StartTransaction()
+            
             #add/copy features
             #src_layer.ResetReading()
             src_feat = src_layer.GetNextFeature()
@@ -465,8 +478,10 @@ class DataStore(object):
             if new_layer and ref_index is not None and ref_pkey is not None:
                 self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
             
+            dst_layer.CommitTransaction()
             src_layer.ResetReading()
             dst_layer.ResetReading()
+            
             
         return max_index          
 
@@ -681,7 +696,8 @@ class DataStore(object):
             if fin_field_name == 'id':
                 current_id =  fin.GetField(fin_no)
             if self.sixtyfour and self.identify64Bit(fin_field_name): #in self.sixtyfour
-                #assumes id occurs before sufi in the document                
+                #assumes id occurs before sufi in the document
+                #sixtyfour test first since identify could be time consuming. Luckily sufi-containing tables are small and process quite quickly                
                 copy_field = self.sufi_list[fin_field_name][current_id]
                 fout.SetField(fout_no, str(copy_field))
                 fout_no += 1
