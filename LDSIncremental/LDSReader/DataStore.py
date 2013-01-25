@@ -84,7 +84,7 @@ class DataStore(object):
         
         self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"
          
-        if conn_str is not None:
+        if conn_str is not None and not all(i in string.whitespace for i in conn_str):
             self.conn_str = conn_str
         
         self.setSRS(None)
@@ -489,17 +489,17 @@ class DataStore(object):
         '''Defines the transform from one SRS to another. Doesn't actually do the transformation, just defines the transformation needed.
         Requires the supplied EPSG be correct and coordinates can be transformed'''
         self.transform = None
-        dst_sref = src_layer_sref#not necessary but for clarity
         selected_sref = self.getSRS()
         if selected_sref is not None and not all(i in string.whitespace for i in selected_sref):
             #if the selected SRS fails to validate assume error and flag but dont silently drop back to default
-            dst_sref = Projection.validateEPSG(selected_sref)
-            if dst_sref is not None:
-                self.transform = osr.CoordinateTransformation(src_layer_sref, dst_sref)
+            validated_sref = Projection.validateEPSG(selected_sref)
+            if validated_sref is not None:
+                self.transform = osr.CoordinateTransformation(src_layer_sref, validated_sref)
             else:
                 ldslog.warn("Unable to validate selected SRS, epsg="+str(selected_sref))
+        else:
+            return src_layer_sref
                     
-        return dst_sref
     
     def insertFeature(self,dst_layer,src_feat,new_feat_def):
         '''insert a new feature'''
@@ -566,6 +566,7 @@ class DataStore(object):
         for i in range(0,feature.GetFieldCount()):
             fvlist += (feature.GetFieldAsString(i),)
         return fvlist
+ 
                       
     def buildNewDataLayer(self,dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name):        
         '''Constructs a new layer using another source layer as a template. This does not populate that layer'''
@@ -576,7 +577,7 @@ class DataStore(object):
         
         #use the field defns to build a schema since this needs to be loaded as a create_layer option
         opts = self.getOptions(ref_layer_name)
-        
+        #NB wkbPolygon = 3, wkbMultiPolygon = 6
         dst_layer_geom = ogr.wkbMultiPolygon if src_layer_geom is ogr.wkbPolygon else self.selectValidGeom(src_layer_geom)
         
         '''build layer replacing poly with multi and revert to def if that doesn't work'''
@@ -584,8 +585,6 @@ class DataStore(object):
             #gs = 'GEOGCS'
             #sr = osr.SpatialReference('EPSG:4167')
             #ac = sr.GetAuthorityCode(None)
-            #dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,dst_layer_geom,opts)
-            #dst_layer = dst_ds.CreateLayer(dst_layer_name,'EPSG:4764',dst_layer_geom,opts)
             dst_layer = dst_ds.CreateLayer(dst_layer_name, dst_sref, dst_layer_geom,opts)
         except RuntimeError as re:
             ldslog.error("Cannot create layer. "+str(re))
@@ -609,6 +608,7 @@ class DataStore(object):
             ldslog.warning("Could not initialise Layer with specified SRID {"+str(src_layer_sref)+"}.\n\nUsing Default {"+str(dst_sref)+"} instead")
             dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,dst_layer_geom,opts)
                 
+        #if still failing, give up
         if dst_layer is None:
             ldslog.error(dst_layer_name+" cannot be created")
             raise LayerCreateException(dst_layer_name+" cannot be created")

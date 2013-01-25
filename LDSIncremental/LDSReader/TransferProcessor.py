@@ -116,6 +116,10 @@ class TransferProcessor(object):
         elif fbf != None and fbf is False:
             self.clearFBF()
 
+        
+    def __str__(self):
+        return 'Layer:{layer}, Group:{group}, CQL:{cql}, '.format(layer=self.layer,group=self.group,cql=self.cql)
+    
     #incr flag copied straight from Datastore
     def setIncremental(self):
         self.INCR = True
@@ -270,17 +274,17 @@ class TransferProcessor(object):
             '''once a layer is cleaned don't need to continue so quit'''
             return
             
-        #full LDS layer name listv:x
+        #full LDS layer name listv:x (from LDS WFS)
         lds_full = LDSDataStore.fetchLayerNames(capabilities)
-        #list of configured layers
+        #list of configured layers (from layer-config file/table)
         lds_read = self.dst.layerconf.getLayerNames()
         
         lds_valid = set(lds_full).intersection(set(lds_read))
         
         #Filter by group designation
 
-        self.lnl = ()
         if self.group is not None:
+            self.lnl = ()
             lg = set(self.group.split(','))
             for lid in lds_valid:
                 cats = self.dst.layerconf.readLayerProperty(lid,'category')

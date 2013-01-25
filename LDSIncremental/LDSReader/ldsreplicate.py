@@ -151,7 +151,6 @@ def main():
             gp = val
         elif opt in ("-e","--epsg"):
             ep = val
-            fbf = True
         elif opt in ("-s","--source"):
             sc = val
         elif opt in ("-d","--destination"):
@@ -229,10 +228,13 @@ def main():
     print m2
     ldslog.info(m2)
     
-    m3 = '*** Duration *** '+str(et-st)
+    dur = et-st
+    m3 = '*** Duration *** '+str(dur)
     print m3
     ldslog.info(m3)
+    
+    return 1000*dur.total_seconds()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
