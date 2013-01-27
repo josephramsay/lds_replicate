@@ -32,7 +32,10 @@ class TestSpeed(unittest.TestCase):
     LAYER_GEODETIC = ('v:x784','v:x786','v:x787','v:x788','v:x789','v:x817','v:x839','v:x1029')
     LAYER_ASPATIAL = ('v:x1203','v:x1209','v:x1204','v:x1208','v:x1211','v:x1210','v:x1199')
     LAYER_PROBLEM = ('v:x772',)
-    
+    #cables,coast
+    LAYER_HYDRO = ('v:x1091','v:x384')
+    #road-cl,lake
+    LAYER_TOPO = ('v:x329','v:x293')
     #2113=Wellington NZGD2000, 3788=AKL islands WGS84,2759=NAD83/HARN Alabama
     EPSG = (2113,3788,2759)
     DATE = '2012-03-20'
@@ -53,15 +56,6 @@ class TestSpeed(unittest.TestCase):
     _CONN_STR_L = "PG:dbname='jrdb' host='144.66.6.86' port='5432' user='pguser' password='pgpass'"
     _CONN_STR_W = "MSSQL:server=LZ104588-VM\SQLExpress;database=LDSINCR;UID=mssqluser;PWD=mssqlpass"
     
-    
-#    @classmethod
-#    def setUpClass(cls):
-#        some_other_layers = ('v:x772',  'v:x1203')
-#        geodetic_layers = ('v:x784','v:x786','v:x787','v:x788','v:x789','v:x817','v:x839','v:x1029')
-#        for o in TestUI.OUTP:
-#            for l in TestUI.LAYER+TestUI.LAYER_ASPATIAL+TestUI.LAYER_GEODETIC+TestUI.LAYER_PROBLEM:
-#                TestUI.prepLayer(l,o)
-                
     
     def setUp(self):
         #super(TestUI,self).setUp()
@@ -100,24 +94,26 @@ class TestSpeed(unittest.TestCase):
         timing = ()
 
         for o in self.OUTP:
-            for l in self.LAYER+self.LAYER_ASPATIAL+self.LAYER_GEODETIC:
+            for l in self.LAYER+self.LAYER_ASPATIAL+self.LAYER_GEODETIC+self.LAYER_HYDRO+self.LAYER_TOPO:
                 print 'layer',l,'output',o
                 
                 #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc,        fbf)
                 tp1 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF, '1')
                 tp2 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF, '2')
-                d1,d2 = self.executeComparison(self.selectProcess(tp1,o),self.selectProcess(tp2,o))
+                d1 = self.execute(self.selectProcess(tp1,o)) 
+                d2 = self.execute(self.selectProcess(tp2,o))
                 
-                print 'featureCopy::',d1,'driverCopy::',d2
-                timing += ((d1,d2),)
+                print 'layer::',l,'featureCopy::',d1,'driverCopy::',d2
+                timing += ((l,d1,d2),)
 
         s1=0
         s2=0
         handle = open('res.txt','w')
-        for t1,t2 in timing:
+        handle.write('layer,fC,dC\n')
+        for ln,t1,t2 in timing:
             s1 += t1
             s2 += t2
-            handle.write(str(t1)+','+str(t2))
+            handle.write(ln+','+str(t1)+','+str(t2)+'\n')
         handle.close()
         self.assertGreater(s1,s2)
         
@@ -132,21 +128,15 @@ class TestSpeed(unittest.TestCase):
          }.get(procname)   
     
     
-    def executeComparison(self,proc1,proc2):
+    def executeComparison(self,p1,p2):
 
-            st1 = datetime.now()
-            proc1()
-            et1 = datetime.now()
-            d1 = (et1-st1).total_seconds()
-            
-            st2 = datetime.now()
-            proc2()
-            et2 = datetime.now()
-            d2 = (et2-st2).total_seconds()
-            
-            return d1,d2
+        return self.execute(p1),self.execute(p2)
 
-            
+    def execute(self,proc):
+        st = datetime.now()
+        proc()
+        et = datetime.now()
+        return (et-st).total_seconds()
    
             
     def prepLayerGeodetic(self,o):
