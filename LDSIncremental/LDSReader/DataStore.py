@@ -51,6 +51,7 @@ class InvalidLayerException(LDSReaderException): pass
 class InvalidFeatureException(LDSReaderException): pass
 class ASpatialFailureException(LDSReaderException): pass
 class UnknownTemporaryDSType(LDSReaderException): pass
+class MalformedConnectionString(DSReaderException): pass
 
 
 class DataStore(object):
@@ -163,7 +164,12 @@ class DataStore(object):
     def destinationURI(self,layer):
         '''Abstract URI method for returning destination. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method destinationURI not implemented")
-
+    
+    @abstractmethod
+    def validateConnStr(self,conn_str):
+        '''Abstract method to check user supplied connection strings. Raises NotImplementedError if accessed directly'''
+        raise NotImplementedError("Abstract method destinationURI not implemented")
+        
     #@abstractmethod
     #def buildExternalLayerDefinition(self,name,fdef_list):
     #    raise NotImplementedError("Abstract method buildExternalLayerDefinition not implemented")
@@ -229,7 +235,7 @@ class DataStore(object):
         #if not(incr&haspk) & 64b attempt fC
         elif sixtyfour or srsconv or fbf:
             #do a featureCopyIncremental if override asks or if a table has big ints
-            max_key = self.featureCopyIncremental(src.ds,self.ds,None)
+            max_key = self.featureCopy(src.ds,self.ds)
         else:
             # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
             self.driverCopy(src.ds,self.ds,temptable) 
@@ -328,7 +334,7 @@ class DataStore(object):
         
     #--------------------------------------------------------------------------            
     
-    def featureCopy(self,src_ds,dst_ds,changecol):
+    def featureCopy(self,src_ds,dst_ds):
         '''Feature copy without the change column (and other incremental) overhead. Replacement for driverCopy(cloneDS).''' 
         '''REF #4'''
         for li in range(0,src_ds.GetLayerCount()):
@@ -358,6 +364,7 @@ class DataStore(object):
             
             (dst_layer,new_layer) = self.buildNewDataLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
         
+            dst_layer.StartTransaction()
             #add/copy features
             #src_layer.ResetReading()
             src_feat = src_layer.GetNextFeature()
@@ -378,7 +385,8 @@ class DataStore(object):
             #May need to be pushed out to subclasses depending on syntax differences
             if new_layer and ref_index is not None and ref_pkey is not None:
                 self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
-            
+                
+            dst_layer.CommitTransaction()
             src_layer.ResetReading()
             dst_layer.ResetReading()            
     

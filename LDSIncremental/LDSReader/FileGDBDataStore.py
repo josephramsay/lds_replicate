@@ -17,8 +17,10 @@ Created on 9/08/2012
 
 import logging
 import os
+import re
 
 from ESRIDataStore import ESRIDataStore
+from DataStore import MalformedConnectionString
 
 ldslog = logging.getLogger('LDS')
 
@@ -48,6 +50,13 @@ class FileGDBDataStore(ESRIDataStore):
         '''URI method returns destination file name'''
         return self._commonURI(layer)
         
+        
+    def validateConnStr(self,cs):
+        '''FGDB basic checks. 1 correct file suffix'''
+        if not re.match(self.SUFFIX+'$',cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('FileGDB prefix must be '+self.SUFFIX)
+        return cs
+
         
     def _commonURI(self,layer):
         '''FileGDB organises tables as individual .gdb file/directories into which contents are written. The layer is configured as if it were a file'''

@@ -19,8 +19,10 @@ import logging
 import os
 import ogr
 import gdal
+import re
 
 from DataStore import DataStore
+from DataStore import MalformedConnectionString
 
 ldslog = logging.getLogger('LDS')
 
@@ -54,6 +56,13 @@ class SpatiaLiteDataStore(DataStore):
     def destinationURI(self,layer):
         '''URI method returns destination file name'''
         return self._commonURI(layer)
+        
+    def validateConnStr(self,cs):
+        '''SLITE basic checks. 1 correct file suffix'''
+        if not re.match(self.SUFFIX+'$',cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('SpatiaLite prefix must be '+self.SUFFIX)
+        return cs
+        
         
     def _commonURI(self,layer):
         '''Since SpatiaLite databases are self contained files this only needs to return a file path'''

@@ -12,6 +12,16 @@ from datetime import datetime
 ldslog = logging.getLogger('LDS')
 ldslog.setLevel(logging.DEBUG)
 
+df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
+#df = '../debug.log'
+fh = logging.FileHandler(df,'a')
+fh.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+fh.setFormatter(formatter)
+ldslog.addHandler(fh)
+
+
 from LDSReader.TransferProcessor import TransferProcessor
 
 #class TestUI(LDSIncrTestCase):
@@ -31,7 +41,7 @@ class TestSpeed(unittest.TestCase):
     LAYER = ('v:x836','v:x785',  'v:x1203')
     LAYER_GEODETIC = ('v:x784','v:x786','v:x787','v:x788','v:x789','v:x817','v:x839','v:x1029')
     LAYER_ASPATIAL = ('v:x1203','v:x1209','v:x1204','v:x1208','v:x1211','v:x1210','v:x1199')
-    LAYER_PROBLEM = ('v:x772',)
+    LAYER_PROBLEM = ('v:x772','v:x293')
     #cables,coast
     LAYER_HYDRO = ('v:x1091','v:x384')
     #road-cl,lake
@@ -94,12 +104,12 @@ class TestSpeed(unittest.TestCase):
         timing = ()
 
         for o in self.OUTP:
-            for l in self.LAYER+self.LAYER_ASPATIAL+self.LAYER_GEODETIC+self.LAYER_HYDRO+self.LAYER_TOPO:
+            for l in self.LAYER_TOPO:#+self.LAYER_ASPATIAL+self.LAYER_GEODETIC+self.LAYER_HYDRO+self.LAYER_TOPO:
                 print 'layer',l,'output',o
                 
                 #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc,        fbf)
-                tp1 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF, '1')
-                tp2 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF, '2')
+                tp1 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF, '1') #driver
+                tp2 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF, '2') #feature
                 d1 = self.execute(self.selectProcess(tp1,o)) 
                 d2 = self.execute(self.selectProcess(tp2,o))
                 

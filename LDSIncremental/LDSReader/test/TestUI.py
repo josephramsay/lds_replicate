@@ -7,6 +7,19 @@ import unittest
 import os
 import sys
 import time
+import logging
+
+ldslog = logging.getLogger('LDS')
+ldslog.setLevel(logging.DEBUG)
+
+df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
+#df = '../debug.log'
+fh = logging.FileHandler(df,'a')
+fh.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+fh.setFormatter(formatter)
+ldslog.addHandler(fh)
 
 
 #class TestUI(LDSIncrTestCase):

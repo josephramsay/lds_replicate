@@ -43,6 +43,7 @@ ldslog = logging.getLogger('LDS')
 
 class InputMisconfigurationException(Exception): pass
 class PrimaryKeyUnavailableException(Exception): pass
+class LayerConfigurationException(Exception): pass
 
 
 class TransferProcessor(object):
@@ -260,13 +261,15 @@ class TransferProcessor(object):
                 open(os.path.join(os.path.dirname(__file__), '../',fname),'w').write(str(res))
                 
         if dst.isConfInternal():
-            #set the layerconf to access functions (which just happen to be in the DST)
+            #set the layerconf to access functions (which just happens to be in the DST)
             self.dst.layerconf = self.dst
         else:
             #set the layerconf to a reader that accesses the external file
             self.dst.layerconf = LayerFileReader(fname)
         
-            
+        if self.dst.layerconf is None:
+            raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table. fn="+str(fname)+',int='+str(dst.isConfInternal()))
+        
         if self.getCleanConfig():
             '''clean a selected layer (once the layer conf file has been established)'''
             if self.dst._cleanLayerByRef(self.dst.ds,self.layer):

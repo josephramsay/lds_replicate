@@ -23,7 +23,7 @@ import logging
 from WFSDataStore import WFSDataStore
 from urllib2 import urlopen
 from LDSUtilities import LDSUtilities
-
+from DataStore import MalformedConnectionString
 
 ldslog = logging.getLogger('LDS')
 
@@ -73,19 +73,43 @@ class LDSDataStore(WFSDataStore):
         
     def getCapabilities(self):
         '''GetCapabilities endpoint constructor'''
-        if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.conn_str
+        ###this was a bug, trying to build a GC url from the user conn str
+        ###if hasattr(self,'conn_str') and self.conn_str is not None:
+        ###    return self.conn_str
         #uri = self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
         #keyword specifier different between 1.0.0 (<ows:Keywords><ows:Keyword>) and 1.1.0 (<Keywords>) We enforce 1.1.0 to return per keyword version and more accurately parse layer groups
+        '''validate the key by checking that the key can be extracted from the key'''
+        if self.extractAPIKey(self.key,False) is None:
+            self.key = self.extractAPIKey(self.conn_str,True)
         uri = self.url+self.key+"/wfs?service=WFS&version=1.1.0&request=GetCapabilities"
         ldslog.debug(uri)
         return uri
     
-    
+    def extractAPIKey(self,cs,raiseerr):
+        '''if the user has supplied a connection string then they dont need to specify an API key in their config file, therefore we must extract it from the cs'''
+        srch = re.search('/([a-z0-9]{32})/v/x',cs,flags=re.IGNORECASE)
+        if srch is None and raiseerr:
+            raise MalformedConnectionString('Cannot parse API key')
+        return srch.group(1) if srch is not None else None
+        
+        
+    def validateConnStr(self,cs):
+        '''WFS basic checks. 1 url format,2 api key,3 ask for wfs'''
+        if not re.search('^http://',cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('\'http\' declaration required in LDS request')
+        if not re.search('wfs\.data\.linz\.govt\.nz',cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('Require \'wfs.data.linz.govt.nz\' in LDS address string')
+        if not re.search('/[a-z0-9]{32}/v/x',cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('Require API key (32char) in LDS address string')
+        if not re.search('wfs\?',cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('Need to specify \'wfs?\' service in LDS request')
+        return cs
+        
+        
     def sourceURI(self,layername):
         '''Basic Endpoint constructor'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.conn_str
+            return self.validateConnStr(self.conn_str)
 
         cql = self._buildCQLStr()
         #pql = self._buildPageStr()     

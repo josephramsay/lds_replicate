@@ -17,6 +17,7 @@ Created on 23/07/2012
 
 from DataStore import DataStore
 
+
 class WFSDataStore(DataStore):
     '''
     PostgreSQL DataStore
@@ -36,6 +37,7 @@ class WFSDataStore(DataStore):
     def getOptions(self,layer_id):
         '''Pass up getOptions call'''
         return super(WFSDataStore,self).getOptions(layer_id)
+
         
     def sourceURI(self,layername):
         '''URI method returns source file name'''
@@ -48,8 +50,8 @@ class WFSDataStore(DataStore):
     def destinationURI(self,layername):
         '''URI method returns destination file name'''
         return NotImplementedError("No destination for WFS")
-
-    
+        
+        
     def write(self,src_ds,dsn):
         '''Write method deliberately raises exception discouraging writing to a WFS source'''
         return NotImplementedError("No destination for WFS")

@@ -38,6 +38,7 @@ import sys
 import os
 import getopt
 import logging
+import traceback
 
 from datetime import datetime
 
@@ -170,8 +171,8 @@ def main():
             "-d (--destination) Connection string for destination DS," \
             "-c (--cql) Filter definition in CQL format," \
             "-u (--user) User defined config file used as partial override for ldsincr.conf," \
-            "-b (--block) Force driver level copy (faster method used for layer duplication ignoring data modifications)" \
-            "-i (--item) Force feature level copy (used for incremental updates)" \
+            "-1 (--drivercopy) Testing option to force driver level copy (sometimes faster method used for layer duplication ignoring data modifications)" \
+            "-2 (--featurecopy) Testing option to force feature level copy (used for incremental updates)" \
             "-h (--help) Display this message"
             sys.exit(2)
 
@@ -221,9 +222,9 @@ def main():
             
         #now run the selected func
     proc()
+    
     et = datetime.now()
     
-
     m2 = '*** Complete *** '+str(et.isoformat())
     print m2
     ldslog.info(m2)
@@ -237,4 +238,11 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    #main()
+    
+    try:
+        main()
+    except Exception as e:        
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
+        print str(e)+'\n(see debug.log for full stack trace)'

@@ -64,6 +64,10 @@ class TemporaryDataStore(DataStore):
         return ''
 
 
+    def validateConnStr(self,conn_str):
+        '''only needed for abstract inst'''
+        return ''
+
     def getOptions(self,layer_id):
         '''Memory DS options not supported'''
         return []

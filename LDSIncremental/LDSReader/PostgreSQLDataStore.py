@@ -16,8 +16,10 @@ Created on 9/08/2012
 '''
 import gdal
 import logging
+import re
 
 from DataStore import DataStore
+from DataStore import MalformedConnectionString
 
 ldslog = logging.getLogger('LDS')
 
@@ -59,10 +61,25 @@ class PostgreSQLDataStore(DataStore):
         '''URI method returns destination DB instance'''
         return self._commonURI(layer)
         
+    def validateConnStr(self,cs):
+        '''The PostgreSQL connection string must be something like PG:"dbname='databasename' host='addr' port='5432' user='x' password='y'"'''
+        if not re.match('^PG:',cs,flags=re.IGNORECASE):
+            '''TODO. We could append a PG here instead'''
+            raise MalformedConnectionString('PostgreSQL declaration must begin with \'PG\'')
+        if not re.match("dbname='\S+'",cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('\'dbname\' parameter required in PostgreSQL config string')
+        if not re.match("host='\S+'",cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('\'host\' parameter required in PostgreSQL config string')
+        if not re.match("port='\d+'",cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('\'port\' parameter required in PostgreSQL config string')
+        return cs
+
+        
+        
     def _commonURI(self,layer):
         '''Refers to common connection instance for reading or writing'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.conn_str
+            return self.validateConnStr(self.conn_str)
         #can't put schema in quotes, causes error but without quotes tables get created in public anyway, still need schema.table syntax
         sch = " active_schema={}".format(self.schema) if self.schema is not None and self.schema !='' else ""
         usr = " user='{}'".format(self.usr) if self.usr is not None else ""
