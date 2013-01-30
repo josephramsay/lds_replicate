@@ -62,15 +62,16 @@ class PostgreSQLDataStore(DataStore):
         return self._commonURI(layer)
         
     def validateConnStr(self,cs):
-        '''The PostgreSQL connection string must be something like PG:"dbname='databasename' host='addr' port='5432' user='x' password='y'"'''
-        if not re.match('^PG:',cs,flags=re.IGNORECASE):
+        '''The PostgreSQL connection string must be something like PG:"dbname='databasename' host='addr' port='5432' user='x' password='y'" '''
+        #-d PG:"dbname='ldsincr' host='127.0.0.1' port='5432' user='pguser' password='pgpass'"
+        if not re.search('^PG:',cs,flags=re.IGNORECASE):
             '''TODO. We could append a PG here instead'''
             raise MalformedConnectionString('PostgreSQL declaration must begin with \'PG\'')
-        if not re.match("dbname='\S+'",cs,flags=re.IGNORECASE):
+        if not re.search("dbname='\S+'",cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'dbname\' parameter required in PostgreSQL config string')
-        if not re.match("host='\S+'",cs,flags=re.IGNORECASE):
+        if not re.search("host='\S+'",cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'host\' parameter required in PostgreSQL config string')
-        if not re.match("port='\d+'",cs,flags=re.IGNORECASE):
+        if not re.search("port='\d+'",cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'port\' parameter required in PostgreSQL config string')
         return cs
 

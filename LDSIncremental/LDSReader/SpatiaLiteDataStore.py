@@ -46,7 +46,7 @@ class SpatiaLiteDataStore(DataStore):
         (self.path,self.name,self.config,self.srs,self.cql) = self.params 
         #because sometimes ~ isnt translated to home
         self.path = os.path.expanduser(self.path)
-        self.suffix = '.db'
+        self.SUFFIX = '.db'
 
         
     def sourceURI(self,layer):
@@ -58,16 +58,19 @@ class SpatiaLiteDataStore(DataStore):
         return self._commonURI(layer)
         
     def validateConnStr(self,cs):
-        '''SLITE basic checks. 1 correct file suffix'''
-        if not re.match(self.SUFFIX+'$',cs,flags=re.IGNORECASE):
-            raise MalformedConnectionString('SpatiaLite prefix must be '+self.SUFFIX)
+        '''SLITE basic checks. 1 correct file suffix. 2 the directory can be accessed'''
+        #-d "/home/<username>/temp/spatialite/ldsincr.db
+        if not hasattr(self,'SUFFIX') or not re.search(self.SUFFIX+'$',cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('SpatiaLite file suffix must be '+self.SUFFIX)
+        if not os.access(os.path.dirname(cs), os.W_OK):
+            raise MalformedConnectionString('Data file path cannot be found')
         return cs
         
         
     def _commonURI(self,layer):
         '''Since SpatiaLite databases are self contained files this only needs to return a file path'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.conn_str
+            return self.validateConnStr(self.conn_str)
         #return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
         return os.path.join(self.path,self.name+self.suffix)
     

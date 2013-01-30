@@ -38,12 +38,12 @@ class ESRIDataStore(DataStore):
 #    def read(self,dsn):
 #        self.ds = self.driver.Open(dsn)
 #    
-    def write(self,src_ds,dsn,incr,fbf,sixtyfour):
+    def write(self,src_ds,dsn,incr,fbf,sixtyfour,temptable,srsconv):
         '''ESRI specific write method used as entry point for convertDataSourceESRI'''
         '''TODO. No need to do the poly to multi conversion but incremental __change__ removal still reqd'''
         #naive implementation? change SR per layer in place. Conversion not needed with latest GDAL
         #self.convertDataSourceESRI(src_ds.ds)
-        super(ESRIDataStore,self).write(src_ds,dsn,incr,fbf,sixtyfour)
+        super(ESRIDataStore,self).write(src_ds,dsn,incr,fbf,sixtyfour,temptable,srsconv)
         #self.ds = self.driver.CopyDataSource(src_ds, dsn)
         
     

@@ -52,6 +52,8 @@ class InvalidFeatureException(LDSReaderException): pass
 class ASpatialFailureException(LDSReaderException): pass
 class UnknownTemporaryDSType(LDSReaderException): pass
 class MalformedConnectionString(DSReaderException): pass
+class InaccessibleLayerException(DSReaderException): pass
+class InaccessibleFeatureException(DSReaderException): pass
 
 
 class DataStore(object):
@@ -1026,6 +1028,7 @@ class DataStore(object):
             
         config_layer.ResetReading()
         config_layer.SyncToDisk()
+
         
     def getConfigGeometry(self):
         return ogr.wkbNone;
@@ -1047,6 +1050,8 @@ class DataStore(object):
         layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
         layer.ResetReading()
         feat = self._findMatchingFeature(layer, 'id', pkey)
+        if feat is None:
+            InaccessibleFeatureException('Cannot access feature with id='+str(pkey)+' in layer '+str(layer.GetName()))
         return LDSUtilities.extractFields(feat)
          
     def readLayerProperty(self,pkey,field):

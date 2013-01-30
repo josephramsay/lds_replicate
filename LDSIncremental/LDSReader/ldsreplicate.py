@@ -70,8 +70,8 @@ def main():
     '''Main entrypoint if the LDS incremental replication script
     
     usage: python LDSReader/ldsreplicate.py -l <layer_id>
-        [-f <from date>|-t <to date>|-c <cql filter>|-s <src conn str>|-d <dst conn str>|-v|-h] 
-        <output> [full]
+        [-f <from date>|-t <to date>|-c <cql filter>|-s <src conn str>|-d <dst conn str>|-u <user_config>|-g <group keyword>|-e <conversion-epsg>|-h (help)] 
+        <output>
     '''
 
     

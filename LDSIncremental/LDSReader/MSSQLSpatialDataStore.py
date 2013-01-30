@@ -60,12 +60,12 @@ class MSSQLSpatialDataStore(DataStore):
         
     def validateConnStr(self,cs):
         '''The MSSQL connection string must be something like; MSSQL:server=.\MSSQLSERVER2008;database=dbname;trusted_connection=yes'''
-        if not re.match('^MSSQL:',cs,flags=re.IGNORECASE):
+        if not re.search('^MSSQL:',cs,flags=re.IGNORECASE):
             '''TODO. We could append a MSSQL here instead'''
             raise MalformedConnectionString('MSSQL declaration must begin with \'MSSQL:\'')
-        if not re.match('server=\'\W+\'',cs,flags=re.IGNORECASE):
+        if not re.search('server=\'\W+\'',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'server\' parameter required in MSSQL config string')
-        if not re.match('database=\'\W+\'',cs,flags=re.IGNORECASE):
+        if not re.search('database=\'\W+\'',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'database\' parameter required in MSSQL config string')
         return cs
 
