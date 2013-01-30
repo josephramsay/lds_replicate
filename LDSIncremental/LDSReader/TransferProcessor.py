@@ -63,7 +63,7 @@ class TransferProcessor(object):
     #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
     
     
-    def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,fbf=None):
+    def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None,fbf=None):
         #ldsu? lnl?
         #self.src = LDSDataStore() 
         #self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
@@ -116,6 +116,12 @@ class TransferProcessor(object):
             self.setFBF()
         elif fbf != None and fbf is False:
             self.clearFBF()
+            
+        self.confinternal = None
+        if ie != None and ie is True:
+            self.setConfInternal()
+        elif ie != None and ie is False:
+            self.clearConfInternal()
 
         
     def __str__(self):
@@ -140,6 +146,16 @@ class TransferProcessor(object):
          
     def getFBF(self):
         return self.FBF
+    
+    #Internal/External flag to override config set option
+    def setConfInternal(self):
+        self.confinternal = True
+         
+    def clearConfInternal(self):
+        self.confinternal = False
+         
+    def isConfInternal(self):
+        return self.confinternal
     
     #initilaise config flags
     def setInitConfig(self):
@@ -248,7 +264,7 @@ class TransferProcessor(object):
         
         #init a new DS for the DST to read config table (not needed for config file...)
         #because we need to read a new config from the SRC and write it to the DST config both of these must be initialised
-        self.dst.setupLayerConfig()
+        self.dst.setupLayerConfig(self.isConfInternal())
         if self.getInitConfig():
             xml = LDSDataStore.readDocument(capabilities)
             if dst.isConfInternal():

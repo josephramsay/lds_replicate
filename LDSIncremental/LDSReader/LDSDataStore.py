@@ -103,13 +103,21 @@ class LDSDataStore(WFSDataStore):
             raise MalformedConnectionString('Require API key (32char) in LDS address string')
         if not re.search('wfs\?',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('Need to specify \'wfs?\' service in LDS request')
-        return cs
+        #look for conflicts
+        l1 = re.search('/v/x(\d+)',cs,flags=re.IGNORECASE).group(1)
+        l2 = re.search('typeName=v:x(\d+)',cs,flags=re.IGNORECASE).group(1)
+        if l1!=l2:
+            raise MalformedConnectionString('Layer specifications in URI differ; '+str(l1)+'!='+str(l2))
+        return cs,l1
         
         
     def sourceURI(self,layername):
         '''Basic Endpoint constructor'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.validateConnStr(self.conn_str)
+            valid,urilayer = self.validateConnStr(self.conn_str)
+            if layername is not None and 'v:x'+urilayer!=layername:
+                raise MalformedConnectionString('Layer specifications in URI differs from selected layer (-l); '+str(layername)+'!='+str('v:x'+urilayer))
+            return valid
 
         cql = self._buildCQLStr()
         #pql = self._buildPageStr()     

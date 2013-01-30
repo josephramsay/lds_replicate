@@ -134,7 +134,7 @@ class DataStore(object):
     def setConfInternal(self):
         self.config = True
             
-    def setConfExternal(self):
+    def clearConfInternal(self):
         self.config = False
          
     def isConfInternal(self):
@@ -973,13 +973,17 @@ class DataStore(object):
 # INTERNAL CONFIG SECTION. The config section is written as part of the datastore to take advantage  
 # of its connection features when the internal config options is chosen. Consider peeling this off into a subclass
 
-    def setupLayerConfig(self):
+    def setupLayerConfig(self,override_int):
         '''Read internal OR external from main config file and set, default to internal'''
-        
-        if 'external' in map(lambda x: x.lower() if type(x) is str else x,self.mainconf.readDSParameters(self.DRIVER_NAME)):
-            self.setConfExternal()
+        #TODO... fix the ugly
+        if override_int is None:
+            if 'external' in map(lambda x: x.lower() if type(x) is str else x,self.mainconf.readDSParameters(self.DRIVER_NAME)):
+                self.clearConfInternal()
+            else:
+                self.setConfInternal()
         else:
-            self.setConfInternal()
+            self.setConfInternal() if override_int else self.clearConfInternal()
+            
 
     def buildConfigLayer(self,config_array):
         '''Builds the config table into and using the active DS'''

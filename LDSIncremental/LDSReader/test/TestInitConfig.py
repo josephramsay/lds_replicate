@@ -40,7 +40,7 @@ class TestInitConfig(unittest.TestCase):
     def test3PGReadFile(self):
         lds = LDSDataStore() 
         pgds = PostgreSQLDataStore()
-        pgds.setConfExternal()
+        pgds.clearConfInternal()
         
         (pkey,name,group,gcol,index,epsg,lmod,disc,cql) = pgds.layerconf.readLayerParameters('v:x772')
         

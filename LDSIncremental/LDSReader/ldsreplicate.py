@@ -84,6 +84,7 @@ def main():
     dc = None
     cq = None
     uc = None
+    ie = None
     
     fbf = None
     
@@ -120,7 +121,7 @@ def main():
     
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hv12f:t:l:g:e:s:d:c:u:", ["help","version","drivercopy","featurecopy","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
+        opts, args = getopt.getopt(sys.argv[1:], "hv12ixf:t:l:g:e:s:d:c:u:", ["help","version","drivercopy","featurecopy","internal","external","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
         ldslog.info("OPTS:"+str(opts))
         ldslog.info("ARGS:"+str(args))
     except getopt.error, msg:
@@ -158,6 +159,10 @@ def main():
             dc = val
         elif opt in ("-c","--cql"):
             cq = val
+        elif opt in ("-i","--internal"):
+            ie = True
+        elif opt in ("-x","--external"):
+            ie = False
         elif opt in ("-u","--userconf"):
             uc = val
         else:
@@ -173,6 +178,8 @@ def main():
             "-u (--user) User defined config file used as partial override for ldsincr.conf," \
             "-1 (--drivercopy) Testing option to force driver level copy (sometimes faster method used for layer duplication ignoring data modifications)" \
             "-2 (--featurecopy) Testing option to force feature level copy (used for incremental updates)" \
+            "-i (--internal) Override internal/external config, internal" \
+            "-x (--external) Override internal/external config, external" \
             "-h (--help) Display this message"
             sys.exit(2)
 
@@ -184,7 +191,7 @@ def main():
     m1 = '*** Begin    *** '+str(st.isoformat())
     print m1
     ldslog.info(m1)
-    tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,fbf)
+    tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,ie,fbf)
     
     proc = None
     #output format
@@ -200,9 +207,9 @@ def main():
             elif arg in ("clean"):
                 ldslog.info("Cleaning named layer")
                 tp.setCleanConfig()
-            elif arg.lower() in ("pg", "postgres"):
+            elif arg.lower() in ("pg", "postgres","postgresql"):
                 proc = tp.processLDS2PG
-            elif arg.lower() in ("ms", "mssql"):
+            elif arg.lower() in ("ms", "mssql","mssqlserver"):
                 proc = tp.processLDS2MSSQL
     #        elif arg in ("mi", "mapinfo"):
     #            tp.processLDS2Mapinfo()
