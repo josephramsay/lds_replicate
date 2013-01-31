@@ -104,19 +104,17 @@ class LDSDataStore(WFSDataStore):
         if not re.search('wfs\?',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('Need to specify \'wfs?\' service in LDS request')
         #look for conflicts
-        l1 = re.search('/v/x(\d+)',cs,flags=re.IGNORECASE).group(1)
-        l2 = re.search('typeName=v:x(\d+)',cs,flags=re.IGNORECASE).group(1)
-        if l1!=l2:
-            raise MalformedConnectionString('Layer specifications in URI differ; '+str(l1)+'!='+str(l2))
-        return cs,l1
+        ulayer = LDSUtilities.getLayerNameFromURL(cs)
+
+        return cs,ulayer
         
         
     def sourceURI(self,layername):
         '''Basic Endpoint constructor'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             valid,urilayer = self.validateConnStr(self.conn_str)
-            if layername is not None and 'v:x'+urilayer!=layername:
-                raise MalformedConnectionString('Layer specifications in URI differs from selected layer (-l); '+str(layername)+'!='+str('v:x'+urilayer))
+            if layername is not None and urilayer!=layername:
+                raise MalformedConnectionString('Layer specifications in URI differs from selected layer (-l); '+str(layername)+'!='+str(urilayer))
             return valid
 
         cql = self._buildCQLStr()
@@ -132,7 +130,13 @@ class LDSDataStore(WFSDataStore):
     def sourceURI_incrd(self,layername,fromdate,todate):
         '''Endpoint constructor fetching specific layers with incremental date fields'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
-            return self.conn_str       
+            valid,urilayer = self.validateConnStr(self.conn_str)
+            #I don't know why you would attempt to specify dates in the CL and in the URL as well but might as well attempt to catch diffs
+            if layername is not None and urilayer!=layername:
+                raise MalformedConnectionString('Layer specifications in URI differs from selected layer (-l); '+str(layername)+'!='+str(urilayer))
+            if (fromdate is not None and re.search('from:'+fromdate[:10],valid) is None) or (todate is not None and re.search('to:'+todate[:10],valid) is None):
+                raise MalformedConnectionString("Date specifications in URI don't match those referred to with -t|-f "+str(todate)+'/'+str(fromdate)+" not in "+valid)
+            return valid
 
         cql = self._buildCQLStr()
         #pql = self._buildPageStr()     

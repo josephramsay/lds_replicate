@@ -25,6 +25,7 @@ class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
     
     LDS_TN_PREFIX = 'v:x'
+    LDS_TN_VXPATH = '/'+LDS_TN_PREFIX.replace(':','/')
     
     @staticmethod
     def splitLayerName(layername):
@@ -53,7 +54,32 @@ class LDSUtilities(object):
     def checkLayerName(lname):
         '''Makes sure a layer name conforms to v:x format'''
         return type(lname) is str and re.search('^'+LDSUtilities.LDS_TN_PREFIX+'\d+$',lname) 
+    
+    @staticmethod
+    def getLayerNameFromURL(url):
+        from DataStore import MalformedConnectionString
+        l1 = re.search(LDSUtilities.LDS_TN_VXPATH+'(\d+)',url,flags=re.IGNORECASE).group(1)
+        l2 = re.search('typeName='+LDSUtilities.LDS_TN_PREFIX+'(\d+)',url,flags=re.IGNORECASE).group(1)
+        if l1!=l2:
+            raise MalformedConnectionString('Layer specifications in URI differ; '+str(l1)+'!='+str(l2))
+        return LDSUtilities.LDS_TN_PREFIX+l1
         
+    @staticmethod
+    def checkHasChangesetIdentifier(url):
+        '''Parse a selected date string from a user supplied URL. Can return none as that would indicate non incremental'''
+        #yeah thats right, F or T
+        c1 = re.search(LDSUtilities.LDS_TN_VXPATH+'\d+-changeset',url,flags=re.IGNORECASE)
+        c2 = re.search('typeName='+LDSUtilities.LDS_TN_PREFIX+'\d+-changeset',url,flags=re.IGNORECASE)
+        return c1 is not None and c2 is not None
+    
+    @staticmethod
+    def getDateStringFromURL(fort,url):
+        '''Parse a selected date string from a user supplied URL. Can return none as that would indicate non incremental'''
+        #yeah thats right, F or T
+        udate = re.search(fort+':(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})*)',url)
+        return udate
+
+
     @staticmethod
     def checkCQL(cql):
         '''Since CQL commands are freeform strings we need to try and validate at least the most basic errors. This is very simple

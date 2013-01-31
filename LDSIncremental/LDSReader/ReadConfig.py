@@ -21,6 +21,7 @@ import logging
 import ConfigParser
 
 from ConfigParser import NoOptionError,NoSectionError
+from LDSUtilities import LDSUtilities as LU
 
 
 
@@ -75,7 +76,7 @@ class MainFileReader(object):
             port = 5432
             dbname = "ldsincr"
             schema = "lds"
-            config = "internal"
+            config = "external"
         else:
             host = None
             port = None
@@ -117,8 +118,7 @@ class MainFileReader(object):
         try:
             config = self.cp.get(PG.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warning("PostgreSQL: No config preference specified, default to 'external'")
-            config = 'external'
+            ldslog.warning("PostgreSQL: No config preference specified, default to "+str(config))
         
         try:
             over = self.cp.get(PG.DRIVER_NAME, 'overwrite')
@@ -159,7 +159,7 @@ class MainFileReader(object):
             dbname = "LDSINCR"
             trust = "yes"
             dsn = "LDSINCR"
-            config = "internal"
+            config = "external"
         else:
             odbc = None
             server = None
@@ -215,8 +215,7 @@ class MainFileReader(object):
         try:
             config = self.cp.get(MS.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warning("MSSQL: No config preference specified, default to 'external'")
-            config = 'internal'
+            ldslog.warning("MSSQL: No config preference specified, default to "+str(config))
             
         try:
             epsg = self.cp.get(MS.DRIVER_NAME, 'epsg')
@@ -241,7 +240,7 @@ class MainFileReader(object):
         if self.use_defaults:
             path = "~"
             name = "LDSSLITE"
-            config = "internal"
+            config = "external"
         else:
             path = None
             name = None
@@ -262,7 +261,6 @@ class MainFileReader(object):
             config = self.cp.get(SL.DRIVER_NAME, 'config')
         except NoOptionError:
             ldslog.warning("SpatiaLite: No config preference specified, default to "+str(config))
-            config = 'internal'
             
         try:
             epsg = self.cp.get(SL.DRIVER_NAME, 'epsg')
@@ -288,7 +286,7 @@ class MainFileReader(object):
         if self.use_defaults:
             path = "~"
             name = "LDSFGDB"
-            config = "internal"
+            config = "external"
         else:
             path = None
             name = None
@@ -435,14 +433,14 @@ class MainFileReader(object):
         temptable = None
         
         try: 
-            sixtyfourlayers = map(lambda s: s if s[:3]=='v:x' else 'v:x'+s, self.cp.get(self.MISC, '64bitlayers').split(','))
+            sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
         except NoSectionError:
             ldslog.warning("Misc: No Misc section detected looking for 64bit Layer specification")
         except NoOptionError:
             ldslog.warning("Misc: No 64bit Layers specified. NB. '64bitlayers'")
             
         try: 
-            partitionlayers = map(lambda s: s if s[:3]=='v:x' else 'v:x'+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
+            partitionlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
         except NoSectionError:
             ldslog.warning("Misc: No Misc section detected looking for Problem Layer specification")
         except NoOptionError:

@@ -93,11 +93,26 @@ class TransferProcessor(object):
         
         self.layer = None
         if ly != None:
-            self.layer = ly  
+            self.layer = ly
             
         self.source_str = None
         if sc != None:
-            self.source_str = sc     
+            self.source_str = sc
+            #check for dates to set incr  
+            ufd = LDSUtilities.getDateStringFromURL('from',sc)
+            if ufd is not None:
+                self.fromdate = ufd.group(1)
+            utd = LDSUtilities.getDateStringFromURL('to',sc)  
+            if utd is not None:
+                self.todate = utd.group(1)
+                
+            #if doing incremental we also need to check changeset
+            if (utd is not None or ufd is not None) and not LDSUtilities.checkHasChangesetIdentifier(sc):
+                raise InputMisconfigurationException("'changeset' identifier required for incremental LDS query")
+            
+            #all going well we can now get the layer string
+            self.layer = LDSUtilities.getLayerNameFromURL(sc)  
+            
             
         self.destination_str = None
         if dc != None:
@@ -210,22 +225,6 @@ class TransferProcessor(object):
     def processLDS2FileGDB(self):
         '''process LDS to FileGDB convenience method'''
         self.processLDS(FileGDBDataStore(self.destination_str,self.user_config))
-        
-#    def processLDS2Shape(self):
-#        '''process LDS to ESRI Shapefile convenience method'''
-#        self.processLDS(ShapefileDataStore())
-#        
-#    def processLDS2Mapinfo(self):
-#        '''process LDS to Mapinfo MIF convenience method'''
-#        self.processLDS(MapinfoDataStore())
-#        
-#    def processLDS2CSV(self):
-#        print "*** testing only ***"
-#        self.processLDS(CSVDataStore())
-#           
-#    def processLDS2ArcSDE(self):
-#        print "*** testing only ***"
-#        self.processLDS(ArcSDEDataStore())
         
 
         
