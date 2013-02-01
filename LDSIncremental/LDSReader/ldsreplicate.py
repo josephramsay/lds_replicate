@@ -178,8 +178,8 @@ def main():
             "-u (--user) User defined config file used as partial override for ldsincr.conf," \
             "-1 (--drivercopy) Testing option to force driver level copy (sometimes faster method used for layer duplication ignoring data modifications)" \
             "-2 (--featurecopy) Testing option to force feature level copy (used for incremental updates)" \
-            "-i (--internal) Override internal/external config, internal" \
-            "-x (--external) Override internal/external config, external" \
+            "-i (--internal) Override internal/external setting in main config, use internal" \
+            "-x (--external) Override internal/external setting in main config, use external" \
             "-h (--help) Display this message"
             sys.exit(2)
 
@@ -245,11 +245,11 @@ def main():
 
 
 if __name__ == "__main__":
-    #main()
+    main()
     
-    try:
-        main()
-    except Exception as e:        
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
-        print str(e)+'\n(see debug.log for full stack trace)'
+#    try:
+#        main()
+#    except Exception as e:        
+#        exc_type, exc_value, exc_traceback = sys.exc_info()
+#        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
+#        print str(e)+'\n(see debug.log for full stack trace)'

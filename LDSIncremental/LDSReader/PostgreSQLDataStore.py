@@ -73,7 +73,8 @@ class PostgreSQLDataStore(DataStore):
             raise MalformedConnectionString('\'host\' parameter required in PostgreSQL config string')
         if not re.search("port='\d+'",cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'port\' parameter required in PostgreSQL config string')
-        return cs
+        #HACK. active schema, unlike the other PG parameters, cannot have single quotes! this silently removes them if they've been mistakenly added
+        return re.sub(r"active_schema='(\S+)'",r"active_schema=\1",cs)
 
         
         

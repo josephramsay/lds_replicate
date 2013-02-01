@@ -58,11 +58,16 @@ class LDSUtilities(object):
     @staticmethod
     def getLayerNameFromURL(url):
         from DataStore import MalformedConnectionString
-        l1 = re.search(LDSUtilities.LDS_TN_VXPATH+'(\d+)',url,flags=re.IGNORECASE).group(1)
-        l2 = re.search('typeName='+LDSUtilities.LDS_TN_PREFIX+'(\d+)',url,flags=re.IGNORECASE).group(1)
-        if l1!=l2:
-            raise MalformedConnectionString('Layer specifications in URI differ; '+str(l1)+'!='+str(l2))
-        return LDSUtilities.LDS_TN_PREFIX+l1
+        l1 = re.search(LDSUtilities.LDS_TN_VXPATH+'(\d+)',url,flags=re.IGNORECASE)
+        l2 = re.search('typeName='+LDSUtilities.LDS_TN_PREFIX+'(\d+)',url,flags=re.IGNORECASE)
+        if l1 is None or l2 is None:
+            raise MalformedConnectionString('Cannot extract correctly formatted layer strings from URI')
+        else:
+            l1 = l1.group(1)
+            l2 = l2.group(1)
+            if l1!=l2:
+                raise MalformedConnectionString('Layer specifications in URI differ; '+str(l1)+'!='+str(l2))
+        return LDSUtilities.LDS_TN_PREFIX+str(l1)
         
     @staticmethod
     def checkHasChangesetIdentifier(url):

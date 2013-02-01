@@ -17,7 +17,6 @@ Created on 26/07/2012
 
 import logging
 import os
-import string
 
 from datetime import datetime 
 
@@ -55,7 +54,7 @@ class TransferProcessor(object):
     
     
     #Hack. To read 64bit integers we have to translate tables without GDAL's driver copy mechanism. 
-    #Step 1 is to flag using feature-by-feature copy (copyDS instead of cloneDS)
+    #Step 1 is to flag using feature-by-feature copy (featureCopy* instead of driverCopy)
     #Step 2 identify tables where 64 bit ints are used
     #Step 3 intercept feature build and copy and overwrite with string values
     #The tables listed below are ASP tables using a sufi number which is 64bit 
@@ -101,17 +100,22 @@ class TransferProcessor(object):
             #check for dates to set incr  
             ufd = LDSUtilities.getDateStringFromURL('from',sc)
             if ufd is not None:
-                self.fromdate = ufd.group(1)
-            utd = LDSUtilities.getDateStringFromURL('to',sc)  
+                ufds = ufd.group(1)
+                ldslog.warn("Using 'from:' date string from supplied URL "+str(ufds))
+                self.fromdate = ufds
+            utd = LDSUtilities.getDateStringFromURL('to',sc)
             if utd is not None:
-                self.todate = utd.group(1)
+                utds = utd.group(1)
+                ldslog.warn("Using 'to:' date string from supplied URL "+str(utds))
+                self.todate = utds
                 
             #if doing incremental we also need to check changeset
             if (utd is not None or ufd is not None) and not LDSUtilities.checkHasChangesetIdentifier(sc):
                 raise InputMisconfigurationException("'changeset' identifier required for incremental LDS query")
             
-            #all going well we can now get the layer string
-            self.layer = LDSUtilities.getLayerNameFromURL(sc)  
+            #all going well we can now get the layer string. This isn't optional so we just set it
+            self.layer = LDSUtilities.getLayerNameFromURL(sc)
+            ldslog.warn('Using layer selection from supplied URL '+str(self.layer))  
             
             
         self.destination_str = None
@@ -126,6 +130,7 @@ class TransferProcessor(object):
         if uc != None:
             self.user_config = uc   
             
+        #FBF should really only be used for testing
         self.FBF = None
         if fbf != None and fbf is True:
             self.setFBF()
