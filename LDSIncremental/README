@@ -5,7 +5,7 @@ PostgreSQL (PostGIS), MSSQL Spatial, FileGDB and SpatiaLite. Support for other o
 QUICKSTART
 ----------
 
-1.    Using the configuration files
+1.    Using configuration files
 1.1   Create a copy of the master ldsincr.conf file and rename it. 
 1.2.  Edit this file adding in your own parameters to override the defaults set in the master copy.
 1.3.  In the [LDS] section add your own API key.
@@ -81,11 +81,11 @@ NOTES
 ----- 
 1. Connection options can be set up in the config file "ldsincr.conf" but command line options can be used instead and will override 
 configuration file settings. There is only minimal checking done on command line connection strings
-2. A valid layer name is required on the command line to select the desired layer. this is prefixed by the -l option flag. Leaving this option 
-blank selects all layers
-3. Dates are not required and omitting them will trigger an auto incremental request based on the lastmodified parameter in the respective 
-destination layer-properties file
-4. Dates when provided must be in the format yyyy-mm-dd or specify the keyword ALL to trigger full replication
+2. A valid layer name is required on the command line to select the desired layer. This is prefixed by the -l option flag. Leaving this option 
+blank selects all layers. (NB. you can avoid this requirements by using a custom LDS URL, which necessarily must contain a layer component) 
+3. Dates are not required. Omitting one date will trigger an auto incremental request based on the lastmodified parameter in the respective 
+destination layer-properties file. Omitting both dates assumes a full update (non incremental) is needed
+4. Dates when provided must be in the format yyyy-mm-dd
 5. Full replication uses a fast driver copy mechanism and ignores discards and filters. Adding discard columns to a fully replicated layer
 would be considered a schema change and potentially fail.
 6. CQL strings are only minimally checked for tokens indicating a predicate. The user is responsible for ensuring they are constructing their
@@ -95,11 +95,12 @@ filter using the correct parameter names, formats and bounds.
 of a new table.
 9. Adding multiple output on the command line will trigger the copy process for these outputs 
 
-10. The properties files are interchangeable and selected based on their name ie postgresql.layer.properties is the layer properties file for the 
-PostgreSQL output. Copying this file to mssql.layer.properties would assign it as the same for a MSSQLSpatial output
-11. In the properties files the sections are denoted by the layer id in square brackets eg [v:x111]
+10. The properties files are interchangeable and selected based on their name i.e. postgresql.layer.properties is the layer properties file for the 
+PostgreSQL output. Copying this file to mssql.layer.properties would assign to an MSSQLSpatial output keeping all cql, discarded columns and modification dates.
+11. In the properties files the sections are denoted by the layer id in square brackets eg [v:x111]. In the properties table the id column takes this role.
 12. Beneath the section header property values include {pkey, name, lastmodified, geocolumn, epsg, cql}
-12.1. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' this may very per layer.
+12.1. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' this may very per layer. Because Topo/Hydro layers dont use a primary key
+this values is not set for these layers.
 12.2. Property 'name'. Used as the name for the output table/file these are not guaranteed to be unique. Nominally set to LDS layer name.
 12.3. Property 'lastmodified'. This is a date string (yyyy-mm-dd) indicating the age of the data copied to output. It is used as a start point 
 when doing auto-incremental updates.

@@ -79,12 +79,19 @@ class LDSDataStore(WFSDataStore):
         #uri = self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
         #keyword specifier different between 1.0.0 (<ows:Keywords><ows:Keyword>) and 1.1.0 (<Keywords>) We enforce 1.1.0 to return per keyword version and more accurately parse layer groups
         '''validate the key by checking that the key can be extracted from the key'''
-        if self.extractAPIKey(self.key,False) is None:
+        if not self.validateAPIKey(self.key):
             self.key = self.extractAPIKey(self.conn_str,True)
         uri = self.url+self.key+"/wfs?service=WFS&version=1.1.0&request=GetCapabilities"
         ldslog.debug(uri)
         return uri
     
+    def validateAPIKey(self,kstr):
+        '''Make sure the provided key conforms to the required format'''
+        srch = re.search('[a-z0-9]{32}',kstr,flags=re.IGNORECASE)
+        if srch is None:
+            raise MalformedConnectionString('Cannot parse API key')
+        return True
+        
     def extractAPIKey(self,cs,raiseerr):
         '''if the user has supplied a connection string then they dont need to specify an API key in their config file, therefore we must extract it from the cs'''
         srch = re.search('/([a-z0-9]{32})/v/x',cs,flags=re.IGNORECASE)

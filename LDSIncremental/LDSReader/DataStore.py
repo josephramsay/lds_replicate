@@ -211,6 +211,8 @@ class DataStore(object):
     
     def write(self,src,dsn,incr_haspk,fbf,sixtyfour,temptable,srsconv):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
+        #for testing to see whether fC only is quicker overall
+        DONT_USE_DC = True
         #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
         self.src_link = src
         #we need to store 64 beyond fC/dC flag to identify need for sufi-to-str conversion
@@ -235,7 +237,7 @@ class DataStore(object):
             # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
             max_key = self.featureCopyIncremental(src.ds,self.ds,src.CHANGE_COL)
         #if not(incr&haspk) & 64b attempt fC
-        elif sixtyfour or srsconv or fbf:
+        elif sixtyfour or srsconv or fbf or DONT_USE_DC:
             #do a featureCopyIncremental if override asks or if a table has big ints
             max_key = self.featureCopy(src.ds,self.ds)
         else:
@@ -1036,7 +1038,19 @@ class DataStore(object):
         
     def getConfigGeometry(self):
         return ogr.wkbNone;
+    
+    def findLayerIdByName(self,lname):
+        '''Reverse lookup of section by associated name, finds first occurance only'''
+        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+        layer.ResetReading()
+        feat = layer.GetNextFeature() 
+        while feat is not None:
+            if lname == feat.GetField('name'):
+                return feat.GetField('id')
+            feat = layer.GetNextFeature()
+        return None
         
+
     def getLayerNames(self):
         '''Returns configured layers for respective layer properties file'''
         namelist = ()

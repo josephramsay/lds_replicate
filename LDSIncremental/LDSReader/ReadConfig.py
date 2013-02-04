@@ -502,12 +502,12 @@ class LayerFileReader(object):
         '''List of sections (layernames/datasources)'''
         return self.cp.sections()    
     
+
     def findLayerIdByName(self,name):
         '''Reverse lookup of section by associated name, finds first occurance only'''
-        for section_name in self.cp.sections():
-            if name == self.cp.get(section_name,'name'):
-                return section_name
-        return name
+        lid = filter(lambda n: name==self.cp.get(n,'name'),self.getLayerNames())
+        return lid[0] if len(lid)>0 else None
+    
     
     def readLayerProperty(self,layer,key):
         try:
@@ -520,7 +520,6 @@ class LayerFileReader(object):
             return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
         return value
     
-
     def getLayerNames(self):
         '''Returns sections from properties file'''
         return self.cp.sections()

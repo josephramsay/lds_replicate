@@ -73,6 +73,7 @@ class TestUI(unittest.TestCase):
         self.key = RK().key
         
         self.host = '144.66.6.86'
+        
         self.mssvr = 'LZ104588-VM\SQLExpress'
         self.msdvr = 'SQL Server Native Client 11.0'
         self.msdb = 'LDSINCR'

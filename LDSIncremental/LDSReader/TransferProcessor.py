@@ -92,6 +92,9 @@ class TransferProcessor(object):
         
         self.layer = None
         if ly != None:
+            #since a layer name must begin with v:x we can 
+            #1. look up v:xNNN 
+            #2. see if the provided name exists in the lcf and maps to a v:x number
             self.layer = ly
             
         self.source_str = None
@@ -290,6 +293,16 @@ class TransferProcessor(object):
         if self.dst.layerconf is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table. fn="+str(fname)+',int='+str(dst.isConfInternal()))
         
+        #Once the layer config is initialised we can do a layer name check
+        if self.layer is None:
+            layer = 'ALL'
+        else:
+            layer = LDSUtilities.checkLayerName(self.dst.layerconf,self.layer)
+            if layer is None:
+                raise InputMisconfigurationException("Layer name provided but format incorrect. Must be; -l {"+LDSUtilities.LDS_TN_PREFIX+"#### | <Layer-Name>}")
+        
+        
+        #Assuming layer check is okay it should eb safe to perform operations on the layer; the first one, delete
         if self.getCleanConfig():
             '''clean a selected layer (once the layer conf file has been established)'''
             if self.dst._cleanLayerByRef(self.dst.ds,self.layer):
@@ -339,14 +352,15 @@ class TransferProcessor(object):
                 raise InputMisconfigurationException("From-Date provided but format incorrect {-fd yyyy-MM-dd[Thh:mm:ss}")
             else:
                 self.setIncremental()
-        
-        if self.layer is None:
-            '''If layer is not specified the result is ALL layers though this selection list is still moderated by group and validity'''
-            layer = 'ALL'  
-        elif LDSUtilities.checkLayerName(self.layer):
-            layer = self.layer
-        else:
-            raise InputMisconfigurationException("Layer name provided but format incorrect {-l "+LDSUtilities.LDS_TN_PREFIX+"###}")
+
+
+#        if check_layer is None:
+#            '''If layer is not specified the result is ALL layers though this selection list is still moderated by group and validity'''
+#            layer = 'ALL'  
+#        elif LDSUtilities.checkLayerName(self.dst.layerconf,self.layer):
+#            layer = self.layer
+#        else:
+#            raise InputMisconfigurationException("Layer name provided but format incorrect {-l "+LDSUtilities.LDS_TN_PREFIX+"###}")
         
               
         #this is the first time we use the incremental flag to do something (and it should only be needed once?)

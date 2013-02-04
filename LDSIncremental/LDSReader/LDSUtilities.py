@@ -51,9 +51,15 @@ class LDSUtilities(object):
     # http://wfs.data.linz.govt.nz/ldskey/v/x772-changeset/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=v:x772-changeset&viewparams=from:2012-09-29T07:00:00;to:2012-09-29T07:30:00&outputFormat=GML2
     
     @staticmethod
-    def checkLayerName(lname):
+    def checkLayerName(lconf,lname):
         '''Makes sure a layer name conforms to v:x format'''
-        return type(lname) is str and re.search('^'+LDSUtilities.LDS_TN_PREFIX+'\d+$',lname) 
+        if type(lname) is str:
+            if re.search('^'+LDSUtilities.LDS_TN_PREFIX+'\d+$',lname):
+                return lname if lname in lconf.getLayerNames() else None
+            else:
+                return lconf.findLayerIdByName(lname)
+        return None
+         
     
     @staticmethod
     def getLayerNameFromURL(url):
