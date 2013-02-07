@@ -72,7 +72,7 @@ class SpatiaLiteDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.validateConnStr(self.conn_str)
         #return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
-        return os.path.join(self.path,self.name+self.suffix)
+        return os.path.join(self.path,self.name+self.SUFFIX)
     
 
     def getOptions(self,layer_id):
@@ -88,17 +88,17 @@ class SpatiaLiteDataStore(DataStore):
         #if index == 'spatial or index == 's' or re.match(index,gname.lower()):
         #    local_opts += ['SPATIAL_INDEX=YES']
         
-        return super(SpatiaLiteDataStore,self).getOptions() + local_opts
+        return super(SpatiaLiteDataStore,self).getOptions(layer_id) + local_opts
         
 
-    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+    def buildIndex(self,lce,dst_layer_name):
         '''Default index string builder for new fully replicated layers'''
-        ref_index = DataStore.parseStringList(ref_index)
+        ref_index = DataStore.parseStringList(lce.index)
         if ref_index.intersection(set(('spatial','s'))):
             ldslog.warn('Spatial indexing is only supported at layer creation and is enabled by default')
             return
         elif ref_index.intersection(set(('primary','pkey','p'))):
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string
             clst = ','.join(ref_index)
@@ -189,11 +189,11 @@ class SpatiaLiteDataStore(DataStore):
     '''Spatialite has datatypes INT, INTEGER, SMALLINT, TINYINT, DEC, DECIMAL, LONGCHAR, LONGVARCHAR, DATETIME, SMALLDATETIME which are only
     remaned INTEGER, REAL, TEXT, BLOB and NULL. This converts and aggregates from gdal to these'''
     def convertToDestinationType(self,key):
-            return {0: 'integer', 1: 'integer',
-                    2: 'real', 3: 'real',
-                    4: 'text', 5: 'text',
-                    8: 'byte',
-                    9: 'text', 10: 'text', 11: 'text'
+        return {0: 'integer', 1: 'integer',
+                2: 'real', 3: 'real',
+                4: 'text', 5: 'text',
+                8: 'byte',
+                9: 'text', 10: 'text', 11: 'text'
          }.get(key,'text')  
          
 

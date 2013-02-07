@@ -17,14 +17,12 @@ Created on 9/08/2012
 @author: jramsay
 '''
 
-import sys
 import ogr
 import osr
 import re
 import logging
 import string
 
-import json
 
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
@@ -69,6 +67,8 @@ class DataStore(object):
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
     
+    DRIVER_NAME = '<init in subclass>'
+    
     CONFIG_COLUMNS = ('id','pkey','name','category','lastmodified','geocolumn','index','epsg','discard','cql')
     #TEMP_DS_TYPES = ('Memory','ESRI Shapefile','Mapinfo File','GeoJSON','GMT','DXF')
     
@@ -84,6 +84,20 @@ class DataStore(object):
         '''
         Constructor inits driver and some date specific settings. Arguments are for config overrides 
         '''
+        #PYLINT. Set by TP but defined here. Not sure I agree with this requirement since it enforces specific instantiation order
+        self.layer = None
+        self.layerconf = None
+        self. OVERWRITE = None
+        self.driver = None
+        self.uri = None
+        self.cql = None
+        self.srs = None
+        self.config = None
+        self.src_link = None
+        self.sufi_list = None
+        self.ds = None
+        self.transform = None
+        self.sixtyfour = None
         
         self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"
          
@@ -101,16 +115,17 @@ class DataStore(object):
         
         self.params = self.mainconf.readDSParameters(self.DRIVER_NAME)
         
-        
         '''set of <potential> columns not needed in final output, global'''
         self.optcols = set(['__change__','gml_id'])
+        
+
         
     def getDriver(self,driver_name):
 
         self.driver = ogr.GetDriverByName(driver_name)
-        if self.driver==None:
+        if self.driver == None:
             raise CannotInitialiseDriverType, "Driver cannot be initialised for type "+driver_name
-            sys.exit(1)
+            
 
     def setURI(self,uri):
         self.uri = uri
@@ -151,11 +166,11 @@ class DataStore(object):
     def getOverwrite(self):
         return self.OVERWRITE    
     
-    def getOptions(self):
+    def getOptions(self,layer_id):
         '''Returns common options, overridden in subclasses for source specifc options'''
+        #layer_id used in some subclasses
         return ['OVERWRITE='+self.getOverwrite()]#,'OGR_ENABLE_PARTIAL_REPROJECTION=True']
     
-    '''Both Source and Destination URI for the generic situation where we want to transfer between similar Ds formats. e.g. PG->PG'''
     
     @abstractmethod
     def sourceURI(self,layer):
@@ -212,7 +227,7 @@ class DataStore(object):
     def write(self,src,dsn,incr_haspk,fbf,sixtyfour,temptable,srsconv):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
         #for testing to see whether fC only is quicker overall
-        DONT_USE_DC = True
+        DONT_USE_DIRECT_COPY = True
         #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
         self.src_link = src
         #we need to store 64 beyond fC/dC flag to identify need for sufi-to-str conversion
@@ -237,7 +252,7 @@ class DataStore(object):
             # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
             max_key = self.featureCopyIncremental(src.ds,self.ds,src.CHANGE_COL)
         #if not(incr&haspk) & 64b attempt fC
-        elif sixtyfour or srsconv or fbf or DONT_USE_DC:
+        elif sixtyfour or srsconv or fbf or DONT_USE_DIRECT_COPY:
             #do a featureCopyIncremental if override asks or if a table has big ints
             max_key = self.featureCopy(src.ds,self.ds)
         else:
@@ -262,31 +277,32 @@ class DataStore(object):
         ldslog.info("Using driverCopy. Non-Incremental driver copy")
         for li in range(0,src_ds.GetLayerCount()):
             src_layer = src_ds.GetLayer(li)
-            src_layer_name = LDSUtilities.cropChangeset(src_layer.GetName())
+            src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
             
             #ref_name = self.layerconf.readConvertedLayerName(src_layer_name)
-            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
+            #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
+            layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
             
-            dst_layer_name = self.generateLayerName(ref_name)
-            self.optcols |= set(ref_disc.strip('[]{}()').split(',') if all(i in string.whitespace for i in ref_disc) else [])
+            dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
+            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if all(i in string.whitespace for i in layerconfentry.disc) else [])
             
             try:
                 #TODO test on MSSQL since schemas sometimes needed ie non dbo
-                dst_ds.DeleteLayer(dst_layer_name)          
+                dst_ds.DeleteLayer(dst_info.layer_id)          
             except ValueError as ve:
-                ldslog.warn("Cannot delete layer "+dst_layer_name+". It probably doesn't exist. "+str(ve))
+                ldslog.warn("Cannot delete layer "+dst_info.layer_id+". It probably doesn't exist. "+str(ve))
                 
 
             try:
                 if temptable == 'DIRECT':                    
-                    layer = dst_ds.CopyLayer(src_layer,dst_layer_name,self.getOptions(src_layer_name))
+                    layer = dst_ds.CopyLayer(src_layer,dst_info.layer_id,self.getOptions(src_info.layer_id))
                     self.deleteOptionalColumns(layer)
                 elif temptable in TemporaryDataStore.TEMP_MAP.keys():
                     tds = TemporaryDataStore.getInstance(temptable)()
                     tds_ds = tds.initDS()
-                    tds_layer = tds_ds.CopyLayer(src_layer,dst_layer_name,[])
+                    tds_layer = tds_ds.CopyLayer(src_layer,dst_info.layer_id,[])
                     tds.deleteOptionalColumns(tds_layer)
-                    layer = dst_ds.CopyLayer(tds_layer,dst_layer_name,self.getOptions(src_layer_name))
+                    layer = dst_ds.CopyLayer(tds_layer,dst_info.layer_id,self.getOptions(src_info.layer_id))
                     #tds_ds.SyncToDisk()
                     tds_ds.Destroy()  
                 else:
@@ -306,8 +322,8 @@ class DataStore(object):
                 ldslog.error('Layer not created, attempting feature-by-feature copy')
                 return self.featureCopyIncremental(src_ds,dst_ds,None)
 
-            if ref_index is not None:
-                self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
+            if layerconfentry.index is not None:
+                self.buildIndex(layerconfentry,dst_info.layer_name)
             
         return
     
@@ -346,27 +362,28 @@ class DataStore(object):
             src_layer = src_ds.GetLayer(li)
 
             #TODO. resolve conflict between lastmodified and fdate
-            ref_layer_name = LDSUtilities.cropChangeset(src_layer.GetName())
+            src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
             
             '''retrieve per-layer settings from props'''
-            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(ref_layer_name)
+            #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
+            layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
             
-            dst_layer_name = self.generateLayerName(ref_name)
+            dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
             
-            ldslog.info("Dest layer: "+dst_layer_name)
+            ldslog.info("Dest layer: "+dst_info.layer_id)
             
             '''parse discard columns'''
-            self.optcols |= set(ref_disc.strip('[]{}()').split(',') if ref_disc is not None else [])
+            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
 
-            ldslog.warning(dst_layer_name+" does not exist. Creating new layer")
+            ldslog.warning(dst_info.layer_id+" does not exist. Creating new layer")
             '''create a new layer if a similarly named existing layer can't be found on the dst'''
-            src_layer_sref = src_layer.GetSpatialRef()
-            src_layer_geom = src_layer.GetGeomType()
-            src_layer_defn = src_layer.GetLayerDefn()
+            src_info.spatial_ref = src_layer.GetSpatialRef()
+            src_info.geometry = src_layer.GetGeomType()
+            src_info.layer_defn = src_layer.GetLayerDefn()
             #transforms from SRC to DST sref if user requests a different EPSG, otherwise SRC returned unchanged
-            dst_sref = self.transformSRS(src_layer_sref)
+            dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
             
-            (dst_layer,new_layer) = self.buildNewDataLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
+            (dst_layer,new_layer) = self.buildNewDataLayer(dst_info,src_info,dst_ds)
         
             dst_layer.StartTransaction()
             #add/copy features
@@ -378,7 +395,7 @@ class DataStore(object):
                 
             while src_feat is not None:
                 #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
-                e = self.insertFeature(dst_layer,src_feat,new_feat_def)
+                self.insertFeature(dst_layer,src_feat,new_feat_def)
                 
                 src_feat = src_layer.GetNextFeature()
                     
@@ -387,8 +404,8 @@ class DataStore(object):
             
             '''Builds an index on a newly created layer'''
             #May need to be pushed out to subclasses depending on syntax differences
-            if new_layer and ref_index is not None and ref_pkey is not None:
-                self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
+            if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None:
+                self.buildIndex(layerconfentry,dst_info.layer_name)
                 
             dst_layer.CommitTransaction()
             src_layer.ResetReading()
@@ -405,34 +422,36 @@ class DataStore(object):
             src_layer = src_ds.GetLayer(li)
 
             #TODO. resolve conflict between lastmodified and fdate
-            ref_layer_name = LDSUtilities.cropChangeset(src_layer.GetName())
+            src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
             
             '''retrieve per-layer settings from props'''
-            (ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(ref_layer_name)
+            #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
+            layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
             
-            dst_layer_name = self.generateLayerName(ref_name)
+            dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
             
                 
-            ldslog.info("Dest layer: "+dst_layer_name)
+            ldslog.info("Dest layer: "+dst_info.layer_id)
             
             '''parse discard columns'''
-            self.optcols |= set(ref_disc.strip('[]{}()').split(',') if ref_disc is not None else [])
+            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
             
             try:
-                dst_layer = dst_ds.GetLayer(dst_layer_name)
-            except RuntimeError as re:
+                dst_layer = dst_ds.GetLayer(dst_info.layer_id)
+            except RuntimeError as rer:
                 '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created'''
-                ldslog.warning("Runtime Error fetching layer. "+str(re))
+                ldslog.warning("Runtime Error fetching layer. "+str(rer))
                 dst_layer = None
                 
             if dst_layer is None:
-                ldslog.warning(dst_layer_name+" does not exist. Creating new layer")
+                ldslog.warning(dst_info.layer_id+" does not exist. Creating new layer")
                 '''create a new layer if a similarly named existing layer can't be found on the dst'''
-                src_layer_sref = src_layer.GetSpatialRef()
-                src_layer_geom = src_layer.GetGeomType()
-                src_layer_defn = src_layer.GetLayerDefn()
-                dst_sref = self.transformSRS(src_layer_sref)
-                (dst_layer,new_layer) = self.buildNewDataLayer(dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name)
+                src_info.spatial_ref = src_layer.GetSpatialRef()
+                src_info.geometry = src_layer.GetGeomType()
+                src_info.layer_defn = src_layer.GetLayerDefn()
+                dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
+                
+                (dst_layer,new_layer) = self.buildNewDataLayer(dst_info,src_info,dst_ds)
             
             dst_layer.StartTransaction()
             
@@ -453,9 +472,9 @@ class DataStore(object):
                         if change == 'insert': 
                             e = self.insertFeature(dst_layer,src_feat,new_feat_def)
                         elif change == 'delete': 
-                            e = self.deleteFeature(dst_layer,src_feat,             ref_pkey)
+                            e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
                         elif change == 'update': 
-                            e = self.updateFeature(dst_layer,src_feat,new_feat_def,ref_pkey)
+                            e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                         else:
                             ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
                         #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
@@ -464,10 +483,10 @@ class DataStore(object):
                         
                     if e != 0:                  
                         ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-                        if change=='update':
+                        if change == 'update':
                             ldslog.warn('Update failed on SetFeature, attempting delete/insert')
                             #let delete and insert error handlers take care of any further exceptions
-                            e1 = self.deleteFeature(dst_layer,src_feat,ref_pkey)
+                            e1 = self.deleteFeature(dst_layer,src_feat,layerconfentry.pkey)
                             e2 = self.insertFeature(dst_layer,src_feat,new_feat_def)
                             if e1+e2 != 0:
                                 raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
@@ -487,8 +506,8 @@ class DataStore(object):
             
             '''Builds an index on a newly created layer'''
             #May need to be pushed out to subclasses depending on syntax differences
-            if new_layer and ref_index is not None and ref_pkey is not None:
-                self.buildIndex(ref_index,ref_pkey,ref_gcol,dst_layer_name)
+            if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None:
+                self.buildIndex(layerconfentry,dst_info.layer_name)
             
             dst_layer.CommitTransaction()
             src_layer.ResetReading()
@@ -580,50 +599,50 @@ class DataStore(object):
         return fvlist
  
                       
-    def buildNewDataLayer(self,dst_layer_name,dst_ds,dst_sref,src_layer_defn,src_layer_geom,src_layer_sref,ref_layer_name):        
+    def buildNewDataLayer(self,dst_info,src_info,dst_ds):
         '''Constructs a new layer using another source layer as a template. This does not populate that layer'''
         #read defns of each field
         fdef_list = []
-        for fi in range(0,src_layer_defn.GetFieldCount()):
-            fdef_list.append(src_layer_defn.GetFieldDefn(fi))
+        for fi in range(0,src_info.layer_defn.GetFieldCount()):
+            fdef_list.append(src_info.layer_defn.GetFieldDefn(fi))
         
         #use the field defns to build a schema since this needs to be loaded as a create_layer option
-        opts = self.getOptions(ref_layer_name)
+        opts = self.getOptions(src_info.layer_id)
         #NB wkbPolygon = 3, wkbMultiPolygon = 6
-        dst_layer_geom = ogr.wkbMultiPolygon if src_layer_geom is ogr.wkbPolygon else self.selectValidGeom(src_layer_geom)
+        dst_info.geometry = ogr.wkbMultiPolygon if src_info.geometry is ogr.wkbPolygon else self.selectValidGeom(src_info.geometry)
         
         '''build layer replacing poly with multi and revert to def if that doesn't work'''
         try:
             #gs = 'GEOGCS'
             #sr = osr.SpatialReference('EPSG:4167')
             #ac = sr.GetAuthorityCode(None)
-            dst_layer = dst_ds.CreateLayer(dst_layer_name, dst_sref, dst_layer_geom,opts)
-        except RuntimeError as re:
-            ldslog.error("Cannot create layer. "+str(re))
-            if 'already exists' in str(re):
+            dst_layer = dst_ds.CreateLayer(dst_info.layer_name, dst_info.spatial_ref, dst_info.geometry, opts)
+        except RuntimeError as rer:
+            ldslog.error("Cannot create layer. "+str(rer))
+            if 'already exists' in str(rer):
                 '''indicates the table has been created previously but was not returned with the getlayer command, SL does this with null geom tables'''
                 #raise ASpatialFailureException('SpatiaLite driver cannot be used to update ASpatial layers')
                 #NB. DeleteLayer also wont work since the layer can't be found.
                 #dst_ds.DeleteLayer(dst_layer_name)
                 #dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
                 #Option 2. Deleting the layer with SQL
-                self.executeSQL('drop table '+dst_layer_name)
-                dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
-            elif 'General function failure' in str(re):
-                ldslog.error('Possible SR problem, continuing. '+str(re))
+                self.executeSQL('drop table '+dst_info.layer_name)
+                dst_layer = dst_ds.CreateLayer(dst_info.layer_name,dst_info.spatial_ref,src_info.geometry,opts)
+            elif 'General function failure' in str(rer):
+                ldslog.error('Possible SR problem, continuing. '+str(rer))
                 dst_layer = None
             
         #if we fail through to this point most commonly the problem is SpatialRef
         if dst_layer is None:
             #overwrite the dst_sref if its causing trouble (ie GDAL general function errors)
-            dst_sref = Projection.getDefaultSpatialRef()
-            ldslog.warning("Could not initialise Layer with specified SRID {"+str(src_layer_sref)+"}.\n\nUsing Default {"+str(dst_sref)+"} instead")
-            dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,dst_layer_geom,opts)
+            dst_info.spatial_ref = Projection.getDefaultSpatialRef()
+            ldslog.warning("Could not initialise Layer with specified SRID {"+str(src_info.spatial_ref)+"}.\n\nUsing Default {"+str(dst_info.spatial_ref)+"} instead")
+            dst_layer = dst_ds.CreateLayer(dst_info.layer_name,dst_info.spatial_ref,dst_info.geometry,opts)
                 
         #if still failing, give up
         if dst_layer is None:
-            ldslog.error(dst_layer_name+" cannot be created")
-            raise LayerCreateException(dst_layer_name+" cannot be created")
+            ldslog.error(dst_info.layer_name+" cannot be created")
+            raise LayerCreateException(dst_info.layer_name+" cannot be created")
     
         
         '''if the dst_layer isn't empty it's probably not a new layer and we shouldn't be adding stuff to it'''
@@ -649,7 +668,7 @@ class DataStore(object):
         return (dst_layer,True)
     
     def selectValidGeom(self,geom):
-        '''To be overridden, eliminates geometry types that cause trouble for certain driver types'''
+        '''To be overridden, eliminates geometry types that cause trouble for certain drivers'''
         return geom
                            
     def changeColumnIntToString(self,table,column):
@@ -679,9 +698,9 @@ class DataStore(object):
                 #TODO check whether this fin_geom needs to be cloned first
                 try:
                     fin_geom.Transform(self.transform)
-                except RuntimeError as re:
-                    if 'OGR Error' in str(re):
-                        ldslog.error('Cannot convert to requested SR. '+str(re))
+                except RuntimeError as rer:
+                    if 'OGR Error' in str(rer):
+                        ldslog.error('Cannot convert to requested SR. '+str(rer))
                         raise
                 
             '''and then set the output geometry'''
@@ -764,13 +783,13 @@ class DataStore(object):
         dpo = datetime.utcnow()
         return dpo.strftime(self.DATE_FORMAT)  
     
-    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+    def buildIndex(self,lce,dst_layer_name):
         '''Default index string builder for new fully replicated layers'''
-        ref_index = DataStore.parseStringList(ref_index)
-        if ref_index.intersection(set(('spatial','s'))) and ref_gcol is not None:
-            cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_gcol,dst_layer_name,ref_gcol)
+        ref_index = DataStore.parseStringList(lce.index)
+        if ref_index.intersection(set(('spatial','s'))) and lce.gcol is not None:
+            cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.gcol,dst_layer_name,lce.gcol)
         elif ref_index.intersection(set(('primary','pkey','p'))):
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string
             clst = ','.join(ref_index)
@@ -931,7 +950,8 @@ class DataStore(object):
         search_layer.ResetReading()
         return search_layer.GetNextFeature()
             
-
+            
+            
 # static utility methods
     
     @staticmethod
@@ -972,8 +992,7 @@ class DataStore(object):
             DataStore._showFeatureData(feat)
             feat = layer.GetNextFeature()                
                 
-# INTERNAL CONFIG SECTION. The config section is written as part of the datastore to take advantage  
-# of its connection features when the internal config options is chosen. Consider peeling this off into a subclass
+
 
     def setupLayerConfig(self,override_int):
         '''Read internal OR external from main config file and set, default to internal'''
@@ -986,113 +1005,130 @@ class DataStore(object):
         else:
             self.setConfInternal() if override_int else self.clearConfInternal()
             
+# INTERNAL CONFIG SECTION. The config section is written as part of the datastore to take advantage  
+# of its connection features when the internal config options is chosen. Consider peeling this off into a subclass
+#
+#
+#    def buildConfigLayer(self,config_array):
+#        '''Builds the config table into and using the active DS'''
+#        #TODO check initds for conf table name
+#        if not hasattr(self,'ds') or self.ds is None:
+#            self.ds = self.initDS(self.destinationURI(DataStore.LDS_CONFIG_TABLE))  
+#            
+#        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.mainconf])
+#        if not self.isConfInternal():
+#            return self.layerconf.buildConfigLayer()
+#
+#        try:
+#            self.ds.DeleteLayer(DataStore.LDS_CONFIG_TABLE)
+#        except Exception as e:
+#            ldslog.warn("Exception deleting config layer: "+str(e))
+#        
+#        config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,None,self.getConfigGeometry(),['OVERWRITE=YES'])
+#        
+#        feat_def = ogr.FeatureDefn()
+#        for name in self.CONFIG_COLUMNS:
+#            #create new field defn with name=name and type OFTString
+#            fld_def = ogr.FieldDefn(name,ogr.OFTString)
+#            #in the feature defn, define a new field
+#            feat_def.AddFieldDefn(fld_def)
+#            #also add a field to the table definition, i.e. column
+#            config_layer.CreateField(fld_def,True)                
+#        
+#        for row in json.loads(config_array):
+#            config_feat = ogr.Feature(feat_def)
+#            #HACK
+#            #if self.DRIVER_NAME == 'MSSQLSpatial':
+#            #    pass
+#            config_feat.SetField(self.CONFIG_COLUMNS[0],str(row[0]))
+#            config_feat.SetField(self.CONFIG_COLUMNS[1],str(row[1]))
+#            config_feat.SetField(self.CONFIG_COLUMNS[2],str(row[2]))
+#            config_feat.SetField(self.CONFIG_COLUMNS[3],str(','.join(row[3])))
+#            config_feat.SetField(self.CONFIG_COLUMNS[4],str(row[4]))
+#            config_feat.SetField(self.CONFIG_COLUMNS[5],str(row[5]))
+#            config_feat.SetField(self.CONFIG_COLUMNS[6],str(row[6]))
+#            config_feat.SetField(self.CONFIG_COLUMNS[7],str(row[7]))
+#            config_feat.SetField(self.CONFIG_COLUMNS[8],None if row[8] is None else str(','.join(row[8])))
+#            config_feat.SetField(self.CONFIG_COLUMNS[9],str(row[9]))
+#            
+#            config_layer.CreateFeature(config_feat)
+#            
+#        config_layer.ResetReading()
+#        config_layer.SyncToDisk()
+#
+#    
+#    def getConfigGeometry(self):
+#        return ogr.wkbNone
+#    
+#    def findLayerIdByName(self,lname):
+#        '''Reverse lookup of section by associated name, finds first occurance only'''
+#        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+#        layer.ResetReading()
+#        feat = layer.GetNextFeature() 
+#        while feat is not None:
+#            if lname == feat.GetField('name'):
+#                return feat.GetField('id')
+#            feat = layer.GetNextFeature()
+#        return None
+#        
+#
+#    def getLayerNames(self):
+#        '''Returns configured layers for respective layer properties file'''
+#        namelist = ()
+#        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+#        layer.ResetReading()
+#        feat = layer.GetNextFeature() 
+#        while feat is not None:
+#            namelist += (feat.GetField('id'),)
+#            feat = layer.GetNextFeature()
+#        
+#        return namelist
+#     
+#    def readLayerParameters(self,pkey):
+#        '''Full Layer config reader'''
+#        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+#        layer.ResetReading()
+#        feat = self._findMatchingFeature(layer, 'id', pkey)
+#        if feat is None:
+#            InaccessibleFeatureException('Cannot access feature with id='+str(pkey)+' in layer '+str(layer.GetName()))
+#        return LDSUtilities.extractFields(feat)
+#         
+#    def readLayerProperty(self,pkey,field):
+#        '''Single property reader'''
+#        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+#        layer.ResetReading()
+#        feat = self._findMatchingFeature(layer, 'id', pkey)
+#        if feat is None:
+#            return None
+#        prop = feat.GetField(field)
+#        return None if prop == 'None' or all(i in string.whitespace for i in prop) else prop
+#
+#    def writeLayerProperty(self,pkey,field,value):
+#        '''Write changes to layer config table'''
+#        #ogr.UseExceptions()
+#        try:
+#            layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
+#            feat = self._findMatchingFeature(layer, 'id', pkey)
+#            feat.SetField(field,value)
+#            layer.SetFeature(feat)
+#            ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
+#        except Exception as e:
+#            ldslog.error(e)
 
-    def buildConfigLayer(self,config_array):
-        '''Builds the config table into and using the active DS'''
-        #TODO check initds for conf table name
-        if not hasattr(self,'ds') or self.ds is None:
-            self.ds = self.initDS(self.destinationURI(DataStore.LDS_CONFIG_TABLE))  
-            
-        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.mainconf])
-        if not self.isConfInternal():
-            return self.layerconf.buildConfigLayer()
 
-        try:
-            self.ds.DeleteLayer(DataStore.LDS_CONFIG_TABLE)
-        except Exception as e:
-            ldslog.warn("Exception deleting config layer: "+str(e))
+class LayerInfo(object):
+    '''Simple class for layer attributes'''
+    def __init__(self,layer_id,layer_name=None,layer_defn=None,spatial_ref=None,geometry=None):
+        #to clarify name confusion, id here referes to the layer 'name' read by the layer.GetName fuinction i.e v:xNNNN
+        self.layer_id = layer_id
+        #name here refers to the descriptive name i.e. NZ Primary Parcels
+        self.layer_name = layer_name
+        self.layer_defn = layer_defn
+        self.spatial_ref = spatial_ref
+        self.geometry = geometry
         
-        config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,None,self.getConfigGeometry(),['OVERWRITE=YES'])
-
+        self.lce = None
         
-        feat_def = ogr.FeatureDefn()
-        for name in self.CONFIG_COLUMNS:
-            #create new field defn with name=name and type OFTString
-            fld_def = ogr.FieldDefn(name,ogr.OFTString)
-            #in the feature defn, define a new field
-            feat_def.AddFieldDefn(fld_def)
-            #also add a field to the table definition, i.e. column
-            config_layer.CreateField(fld_def,True)                
-        
-        for row in json.loads(config_array):
-            config_feat = ogr.Feature(feat_def)
-            #HACK
-            #if self.DRIVER_NAME == 'MSSQLSpatial':
-            #    pass
-            config_feat.SetField(self.CONFIG_COLUMNS[0],str(row[0]))
-            config_feat.SetField(self.CONFIG_COLUMNS[1],str(row[1]))
-            config_feat.SetField(self.CONFIG_COLUMNS[2],str(row[2]))
-            config_feat.SetField(self.CONFIG_COLUMNS[3],str(','.join(row[3])))
-            config_feat.SetField(self.CONFIG_COLUMNS[4],str(row[4]))
-            config_feat.SetField(self.CONFIG_COLUMNS[5],str(row[5]))
-            config_feat.SetField(self.CONFIG_COLUMNS[6],str(row[6]))
-            config_feat.SetField(self.CONFIG_COLUMNS[7],str(row[7]))
-            config_feat.SetField(self.CONFIG_COLUMNS[8],None if row[8] is None else str(','.join(row[8])))
-            config_feat.SetField(self.CONFIG_COLUMNS[9],str(row[9]))
-            
-            config_layer.CreateFeature(config_feat)
-            
-        config_layer.ResetReading()
-        config_layer.SyncToDisk()
-
-        
-    def getConfigGeometry(self):
-        return ogr.wkbNone;
-    
-    def findLayerIdByName(self,lname):
-        '''Reverse lookup of section by associated name, finds first occurance only'''
-        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-        layer.ResetReading()
-        feat = layer.GetNextFeature() 
-        while feat is not None:
-            if lname == feat.GetField('name'):
-                return feat.GetField('id')
-            feat = layer.GetNextFeature()
-        return None
-        
-
-    def getLayerNames(self):
-        '''Returns configured layers for respective layer properties file'''
-        namelist = ()
-        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-        layer.ResetReading()
-        feat = layer.GetNextFeature() 
-        while feat is not None:
-            namelist += (feat.GetField('id'),)
-            feat = layer.GetNextFeature()
-        
-        return namelist
-     
-    def readLayerParameters(self,pkey):
-        '''Full Layer config reader'''
-        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-        layer.ResetReading()
-        feat = self._findMatchingFeature(layer, 'id', pkey)
-        if feat is None:
-            InaccessibleFeatureException('Cannot access feature with id='+str(pkey)+' in layer '+str(layer.GetName()))
-        return LDSUtilities.extractFields(feat)
-         
-    def readLayerProperty(self,pkey,field):
-        '''Single property reader'''
-        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-        layer.ResetReading()
-        feat = self._findMatchingFeature(layer, 'id', pkey)
-        if feat is None:
-            return None
-        prop = feat.GetField(field)
-        return None if prop == 'None' or all(i in string.whitespace for i in prop) else prop
-
-    def writeLayerProperty(self,pkey,field,value):
-        '''Write changes to layer config table'''
-        #ogr.UseExceptions()
-        try:
-            layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-            feat = self._findMatchingFeature(layer, 'id', pkey)
-            feat.SetField(field,value)
-            layer.SetFeature(feat)
-            ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
-        except Exception as e:
-            ldslog.error(e)
-
-
+    def setLCE(self,lce):
+        self.lce = lce
         

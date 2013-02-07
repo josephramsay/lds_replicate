@@ -18,6 +18,8 @@ Created on 24/07/2012
 import os
 import string
 import logging
+import json
+import ogr
 import ConfigParser
 
 from ConfigParser import NoOptionError,NoSectionError
@@ -41,7 +43,8 @@ class MainFileReader(object):
         Constructor
         '''
         thisdir = os.path.dirname(__file__)
-
+        
+        self.cp = None
         self.use_defaults = use_defaults
         self.filename=os.path.join(thisdir,cfpath)
             
@@ -486,7 +489,8 @@ class LayerFileReader(object):
         Constructor
         '''
 
-        self.filename=os.path.join(os.path.dirname(__file__), '../',fname)
+        self.cp = None
+        self.filename = os.path.join(os.path.dirname(__file__), '../',fname)
             
         self._readConfigFile(self.filename)
         
@@ -527,6 +531,7 @@ class LayerFileReader(object):
     def readLayerParameters(self,layer):
     #def readLayerSchemaConfig(self,layer):
         '''Full Layer config reader. Returns the config values for the whole layer or makes sensible guesses for defaults'''
+        from LDSUtilities import LayerConfEntry
         
         try:
             defn = self.cp.get(layer, 'sql')
@@ -594,7 +599,7 @@ class LayerFileReader(object):
         except NoOptionError:
             cql = None
             
-        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
+        return LayerConfEntry(pkey,name,group,gcol,index,epsg,lmod,disc,cql)
 
         
     def writeLayerProperty(self,layer,field,value):
@@ -608,4 +613,127 @@ class LayerFileReader(object):
             ldslog.error('Problem writing LM date to layer config file. '+str(e))
 
         
+class LayerDSReader(object):
+    '''
+    Layer config wrapper for internal format config file.
+    '''
+    # Ported from DS location so some optimisation needed
+
+
+    def __init__(self,dso):
+        
+        '''
+        Constructor
+        '''
+        self.dso = dso
+        self.ds = self.dso.ds
+        self.namelist = ()
+            
+
+    def buildConfigLayer(self,config_array):
+        '''Builds the config table into and using the active DS'''
+        #TODO check initds for conf table name
+        #if not hasattr(self.dso,'ds') or self.dso.ds is None:
+        #    self.ds = self.dso.initDS(self.dso.destinationURI(DataStore.LDS_CONFIG_TABLE))  
+
+        #First, try to delete any previous config
+        try:
+            self.ds.DeleteLayer(self.dso.LDS_CONFIG_TABLE)
+        except Exception as e:
+            ldslog.warn("Exception deleting config layer: "+str(e))
+        
+        config_layer = self.ds.CreateLayer(self.dso.LDS_CONFIG_TABLE,None,self.getConfigGeometry(),['OVERWRITE=YES'])
+        
+        feat_def = ogr.FeatureDefn()
+        for name in self.dso.CONFIG_COLUMNS:
+            #create new field defn with name=name and type OFTString
+            fld_def = ogr.FieldDefn(name,ogr.OFTString)
+            #in the feature defn, define a new field
+            feat_def.AddFieldDefn(fld_def)
+            #also add a field to the table definition, i.e. column
+            config_layer.CreateField(fld_def,True)                
+        
+        for row in json.loads(config_array):
+            config_feat = ogr.Feature(feat_def)
+            #HACK
+            #if self.DRIVER_NAME == 'MSSQLSpatial':
+            #    pass
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[0],str(row[0]))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[1],str(row[1]))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[2],str(row[2]))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[3],str(','.join(row[3])))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[4],str(row[4]))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[5],str(row[5]))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[6],str(row[6]))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[7],str(row[7]))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[8],None if row[8] is None else str(','.join(row[8])))
+            config_feat.SetField(self.dso.CONFIG_COLUMNS[9],str(row[9]))
+            
+            config_layer.CreateFeature(config_feat)
+            
+        config_layer.ResetReading()
+        config_layer.SyncToDisk()
+
     
+    def getConfigGeometry(self):
+        return ogr.wkbNone
+    
+    def findLayerIdByName(self,lname):
+        '''Reverse lookup of section by associated name, finds first occurance only'''
+        layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+        layer.ResetReading()
+        feat = layer.GetNextFeature() 
+        while feat is not None:
+            if lname == feat.GetField('name'):
+                return feat.GetField('id')
+            feat = layer.GetNextFeature()
+        return None
+        
+
+    def getLayerNames(self):
+        '''Returns configured layers for respective layer properties file'''
+        if not self.namelist:
+            layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+            layer.ResetReading()
+            feat = layer.GetNextFeature() 
+            while feat is not None:
+                self.namelist += (feat.GetField('id'),)
+                feat = layer.GetNextFeature()
+        
+        return self.namelist
+     
+    def readLayerParameters(self,pkey):
+        '''Full Layer config reader'''
+        from DataStore import InaccessibleFeatureException
+
+        layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+        layer.ResetReading()
+        feat = self.dso._findMatchingFeature(layer, 'id', pkey)
+        if feat is None:
+            InaccessibleFeatureException('Cannot access feature with id='+str(pkey)+' in layer '+str(layer.GetName()))
+        return LU.extractFields(feat)
+         
+    def readLayerProperty(self,pkey,field):
+        '''Single property reader'''
+        layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+        layer.ResetReading()
+        feat = self.dso._findMatchingFeature(layer, 'id', pkey)
+        if feat is None:
+            return None
+        prop = feat.GetField(field)
+        return None if prop == 'None' or all(i in string.whitespace for i in prop) else prop
+
+    def writeLayerProperty(self,pkey,field,value):
+        '''Write changes to layer config table'''
+        #ogr.UseExceptions()
+        try:
+            layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+            feat = self.dso._findMatchingFeature(layer, 'id', pkey)
+            feat.SetField(field,value)
+            layer.SetFeature(feat)
+            ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
+        except Exception as e:
+            ldslog.error(e)    
+            
+            
+            

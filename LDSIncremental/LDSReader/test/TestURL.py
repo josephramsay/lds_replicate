@@ -26,8 +26,7 @@ fh.setFormatter(formatter)
 ldslog.addHandler(fh)
 
 
-#class TestUI(LDSIncrTestCase):
-class TestUI(unittest.TestCase):
+class TestURL(unittest.TestCase):
     '''Basic tests of ldsreplicate.py using command line arguments to see whether they work as expected'''
     
     #        WACA,    land-dist, name-assoc, antarctic (non-NZ sref, RSRGD)

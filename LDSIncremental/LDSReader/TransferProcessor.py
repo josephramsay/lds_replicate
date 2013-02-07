@@ -22,7 +22,6 @@ from datetime import datetime
 
 from DataStore import DataStore
 from DataStore import ASpatialFailureException
-from DataStore import DatasourceOpenException
 
 from LDSDataStore import LDSDataStore
 from LDSUtilities import LDSUtilities, ConfigInitialiser
@@ -35,7 +34,7 @@ from PostgreSQLDataStore import PostgreSQLDataStore
 from MSSQLSpatialDataStore import MSSQLSpatialDataStore
 from SpatiaLiteDataStore import SpatiaLiteDataStore
 
-from ReadConfig import LayerFileReader
+from ReadConfig import LayerFileReader, LayerDSReader
 
 ldslog = logging.getLogger('LDS')
 
@@ -64,7 +63,18 @@ class TransferProcessor(object):
     
     def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None,fbf=None):
         #ldsu? lnl?
-        #self.src = LDSDataStore() 
+        self.CLEANCONF = None
+        self.INITCONF = None
+        self.INCR = None
+        
+        self.src = None
+        self.dst = None 
+        self.lnl = None
+        self.partitionlayers = None
+        self.partitionsize = None
+        self.sixtyfourlayers = None
+        self.temptable = None
+        
         #self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
         
         #do a driver copy unless valid dates have been provided indicating changeset
@@ -283,17 +293,19 @@ class TransferProcessor(object):
                 #open and write res to the external layer config file
                 open(os.path.join(os.path.dirname(__file__), '../',fname),'w').write(str(res))
                 
+                
+        # *** Decide whether to use internal or external layer config ***
         if dst.isConfInternal():
-            #set the layerconf to access functions (which just happens to be in the DST)
-            self.dst.layerconf = self.dst
+            #set the layerconf using the existing DS for common accessor functions 
+            self.dst.layerconf = LayerDSReader(self.dst)
         else:
-            #set the layerconf to a reader that accesses the external file
+            #set the layerconf to a reader that accesses a DS delimited external file
             self.dst.layerconf = LayerFileReader(fname)
         
         if self.dst.layerconf is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table. fn="+str(fname)+',int='+str(dst.isConfInternal()))
         
-        #Once the layer config is initialised we can do a layer name check
+        # *** Once the layer config is initialised we can do a layer name check ***
         if self.layer is None:
             layer = 'ALL'
         else:
@@ -302,7 +314,7 @@ class TransferProcessor(object):
                 raise InputMisconfigurationException("Layer name provided but format incorrect. Must be; -l {"+LDSUtilities.LDS_TN_PREFIX+"#### | <Layer-Name>}")
         
         
-        #Assuming layer check is okay it should eb safe to perform operations on the layer; the first one, delete
+        # *** Assuming layer check is okay it should be safe to perform operations on the layer; the first one, delete ***
         if self.getCleanConfig():
             '''clean a selected layer (once the layer conf file has been established)'''
             if self.dst._cleanLayerByRef(self.dst.ds,self.layer):
@@ -419,17 +431,11 @@ class TransferProcessor(object):
                        self.temptable,
                        self.doSRSConvert()
                     )
-#            if maxkey is not None:
-#                self.src.setPartitionStart(maxkey)
-#            else:
-#                break
-            
-            
+                  
         '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
         Retained since dates may change between successive calls depending on the start time of the process'''
         self.dst.setLastModified(layer_i,self.dst.getCurrent())
         
-    
     
     def autoIncrement(self,layer,fdate,tdate):
         if layer is 'ALL':
@@ -446,12 +452,12 @@ class TransferProcessor(object):
             
     def autoIncrementLayer(self,layer_i,fdate,tdate):
         '''For a specified layer read provided date ranges and call incremental'''
-        if fdate is None or fdate =='':    
+        if fdate is None or fdate == '':    
             fdate = self.dst.layerconf.readLayerProperty(layer_i,'lastmodified')
             if fdate is None or fdate == '':
                 fdate = DataStore.EARLIEST_INIT_DATE
                 
-        if tdate is None or tdate =='':         
+        if tdate is None or tdate == '':         
             tdate = self.dst.getCurrent()
         
         self.definedIncrementLayer(layer_i,fdate,tdate)

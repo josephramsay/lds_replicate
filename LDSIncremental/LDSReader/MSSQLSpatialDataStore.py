@@ -21,7 +21,6 @@ import re
 
 from DataStore import DataStore
 from DataStore import MalformedConnectionString
-from ProjectionReference import Geometry
 
 ldslog = logging.getLogger('LDS')
 
@@ -105,9 +104,9 @@ class MSSQLSpatialDataStore(DataStore):
         self.executeSQL(dsql)
         #ldslog.error("Field deletion not supported in MSSQLSpatial driver")
 
-    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+    def buildIndex(self,lce,dst_layer_name):
         '''Builds an index creation string for a new full replicate'''
-        ref_index = DataStore.parseStringList(ref_index)
+        ref_index = DataStore.parseStringList(lce.index)
         if ref_index.intersection(set(('spatial','s'))):
 #            bb = Geometry.getBoundingBox()
 #            cmd1 = 'CREATE SPATIAL INDEX {}_SK ON {}({}) '.format(dst_layer_name.split('.')[-1]+"_"+ref_gcol,dst_layer_name,ref_gcol)
@@ -119,7 +118,7 @@ class MSSQLSpatialDataStore(DataStore):
             #magic command...
             cmd = 'CREATE SPATIAL INDEX ON '+dst_layer_name.split('.')[-1]
         elif ref_index.intersection(set(('primary','pkey','p'))):
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string
             clst = ','.join(ref_index)
@@ -149,7 +148,7 @@ class MSSQLSpatialDataStore(DataStore):
         if srid is not None:
             local_opts += ['SRID='+srid]
         
-        return super(MSSQLSpatialDataStore,self).getOptions() + local_opts
+        return super(MSSQLSpatialDataStore,self).getOptions(layer_id) + local_opts
     
     #Possibly use this override if attempting to use FreeTDS or SQLServer for Linux
     def buildConfigLayer_DELETE_CAPS_TO_OVERRIDE_WHEN_USING_MSSQL_DRIVER_ON_LINUX(self,config_array):
@@ -205,7 +204,7 @@ class MSSQLSpatialDataStore(DataStore):
         self.executeSQL('alter table '+table+' alter column '+column+' varchar(32)')
         
     def getConfigGeometry(self):
-        return ogr.wkbPoint;
+        return ogr.wkbPoint
     
     def _clean(self):
         '''Deletes the entire DS layer by layer'''

@@ -42,7 +42,7 @@ class TestUI(unittest.TestCase):
     PATH_L = '/home/jramsay/git/LDS/LDSIncremental/LDSReader/'
     PATH_W = 'C:\\data\\workspace\\LDS\\LDSIncremental\\LDSReader\\'
     PATH_C = PATH_W.replace('\\','/').replace('C:','/cygdrive/c')
-    OUTP_L = ('pg',)#'fg','sl')
+    OUTP_L = ('pg','fg','sl')
     OUTP_W = ('ms',)#'sl')
     CONF_I = 'ldsincr.internal.conf'
     CONF_E = 'ldsincr.external.conf'
@@ -126,7 +126,17 @@ class TestUI(unittest.TestCase):
                 self.prepLayer(l, o)
                 sti = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF2+' -l '+l+' '+o
                 print sti
-                self.assertEquals(os.system(sti),0)
+                self.assertEquals(os.system(sti),0)    
+                
+    def test04LayerByName(self):
+        '''Tests for any differences in the use of internal vs external config files'''
+        for o in self.OUTP:
+            for l in self.LAYER:
+                self.prepLayer(l, o)
+                ste = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l 'NZ Land Districts' "+o
+                print ste
+                self.assertEquals(os.system(ste),0)
+                
             
 #    def test03IncrementalFillLayer(self):
 #        '''Layer clean and populate using supplied dates (following test 02 tests pop-clean-pop)'''
@@ -138,10 +148,11 @@ class TestUI(unittest.TestCase):
 #            st2 = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 -f 2010-01-01 -t 2012-07-01 '+o
 #            print st2
 #            self.assertEquals(os.system(st2),0)
+
         
-    def test04ProblemLayer(self):
+    def test05ProblemLayer(self):
         '''Attempts to get 772. Tests data partitioning solution... This takes a while to run! return to bypass'''
-        #return
+        return
         for o in self.OUTP:
             for l in self.LAYER_PROBLEM:
                 st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' '+o
@@ -149,7 +160,7 @@ class TestUI(unittest.TestCase):
                 self.assertEquals(os.system(st),0)
 
 
-    def test05InitClone(self):
+    def test06InitClone(self):
         '''Test INIT of layer config file and layer CLEAN functions'''
         for o in self.OUTP:
             for l in self.LAYER:
@@ -160,7 +171,7 @@ class TestUI(unittest.TestCase):
                 self.assertEquals(os.system(st),0)
                 
                 
-    def test06IncrCopy2Part(self):
+    def test07IncrCopy2Part(self):
         '''Test incremental functionality using an intermediate date, "data up To DATE" and "data From DATE to present"'''
         for o in self.OUTP:          
             for l in self.LAYER:
@@ -176,7 +187,7 @@ class TestUI(unittest.TestCase):
                 self.assertEquals(os.system(st),0)
                 
                 
-    def test07IncrCopy2Auto(self):
+    def test08IncrCopy2Auto(self):
         '''Test incremental functionality by "get data up To DATE" and "Incremental AUTO fill last DATE to present"'''
         for o in self.OUTP:
             for l in self.LAYER:
@@ -191,7 +202,7 @@ class TestUI(unittest.TestCase):
                 self.assertEquals(os.system(st),0)
                 
                 
-    def test08AutoConnOverride(self):
+    def test09AutoConnOverride(self):
         '''Test -d option overriding connection string''' 
         for l in self.LAYER:
             self.prepLayer(l,self.CONN_STR.lower()[0:2])
@@ -201,7 +212,7 @@ class TestUI(unittest.TestCase):
             self.assertEquals(os.system(st),0)    
             
             
-    def test09AutoFilterGeodetic(self):
+    def test10AutoFilterGeodetic(self):
         '''Test group selection using -g option'''
         for o in self.OUTP:
             self.prepLayerGeodetic(o)              
@@ -211,7 +222,7 @@ class TestUI(unittest.TestCase):
             self.assertEquals(os.system(st),0)
         
         
-    def test10AutoFilterWithDates(self):
+    def test11AutoFilterWithDates(self):
         '''Test group selection using -g option and defined date ranges'''
         for o in self.OUTP:
             self.prepLayerGeodetic(o)        
@@ -219,8 +230,9 @@ class TestUI(unittest.TestCase):
             print st
             self.assertEquals(os.system(st),0)    
             
+ 
             
-    def test11AspatialClone(self):
+    def test12AspatialClone(self):
         '''Test an A-Spatial layer. (Layer 1203 also contains sufi's so this also tests the 64 bit workaround)'''
         for o in self.OUTP:    
             self.prepLayer('v:x1203',o)
@@ -229,7 +241,7 @@ class TestUI(unittest.TestCase):
             self.assertEquals(os.system(st),0)
     
     
-    def test12EPSGChange(self):
+    def test13EPSGChange(self):
         '''Test different SR conversions'''
         for o in self.OUTP:    
             for e in self.EPSG: 
@@ -238,8 +250,9 @@ class TestUI(unittest.TestCase):
                 st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x785 -e '+str(e)+' '+o
                 print st
                 self.assertEquals(os.system(st),0)
+      
                 
-    def test13CQLSelection(self):
+    def test14CQLSelection(self):
         '''Test different SR conversions. Doesnt really affect processing since this is serverside'''
 
         for o in self.OUTP:    
@@ -248,14 +261,15 @@ class TestUI(unittest.TestCase):
                 st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c 'id=1001' "+o
                 '''NB. Need to take care single quoting alphabetic values'''
                 st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name=\\'Southland\\' "+o
-                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
             elif sys.platform == 'win32':
                 st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c id=1001 "+o
                 st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name='Southland' "+o
-                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
+                
             else:
-                return
-                           
+                return       
+            
+            st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox\(shape,164.88,-47.46,169.45,-43.85\) "+o
+                    
             self.prepLayer('v:x785',o)
             print st1
             self.assertEquals(os.system(st1),0) 

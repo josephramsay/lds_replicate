@@ -100,15 +100,15 @@ class PostgreSQLDataStore(DataStore):
         if gname is not None:
             local_opts += ['GEOMETRY_NAME='+gname]
         
-        return super(PostgreSQLDataStore,self).getOptions() + local_opts
+        return super(PostgreSQLDataStore,self).getOptions(layer_id) + local_opts
     
-    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+    def buildIndex(self,lce,dst_layer_name):
         '''Builds an index creation string for a new full replicate in PG format'''
-        ref_index = DataStore.parseStringList(ref_index)
+        ref_index = DataStore.parseStringList(lce.index)
         if ref_index.intersection(set(('spatial','s'))):
-            cmd = 'CREATE INDEX {}_SK ON {} USING GIST({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_gcol,dst_layer_name,ref_gcol)
+            cmd = 'CREATE INDEX {}_SK ON {} USING GIST({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.gcol,dst_layer_name,lce.gcol)
         elif ref_index.intersection(set(('primary','pkey','p'))):
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+ref_pkey,dst_layer_name,ref_pkey)
+            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string. This wont work for spatial columns since GIST needed
             #TODO. Detect when gcol is in the col list and build a "mixed-spatial"? index...

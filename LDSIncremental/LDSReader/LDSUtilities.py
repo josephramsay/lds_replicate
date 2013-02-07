@@ -184,6 +184,7 @@ class LDSUtilities(object):
     def extractFields(feat):
         '''Extracts named fields from a layer config feature'''
         '''Not strictly independent but common and potentially used by a number of other classes'''
+        
         try:
             pkey =  feat.GetField('PKEY')
         except:
@@ -238,7 +239,8 @@ class LDSUtilities(object):
         except:
             cql = None
             
-        return (pkey,name,group,gcol,index,epsg,lmod,disc,cql)
+        
+        return LayerConfEntry(pkey,name,group,gcol,index,epsg,lmod,disc,cql)
     
     @staticmethod
     def readDocument(url):
@@ -280,5 +282,17 @@ class SUFIExtractor(object):
         
         return sufi
         
-
+class LayerConfEntry(object):
+    
+    def __init__(self,pkey,name,group,gcol,index,epsg,lmod,disc,cql):
+        self.pkey = pkey
+        self.name = name
+        self.group = group
+        self.gcol = gcol
+        self.index = index
+        self.epsg = epsg
+        self.lmod = lmod
+        self.disc = disc
+        self.cql = cql
+    
         

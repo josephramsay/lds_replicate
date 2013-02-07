@@ -22,11 +22,12 @@ import logging
 #from TestTransferTypes import TestIncrementalDates
 #from TestTransferTypes import TestIncrementalDestinations
 #from TestConnectivity import TestConnect
-#from TestUI import TestUI
+from TestUI import TestUI
+from TestURL import TestURL
 #from TestLayerTypes import TestLayerTypes
-from TestInitConfig import TestInitConfig
-from TestConnectivity import TestConnect
-from TestTransferTypes import TestTransfer
+#from TestInitConfig import TestInitConfig
+#from TestConnectivity import TestConnect
+#from TestTransferTypes import TestTransfer
 
 
 ldslog = logging.getLogger('LDS')
@@ -46,6 +47,7 @@ class FullSuite(unittest.TestSuite):
 
     def __init__(self):
         pass
+    
     
 #    def suite(self):
 #        '''for greater control... if needed'''
@@ -82,16 +84,16 @@ def main():
     #runner.run(suite)
     
     runner  = unittest.TextTestRunner()
-    s1a = unittest.TestLoader().loadTestsFromTestCase(TestConnect)
-    s2a = unittest.TestLoader().loadTestsFromTestCase(TestTransfer)
+    s1a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
+    s2a = unittest.TestLoader().loadTestsFromTestCase(TestURL)
     #s3a = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDates)
     #s3b = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDestinations) 
     #s4a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
     #s5a = unittest.TestLoader().loadTestsFromTestCase(TestLayerTypes)
-    s6a = unittest.TestLoader().loadTestsFromTestCase(TestInitConfig)
+    #s6a = unittest.TestLoader().loadTestsFromTestCase(TestInitConfig)
 
     
-    ss = unittest.TestSuite([s1a,s2a,s6a])
+    ss = unittest.TestSuite([s1a,s2a])
     runner.run(ss)
     
 if __name__ == "__main__":

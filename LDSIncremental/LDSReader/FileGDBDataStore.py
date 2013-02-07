@@ -73,7 +73,7 @@ class FileGDBDataStore(ESRIDataStore):
         dsql = "alter table "+layer.GetName()+" drop column "+field_name
         self.executeSQL(dsql)
         
-    def buildIndex(self,ref_index,ref_pkey,ref_gcol,dst_layer_name):
+    def buildIndex(self,lce,dst_layer_name):
         ldslog.warn('Table indexing not supported by '+self.DRIVER_NAME+' at present')
         return
     

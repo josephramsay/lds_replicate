@@ -38,7 +38,7 @@ import sys
 import os
 import getopt
 import logging
-import traceback
+#import traceback
 
 from datetime import datetime
 
@@ -245,11 +245,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    #main()
     
-#    try:
-#        main()
-#    except Exception as e:        
-#        exc_type, exc_value, exc_traceback = sys.exc_info()
-#        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
-#        print str(e)+'\n(see debug.log for full stack trace)'
+    try:
+        main()
+    except Exception as e:        
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
+        print str(e)+'\n(see debug.log for full stack trace)'

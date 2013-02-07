@@ -48,7 +48,7 @@ class ESRIDataStore(DataStore):
         
     
     def convertDataSourceESRI(self,datasource):
-        #bypass to test gdal 1.9.1 SREF handling, its supposed to be fixed now
+        #bypassed when using gdal 1.9.2 since FileGDB SREF handling, its supposed to be fixed now
         '''Spatial Reference method to "Morph" datasource layer by layer, in place'''
         for li in range(0,datasource.GetLayerCount()):
             layer = datasource.GetLayer(li)
@@ -74,5 +74,5 @@ class ESRIDataStore(DataStore):
     def getOptions(self,layer_id):
         '''Direct push through to super since no pan-ESRI specific options'''
         
-        return super(ESRIDataStore,self).getOptions()
+        return super(ESRIDataStore,self).getOptions(layer_id)
         

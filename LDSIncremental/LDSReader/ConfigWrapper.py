@@ -15,7 +15,6 @@ Created on 23/07/2012
 @author: jramsay
 '''
 import logging
-import string
 
 from ReadConfig import MainFileReader, LayerFileReader
 
@@ -33,6 +32,10 @@ class ConfigWrapper(object):
         
         
         self.CONFIG_FILE = "ldsincr.conf"
+        
+        self.layerconfig = None
+        self.mainconfig = None
+        self.userconfig = None
 
         self.setupMainConfig(config_file)
         #dont set up layerconfig by default. Wait till we know whether we want a new build (initconfig) 
