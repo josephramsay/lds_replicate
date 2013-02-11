@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSIncremental -  (Meta) Layer Reader
+LDSIncremental -  ConfigWrapper
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.

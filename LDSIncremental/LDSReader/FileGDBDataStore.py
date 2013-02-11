@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSIncremental -  FileGDB
+LDSIncremental -  FileGDBDataStore
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.

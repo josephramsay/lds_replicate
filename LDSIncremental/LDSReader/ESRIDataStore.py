@@ -1,9 +1,22 @@
 '''
-ESRI specific DS class super classing ESRI based data formats including FileGDB, ShapeFile and ArcSDE
+v.0.0.1
+
+LDSIncremental - ESRIDataStore
+
+Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved
+
+This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.
+
+ESRI specific DS class super classing ESRI based data formats including FileGDB, ShapeFile and ArcSDE wrapping calls to DS to intercept
+cases requiring special handling
 
 Created on 9/08/2012
 
 @author: jramsay
+
 '''
 
 from DataStore import DataStore

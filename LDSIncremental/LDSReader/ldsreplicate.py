@@ -1,7 +1,7 @@
 '''
 v.0.0.3
 
-LDSIncremental -  LDS Incremental Utilities
+LDSIncremental -  ldsreplicate
 
 | Copyright 2011 Crown copyright (c)
 | Land Information New Zealand and the New Zealand Government.
@@ -245,11 +245,11 @@ def main():
 
 
 if __name__ == "__main__":
-    #main()
+    main()
     
-    try:
-        main()
-    except Exception as e:        
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
-        print str(e)+'\n(see debug.log for full stack trace)'
+#    try:
+#        main()
+#    except Exception as e:        
+#        exc_type, exc_value, exc_traceback = sys.exc_info()
+#        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
+#        print str(e)+'\n(see debug.log for full stack trace)'

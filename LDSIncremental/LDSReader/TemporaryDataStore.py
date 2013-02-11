@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSIncremental -  MemoryDataStore
+LDSIncremental -  TemporaryDataStore
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -9,6 +9,10 @@ All rights reserved
 
 This program is released under the terms of the new BSD license. See the 
 LICENSE file for more information.
+
+Data store classes used for temporary copying using driver copy. Used to prevent pollution of final DS with hidden/deleted columns
+NB. Requirements; Drivers part of standard OGR pkg, support creation (not RO) and geo referencing
+
 
 Created on 9/08/2012
 

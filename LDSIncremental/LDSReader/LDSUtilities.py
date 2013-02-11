@@ -1,11 +1,21 @@
 '''
+v.0.0.1
+
+LDSIncremental -  LDSUtilities
+
+Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved
+
+This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.
+
 Simple LDS specific utilities class
 
-Created on 28/08/2012
+Created on 9/08/2012
 
 @author: jramsay
 '''
-
 # for windows lxml binary from here http://www.lfd.uci.edu/~gohlke/pythonlibs/#lxml
 
 import re
@@ -97,8 +107,6 @@ class LDSUtilities(object):
         RE matcher that just looks for valid predicates... for now
         
         <predicate> ::= <comparison predicate> | <text predicate> | <null predicate> | <temporal predicate> | <classification predicate> | <existence_predicate> | <between predicate> | <include exclude predicate>
-               
-        BNF http://docs.geotools.org/latest/userguide/library/cql/internal.html
         
         LDS expects the following;
         Was expecting one of:
@@ -283,7 +291,7 @@ class SUFIExtractor(object):
         return sufi
         
 class LayerConfEntry(object):
-    
+    '''Storage class for layer config info'''
     def __init__(self,pkey,name,group,gcol,index,epsg,lmod,disc,cql):
         self.pkey = pkey
         self.name = name

@@ -1,8 +1,22 @@
 '''
-Created on 17/08/2012
+v.0.0.1
+
+LDSIncremental -  TestUI
+
+Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved
+
+This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.
+
+Tests for typical user input
+
+Created on 17/09/2012
 
 @author: jramsay
 '''
+
 import unittest
 import os
 import sys
@@ -40,10 +54,10 @@ class TestUI(unittest.TestCase):
     DATE2 = '2012-09-17'
     
     PATH_L = '/home/jramsay/git/LDS/LDSIncremental/LDSReader/'
-    PATH_W = 'C:\\data\\workspace\\LDS\\LDSIncremental\\LDSReader\\'
+    PATH_W = 'F:\\git\\LDS\\LDSIncremental\\LDSReader\\'
     PATH_C = PATH_W.replace('\\','/').replace('C:','/cygdrive/c')
     OUTP_L = ('pg','fg','sl')
-    OUTP_W = ('ms',)#'sl')
+    OUTP_W = ('ms',)#'sl','fg')
     CONF_I = 'ldsincr.internal.conf'
     CONF_E = 'ldsincr.external.conf'
     CONF_WI = 'ldsincr.windows.internal.conf' 
@@ -133,7 +147,11 @@ class TestUI(unittest.TestCase):
         for o in self.OUTP:
             for l in self.LAYER:
                 self.prepLayer(l, o)
-                ste = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l 'NZ Land Districts' "+o
+                
+                if 'inux' in sys.platform:
+                    ste = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l 'NZ Land Districts' "+o
+                elif sys.platform == 'win32':
+                    ste = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l "NZ Land Districts" '+o
                 print ste
                 self.assertEquals(os.system(ste),0)
                 
@@ -261,14 +279,15 @@ class TestUI(unittest.TestCase):
                 st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c 'id=1001' "+o
                 '''NB. Need to take care single quoting alphabetic values'''
                 st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name=\\'Southland\\' "+o
+                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox\(shape,164.88,-47.46,169.45,-43.85\) "+o
             elif sys.platform == 'win32':
                 st1 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c id=1001 "+o
                 st2 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c name='Southland' "+o
+                st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox(shape,164.88,-47.46,169.45,-43.85) "+o
                 
             else:
                 return       
             
-            st3 = "python "+self.PATH+"ldsreplicate.py -u "+self.CONF+" -l v:x785 -c bbox\(shape,164.88,-47.46,169.45,-43.85\) "+o
                     
             self.prepLayer('v:x785',o)
             print st1

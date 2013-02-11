@@ -62,9 +62,9 @@ class MSSQLSpatialDataStore(DataStore):
         if not re.search('^MSSQL:',cs,flags=re.IGNORECASE):
             '''TODO. We could append a MSSQL here instead'''
             raise MalformedConnectionString('MSSQL declaration must begin with \'MSSQL:\'')
-        if not re.search('server=\'\W+\'',cs,flags=re.IGNORECASE):
+        if not re.search('server=\'*[a-zA-Z0-9_\-\\\\]+\'*',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'server\' parameter required in MSSQL config string')
-        if not re.search('database=\'\W+\'',cs,flags=re.IGNORECASE):
+        if not re.search('database=\'*\w+\'*',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'database\' parameter required in MSSQL config string')
         return cs
 
@@ -150,45 +150,6 @@ class MSSQLSpatialDataStore(DataStore):
         
         return super(MSSQLSpatialDataStore,self).getOptions(layer_id) + local_opts
     
-    #Possibly use this override if attempting to use FreeTDS or SQLServer for Linux
-    def buildConfigLayer_DELETE_CAPS_TO_OVERRIDE_WHEN_USING_MSSQL_DRIVER_ON_LINUX(self,config_array):
-
-        '''Builds the config table into and using the active DS but does it using SQL commands since CreateLayer/Feature etc is flakey'''
-        #TODO check initds for conf table name
-        if not hasattr(self,'ds') or self.ds is None:
-            self.ds = self.initDS(self.destinationURI(DataStore.LDS_CONFIG_TABLE))  
-            
-        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.mainconf])
-        if not self.isConfInternal():
-            return self.layerconf.buildConfigLayer()
-        #TODO unify the naming for the config tables
-
-        cols = ('id','pkey','name','category','lastmodified','geocolumn','epsg','discard','cql')
-
-        self.executeSQL("drop table "+DataStore.LDS_CONFIG_TABLE)
-        
-        
-        #TODO what about ogc_fid/ogc_geometry?
-        sql_crt = "create table "+DataStore.LDS_CONFIG_TABLE+"("
-        for name in cols: 
-            #varchar(max) because this is the same type the gdal driver creates by default
-            sql_crt += name+" VARCHAR(MAX),"
-        sql_crt = sql_crt[:-1]+")"
-        self.executeSQL(sql_crt)            
-        
-        
-        for row in json.loads(config_array):
-            sql_ins = "insert into "+DataStore.LDS_CONFIG_TABLE+" (id,pkey,name,category,lastmodified,geocolumn,epsg,discard,cql) VALUES ("
-            for col in row:
-                if col is None:
-                    sql_ins += "'',"
-                elif isinstance(col,basestring):
-                    sql_ins += "'"+col+"',"
-                else:
-                    sql_ins += "'"+','.join(col)+"',"
-            sql_ins = sql_ins[:-1]+")"        
-            print sql_ins    
-            self.executeSQL(sql_ins)
             
     def selectValidGeom(self,geom):
         '''To be overridden, eliminates geometry types that cause trouble for certain driver types'''

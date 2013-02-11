@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSIncremental -  DataSource
+LDSIncremental -  DataStore
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -23,7 +23,7 @@ import re
 import logging
 import string
 
-
+#from osr import CoordinateTransformation
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
 

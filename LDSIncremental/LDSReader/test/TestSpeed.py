@@ -1,8 +1,22 @@
 '''
-Created on 17/08/2012
+v.0.0.1
+
+LDSIncremental -  TestSpeed
+
+Copyright 2011 Crown copyright (c)
+Land Information New Zealand and the New Zealand Government.
+All rights reserved
+
+This program is released under the terms of the new BSD license. See the 
+LICENSE file for more information.
+
+Speed comparisons between driverCopy and featureCopy using -1 -2 forcing flags
+
+Created on 17/09/2012
 
 @author: jramsay
 '''
+
 import unittest
 import os
 import sys
@@ -54,7 +68,7 @@ class TestSpeed(unittest.TestCase):
     DATE2 = '2012-09-17'
     
     PATH_L = '/home/jramsay/git/LDS/LDSIncremental/LDSReader/'
-    PATH_W = 'C:\\data\\workspace\\LDS\\LDSIncremental\\LDSReader\\'
+    PATH_W = 'F:\\git\\LDS\\LDSIncremental\\LDSReader\\'
     PATH_C = PATH_W.replace('\\','/').replace('C:','/cygdrive/c')
     OUTP_L = ('pg',)#'fg','sl')
     OUTP_W = ('ms',)#'sl')
