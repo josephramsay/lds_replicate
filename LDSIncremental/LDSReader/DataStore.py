@@ -239,14 +239,6 @@ class DataStore(object):
         if not hasattr(self,'ds') or self.ds is None:
             self.ds = self.initDS(dsn)
         
-        '''IF not(haspk) and (64 or srs) THEN what happens? 
-        1) no pk means we have to use dC
-        2) 64 or srs means we have to use fC
-        trying to do fC without a pk will fail if we have a partition table
-        trying to do dC with 64 means sufis get converted wrongly (ints will overflow)
-        trying to do dC with srs means the conversion wont happen
-        SO best option is attempt fC and hope we dont have to partition the table, if we do throw an exception!
-        ''' 
         #if incr&haspk then fC
         if incr_haspk:
             # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
@@ -258,9 +250,6 @@ class DataStore(object):
         else:
             # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
             self.driverCopy(src.ds,self.ds,temptable) 
-            
-            #Alternative, bare feature copy. Still very slow though 10x slower than driverCopy
-            #self.featureCopy(src.ds,self.ds,None)
             
         return max_key
         
@@ -1005,123 +994,15 @@ class DataStore(object):
         else:
             self.setConfInternal() if override_int else self.clearConfInternal()
             
-# INTERNAL CONFIG SECTION. The config section is written as part of the datastore to take advantage  
-# of its connection features when the internal config options is chosen. Consider peeling this off into a subclass
-#
-#
-#    def buildConfigLayer(self,config_array):
-#        '''Builds the config table into and using the active DS'''
-#        #TODO check initds for conf table name
-#        if not hasattr(self,'ds') or self.ds is None:
-#            self.ds = self.initDS(self.destinationURI(DataStore.LDS_CONFIG_TABLE))  
-#            
-#        #bypass (probably not needed) if external (alternatively set [layerconf = self or layerconf = self.mainconf])
-#        if not self.isConfInternal():
-#            return self.layerconf.buildConfigLayer()
-#
-#        try:
-#            self.ds.DeleteLayer(DataStore.LDS_CONFIG_TABLE)
-#        except Exception as e:
-#            ldslog.warn("Exception deleting config layer: "+str(e))
-#        
-#        config_layer = self.ds.CreateLayer(DataStore.LDS_CONFIG_TABLE,None,self.getConfigGeometry(),['OVERWRITE=YES'])
-#        
-#        feat_def = ogr.FeatureDefn()
-#        for name in self.CONFIG_COLUMNS:
-#            #create new field defn with name=name and type OFTString
-#            fld_def = ogr.FieldDefn(name,ogr.OFTString)
-#            #in the feature defn, define a new field
-#            feat_def.AddFieldDefn(fld_def)
-#            #also add a field to the table definition, i.e. column
-#            config_layer.CreateField(fld_def,True)                
-#        
-#        for row in json.loads(config_array):
-#            config_feat = ogr.Feature(feat_def)
-#            #HACK
-#            #if self.DRIVER_NAME == 'MSSQLSpatial':
-#            #    pass
-#            config_feat.SetField(self.CONFIG_COLUMNS[0],str(row[0]))
-#            config_feat.SetField(self.CONFIG_COLUMNS[1],str(row[1]))
-#            config_feat.SetField(self.CONFIG_COLUMNS[2],str(row[2]))
-#            config_feat.SetField(self.CONFIG_COLUMNS[3],str(','.join(row[3])))
-#            config_feat.SetField(self.CONFIG_COLUMNS[4],str(row[4]))
-#            config_feat.SetField(self.CONFIG_COLUMNS[5],str(row[5]))
-#            config_feat.SetField(self.CONFIG_COLUMNS[6],str(row[6]))
-#            config_feat.SetField(self.CONFIG_COLUMNS[7],str(row[7]))
-#            config_feat.SetField(self.CONFIG_COLUMNS[8],None if row[8] is None else str(','.join(row[8])))
-#            config_feat.SetField(self.CONFIG_COLUMNS[9],str(row[9]))
-#            
-#            config_layer.CreateFeature(config_feat)
-#            
-#        config_layer.ResetReading()
-#        config_layer.SyncToDisk()
-#
-#    
-#    def getConfigGeometry(self):
-#        return ogr.wkbNone
-#    
-#    def findLayerIdByName(self,lname):
-#        '''Reverse lookup of section by associated name, finds first occurance only'''
-#        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-#        layer.ResetReading()
-#        feat = layer.GetNextFeature() 
-#        while feat is not None:
-#            if lname == feat.GetField('name'):
-#                return feat.GetField('id')
-#            feat = layer.GetNextFeature()
-#        return None
-#        
-#
-#    def getLayerNames(self):
-#        '''Returns configured layers for respective layer properties file'''
-#        namelist = ()
-#        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-#        layer.ResetReading()
-#        feat = layer.GetNextFeature() 
-#        while feat is not None:
-#            namelist += (feat.GetField('id'),)
-#            feat = layer.GetNextFeature()
-#        
-#        return namelist
-#     
-#    def readLayerParameters(self,pkey):
-#        '''Full Layer config reader'''
-#        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-#        layer.ResetReading()
-#        feat = self._findMatchingFeature(layer, 'id', pkey)
-#        if feat is None:
-#            InaccessibleFeatureException('Cannot access feature with id='+str(pkey)+' in layer '+str(layer.GetName()))
-#        return LDSUtilities.extractFields(feat)
-#         
-#    def readLayerProperty(self,pkey,field):
-#        '''Single property reader'''
-#        layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-#        layer.ResetReading()
-#        feat = self._findMatchingFeature(layer, 'id', pkey)
-#        if feat is None:
-#            return None
-#        prop = feat.GetField(field)
-#        return None if prop == 'None' or all(i in string.whitespace for i in prop) else prop
-#
-#    def writeLayerProperty(self,pkey,field,value):
-#        '''Write changes to layer config table'''
-#        #ogr.UseExceptions()
-#        try:
-#            layer = self.ds.GetLayer(DataStore.LDS_CONFIG_TABLE)
-#            feat = self._findMatchingFeature(layer, 'id', pkey)
-#            feat.SetField(field,value)
-#            layer.SetFeature(feat)
-#            ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
-#        except Exception as e:
-#            ldslog.error(e)
+
 
 
 class LayerInfo(object):
     '''Simple class for layer attributes'''
     def __init__(self,layer_id,layer_name=None,layer_defn=None,spatial_ref=None,geometry=None):
-        #to clarify name confusion, id here referes to the layer 'name' read by the layer.GetName fuinction i.e v:xNNNN
+        #to clarify name confusion, id here refers to the layer 'name' read by the layer.GetName fuinction i.e v:xNNNN
         self.layer_id = layer_id
-        #name here refers to the descriptive name i.e. NZ Primary Parcels
+        #but name here refers to the descriptive name e.g. NZ Primary Parcels
         self.layer_name = layer_name
         self.layer_defn = layer_defn
         self.spatial_ref = spatial_ref

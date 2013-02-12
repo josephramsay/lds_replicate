@@ -41,10 +41,12 @@ import logging
 #import traceback
 
 from datetime import datetime
+from urllib2 import HTTPError
 
 from TransferProcessor import TransferProcessor
 from TransferProcessor import InputMisconfigurationException
 from VersionChecker import VersionChecker
+from DataStore import DSReaderException
 
 ldslog = logging.getLogger('LDS')
 ldslog.setLevel(logging.DEBUG)
@@ -227,8 +229,23 @@ def main():
                 print __doc__
                 raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) declaration required")
             
-        #now run the selected func
-    proc()
+
+    #aggregation point for LDS errors
+    try:
+        proc()
+    except HTTPError as he:
+        ldslog.error('Error connecting to LDS. '+str(he))
+        print str(he)
+        sys.exit(1)
+    except DSReaderException as dse:
+        ldslog.error('Error creating DataSource. '+str(dse))
+        print str(dse)
+        sys.exit(1)
+    except Exception as e:
+        #if errors are getting through we may need to catch report them
+        ldslog.warn("##### CATCHERR #####\n"+str(e))
+        raise
+        
     
     et = datetime.now()
     
@@ -245,11 +262,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    #main()
     
-#    try:
-#        main()
-#    except Exception as e:        
-#        exc_type, exc_value, exc_traceback = sys.exc_info()
-#        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
-#        print str(e)+'\n(see debug.log for full stack trace)'
+    try:
+        main()
+    except Exception as e:        
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
+        print str(e)+'\n(see debug.log for full stack trace)'

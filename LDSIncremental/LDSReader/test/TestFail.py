@@ -24,6 +24,9 @@ import time
 import logging
 import ConfigParser
 
+from LDSReader.TransferProcessor import TransferProcessor
+from LDSReader.DataStore import DSReaderException
+
 ldslog = logging.getLogger('LDS')
 ldslog.setLevel(logging.DEBUG)
 
@@ -60,7 +63,7 @@ class TestUI(unittest.TestCase):
     PATH_W = 'F:\\git\\LDS\\LDSIncremental\\LDSReader\\'
     PATH_C = PATH_W.replace('\\','/').replace('C:','/cygdrive/c')
     OUTP_L = ('pg','fg','sl')
-    OUTP_W = ('ms',)#'sl','fg')
+    OUTP_W = ('ms','sl','fg')
     CONF_I = 'ldsincr.internal.conf'
     CONF_E = 'ldsincr.external.conf'
     CONF_B = 'ldsincr.broken.conf'
@@ -89,32 +92,34 @@ class TestUI(unittest.TestCase):
         self.real_val = None
         self.bogus_val = None
         
-
+        self.layer = 'v:x787'
         
+
+        self.unix = True
         #super(TestUI,self).setUp()
         if 'inux' in sys.platform:
             self.PATH = self.PATH_L
             self.CONN_STR = self._CONN_STR_L
             self.CONF = self.CONF_B            
-            self.CONF2 = self.CONF_I
             self.OUTP = self.OUTP_L
         elif sys.platform == 'win32':
+            self.unix = False
             self.PATH = self.PATH_W
             self.CONN_STR = self._CONN_STR_W
-            self.CONF = self.CONF_WE
-            self.CONF2 = self.CONF_WI
+            self.CONF = self.CONF_B
             self.OUTP = self.OUTP_W
         elif sys.platform == 'cygwin':
             self.PATH = self.PATH_C
             self.CONN_STR = self._CONN_STR_W
-            self.CONF = self.CONF_WE
-            self.CONF2 = self.CONF_WI
+            self.CONF = self.CONF_B
             self.OUTP = self.OUTP_W
             sys.path.append('/cygdrive/c/progra~1/GDAL/python/gdal/osgeo')
         #elif os.name in ('os2', 'mac', 'ce','riscos')
         #    sys.exit()
         else:
             sys.exit(1)
+            
+
             
             
     def tearDown(self):
@@ -124,14 +129,17 @@ class TestUI(unittest.TestCase):
 
    
                 
-    def test00BasicConfigSubstutionMechanism(self):
-        '''Test different SR conversions. Doesnt really affect processing since this is serverside'''
+    def test00LDSKeySubstitution(self):
+        '''Test different SR conversions. Doesnt really affect processing since this is serverside and should fail with 403'''
+        from urllib2 import HTTPError
         try:
-            self.substituteConf(self.CONF,'LDS','key','aaabbbcccdddeeefffggghhhiiijjjkk')
-            st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 pg'
-            print st
-            self.assertEquals(os.system(st),0)
-            
+            sb = (self.CONF,'LDS','key','aaabbbcccdddeeefffggghhhiiijjjkk')
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None)
+            print sb,tp
+            self.substituteConf(sb[0],sb[1],sb[2],sb[3])
+            with self.assertRaises(HTTPError) as he:
+                tp.processLDS2PG()
+            self.assertEquals(he.exception.code,403)
         finally:
             self.restoreConf()
             
@@ -139,107 +147,123 @@ class TestUI(unittest.TestCase):
             
     def test01PGFailingConfSubst(self):
         '''wrong ip'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 pg'
-        sb = (self.CONF,'PostgreSQL','host','144.66.6.6')
-        self.runCommand(sb,st)
+        if 'pg' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2PG
+            sb = (self.CONF,'PostgreSQL','host','144.66.6.6')
+            self.runCommand(sb,tp,DSReaderException)
     def test02PGFailingConfSubst(self):
         '''wrong port'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 pg'
-        sb = (self.CONF,'PostgreSQL','port','8080')
-        self.runCommand(sb,st)
+        if 'pg' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2PG
+            sb = (self.CONF,'PostgreSQL','port','8080')
+            self.runCommand(sb,tp,DSReaderException)
     def test03PGFailingConfSubst(self):
         '''wrong schema'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 pg'
-        sb = (self.CONF,'PostgreSQL','schema','fakeschema')
-        self.runCommand(sb,st)
+        if 'pg' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2PG
+            sb = (self.CONF,'PostgreSQL','schema','fakeschema')
+            self.runCommand(sb,tp,DSReaderException)
     def test04PGFailingConfSubst(self):
         '''fake user'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 pg'
-        sb = (self.CONF,'PostgreSQL','user','fakeuser')
-        self.runCommand(sb,st)
+        if 'pg' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2PG
+            sb = (self.CONF,'PostgreSQL','user','fakeuser')
+            self.runCommand(sb,tp,DSReaderException)
     def test05PGFailingConfSubst(self):
         '''fake password'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 pg'
-        sb = (self.CONF,'PostgreSQL','pass','fakepass')
-        #self.runCommand(sb,st)
-        self.assertFalse(False)
+        if 'pg' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2PG
+            sb = (self.CONF,'PostgreSQL','pass','fakepass')
+            self.runCommand(sb,tp,DSReaderException)
+            #self.assertFalse(False)
         
     
     
     
     def test11FGFailingConfSubst(self):
         '''non existant path. actual path will create a file there'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 fg'
-        sb = (self.CONF,'FileGDB','path','/home/somewherefictional')
-        self.runCommand(sb,st)
+        if 'fg' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2FileGDB
+            sb = (self.CONF,'FileGDB','path','/home/somewherefictitious' if self.unix else 'F:\\temp\\somewherefictitious')
+            self.runCommand(sb,tp,DSReaderException)
     def test12FGFailingConfSubst(self):
         '''non existant name. probably build a new db file'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 fg'
-        sb = (self.CONF,'FileGDB','name','fakefgname')
-        #self.runCommand(sb,st)
-        self.assertFalse(False)
+        if 'fg' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2FileGDB
+            sb = (self.CONF,'FileGDB','name','fakefgname')
+            #self.runCommand(sb,tp,DSReaderException)
+            self.assertFalse(False)
+            
         
         
         
     def test21SLFailingConfSubst(self):
         '''non existant path'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 sl'
-        sb = (self.CONF,'SQLite','path','/home/somewherefictional')
-        self.runCommand(sb,st)
+        if 'sl' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2SpatiaLite
+            sb = (self.CONF,'SQLite','path','/home/somewherefictitious' if self.unix else 'F:\\temp\\somewherefictitious')
+            self.runCommand(sb,tp,DSReaderException)
     def test22SLFailingConfSubst(self):
         '''non existant name'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 sl'
-        sb = (self.CONF,'SQLite','name','fakeslname')
-        #self.runCommand(sb,st)
-        self.assertFalse(False)
+        if 'sl' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2SpatiaLite
+            sb = (self.CONF,'SQLite','name','fakeslname')
+            self.runCommand(sb,tp,DSReaderException)
+            #self.assertFalse(False)
         
         
     #its okay to run the MS stuff since its intended to fail anyway... test whether connect is possible
     def test31MSFGFailingConfSubst(self):
         '''wrong server'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 ms'
-        sb = (self.CONF,'MSSQLSpatial','server','host\instance')
-        self.runCommand(sb,st)
+        if 'ms' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2MSSQL
+            sb = (self.CONF,'MSSQLSpatial','server','host\instance')
+            self.runCommand(sb,tp,DSReaderException)
     def test32MSFGFailingConfSubst(self):
         '''wrong db name'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 ms'
-        sb = (self.CONF,'MSSQLSpatial','dbname','fakedbname')
-        self.runCommand(sb,st)
+        if 'ms' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2MSSQL
+            sb = (self.CONF,'MSSQLSpatial','dbname','fakedbname')
+            self.runCommand(sb,tp,DSReaderException)
     def test33MSFGFailingConfSubst(self):
         '''missing schema... new schema created?'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 ms'
-        sb = (self.CONF,'MSSQLSpatial','schema','noschema')
-        self.runCommand(sb,st)
+        if 'ms' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2MSSQL
+            sb = (self.CONF,'MSSQLSpatial','schema','noschema')
+            self.runCommand(sb,tp,DSReaderException)
     def test34MSFGFailingConfSubst(self):
         '''no user'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 ms'
-        sb = (self.CONF,'MSSQLSpatial','user','fakeuser')
-        self.runCommand(sb,st)
+        if 'ms' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2MSSQL
+            sb = (self.CONF,'MSSQLSpatial','user','fakeuser')
+            self.runCommand(sb,tp,DSReaderException)
     def test35MSFGFailingConfSubst(self):
         '''wrong password'''
-        st = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l v:x787 ms'
-        sb = (self.CONF,'MSSQLSpatial','pass','fakepass')
-        self.runCommand(sb,st)
+        if 'ms' in self.OUTP:
+            tp = TransferProcessor(self.layer,None,None,None,None,None,None,None,self.CONF,None,None).processLDS2MSSQL
+            sb = (self.CONF,'MSSQLSpatial','pass','fakepass')
+            self.runCommand(sb,tp,DSReaderException)
 
 
 
 
 
 
-    def runCommand(self,subs,cmd):
+    def runCommand(self,subs,cmd,exp):
         '''run the requested command with the request config substitutions'''
         
         print subs,cmd
         try:
             self.substituteConf(subs[0],subs[1],subs[2],subs[3])
-            self.assertFalse(os.system(cmd),0)
+            with self.assertRaises(exp):
+                cmd()
         finally:
             self.restoreConf()
 
     def substituteConf(self,fname,sec,prop,bogus_val):
         '''Reads named config file'''
-        self.fname = self.PATH+'../'+fname
-        self.sec= sec
+        self.fname = self.PATH+('../' if self.unix else '..\\')+fname
+        self.sec = sec
         self.prop = prop
         self.bogus_val = bogus_val
         

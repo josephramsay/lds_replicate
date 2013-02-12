@@ -91,54 +91,54 @@ class MainFileReader(object):
         try:
             host = self.cp.get(PG.DRIVER_NAME, 'host')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             port = self.cp.get(PG.DRIVER_NAME, 'port')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             dbname = self.cp.get(PG.DRIVER_NAME, 'dbname')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             schema = self.cp.get(PG.DRIVER_NAME, 'schema')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             usr = self.cp.get(PG.DRIVER_NAME, 'user')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             pwd = self.cp.get(PG.DRIVER_NAME, 'pass')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             config = self.cp.get(PG.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warning("PostgreSQL: No config preference specified, default to "+str(config))
+            ldslog.warn("PostgreSQL: No config preference specified, default to "+str(config))
         
         try:
             over = self.cp.get(PG.DRIVER_NAME, 'overwrite')
         except NoOptionError:
-            ldslog.warning("PG: Overwrite not specified, Setting to True")
+            ldslog.warn("PG: Overwrite not specified, Setting to True")
             over = True
             
         try:
             epsg = self.cp.get(PG.DRIVER_NAME, 'epsg')
         except NoOptionError:
-            ldslog.warning("PG: EPSG not specified, default to none keeping existing SRS")
+            ldslog.warn("PG: EPSG not specified, default to none keeping existing SRS")
             epsg = True
             
         try: 
             cql = self.cp.get(PG.DRIVER_NAME, 'cql')
         except NoOptionError:
-            ldslog.warning("PG: No CQL Filter specified, fetching all results")
+            ldslog.warn("PG: No CQL Filter specified, fetching all results")
             cql = None
         
         return (host,port,dbname,schema,usr,pwd,over,config,epsg,cql)
@@ -176,59 +176,59 @@ class MainFileReader(object):
         try:
             odbc = self.cp.get(MS.DRIVER_NAME, 'odbc')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             server = self.cp.get(MS.DRIVER_NAME, 'server')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             dsn = self.cp.get(MS.DRIVER_NAME, 'dsn')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             trust = self.cp.get(MS.DRIVER_NAME, 'trust')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             dbname = self.cp.get(MS.DRIVER_NAME, 'dbname')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             schema = self.cp.get(MS.DRIVER_NAME, 'schema')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             usr = self.cp.get(MS.DRIVER_NAME, 'user')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
             
         try:
             pwd = self.cp.get(MS.DRIVER_NAME, 'pass')
         except NoOptionError as noe:
-            ldslog.error(noe)
+            ldslog.warn(noe)
         
 
         
         try:
             config = self.cp.get(MS.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warning("MSSQL: No config preference specified, default to "+str(config))
+            ldslog.warn("MSSQL: No config preference specified, default to "+str(config))
             
         try:
             epsg = self.cp.get(MS.DRIVER_NAME, 'epsg')
         except NoOptionError:
-            ldslog.warning("MSSQL: EPSG not specified, default to None keeping existing SRS")
+            ldslog.warn("MSSQL: EPSG not specified, default to None keeping existing SRS")
             
         try: 
             cql = self.cp.get(MS.DRIVER_NAME, 'cql')
         except NoOptionError:
-            ldslog.warning("MSSQL: No CQL Filter specified, fetching all results")
+            ldslog.warn("MSSQL: No CQL Filter specified, fetching all results")
             cql = None
         
         return (odbc,server,dsn,trust,dbname,schema,usr,pwd,config,epsg,cql)
@@ -253,27 +253,27 @@ class MainFileReader(object):
         try: 
             path = self.cp.get(SL.DRIVER_NAME, 'path')
         except NoOptionError:
-            ldslog.warning("SpatiaLite: No path specified, default to Home directory, "+str(path))
+            ldslog.warn("SpatiaLite: No path specified, default to Home directory, "+str(path))
         
         try:
             name = self.cp.get(SL.DRIVER_NAME, 'name')
         except NoOptionError:
-            ldslog.warning("SpatiaLite: No DB name provided, default to "+str(name))
+            ldslog.warn("SpatiaLite: No DB name provided, default to "+str(name))
             
         try:
             config = self.cp.get(SL.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warning("SpatiaLite: No config preference specified, default to "+str(config))
+            ldslog.warn("SpatiaLite: No config preference specified, default to "+str(config))
             
         try:
             epsg = self.cp.get(SL.DRIVER_NAME, 'epsg')
         except NoOptionError:
-            ldslog.warning("SL: EPSG not specified, default to "+str(epsg)+" keeping existing SRS")
+            ldslog.warn("SL: EPSG not specified, default to "+str(epsg)+" keeping existing SRS")
             
         try: 
             cql = self.cp.get(SL.DRIVER_NAME, 'cql')
         except NoOptionError:
-            ldslog.warning("SL: No CQL Filter specified, fetching all results")
+            ldslog.warn("SL: No CQL Filter specified, fetching all results")
         
         return (path,name,config,epsg,cql)
     
@@ -299,27 +299,27 @@ class MainFileReader(object):
         try: 
             path = self.cp.get(FG.DRIVER_NAME, 'path')
         except NoOptionError:
-            ldslog.warning("FileGDB: No path specified, default to Home directory, "+str(path))
+            ldslog.warn("FileGDB: No path specified, default to Home directory, "+str(path))
             
         try:
             name = self.cp.get(FG.DRIVER_NAME, 'name')
         except NoOptionError:
-            ldslog.warning("FileGDB: No DB name provided, default to "+str(name))
+            ldslog.warn("FileGDB: No DB name provided, default to "+str(name))
             
         try:
             config = self.cp.get(FG.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warning("FileGDB: No config preference specified, default to "+str(config))
+            ldslog.warn("FileGDB: No config preference specified, default to "+str(config))
             
         try:
             epsg = self.cp.get(FG.DRIVER_NAME, 'epsg')
         except NoOptionError:
-            ldslog.warning("FileGDB: EPSG not specified, default to "+str(epsg)+" none keeping existing SRS")
+            ldslog.warn("FileGDB: EPSG not specified, default to "+str(epsg)+" none keeping existing SRS")
             
         try: 
             cql = self.cp.get(FG.DRIVER_NAME, 'cql')
         except NoOptionError:
-            ldslog.warning("FileGDB: No CQL Filter specified, fetching all results")
+            ldslog.warn("FileGDB: No CQL Filter specified, fetching all results")
         
         return (path,name,config,epsg,cql)
     
@@ -394,34 +394,34 @@ class MainFileReader(object):
         try:
             url = self.cp.get(self.LDSN, 'url')
         except NoOptionError as noe:
-            ldslog.warning("LDS: Default URL assumed "+str(noe))
+            ldslog.warn("LDS: Default URL assumed "+str(noe))
         except NoSectionError as nse:
-            ldslog.warning("LDS: No LDS Section... "+str(nse))
+            ldslog.warn("LDS: No LDS Section... "+str(nse))
             
         try:   
             key = self.cp.get(self.LDSN, 'key') 
         except NoOptionError, NoSectionError:
-            ldslog.warning("LDS: Key required to connect to LDS...")
+            ldslog.warn("LDS: Key required to connect to LDS...")
             
         try: 
             fmt = self.cp.get(self.LDSN, 'fmt')
         except NoOptionError:
-            ldslog.warning("LDS: No output format specified")
+            ldslog.warn("LDS: No output format specified")
         
         try: 
             svc = self.cp.get(self.LDSN, 'svc')
         except NoOptionError:
-            ldslog.warning("LDS: No service type specified, default to "+str(svc))
+            ldslog.warn("LDS: No service type specified, default to "+str(svc))
         
         try: 
             ver = self.cp.get(self.LDSN, 'ver')
         except NoOptionError:
-            ldslog.warning("LDS: No Version specified, assuming WFS and default to version "+str(ver))        
+            ldslog.warn("LDS: No Version specified, assuming WFS and default to version "+str(ver))        
             
         try: 
             cql = self.cp.get(self.LDSN, 'cql')
         except NoOptionError:
-            ldslog.warning("LDS: No CQL Filter specified, fetching all results")
+            ldslog.warn("LDS: No CQL Filter specified, fetching all results")
             
 
         
@@ -438,30 +438,30 @@ class MainFileReader(object):
         try: 
             sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
         except NoSectionError:
-            ldslog.warning("Misc: No Misc section detected looking for 64bit Layer specification")
+            ldslog.warn("Misc: No Misc section detected looking for 64bit Layer specification")
         except NoOptionError:
-            ldslog.warning("Misc: No 64bit Layers specified. NB. '64bitlayers'")
+            ldslog.warn("Misc: No 64bit Layers specified. NB. '64bitlayers'")
             
         try: 
             partitionlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
         except NoSectionError:
-            ldslog.warning("Misc: No Misc section detected looking for Problem Layer specification")
+            ldslog.warn("Misc: No Misc section detected looking for Problem Layer specification")
         except NoOptionError:
-            ldslog.warning("Misc: No Partition Layers specified. NB. 'partitionlayers'")
+            ldslog.warn("Misc: No Partition Layers specified. NB. 'partitionlayers'")
             
         try: 
             partitionsize = self.cp.get(self.MISC, 'partitionsize')
         except NoSectionError:
-            ldslog.warning("Misc: No Misc section detected looking for Partition Size specification. Default = "+str(partitionsize)+". NB. 'partitionsize'")
+            ldslog.warn("Misc: No Misc section detected looking for Partition Size specification. Default = "+str(partitionsize)+". NB. 'partitionsize'")
         except NoOptionError:
-            ldslog.warning("Misc: No Partition Size specified. Default = 'Memory'. NB. 'partitionsize'")
+            ldslog.warn("Misc: No Partition Size specified. Default = 'Memory'. NB. 'partitionsize'")
             
         try: 
             temptable = self.cp.get(self.MISC, 'temptable')
         except NoSectionError:
-            ldslog.warning("Misc: No Misc section detected looking for Temporary Table type. Default = "+str(temptable)+". NB. 'temptable'")
+            ldslog.warn("Misc: No Misc section detected looking for Temporary Table type. Default = "+str(temptable)+". NB. 'temptable'")
         except NoOptionError:
-            ldslog.warning("Misc: No Temporary Table type specified. Default = 'Memory'. NB. 'temptable'")
+            ldslog.warn("Misc: No Temporary Table type specified. Default = 'Memory'. NB. 'temptable'")
         
         return (sixtyfourlayers,partitionlayers,partitionsize,temptable)
         
@@ -544,14 +544,14 @@ class LayerFileReader(object):
         try:
             pkey = self.cp.get(layer, 'pkey')
         except NoOptionError:
-            ldslog.warning("LayerSchema: No Primary Key Column defined, default to 'ID'")
+            ldslog.warn("LayerSchema: No Primary Key Column defined, default to 'ID'")
             pkey = 'ID'
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
             name = self.cp.get(layer, 'name')
         except NoOptionError:
-            ldslog.warning("LayerSchema: No Name saved in config for this layer, returning ID")
+            ldslog.warn("LayerSchema: No Name saved in config for this layer, returning ID")
             name = layer
             
         if name is None:
@@ -561,20 +561,20 @@ class LayerFileReader(object):
         try:
             group = self.cp.get(layer, 'category')
         except NoOptionError:
-            ldslog.warning("Group List: No Groups defined for this layer")
+            ldslog.warn("Group List: No Groups defined for this layer")
             group = None
             
             
         try:
             gcol = self.cp.get(layer, 'geocolumn')
         except NoOptionError:
-            ldslog.warning("LayerSchema: No Geo Column defined, default to 'SHAPE'")
+            ldslog.warn("LayerSchema: No Geo Column defined, default to 'SHAPE'")
             gcol = 'SHAPE'
             
         try:
             index = self.cp.get(layer, 'index')
         except NoOptionError:
-            ldslog.warning("LayerSchema: No Index Column/Specification defined, default to None")
+            ldslog.warn("LayerSchema: No Index Column/Specification defined, default to None")
             index = None
             
         try:
@@ -586,7 +586,7 @@ class LayerFileReader(object):
         try:
             lmod = self.cp.get(layer, 'lastmodified')
         except NoOptionError:
-            ldslog.warning("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
+            ldslog.warn("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
             lmod = None
             
         try:
@@ -610,7 +610,7 @@ class LayerFileReader(object):
                 self.cp.write(configfile)
             ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
         except Exception as e:
-            ldslog.error('Problem writing LM date to layer config file. '+str(e))
+            ldslog.warn('Problem writing LM date to layer config file. '+str(e))
 
         
 class LayerDSReader(object):
@@ -733,7 +733,7 @@ class LayerDSReader(object):
             layer.SetFeature(feat)
             ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
         except Exception as e:
-            ldslog.error(e)    
+            ldslog.error(e)
             
             
             
