@@ -133,7 +133,7 @@ class MSSQLSpatialDataStore(DataStore):
         '''Get MS options for GEO_NAME'''
         #GEOM_TYPE default geometry
         
-        local_opts = []
+        local_opts = ['MARS Connection=TRUE']
         gc = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         if gc is not None:
             local_opts += ['GEOM_NAME='+gc]
@@ -173,4 +173,19 @@ class MSSQLSpatialDataStore(DataStore):
         for li in range(0,self.ds.GetLayerCount()):
             if self._cleanLayerByIndex(self.ds,li):
                 self.clearLastModified(li)
+                
+    def versionCheck(self):
+        '''MSSQL version checker'''
+        #Microsoft SQL Server 2008 R2 (RTM) - 10.50.1600.1
+        from VersionChecker import VersionChecker,UnsupportedVersionException
+
+        msv_cmd = 'SELECT @@version'
+
+        msv_res = re.search('Microsoft SQL Server 2\d{3} \w* \(\w+\) - (\d+\.\d+\.\d+\.*\d*)',self.executeSQL(msv_cmd).GetNextFeature().GetFieldAsString(0))
+        
+        if VersionChecker.compareVersions(VersionChecker.MSSQL_MIN, msv_res.group(1) if msv_res is not None else VersionChecker.MSSQL_MIN):
+            raise UnsupportedVersionException('MSSQL version '+str(msv_res.group(1))+' does not meet required minumum '+str(VersionChecker.MSSQL_MIN))
+        
+
+        return True
     

@@ -45,7 +45,7 @@ from urllib2 import HTTPError
 
 from TransferProcessor import TransferProcessor
 from TransferProcessor import InputMisconfigurationException
-from VersionChecker import VersionChecker
+from VersionChecker import VersionChecker, UnsupportedVersionException
 from DataStore import DSReaderException
 
 ldslog = logging.getLogger('LDS')
@@ -90,35 +90,20 @@ def main():
     
     fbf = None
     
-    
-    #first check required libs
-    #versionCheck('GDAL','gdal-config','1.9.1') 
-    #versionCheck('PostgreSQL','psql','9.0.0')      
-    
-    GDAL_MIN = '1.9.1'
-    PostgreSQL_MIN = '9.0'
-    
-    message = ''
     gdal_ver = VersionChecker.getGDALVersion()   
-    pgis_ver = VersionChecker.getPostGISVersion()   
-    pg_ver = VersionChecker.getPostgreSQLVersion()
-       
-    #print 'GDAL',gdal_ver.get('GDAL'), pgis_ver.get('GDAL')
-    #print 'PG',pg_ver.get('PostgreSQL')
+    #pgis_ver = VersionChecker.getPostGISVersion()   
+    #pg_ver = VersionChecker.getPostgreSQLVersion()
     
-    if VersionChecker.compareVersions(GDAL_MIN,gdal_ver.get('GDAL') if gdal_ver.get('GDAL') is not None else GDAL_MIN): 
-        message += 'GDAL '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'(reqd) \n'
-    if VersionChecker.compareVersions(GDAL_MIN,pgis_ver.get('GDAL') if pgis_ver.get('GDAL') is not None else GDAL_MIN): 
-        message += 'GDAL(pgis) '+pgis_ver.get('GDAL')+'<'+GDAL_MIN+'(reqd) \n'
-    if VersionChecker.compareVersions(PostgreSQL_MIN,pg_ver.get('PostgreSQL') if pgis_ver.get('PostgreSQL') is not None else PostgreSQL_MIN): 
-        message += 'PostgreSQL '+pg_ver.get('PostgreSQL')+'<'+PostgreSQL_MIN+' (reqd)\n'
     
-    if message != '':
-        print 'Version checks failed:\n',message
-        ldslog.warn('Version checks failed:\n'+message)
-
-        if raw_input("Y to quit N to continue [y|N] : ").lower() == 'y':
-            sys.exit(1)
+    if VersionChecker.compareVersions(VersionChecker.GDAL_MIN,gdal_ver.get('GDAL') if gdal_ver.get('GDAL') is not None else VersionChecker.GDAL_MIN):
+        raise UnsupportedVersionException('PostgreSQL version '+str(gdal_ver.get('GDAL'))+' does not meet required minumum '+str(VersionChecker.GDAL_MIN))
+     
+#do the datasource checks in object and once initialised
+#        message += 'GDAL '+pgis_ver.get('GDAL')+'<'+VersionChecker.GDAL_MIN+'(reqd) \n'
+#    if VersionChecker.compareVersions(VersionChecker.GDAL_MIN,pgis_ver.get('GDAL') if pgis_ver.get('GDAL') is not None else VersionChecker.GDAL_MIN): 
+#        message += 'GDAL(pgis) '+pgis_ver.get('GDAL')+'<'+VersionChecker.GDAL_MIN+'(reqd) \n'
+#    if VersionChecker.compareVersions(VersionChecker.PostgreSQL_MIN,pg_ver.get('PostgreSQL') if pgis_ver.get('PostgreSQL') is not None else VersionChecker.PostgreSQL_MIN): 
+#        message += 'PostgreSQL '+pg_ver.get('PostgreSQL')+'<'+VersionChecker.PostgreSQL_MIN+' (reqd)\n'
 
     
     # parse command line options

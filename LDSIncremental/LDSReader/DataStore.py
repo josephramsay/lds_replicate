@@ -98,6 +98,7 @@ class DataStore(object):
         self.ds = None
         self.transform = None
         self.sixtyfour = None
+        self.conn_str = None
         
         self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"
          
@@ -507,7 +508,7 @@ class DataStore(object):
 
     def transformSRS(self,src_layer_sref):
         '''Defines the transform from one SRS to another. Doesn't actually do the transformation, just defines the transformation needed.
-        Requires the supplied EPSG be correct and coordinates can be transformed'''
+        Requires the supplied EPSG be correct and coordinates that can be transformed'''
         self.transform = None
         selected_sref = self.getSRS()
         if selected_sref is not None and not all(i in string.whitespace for i in selected_sref):
@@ -793,7 +794,7 @@ class DataStore(object):
         
     def executeSQL(self,sql):
         '''Executes arbitrary SQL on the datasource'''
-        '''Tagged private since we only want it called from well controlled methods'''
+        '''Tagged? private since we only want it called from well controlled methods'''
         '''TODO. step through multi line queries?'''
         retval = None
         #ogr.UseExceptions()
@@ -830,6 +831,8 @@ class DataStore(object):
                 continue
             #match 'select'
             if re.match('select\s+(?:\w+|\*)\s+from',line):
+                continue
+            if re.match('select\s+(version|postgis_full_version|@@version)',line):
                 continue
             #match 'insert'
             if re.match('(?:update|insert)\s+(?:\w+|\*)\s+',line):
@@ -995,6 +998,9 @@ class DataStore(object):
             self.setConfInternal() if override_int else self.clearConfInternal()
             
 
+    def versionCheck(self):
+        '''A version check to be used once the DS have been initialised... if normal checks cant be established eg psql on w32'''
+        return True
 
 
 class LayerInfo(object):

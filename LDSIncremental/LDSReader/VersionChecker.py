@@ -14,21 +14,50 @@ Created on 24/10/2012
 
 @author: jramsay
 '''
+
+'''
+Version information
+
+PostgreSQL versions since 8
+8.0     2005-01-19     8.0.26     2010-10-04
+8.1     2005-11-08     8.1.23     2010-12-16
+8.2     2006-12-05     8.2.23     2011-09-26
+8.3     2008-02-04     8.3.23     2013-02-07
+8.4     2009-07-01     8.4.16     2013-02-07
+9.0     2010-09-20     9.0.12     2013-02-07
+9.1     2011-09-12     9.1.8      2013-02-07
+
+MSSQL versions since 8
+8.0      2000     SQL Server 2000                Shiloh
+8.0      2003     SQL Server 2000 64-bit Edition Liberty
+9.0      2005     SQL Server 2005                Yukon
+10.0     2008     SQL Server 2008                Katmai
+10.25    2010     SQL Azure DB                   CloudDatabase
+10.5     2010     SQL Server 2008 R2             Kilimanjaro (aka KJ)
+11.0     2012     SQL Server 2012                Denali
+    
+'''
+
 import osgeo.gdal
 import subprocess
 import re
 
-from distutils.version import StrictVersion
+from distutils.version import StrictVersion, LooseVersion
 #from verlib import NormalizedVersion
 from ReadConfig import MainFileReader
 
+class UnsupportedVersionException(Exception): pass
 
 class VersionChecker(object):
-    '''
-    classdocs
-    '''
 
 
+    GDAL_MIN = '1.9.1'
+    PostgreSQL_MIN = '9.0'
+    PostGIS_MIN = '2.0'
+    MSSQL_MIN = '10.0.0.0'
+    SpatiaLite_MIN = '2.x'
+    FileGDB_MIN = '$1,000,000.00'
+    
     def __init__(self,params):
         '''
         Constructor
@@ -71,11 +100,30 @@ class VersionChecker(object):
         for line in sp.stdout.readlines():
             m1 = re.search('PostgreSQL\s+(\d.\d.\d)',line)
             postgresql = m1.group(1) if m1 is not None else None
+
         return {'PostgreSQL':postgresql}
     
     @staticmethod
-    def compareVersions(v1,v2):
+    def getVersionFromShell(command,searchstring):
+        sp = subprocess.Popen(command,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        for line in sp.stdout.readlines():
+            match = re.search(searchstring,line)
+            if match is not None: return match.group(1)
+        return None
+        
+    
+    
+    @staticmethod
+    def compareVersions_strict(v1,v2):
+        #Spatialite has 3.x version numbers which break strictversion. This should pick up other odd #ver too eg 12.abc2.2b ->12.02.2b
+        #There is however no way so logically discard a 4th part of a version numbers e.g. MSSQL 10.0.0.1
+        v1 = re.sub('.[a-z]+','.0',v1)
+        v2 = re.sub('.[a-z]+','.0',v2)
         return StrictVersion(v1)>StrictVersion(v2)
+    
+    @staticmethod
+    def compareVersions(v1,v2):
+        return LooseVersion(v1)>LooseVersion(v2)
     
 def main():
     print VersionChecker.getPostGISVersion()

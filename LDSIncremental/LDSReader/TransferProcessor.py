@@ -23,6 +23,8 @@ from datetime import datetime
 from DataStore import DataStore
 from DataStore import ASpatialFailureException
 
+from VersionChecker import UnsupportedVersionException
+
 from LDSDataStore import LDSDataStore
 from LDSUtilities import LDSUtilities, ConfigInitialiser
 #from ArcSDEDataStore import ArcSDEDataStore
@@ -59,6 +61,7 @@ class TransferProcessor(object):
     #The tables listed below are ASP tables using a sufi number which is 64bit 
     ###layers_with_64bit_ints = map(lambda s: 'v:x'+s, ('1203','1204','1205','1028','1029'))
     #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
+    
     
     
     def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None,fbf=None):
@@ -274,6 +277,8 @@ class TransferProcessor(object):
         #might as well initds here, its going to be needed eventually
         self.dst.ds = self.dst.initDS(self.dst.destinationURI(None))#DataStore.LDS_CONFIG_TABLE))
         
+        self.dst.versionCheck()
+        
         (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.temptable) = self.dst.mainconf.readDSParameters('Misc')
         
         self.src = LDSDataStore(self.source_str,self.user_config) 
@@ -323,7 +328,7 @@ class TransferProcessor(object):
             return
             
         #full LDS layer name listv:x (from LDS WFS)
-        lds_full = LDSDataStore.fetchLayerNames(capabilities)
+        lds_full = zip(*LDSDataStore.fetchLayerNames(capabilities))[0]
         #list of configured layers (from layer-config file/table)
         lds_read = self.dst.layerconf.getLayerNames()
         

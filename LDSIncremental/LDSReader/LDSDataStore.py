@@ -48,6 +48,9 @@ class LDSDataStore(WFSDataStore):
         self.psize = None
         
         (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
+        if self.conn_str:
+            self.key = self.extractAPIKey(self.conn_str,False)
+            
 
 
     def getOptions(self,layer_id):
@@ -87,14 +90,14 @@ class LDSDataStore(WFSDataStore):
     
     def validateAPIKey(self,kstr):
         '''Make sure the provided key conforms to the required format'''
-        srch = re.search('[a-z0-9]{32}',kstr,flags=re.IGNORECASE)
+        srch = re.search('[a-f0-9]{32}',kstr,flags=re.IGNORECASE)
         if srch is None:
             raise MalformedConnectionString('Cannot parse API key')
         return True
         
     def extractAPIKey(self,cs,raiseerr):
         '''if the user has supplied a connection string then they dont need to specify an API key in their config file, therefore we must extract it from the cs'''
-        srch = re.search('/([a-z0-9]{32})/v/x',cs,flags=re.IGNORECASE)
+        srch = re.search('/([a-f0-9]{32})/(v/x|wfs\?)',cs,flags=re.IGNORECASE)
         if srch is None and raiseerr:
             raise MalformedConnectionString('Cannot parse API key')
         return srch.group(1) if srch is not None else None
@@ -106,8 +109,8 @@ class LDSDataStore(WFSDataStore):
             raise MalformedConnectionString('\'http\' declaration required in LDS request')
         if not re.search('wfs\.data\.linz\.govt\.nz',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('Require \'wfs.data.linz.govt.nz\' in LDS address string')
-        if not re.search('/[a-z0-9]{32}/v/x',cs,flags=re.IGNORECASE):
-            raise MalformedConnectionString('Require API key (32char) in LDS address string')
+        if not re.search('/[a-f0-9]{32}/(v/x|wfs\?)',cs,flags=re.IGNORECASE):
+            raise MalformedConnectionString('Require API key (32char hex) in LDS address string')
         if not re.search('wfs\?',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('Need to specify \'wfs?\' service in LDS request')
         #look for conflicts
@@ -189,9 +192,13 @@ class LDSDataStore(WFSDataStore):
         TODO. Investigate implementing this using the WFS driver and the relative expense for each'''
         res = []
         mm = re.compile('<Name>('+LDSUtilities.LDS_TN_PREFIX+'\d+)<\/Name>')
+        tt = re.compile('<Title>(.+)<\/Title>')
         lds = urlopen(url)
         for line in lds:    
-            res += re.findall(mm,line)
+            res1 = re.findall(mm,line)
+            res2 = re.findall(tt,line)
+            if len(res1)>0:
+                res += ((res1[0],res2[0]),)
         lds.close()
         return res
     

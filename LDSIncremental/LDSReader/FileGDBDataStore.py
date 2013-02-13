@@ -97,4 +97,19 @@ class FileGDBDataStore(ESRIDataStore):
 #        qry = ref_pkey+" = "+str(key)
 #        search_layer.SetAttributeFilter(qry)
 #        return search_layer.GetNextFeature()
+
+#No way to retrieve the version of a FileGDB database. Nice consistency ESRI 
+#    def versionCheck(self):
+#        '''FileGDB version checker'''
+#        from VersionChecker import VersionChecker,UnsupportedVersionException
+#
+#        fgv_cmd = 'file '+str(self._commonURI(None)+'/gdb')
+#        
+#        fgv_res = re.search('FileGDB (\d.\d) database',os.system(fgv_cmd))
+#        
+#        if not VersionChecker.compareVersions(VersionChecker.FileGDB_MIN, fgv_res.group(1) if fgv_res is not None else VersionChecker.FileGDB_MIN):
+#            raise UnsupportedVersionException('FileGDB version '+str(fgv_res.group(1))+' does not meet required minumum '+str(VersionChecker.FileGDB_MIN))
+#        
+#
+#        return True
         

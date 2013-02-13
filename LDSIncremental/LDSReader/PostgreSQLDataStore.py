@@ -119,5 +119,27 @@ class PostgreSQLDataStore(DataStore):
         ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
         self.executeSQL(cmd)
         
+        
+        
+    def versionCheck(self):
+        '''Postgres/Postgis version checker'''
+        from VersionChecker import VersionChecker,UnsupportedVersionException
+
+        pgv_cmd = 'SELECT version()'
+        pgisv_cmd = 'SELECT postgis_full_version()'
+        
+        pgv_res = re.search('PostgreSQL\s+(\d+\.\d+\.\d+)',self.executeSQL(pgv_cmd).GetNextFeature().GetFieldAsString(0))
+        pgisv_res = re.search('POSTGIS=\"(\d+\.\d+\.\d+)',self.executeSQL(pgisv_cmd).GetNextFeature().GetFieldAsString(0))
+        
+        if VersionChecker.compareVersions(VersionChecker.PostgreSQL_MIN, pgv_res.group(1) if pgv_res is not None else VersionChecker.PostgreSQL_MIN):
+            raise UnsupportedVersionException('PostgreSQL version '+str(pgv_res.group(1))+' does not meet required minumum '+str(VersionChecker.PostgreSQL_MIN))
+        
+        if VersionChecker.compareVersions(VersionChecker.PostGIS_MIN, pgisv_res.group(1) if pgisv_res is not None else VersionChecker.PostGIS_MIN):
+            raise UnsupportedVersionException('PostGIS version '+str(pgisv_res.group(1))+' does not meet required minumum '+str(VersionChecker.PostGIS_MIN))
+        
+        return True
+        
+        
+        
 
     

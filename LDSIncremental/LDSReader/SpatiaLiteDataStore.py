@@ -197,5 +197,17 @@ class SpatiaLiteDataStore(DataStore):
          }.get(key,'text')  
          
 
+    def versionCheck(self):
+        '''SpatiaLite/SQLite version checker'''
+        from VersionChecker import VersionChecker,UnsupportedVersionException
 
+        slv_cmd = 'file '+str(self._commonURI(None))
+        
+        slv_ver = VersionChecker.getVersionFromShell(slv_cmd,'SQLite (\d+\.\w+) database')
+        
+        if VersionChecker.compareVersions(VersionChecker.SpatiaLite_MIN, slv_ver if slv_ver is not None else VersionChecker.SpatiaLite_MIN):
+            raise UnsupportedVersionException('SpatiaLite version '+str(slv_ver)+' does not meet required minumum '+str(VersionChecker.SpatiaLite_MIN))
+        
+
+        return True
         
