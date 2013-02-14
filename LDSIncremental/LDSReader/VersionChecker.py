@@ -52,7 +52,7 @@ class VersionChecker(object):
 
 
     GDAL_MIN = '1.9.1'
-    PostgreSQL_MIN = '9.0'
+    PostgreSQL_MIN = '8.4'
     PostGIS_MIN = '2.0'
     MSSQL_MIN = '10.0.0.0'
     SpatiaLite_MIN = '2.x'
@@ -65,7 +65,7 @@ class VersionChecker(object):
         
     @staticmethod
     def getGDALVersion():
-        return {'GDAL':re.search('[\d.]+',osgeo.gdal.__version__).group(0)}
+        return {'GDAL':re.search('[\d+.]+',osgeo.gdal.__version__).group(0)}
     
     @staticmethod
     def getPostGISVersion():
@@ -74,19 +74,19 @@ class VersionChecker(object):
         cmd = "psql -c 'select postgis_full_version()' "+mfr[2]
         sp = subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in sp.stdout.readlines():
-            m1 = re.search('POSTGIS=\"(\d.\d.\d)',line)
+            m1 = re.search('POSTGIS=\"(\d+\.\d+\.\d+)',line)
             postgis = m1.group(1) if m1 is not None else None
             
-            m2 = re.search('GEOS=\"(\d.\d.\d)',line)
+            m2 = re.search('GEOS=\"(\d+\.\d+\.\d+)',line)
             geos = m2.group(1) if m2 is not None else None
             
-            m3 = re.search('PROJ=\"Rel.\s+(\d.\d.\d)',line)
+            m3 = re.search('PROJ=\"Rel.\s+(\d+\.\d+\.\d+)',line)
             proj = m3.group(1) if m3 is not None else None
             
-            m4 = re.search('GDAL=\"GDAL\s+(\d.\d)',line)
+            m4 = re.search('GDAL=\"GDAL\s+(\d+\.\d+)',line)
             gdal = m4.group(1) if m4 is not None else None
             
-            m5 = re.search('LIBXML=\"(\d.\d.\d)',line)
+            m5 = re.search('LIBXML=\"(\d+\.\d+\.\d+)',line)
             libxml = m5.group(1) if m5 is not None else None
             
         return {'PostGIS':postgis,'GEOS':geos,'PROJ':proj,'GDAL':gdal,'LIBXML':libxml}
@@ -96,10 +96,7 @@ class VersionChecker(object):
 
         mfr = MainFileReader("../ldsincr.conf",True).readPostgreSQLConfig()
         cmd = "psql -c 'select version()' "+mfr[2]
-        sp = subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        for line in sp.stdout.readlines():
-            m1 = re.search('PostgreSQL\s+(\d.\d.\d)',line)
-            postgresql = m1.group(1) if m1 is not None else None
+        postgresql = VersionChecker.getVersionFromShell(cmd,'PostgreSQL\s+(\d+\.\d+\.\d+)')
 
         return {'PostgreSQL':postgresql}
     

@@ -23,8 +23,6 @@ from datetime import datetime
 from DataStore import DataStore
 from DataStore import ASpatialFailureException
 
-from VersionChecker import UnsupportedVersionException
-
 from LDSDataStore import LDSDataStore
 from LDSUtilities import LDSUtilities, ConfigInitialiser
 #from ArcSDEDataStore import ArcSDEDataStore
