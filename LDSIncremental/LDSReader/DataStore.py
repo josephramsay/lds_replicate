@@ -339,14 +339,13 @@ class DataStore(object):
     def generateLayerName(self,ref_name):
         '''Generic layer name constructor'''
         '''Doesn't use schema prefix since its not used in FileGDB, SpatiaLite 
-        and PostgreSQL impements an "active_schema" option bypassing the need for a schema declaration'''
+        and PostgreSQL implements an "active_schema" option bypassing the need for a schema declaration'''
         return self.sanitise(ref_name)
         
     #--------------------------------------------------------------------------            
     
     def featureCopy(self,src_ds,dst_ds):
         '''Feature copy without the change column (and other incremental) overhead. Replacement for driverCopy(cloneDS).''' 
-        '''REF #4'''
         for li in range(0,src_ds.GetLayerCount()):
             new_layer = False
             src_layer = src_ds.GetLayer(li)
@@ -516,6 +515,9 @@ class DataStore(object):
             validated_sref = Projection.validateEPSG(selected_sref)
             if validated_sref is not None:
                 self.transform = osr.CoordinateTransformation(src_layer_sref, validated_sref)
+                if self.transform == None:
+                    ldslog.warn('Can\'t init coordinatetransformation object with SRS:'+str(validated_sref))
+                return validated_sref
             else:
                 ldslog.warn("Unable to validate selected SRS, epsg="+str(selected_sref))
         else:

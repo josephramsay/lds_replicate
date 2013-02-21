@@ -42,6 +42,10 @@ class LDSDataStore(WFSDataStore):
         '''
         #super WFS sets WFS driver and gets WFS config params
         #supersuper DataStore sets def flags (eg INCR)
+        self.pkey = None
+        self.psize = None
+        self.pstart = None
+        
         super(LDSDataStore,self).__init__(conn_str,user_config)
         
         self.CHANGE_COL = "__change__"
@@ -95,7 +99,7 @@ class LDSDataStore(WFSDataStore):
             raise MalformedConnectionString('Cannot parse API key')
         return True
         
-    def extractAPIKey(self,cs,raiseerr):
+    def extractAPIKey(self,cs,raiseerr=False):
         '''if the user has supplied a connection string then they dont need to specify an API key in their config file, therefore we must extract it from the cs'''
         srch = re.search('/([a-f0-9]{32})/(v/x|wfs\?)',cs,flags=re.IGNORECASE)
         if srch is None and raiseerr:
