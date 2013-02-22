@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSIncremental -  TestUI
+LDSIncremental -  TestDemo
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -10,7 +10,7 @@ All rights reserved
 This program is released under the terms of the new BSD license. See the 
 LICENSE file for more information.
 
-Tests for typical user input
+Tests for demo cases
 
 Created on 17/09/2012
 
