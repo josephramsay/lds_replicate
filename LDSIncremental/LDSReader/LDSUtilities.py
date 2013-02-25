@@ -22,6 +22,7 @@ import re
 import os
 import logging
 import ast
+import string
 
 from urllib2 import urlopen
 from StringIO import StringIO
@@ -258,6 +259,12 @@ class LDSUtilities(object):
         data = lds.read()
         lds.close()
         return data
+    
+    @staticmethod
+    def mightAsWellBeNone(nstr):
+        if nstr == None or nstr=='None' or all(i in string.whitespace for i in nstr):
+            return None
+        return nstr
 
 class ConfigInitialiser(object):
     '''Initialises configuration, for use at first run'''

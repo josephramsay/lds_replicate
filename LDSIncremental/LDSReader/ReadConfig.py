@@ -469,7 +469,7 @@ class MainFileReader(object):
     def readMainProperty(self,driver,key):
         try:
             value = self.cp.get(driver, key)
-            if value is None or all(i in string.whitespace for i in value):
+            if LU.mightAsWellBeNone(value) is None:
                 return None
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
@@ -516,7 +516,7 @@ class LayerFileReader(object):
     def readLayerProperty(self,layer,key):
         try:
             value = self.cp.get(layer, key)
-            if value is None or all(i in string.whitespace for i in value):
+            if LU.mightAsWellBeNone(value) is None:
                 return None
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
@@ -612,7 +612,8 @@ class LayerFileReader(object):
         except Exception as e:
             ldslog.warn('Problem writing LM date to layer config file. '+str(e))
 
-        
+
+            
 class LayerDSReader(object):
     '''
     Layer config wrapper for internal format config file.
@@ -721,7 +722,7 @@ class LayerDSReader(object):
         if feat is None:
             return None
         prop = feat.GetField(field)
-        return None if prop == 'None' or all(i in string.whitespace for i in prop) else prop
+        return None if LU.mightAsWellBeNone(prop) is None else prop
 
     def writeLayerProperty(self,pkey,field,value):
         '''Write changes to layer config table'''
@@ -735,5 +736,48 @@ class LayerDSReader(object):
         except Exception as e:
             ldslog.error(e)
             
+         
+         
             
-            
+class GUIPrefsReader(object):
+    '''
+    Reader for GUI prefs. To save re inputting every time 
+    '''
+
+    def __init__(self):
+        '''
+        Constructor
+        '''
+        thisdir = os.path.dirname(__file__)
+        guiprefs = '../gui.prefs'
+        
+        self.plist = ('dest','layer','uconf','group','epsg','fd','td','int')
+        
+        self.cp = ConfigParser.ConfigParser()
+        self.fn = os.path.join(thisdir,guiprefs)
+        self.cp.read(self.fn)
+        
+    def read(self):
+        #options likely to be stored, does not include clean and init since these are destructive
+        #and mean't to be one time use only
+        
+        rlist = ()
+        
+        for p in self.plist:
+            try:
+                rlist += (self.cp.get('prefs', p),)
+            except NoOptionError as noe:
+                ldslog.warn('Error getting GUI pref, '+p+' :: '+noe)
+        return rlist
+    
+    
+    def write(self,rlist):
+        for pr in zip(self.plist,rlist):
+            try:            
+                self.cp.set('prefs',pr[0],pr[1])
+                with open(self.fn, 'w') as configfile:
+                    self.cp.write(configfile)
+                ldslog.debug(str(pr[0])+'='+str(pr[1]))                                                                                        
+            except Exception as e:
+                ldslog.warn('Problem writing GUI prefs. '+str(e))
+

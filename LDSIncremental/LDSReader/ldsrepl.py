@@ -17,25 +17,96 @@ Created on 13/02/2013
 
 from PyQt4 import QtGui, QtCore
 
+import os
 import sys
+import logging
 
 from TransferProcessor import TransferProcessor
 from LDSDataStore import LDSDataStore
+from ReadConfig import GUIPrefsReader
+from LDSUtilities import LDSUtilities
 
-class LDSRepl(QtGui.QWidget):
+
+ldslog = logging.getLogger('LDS')
+ldslog.setLevel(logging.DEBUG)
+
+
+df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
+#df = '../debug.log'
+fh = logging.FileHandler(df,'a')
+fh.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+fh.setFormatter(formatter)
+ldslog.addHandler(fh)
+        
+
+class LDSRepl(QtGui.QMainWindow):
   
     def __init__(self):
         super(LDSRepl, self).__init__()
         
+        self.setGeometry(300, 300, 350, 250)
+        self.setWindowTitle('LDS Replicate')
+        
+        self.controls = LDSControls(self)
+        self.setCentralWidget(self.controls)
+        
+        self.statusbar = self.statusBar()
+        self.statusbar.showMessage('Ready')
+        
+        openAction = QtGui.QAction(QtGui.QIcon('open.png'), '&Open', self)        
+        openAction.setShortcut('Ctrl+O')
+        openAction.setStatusTip('Open Prefs Editor')
+        openAction.triggered.connect(self.launchEditor)
+        
+        exitAction = QtGui.QAction(QtGui.QIcon('exit.png'), '&Exit', self)        
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exit Application')
+        exitAction.triggered.connect(QtGui.qApp.quit)
+        
+        menubar = self.menuBar()
+
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(openAction)
+        fileMenu.addAction(exitAction)
+
+        helpMenu = menubar.addMenu('&Help')
+
+    def launchEditor(self, checked=None):
+            if checked==None: return
+            dialog = QtGui.QDialog()
+            dialog.ui = LDSPrefsEditor()
+            #dialog.ui.setupUi(dialog)
+            dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+            dialog.exec_()
+        
+#    def getLayerList(self):
+#        #To get key need to have prior access to user config which may not be available at gui init
+#        self.src = LDSDataStore("http://wfs.data.linz.govt.nz/<userkey>/wfs?service=WFS&request=GetCapabilities",None) 
+#        capabilities = self.src.getCapabilities()
+#        return LDSDataStore.fetchLayerNames(capabilities)
+#        #or we can read the layer conf file to get v:x/name values but this depends on int/ext
+        
+        
+class LDSControls(QtGui.QFrame):
+    
+    def __init__(self,parent):
+        super(LDSControls, self).__init__()
+        self.parent = parent
+        self.gpr = GUIPrefsReader()
         self.initUI()
-    
-    
-    def getLayerList(self):
-        self.src = LDSDataStore("http://wfs.data.linz.govt.nz/0aadbb5c801d470f8f075592f097f70c/wfs?service=WFS&request=GetCapabilities",None) 
-        capabilities = self.src.getCapabilities()
-        return LDSDataStore.fetchLayerNames(capabilities)
-    
+        
     def initUI(self):
+        
+        # 0      1       2       3       4      5    6    7
+        #'dest','layer','uconf','group','epsg','fd','td','int'
+        #defs = ('','','ldsincr.conf','','','2000-01-01','2013-01-01','True')
+        defs = ('','','ldsincr.conf','','','','','True')
+        rlist = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.read(),defs)
+        
+        
+        
         QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
         
         #labels
@@ -52,26 +123,29 @@ class LDSRepl(QtGui.QWidget):
         confLabel = QtGui.QLabel('User Config')
 
         #edit boxes
-        self.layerEdit = QtGui.QLineEdit()
-        self.groupEdit = QtGui.QLineEdit()
-        self.epsgEdit = QtGui.QLineEdit()
-        self.confEdit = QtGui.QLineEdit()
+        self.layerEdit = QtGui.QLineEdit(rlist[1])   
+        self.groupEdit = QtGui.QLineEdit(rlist[3])
+        self.epsgEdit = QtGui.QLineEdit(rlist[4])
+        self.confEdit = QtGui.QLineEdit(rlist[2])
         
         #menus
         self.destmenulist = ('','MSSQL','PostgreSQL','SpatiaLite','FileGDB') 
         self.destMenu = QtGui.QComboBox(self)
         self.destMenu.addItems(self.destmenulist)
+        self.destMenu.setCurrentIndex(self.destmenulist.index(rlist[0]))
         
        
         
         #date selection
         self.fromDateEdit = QtGui.QDateEdit()
-        self.fromDateEdit.setDate(QtCore.QDate(2000,01,01)) 
+        if LDSUtilities.mightAsWellBeNone(rlist[5]) is not None:
+            self.fromDateEdit.setDate(QtCore.QDate(int(rlist[5][0:4]),int(rlist[5][5:7]),int(rlist[5][8:10]))) 
         self.fromDateEdit.setCalendarPopup(True)
         self.fromDateEdit.setEnabled(False)
         
         self.toDateEdit = QtGui.QDateEdit()
-        self.toDateEdit.setDate(QtCore.QDate(2013,01,01)) 
+        if LDSUtilities.mightAsWellBeNone(rlist[6]) is not None:
+            self.toDateEdit.setDate(QtCore.QDate(int(rlist[6][0:4]),int(rlist[6][5:7]),int(rlist[6][8:10]))) 
         self.toDateEdit.setCalendarPopup(True)
         self.toDateEdit.setEnabled(False)
         
@@ -86,7 +160,7 @@ class LDSRepl(QtGui.QWidget):
         self.toDateEnable.clicked.connect(self.doToDateEnable)
         
         self.internalTrigger = QtGui.QCheckBox()
-        self.internalTrigger.setCheckState(False)
+        self.internalTrigger.setCheckState(rlist[7]=='True')
         
         self.initTrigger = QtGui.QCheckBox()
         self.initTrigger.setCheckState(False)
@@ -111,6 +185,16 @@ class LDSRepl(QtGui.QWidget):
         
         #placement section ------------------------------------
         
+        #-------------+----------------
+        #   dst label |   dst dropdown
+        # layer label | layer dropdown
+        # ...
+        #-------------+--+------+------
+        #           opt1 | opt2 | opt3
+        #----------------+----+-+------
+        #                  ok | cancel
+        #---------------------+--------
+
         grid.addWidget(destLabel, 1, 0)
         grid.addWidget(self.destMenu, 1, 2)
 
@@ -134,33 +218,44 @@ class LDSRepl(QtGui.QWidget):
         grid.addWidget(self.toDateEnable, 7, 1)
         grid.addWidget(self.toDateEdit, 7, 2)
 
-        grid.addWidget(internalLabel, 8, 0)
-        grid.addWidget(initLabel, 8, 1)
-        grid.addWidget(cleanLabel, 8, 2)
+        vbox1 = QtGui.QVBoxLayout()
+        vbox1.addStretch(1)
+        vbox1.addWidget(internalLabel)
+        vbox1.addWidget(self.internalTrigger)
         
-        grid.addWidget(self.internalTrigger, 9, 0)
-        grid.addWidget(self.initTrigger, 9, 1)
-        grid.addWidget(self.cleanTrigger, 9, 2)
+        vbox2 = QtGui.QVBoxLayout()
+        vbox2.addStretch(1)
+        vbox2.addWidget(initLabel)
+        vbox2.addWidget(self.initTrigger)
         
-        grid.addWidget(okButton, 10, 1)
-        grid.addWidget(cancelButton, 10, 2)
+        vbox3 = QtGui.QVBoxLayout()
+        vbox3.addStretch(1)
+        vbox3.addWidget(cleanLabel)
+        vbox3.addWidget(self.cleanTrigger)
         
-
-        hbox = QtGui.QHBoxLayout()
-        hbox.addStretch(1)
-        hbox.addWidget(okButton)
-        hbox.addWidget(cancelButton)
+        hbox3 = QtGui.QHBoxLayout()
+        hbox3.addStretch(1)
+        hbox3.addLayout(vbox1)
+        hbox3.addLayout(vbox2)
+        hbox3.addLayout(vbox3)
+        
+        hbox4 = QtGui.QHBoxLayout()
+        hbox4.addStretch(1)
+        hbox4.addWidget(okButton)
+        hbox4.addWidget(cancelButton)
+        
 
         vbox = QtGui.QVBoxLayout()
-        vbox.addStretch(1)
-        vbox.addLayout(hbox)
-
+        #vbox.addStretch(1)
+        vbox.addLayout(grid)
+        vbox.addLayout(hbox3)
+        vbox.addLayout(hbox4)
         
-        self.setLayout(grid)  
         
-        self.setGeometry(300, 300, 350, 250)
-        self.setWindowTitle('LDS Replicate')    
-        self.show()
+        self.setLayout(vbox)  
+        
+        #self.setGeometry(300, 300, 350, 250)
+        #self.setWindowTitle('LDS Replicate')
        
         
         
@@ -187,31 +282,29 @@ class LDSRepl(QtGui.QWidget):
         self.toDateEdit.setEnabled(self.toDateEnable.isChecked())  
           
     def doOkClickAction(self):
-        print 'dest',self.destmenulist[self.destMenu.currentIndex()]
         
-        print 'layer',self.layerEdit.text()
-        print 'conf',self.confEdit.text()
-        print 'group',self.groupEdit.text()
-        print 'epsg',self.epsgEdit.text()
+        destination = str(self.destmenulist[self.destMenu.currentIndex()])
+        layer = str(self.layerEdit.text())
+        uconf = str(self.confEdit.text())
+        group = str(self.groupEdit.text())
+        epsg = str(self.epsgEdit.text())
+        fe = self.fromDateEnable.isChecked()
+        te = self.toDateEnable.isChecked()
+        fd = None if fe is False else str(self.fromDateEdit.date().toString('yyyy-MM-dd'))
+        td = None if te is False else str(self.toDateEdit.date().toString('yyyy-MM-dd'))
+        internal = self.internalTrigger.isChecked()
+        init = self.initTrigger.isChecked()
+        clean = self.cleanTrigger.isChecked()
         
-        print 'fd',self.fromDateEdit.date().toString('yyyy-MM-dd')
-        print 'td',self.toDateEdit.date().toString('yyyy-MM-dd')
+        self.parent.statusbar.showMessage('Replicating '+layer)
+
+        #'dest','layer','uconf','group','epsg','fd','td','int'
+        self.gpr.write((destination,layer,uconf,group,epsg,fd,td,internal))
         
-        print 'fe',self.fromDateEnable.isChecked()
-        print 'te',self.toDateEnable.isChecked()
-        
-        print 'internal',self.internalTrigger.isChecked()
-        print 'init',self.initTrigger.isChecked()
-        print 'clean',self.cleanTrigger.isChecked()
-        
-        destination = self.destmenulist[self.destMenu.currentIndex()]
-        layer = self.layerEdit.text()
-        group = self.groupEdit.text()
-        epsg = self.epsgEdit.text()
-        fd = self.fromDateEdit.date().toString('yyyy-MM-dd')
-        td = self.toDateEdit.date().toString('yyyy-MM-dd')
-        conf = self.confEdit.text()
-        internal = self.internalTrigger.isChecked(),
+        ldslog.info('dest='+destination+', layer'+layer+', conf='+uconf+', group='+group+', epsg='+epsg)
+        ldslog.info('fd='+str(fd)+', td='+str(td)+', fe='+str(fe)+', te='+str(te))
+        ldslog.info('int='+str(internal)+', init='+str(init)+', clean='+str(clean))
+
 
         tp = TransferProcessor(layer, 
                                None if group is None else group, 
@@ -219,28 +312,76 @@ class LDSRepl(QtGui.QWidget):
                                None if fd is None else fd, 
                                None if td is None else td,
                                None, None, None, 
-                               None if conf is None else conf , 
+                               None if uconf is None else uconf, 
                                internal, None)
         
-        destination = self.destmenulist[self.destMenu.currentIndex()]
-        
-        if destination == 'PostgreSQL':
-            proc = tp.processLDS2PG
-        elif destination == 'MSSQL':
-            proc = tp.processLDS2MSSQL
-        elif destination == 'SpatiaLite':
-            proc = tp.processLDS2SpatiaLite
-        elif destination == 'FileGDB':
-            proc = tp.processLDS2FileGDB
-        else:
-            proc = None
+        proc = {'PostgreSQL':tp.processLDS2PG,
+                'MSSQL':tp.processLDS2MSSQL,
+                'SpatiaLite':tp.processLDS2SpatiaLite,
+                'FileGDB':tp.processLDS2FileGDB
+                }.get(destination)
         proc()
         
+        self.parent.statusbar.showMessage('Replication of '+layer+' complete')
+        
+        
+class LDSPrefsEditor(QtGui.QMainWindow):
+    
+    def __init__(self):
+        super(LDSPrefsEditor, self).__init__()
+        
+        self.setGeometry(300, 300, 350, 250)
+        self.setWindowTitle('LDS Preferences Editor')
+        
+        self.editor = LDSUserPrefs(self)
+        self.setCentralWidget(self.editor)
+        
+        
+        
+        saveAction = QtGui.QAction(QtGui.QIcon('save.png'), '&Save', self)        
+        saveAction.setShortcut('Ctrl+S')
+        saveAction.setStatusTip('Save Changes')
+        saveAction.triggered.connect(QtGui.qApp.quit)
+        
+        exitAction = QtGui.QAction(QtGui.QIcon('exit.png'), '&Exit', self)        
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exit Application')
+        exitAction.triggered.connect(QtGui.qApp.quit)
+        
+        menubar = self.menuBar()
+
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(saveAction)
+        fileMenu.addAction(exitAction)
+        
+class LDSUserPrefs(QtGui.QFrame):
+    
+    def __init__(self,parent):
+        super(LDSUserPrefs, self).__init__()
+        self.parent = parent
+        self.gpr = GUIPrefsReader()
+        self.initUI()
+        
+    def initUI(self):
+        #labels
+        prefsLabel = QtGui.QLabel('Preferences Editor')
+
+
+        #edit boxes
+        self.prefsEdit = QtGui.QTextEdit()     
+        
+        vbox = QtGui.QVBoxLayout()
+        vbox.addStretch(1)
+        vbox.addWidget(prefsLabel)
+        vbox.addWidget(self.prefsEdit)
+
         
 def main():
   
     app = QtGui.QApplication(sys.argv)
-    lds = LDSRepl()
+    #lds = LDSRepl()
+    lds = LDSPrefsEditor()
+    lds.show()
     sys.exit(app.exec_())
     
     

@@ -102,7 +102,7 @@ class DataStore(object):
         
         self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"
          
-        if conn_str is not None and not all(i in string.whitespace for i in conn_str):
+        if LDSUtilities.mightAsWellBeNone(conn_str) is not None:
             self.conn_str = conn_str
         
         self.setSRS(None)
@@ -453,7 +453,7 @@ class DataStore(object):
                 e = 0
                 while 1:
                     '''identify the change in the WFS doc (INS,UPD,DEL)'''
-                    change =  (src_feat.GetField(changecol) if changecol is not None and all(i in string.whitespace for i in changecol) else "insert").lower()
+                    change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
                     '''not just copy but possubly delete or update a feature on the DST layer'''
                     #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
                     
@@ -510,7 +510,7 @@ class DataStore(object):
         Requires the supplied EPSG be correct and coordinates that can be transformed'''
         self.transform = None
         selected_sref = self.getSRS()
-        if selected_sref is not None and not all(i in string.whitespace for i in selected_sref):
+        if LDSUtilities.mightAsWellBeNone(selected_sref) is not None:
             #if the selected SRS fails to validate assume error and flag but dont silently drop back to default
             validated_sref = Projection.validateEPSG(selected_sref)
             if validated_sref is not None:

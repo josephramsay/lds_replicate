@@ -334,7 +334,7 @@ class TransferProcessor(object):
         
         #Filter by group designation
 
-        if self.group is not None:
+        if LDSUtilities.mightAsWellBeNone(self.group) is not None:
             self.lnl = ()
             lg = set(self.group.split(','))
             for lid in lds_valid:
