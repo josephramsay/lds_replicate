@@ -2,3 +2,5 @@ ldsincr.conf
 ldsincr.user.conf
 ldsincr.internal.conf
 ldsincr.external.conf
+ldsincr.windows.external.comf
+ldsincr.windows.internal.comf
