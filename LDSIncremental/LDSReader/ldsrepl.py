@@ -47,7 +47,7 @@ class LDSRepl(QtGui.QMainWindow):
         super(LDSRepl, self).__init__()
         
         self.setGeometry(300, 300, 350, 250)
-        self.setWindowTitle('LDS Replicate')
+        self.setWindowTitle('LDS Data Replicator')
         
         self.controls = LDSControls(self)
         self.setCentralWidget(self.controls)
@@ -69,24 +69,15 @@ class LDSRepl(QtGui.QMainWindow):
 
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(openAction)
+        fileMenu.addSeparator()
         fileMenu.addAction(exitAction)
 
         helpMenu = menubar.addMenu('&Help')
 
     def launchEditor(self, checked=None):
-            if checked==None: return
-            dialog = QtGui.QDialog()
-            dialog.ui = LDSPrefsEditor()
-            #dialog.ui.setupUi(dialog)
-            dialog.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-            dialog.exec_()
-        
-#    def getLayerList(self):
-#        #To get key need to have prior access to user config which may not be available at gui init
-#        self.src = LDSDataStore("http://wfs.data.linz.govt.nz/<userkey>/wfs?service=WFS&request=GetCapabilities",None) 
-#        capabilities = self.src.getCapabilities()
-#        return LDSDataStore.fetchLayerNames(capabilities)
-#        #or we can read the layer conf file to get v:x/name values but this depends on int/ext
+        prefs = LDSPrefsEditor()
+        prefs.setWindowTitle('LDS Preferences Editor')
+        prefs.show() 
         
         
 class LDSControls(QtGui.QFrame):
@@ -325,62 +316,108 @@ class LDSControls(QtGui.QFrame):
         self.parent.statusbar.showMessage('Replication of '+layer+' complete')
         
         
+#--------------------------------------------------------------------------------------------------
+
 class LDSPrefsEditor(QtGui.QMainWindow):
     
     def __init__(self):
         super(LDSPrefsEditor, self).__init__()
         
-        self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Preferences Editor')
         
-        self.editor = LDSUserPrefs(self)
+        self.editor = LDSPrefsFrame(self)
         self.setCentralWidget(self.editor)
+
         
-        
+        openAction = QtGui.QAction(QtGui.QIcon('open.png'), '&Open', self)        
+        openAction.setShortcut('Ctrl+O')
+        openAction.setStatusTip('Open File')
+        openAction.triggered.connect(self.openFile)
         
         saveAction = QtGui.QAction(QtGui.QIcon('save.png'), '&Save', self)        
         saveAction.setShortcut('Ctrl+S')
         saveAction.setStatusTip('Save Changes')
-        saveAction.triggered.connect(QtGui.qApp.quit)
+        saveAction.triggered.connect(self.saveFile)
+        
+        saveAsAction = QtGui.QAction(QtGui.QIcon('save.png'), '&Save As', self)        
+        saveAsAction.setShortcut('Ctrl+A')
+        saveAsAction.setStatusTip('Save Changes')
+        saveAsAction.triggered.connect(self.saveAsFile)
         
         exitAction = QtGui.QAction(QtGui.QIcon('exit.png'), '&Exit', self)        
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit Application')
-        exitAction.triggered.connect(QtGui.qApp.quit)
+        exitAction.triggered.connect(self.close)
+        
+        self.statusbar = self.statusBar()
+        self.statusbar.showMessage('Ready')
         
         menubar = self.menuBar()
 
         fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(openAction)
+        fileMenu.addSeparator()
         fileMenu.addAction(saveAction)
-        fileMenu.addAction(exitAction)
+        fileMenu.addAction(saveAsAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(exitAction) 
         
-class LDSUserPrefs(QtGui.QFrame):
+        self.initUI()
+        
+    def initUI(self):
+        self.setGeometry(350,350,800,600)
+        self.show() 
+        
+    def saveAsFile(self):
+        filename = QtGui.QFileDialog.getSaveFileName(self, 'Save File As', os.path.join(os.getcwd(),'../'))#os.getenv('HOME'))
+        f = open(filename, 'w')
+        filedata = self.editor.textedit.toPlainText()
+        f.write(filedata)
+        f.close()
+        
+    def saveFile(self):
+        f = open(self.filename, 'w')
+        filedata = self.editor.textedit.toPlainText()
+        f.write(filedata)
+        f.close()
+        
+    def openFile(self):
+        f=QtCore.QDir.Filter(1)
+        
+        filedialog = QtGui.QFileDialog()
+        filedialog.setFilter(f)
+        self.filename = filedialog.getOpenFileName(self, 'Open File', os.path.join(os.getcwd(),'../'))#os.getenv('HOME'))
+        f = open(self.filename, 'r')
+        filedata = f.read()
+        self.editor.textedit.setText(filedata)
+        self.statusbar.showMessage('Editing '+self.filename)
+        f.close()
+
+
+        
+class LDSPrefsFrame(QtGui.QFrame):
     
     def __init__(self,parent):
-        super(LDSUserPrefs, self).__init__()
+        super(LDSPrefsFrame, self).__init__()
         self.parent = parent
         self.gpr = GUIPrefsReader()
         self.initUI()
         
     def initUI(self):
-        #labels
-        prefsLabel = QtGui.QLabel('Preferences Editor')
-
 
         #edit boxes
-        self.prefsEdit = QtGui.QTextEdit()     
+        self.textedit = QtGui.QTextEdit() 
         
         vbox = QtGui.QVBoxLayout()
-        vbox.addStretch(1)
-        vbox.addWidget(prefsLabel)
-        vbox.addWidget(self.prefsEdit)
+        vbox.addWidget(self.textedit)
+        
+        self.setLayout(vbox)  
 
         
 def main():
   
     app = QtGui.QApplication(sys.argv)
-    #lds = LDSRepl()
-    lds = LDSPrefsEditor()
+    lds = LDSRepl()
     lds.show()
     sys.exit(app.exec_())
     
