@@ -42,6 +42,7 @@ ldslog = logging.getLogger('LDS')
 class InputMisconfigurationException(Exception): pass
 class PrimaryKeyUnavailableException(Exception): pass
 class LayerConfigurationException(Exception): pass
+class DatasourceInitialisationException(Exception): pass
 
 
 class TransferProcessor(object):
@@ -425,7 +426,10 @@ class TransferProcessor(object):
         self.src.setURI(self.src.sourceURI(layer_i))
         self.dst.setURI(self.dst.destinationURI(layer_i))
                 
-        self.src.read(self.src.getURI())
+        #We dont try and create (=false) a DS on a LDS WFS connection since its RO
+        self.src.read(self.src.getURI(),False)
+        if self.src.ds is None:
+            raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
         self.dst.write(self.src,
                        self.dst.getURI(),
                        self.getIncremental() and self.hasPrimaryKey(layer_i),
@@ -510,7 +514,7 @@ class TransferProcessor(object):
                 self.dst.setURI(self.dst.destinationURI(layer_i))
             
                 #source read from URI
-                self.src.read(self.src.getURI())
+                self.src.read(self.src.getURI(),False)
                 #destination write the SRC to the dest URI
                 maxkey = self.dst.write(self.src,
                                         self.dst.getURI(),

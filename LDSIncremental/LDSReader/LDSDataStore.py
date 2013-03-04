@@ -35,6 +35,7 @@ class LDSDataStore(WFSDataStore):
     
     '''Default GDAL page size'''
     LDS_PAGE_SIZE = 10000
+    SUPPORTED_OUTPUT_FORMATS = ('GML2','GML3','JSON')
 
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -54,6 +55,9 @@ class LDSDataStore(WFSDataStore):
         (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
         if self.conn_str:
             self.key = self.extractAPIKey(self.conn_str,False)
+        
+        #we're not going to try and overwrite LDS    
+        self.clearOverwrite()
             
 
 
@@ -85,9 +89,11 @@ class LDSDataStore(WFSDataStore):
         ###    return self.conn_str
         #uri = self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
         #keyword specifier different between 1.0.0 (<ows:Keywords><ows:Keyword>) and 1.1.0 (<Keywords>) We enforce 1.1.0 to return per keyword version and more accurately parse layer groups
-        '''validate the key by checking that the key can be extracted from the key'''
+        '''validate the key by checking that the key can be extracted from the conn_str'''
         if not self.validateAPIKey(self.key):
             self.key = self.extractAPIKey(self.conn_str,True)
+        #capabilities doc is fetched using urlopen, not wfs, so escaping isnt needed
+        #uri = LDSUtilities.xmlEscape(self.url+self.key+"/wfs?service=WFS&version=1.1.0&request=GetCapabilities")
         uri = self.url+self.key+"/wfs?service=WFS&version=1.1.0&request=GetCapabilities"
         ldslog.debug(uri)
         return uri
@@ -135,7 +141,8 @@ class LDSDataStore(WFSDataStore):
         #pql = self._buildPageStr()     
             
         typ = "&typeName="+layername
-        fmt = "&outputFormat="+self.fmt
+        #if omitted the outputformat parameter is null and default used, GML2
+        fmt = "&outputFormat="+self.fmt if (self.fmt in self.SUPPORTED_OUTPUT_FORMATS) else ''
         uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
         ldslog.debug(uri)
         return uri
@@ -158,7 +165,8 @@ class LDSDataStore(WFSDataStore):
         vep = LDSUtilities.splitLayerName(layername)+"-changeset"
         typ = "&typeName="+layername+"-changeset"
         inc = "&viewparams=from:"+fromdate+";to:"+todate
-        fmt = "&outputFormat="+self.fmt
+        #if omitted the outputformat parameter is null and default used, GML2
+        fmt = "&outputFormat="+self.fmt if (self.fmt in self.SUPPORTED_OUTPUT_FORMATS) else ''
         uri = self.url+self.key+vep+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+inc+fmt+cql
         ldslog.debug(uri)
         return uri

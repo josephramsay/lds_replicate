@@ -437,6 +437,7 @@ class MainFileReader(object):
         
         try: 
             sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
+            #LC: sixtyfourlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in self.cp.get(self.MISC, '64bitlayers').split(',')]
         except NoSectionError:
             ldslog.warn("Misc: No Misc section detected looking for 64bit Layer specification")
         except NoOptionError:
@@ -444,6 +445,7 @@ class MainFileReader(object):
             
         try: 
             partitionlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
+            #LC: partitionlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in self.cp.get(self.MISC, 'partitionlayers').split(',')]
         except NoSectionError:
             ldslog.warn("Misc: No Misc section detected looking for Problem Layer specification")
         except NoOptionError:

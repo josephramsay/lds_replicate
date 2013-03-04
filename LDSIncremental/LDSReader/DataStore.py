@@ -34,7 +34,7 @@ from ConfigWrapper import ConfigWrapper
 
 ldslog = logging.getLogger('LDS')
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
-#ogr.UseExceptions()
+ogr.UseExceptions()
 
 #exceptions
 class DSReaderException(Exception): pass
@@ -111,7 +111,7 @@ class DataStore(object):
         self.setOverwrite()
         
         self.getDriver(self.DRIVER_NAME)
-            
+        #NB. mainconf here isnt the same as the main/user distinction in the ConfigWrapper    
         self.mainconf = ConfigWrapper(user_config)
         
         self.params = self.mainconf.readDSParameters(self.DRIVER_NAME)
@@ -119,8 +119,7 @@ class DataStore(object):
         '''set of <potential> columns not needed in final output, global'''
         self.optcols = set(['__change__','gml_id'])
         
-
-        
+     
     def getDriver(self,driver_name):
 
         self.driver = ogr.GetDriverByName(driver_name)
@@ -165,7 +164,7 @@ class DataStore(object):
         self.OVERWRITE = "NO"
          
     def getOverwrite(self):
-        return self.OVERWRITE    
+        return self.OVERWRITE   
     
     def getOptions(self,layer_id):
         '''Returns common options, overridden in subclasses for source specifc options'''
@@ -187,70 +186,69 @@ class DataStore(object):
     def validateConnStr(self,conn_str):
         '''Abstract method to check user supplied connection strings. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method destinationURI not implemented")
-        
-    #@abstractmethod
-    #def buildExternalLayerDefinition(self,name,fdef_list):
-    #    raise NotImplementedError("Abstract method buildExternalLayerDefinition not implemented")
     
-    def initDS(self,dsn=None):
+    def initDS(self,dsn=None,create=True):
+        '''Initialise the data source calling a provided DSN or self.dsn and a flag to indicate whether we should try and create a DS if none found'''
         ds = None
         '''initialise a DS for writing'''
         try:
-            ds = self.driver.Open(dsn, update = 1 if self.getOverwrite() else 0)
+            ogr.DontUseExceptions()
+            ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME=='WFS' else dsn, update = 1 if self.getOverwrite()=='YES' else 0)       
             if ds is None:
-                raise DSReaderException("Error opening DS on Destination "+str(dsn)+", attempting DS Create")
+                raise DSReaderException("Error opening DS "+str(dsn)+(', attempting DS create.' if create else ', quitting.'))
         #catches DSReader (but not runtime) error, but don't fail since we'll try to init a new DS
         except (RuntimeError,DSReaderException) as dsre1:
             #print "DSReaderException",dsre1 
-            ldslog.error(dsre1)
-            try:
-                ds = self.driver.CreateDataSource(dsn)
-                if ds is None:
-                    raise DSReaderException("Error creating DS on Destination "+str(dsn)+", quitting")
-            except DSReaderException as dsre2:
-                print "DSReaderException, Cannot create DS.",dsre2
-                ldslog.error(dsre2,exc_info=1)
-                raise
-            except RuntimeError as rte:
-                '''this is only caught if ogr.UseExceptions() is enabled'''
-                print "GDAL RuntimeError. Error creating DS.",rte
-                ldslog.error(rte,exc_info=1)
-                raise
+            ldslog.error(dsre1,exc_info=1)
+            if create:
+                try:
+                    ds = self.driver.CreateDataSource(dsn)
+                    if ds is None:
+                        raise DSReaderException("Error creating DS "+str(dsn)+", quitting")
+                except DSReaderException as dsre2:
+                    #print "DSReaderException, Cannot create DS.",dsre2
+                    ldslog.error(dsre2,exc_info=1)
+                    raise
+                except RuntimeError as rte:
+                    '''this is only caught if ogr.UseExceptions() is enabled (which we done enable since RunErrs thrown even when DS completes)'''
+                    #print "GDAL RuntimeError. Error creating DS.",rte
+                    ldslog.error(rte,exc_info=1)
+                    raise
+            else:
+                raise dsre1
+        finally:
+            ogr.DontUseExceptions()
         return ds
         
-    def read(self,dsn):
+    def read(self,dsn,create=True):
         '''Main DS read method'''
         ldslog.info("DS read "+dsn)#.split(":")[0])
         #5050 initDS for consistency and utilise if-ds-is-none check OR quick open and overwrite
-        #self.initDS(dsn)
-        self.ds = self.driver.Open(dsn)
+        self.ds = self.initDS(dsn,create)
+        #self.ds = self.driver.Open(dsn)
     
     def write(self,src,dsn,incr_haspk,fbf,sixtyfour,temptable,srsconv):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
-        #for testing to see whether fC only is quicker overall
-        DONT_USE_DIRECT_COPY = True
+
         #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
         self.src_link = src
         #we need to store 64 beyond fC/dC flag to identify need for sufi-to-str conversion
         self.sixtyfour = sixtyfour
         max_key = None
         
-        #ldslog.info("DS Write "+dsn)#.split(":")[0]
-        #shouldnt be needed but sometimes instances of DS disconnect occur
-        if not hasattr(self,'ds') or self.ds is None:
-            self.ds = self.initDS(dsn)
-        
-        #if incr&haspk then fC
+        #if incr&haspk then fCi
         if incr_haspk:
             # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
             max_key = self.featureCopyIncremental(src.ds,self.ds,src.CHANGE_COL)
-        #if not(incr&haspk) & 64b attempt fC
-        elif sixtyfour or srsconv or fbf or DONT_USE_DIRECT_COPY:
-            #do a featureCopyIncremental if override asks or if a table has big ints
-            max_key = self.featureCopy(src.ds,self.ds)
         else:
-            # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
-            self.driverCopy(src.ds,self.ds,temptable) 
+            max_key = self.featureCopy(src.ds,self.ds)
+#        #if not(incr&haspk) & 64b attempt fC
+#        elif sixtyfour or srsconv or fbf or DONT_USE_DIRECT_COPY:
+#            #do a featureCopyIncremental if override asks or if a table has big ints
+#            max_key = self.featureCopy(src.ds,self.ds)
+#        else:
+#            # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
+#            self.driverCopy(src.ds,self.ds,temptable) 
             
         return max_key
         
@@ -364,7 +362,7 @@ class DataStore(object):
             '''parse discard columns'''
             self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
 
-            ldslog.warning(dst_info.layer_id+" does not exist. Creating new layer")
+            ldslog.warning("Non-Incremental layer ["+dst_info.layer_id+"] request. (re)Creating layer")
             '''create a new layer if a similarly named existing layer can't be found on the dst'''
             src_info.spatial_ref = src_layer.GetSpatialRef()
             src_info.geometry = src_layer.GetGeomType()

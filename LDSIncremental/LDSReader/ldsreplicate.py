@@ -57,7 +57,7 @@ df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
 fh = logging.FileHandler(df,'a')
 fh.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s %(lineno)d - %(message)s')
 fh.setFormatter(formatter)
 ldslog.addHandler(fh)
 
@@ -228,7 +228,7 @@ def main():
         sys.exit(1)
     except Exception as e:
         #if errors are getting through we may need to catch report them
-        ldslog.warn("##### CATCHERR #####\n"+str(e))
+        ldslog.warn("Unknown Error! "+str(e))
         raise
         
     

@@ -103,6 +103,30 @@ class LDSUtilities(object):
 
 
     @staticmethod
+    def xmlEscape(url):
+        '''Simple XML escaping regex used to properly format WFS URLS (though it doesn't seem to be needed)'''
+        #first 4, simple replace: "=&quot; '=&apos; <=&lt; >=&gt; &=&amp;
+        url = re.sub('"','&quot;',url)
+        url = re.sub('\'','&apos;',url)
+        url = re.sub('<','&lt;',url)
+        url = re.sub('>','&gt;',url)
+        #them match & but not anything that has already been escaped
+        #the original string could also contain escaped chars so we have to do skip escapes anyway 
+        return re.sub('&(?!amp;|apos;|quot;|lt;|gt;)','&amp;',url)    
+    
+    
+    @staticmethod
+    def percentEncode(url):
+        '''Simple http bracket/comma escaping regex used to properly format WFS URLS'''
+        #!     #     $     &     '     (     )     *     +     ,     /     :     ;     =     ?     @     [     ]
+        #%21   %23   %24   %26   %27   %28   %29   %2A   %2B   %2C   %2F   %3A   %3B   %3D   %3F   %40   %5B   %5D
+        url = re.sub('\(','%28',url)
+        url = re.sub('\)','%29',url)
+        url = re.sub(',','%2C',url)
+        url = re.sub(' ','%20',url)
+        return url
+
+    @staticmethod
     def checkCQL(cql):
         '''Since CQL commands are freeform strings we need to try and validate at least the most basic errors. This is very simple
         RE matcher that just looks for valid predicates... for now
@@ -181,11 +205,11 @@ class LDSUtilities(object):
     def precedence(cmdline_arg,config_arg,layer_arg):
         '''Decide which CQL filter to apply based on scope and availability'''
         '''Currently we have; CommandLine > Config-File > Layer-Properties but maybe its better for individual layers to override a global setting... '''
-        if cmdline_arg is not None and cmdline_arg != '':
+        if LDSUtilities.mightAsWellBeNone(cmdline_arg) is not None:
             return cmdline_arg
-        elif config_arg is not None and config_arg != '':
+        elif LDSUtilities.mightAsWellBeNone(config_arg) is not None:
             return config_arg
-        elif layer_arg is not None and layer_arg != '':
+        elif LDSUtilities.mightAsWellBeNone(layer_arg) is not None:
             return layer_arg
         return None
     

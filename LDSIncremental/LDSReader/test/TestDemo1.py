@@ -46,10 +46,10 @@ class TestUI(unittest.TestCase):
         self.MS="MSSQL:server=LZ104588-VM\SQLExpress;database=LDSINCR;UID=mssqluser;PWD=mssqlpass;Driver=SQL Server Native Client 11.0;Schema=dbo"
         #super(TestUI,self).setUp()
         if 'inux' in sys.platform:
-            self.UC = "ldsincr.external.conf"
+            self.UC = "ldsincr.lnx.conf"
             self.BB = "bbox\(shape,174.3118,-36.6355,175.2456,-37.0663\)"
         elif sys.platform == 'win32':
-            self.UC = "ldsincr.windows.external.conf"
+            self.UC = "ldsincr.win.conf"
             self.BB="bbox(shape,174.3118,-36.6355,175.2456,-37.0663)"
         else:
             sys.exit(1)

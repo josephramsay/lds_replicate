@@ -56,12 +56,10 @@ class TestUI(unittest.TestCase):
     PATH_L = '/home/jramsay/git/LDS/LDSIncremental/LDSReader/'
     PATH_W = 'F:\\git\\LDS\\LDSIncremental\\LDSReader\\'
     PATH_C = PATH_W.replace('\\','/').replace('C:','/cygdrive/c')
-    OUTP_L = ('pg','fg','sl')
+    OUTP_L = ('pg',)#'fg','sl')
     OUTP_W = ('ms',)#'sl','fg')
-    CONF_I = 'ldsincr.internal.conf'
-    CONF_E = 'ldsincr.external.conf'
-    CONF_WI = 'ldsincr.windows.internal.conf' 
-    CONF_WE = 'ldsincr.windows.external.conf' 
+    CONF_L = 'ldsincr.lnx.conf'
+    CONF_W = 'ldsincr.win.conf' 
     
     _CONN_STR_L = "PG:dbname='jrdb' host='144.66.6.86' port='5432' user='pguser' password='pgpass'"
     _CONN_STR_W = "MSSQL:server=LZ104588-VM\SQLExpress;database=LDSINCR;UID=mssqluser;PWD=mssqlpass"
@@ -81,20 +79,17 @@ class TestUI(unittest.TestCase):
         if 'inux' in sys.platform:
             self.PATH = self.PATH_L
             self.CONN_STR = self._CONN_STR_L
-            self.CONF = self.CONF_E            
-            self.CONF2 = self.CONF_I
+            self.CONF = self.CONF_L            
             self.OUTP = self.OUTP_L
         elif sys.platform == 'win32':
             self.PATH = self.PATH_W
             self.CONN_STR = self._CONN_STR_W
-            self.CONF = self.CONF_WE
-            self.CONF2 = self.CONF_WI
+            self.CONF = self.CONF_W
             self.OUTP = self.OUTP_W
         elif sys.platform == 'cygwin':
             self.PATH = self.PATH_C
             self.CONN_STR = self._CONN_STR_W
-            self.CONF = self.CONF_WE
-            self.CONF2 = self.CONF_WI
+            self.CONF = self.CONF_W
             self.OUTP = self.OUTP_W
             sys.path.append('/cygdrive/c/progra~1/GDAL/python/gdal/osgeo')
         #elif os.name in ('os2', 'mac', 'ce','riscos')
@@ -133,12 +128,12 @@ class TestUI(unittest.TestCase):
         for o in self.OUTP:
             for l in self.LAYER:
                 self.prepLayer(l, o)
-                ste = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+' -l '+l+' '+o
+                ste = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+'-x -l '+l+' '+o
                 print ste
                 self.assertEquals(os.system(ste),0)
                 
                 self.prepLayer(l, o)
-                sti = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF2+' -l '+l+' '+o
+                sti = 'python '+self.PATH+'ldsreplicate.py -u '+self.CONF+'-i -l '+l+' '+o
                 print sti
                 self.assertEquals(os.system(sti),0)    
                 
@@ -195,12 +190,12 @@ class TestUI(unittest.TestCase):
             for l in self.LAYER:
                 self.prepLayer(l,o)
                 #TO: incremental copy from first day to DATE
-                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF2+' -t '+self.DATE+' '+o
+                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -t '+self.DATE+' '+o
                 print st
                 self.assertEquals(os.system(st),0)
                 
                 #FROM: incremental from DATE to latest
-                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF2+' -f '+self.DATE+' '+o
+                st = 'python '+self.PATH+'ldsreplicate.py -l '+l+' -u '+self.CONF+' -f '+self.DATE+' '+o
                 print st
                 self.assertEquals(os.system(st),0)
                 
