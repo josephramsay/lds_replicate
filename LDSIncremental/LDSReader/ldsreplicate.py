@@ -227,9 +227,9 @@ def main():
         print str(dse)
         sys.exit(1)
     except Exception as e:
-        #if errors are getting through we may need to catch report them
-        ldslog.warn("Unknown Error! "+str(e))
-        raise
+        #if errors are getting through we catch/report them
+        ldslog.warn("Error! "+str(e))
+        sys.exit(1)
         
     
     et = datetime.now()

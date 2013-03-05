@@ -66,7 +66,8 @@ class DataStore(object):
     LDS_CONFIG_TABLE = 'lds_config'
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
-    MAX_WFS_ATTEMPTS = 3
+    MAXIMUM_WFS_ATTEMPTS = 5
+    TRANSACTION_THRESHOLD_WFS_ATTEMPTS = 4
     
     DRIVER_NAME = '<init in subclass>'
     
@@ -236,20 +237,48 @@ class DataStore(object):
         #we need to store 64 beyond fC/dC flag to identify need for sufi-to-str conversion
         self.sixtyfour = sixtyfour
         max_key = None
+        self.attempts = 0
         
-        #if incr&haspk then fCi
-        if incr_haspk:
-            # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
-            max_key = self.featureCopyIncremental(src.ds,self.ds,src.CHANGE_COL)
-        else:
-            max_key = self.featureCopy(src.ds,self.ds)
-#        #if not(incr&haspk) & 64b attempt fC
-#        elif sixtyfour or srsconv or fbf or DONT_USE_DIRECT_COPY:
-#            #do a featureCopyIncremental if override asks or if a table has big ints
-#            max_key = self.featureCopy(src.ds,self.ds)
-#        else:
-#            # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
-#            self.driverCopy(src.ds,self.ds,temptable) 
+        while self.attempts < self.MAXIMUM_WFS_ATTEMPTS:
+            try:
+                #if incr&haspk then fCi
+                if incr_haspk:
+                    # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
+                    max_key = self.featureCopyIncremental(src.ds,self.ds,src.CHANGE_COL)
+                else:
+                    max_key = self.featureCopy(src.ds,self.ds)
+        #        #if not(incr&haspk) & 64b attempt fC
+        #        elif sixtyfour or srsconv or fbf or DONT_USE_DIRECT_COPY:
+        #            #do a featureCopy* if override asks or if a table has big ints
+        #            max_key = self.featureCopy(src.ds,self.ds)
+        #        else:
+        #            # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
+        #            self.driverCopy(src.ds,self.ds,temptable) 
+    
+            except RuntimeError as rte:
+                import gdal
+                em = gdal.GetLastErrorMsg()
+                en = gdal.GetLastErrorNo()
+                ldslog.warn("ErrorMsg: "+str(em))
+                ldslog.warn("ErrorNo: "+str(en))
+                #Errors below seem to all indicate server load problems, so we try again
+                if self.attempts < self.MAXIMUM_WFS_ATTEMPTS-1 and ( \
+                    re.search(   'HTTP error code : 504',str(rte)) \
+                    or re.search('HTTP error code : 502',str(rte)) \
+                    or re.search('HTTP error code : 404',str(rte)) \
+                    or re.search('General Error',str(rte)) \
+                    or re.search('Empty content returned by server',str(rte))):
+                    self.attempts += 1
+                    ldslog.warn("Failed LDS fetch attempt "+str(self.attempts)+"/"+str(self.MAXIMUM_WFS_ATTEMPTS)+". "+str(rte))
+                    #re-initialise one/all of the datasources
+                    src.read(src.getURI(),False)
+                    #self.read(self.getURI(),False)
+                    
+                else: 
+                    ldslog.error(rte,exc_info=1)
+                    raise
+            else:
+                break
             
         return max_key
         
@@ -345,7 +374,6 @@ class DataStore(object):
     
     def featureCopy(self,src_ds,dst_ds):
         '''Feature copy without the change column (and other incremental) overhead. Replacement for driverCopy(cloneDS).''' 
-        attempts = 0
         for li in range(0,src_ds.GetLayerCount()):
             new_layer = False
             src_layer = src_ds.GetLayer(li)
@@ -373,52 +401,48 @@ class DataStore(object):
             dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
             
             (dst_layer,new_layer) = self.buildNewDataLayer(dst_info,src_info,dst_ds)
+                
+
+            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+                dst_layer.StartTransaction()
+            else:
+                ldslog.warn('FBF outside transaction')
+                
+            #add/copy features
+            #src_layer.ResetReading()
+            src_feat = src_layer.GetNextFeature()
+            '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
+            if src_feat is not None:
+                new_feat_def = self.partialCloneFeatureDef(src_feat)
+                
+            while src_feat is not None:
+                #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
+                self.insertFeature(dst_layer,src_feat,new_feat_def)
+                
+                src_feat = src_layer.GetNextFeature()
             
-            while attempts<self.MAX_WFS_ATTEMPTS:
+            '''Builds an index on a newly created layer'''
+            #May need to be pushed out to subclasses depending on syntax differences
+            if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None:
+                self.buildIndex(layerconfentry,dst_info.layer_name)
+                
+            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 try:
-                    dst_layer.StartTransaction()
-                    #add/copy features
-                    #src_layer.ResetReading()
-                    src_feat = src_layer.GetNextFeature()
-                    '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
-                    if src_feat is not None:
-                        new_feat_def = self.partialCloneFeatureDef(src_feat)
-                        
-                    while src_feat is not None:
-                        #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
-                        self.insertFeature(dst_layer,src_feat,new_feat_def)
-                        
-                        src_feat = src_layer.GetNextFeature()
-                    
-                    '''Builds an index on a newly created layer'''
-                    #May need to be pushed out to subclasses depending on syntax differences
-                    if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None:
-                        self.buildIndex(layerconfentry,dst_info.layer_name)
-                        
                     dst_layer.CommitTransaction()
-                except RuntimeError as rte:
-                    #Server load problem so try again
-                    if attempts<self.MAX_WFS_ATTEMPTS \
-                        and (re.search('HTTP error code : 504',str(rte)) 
-                             or re.search('HTTP error code : 502',str(rte)) 
-                             or re.search('HTTP error code : 404',str(rte))):
-                        ldslog.warn("Failed LDS fetch attempt "+str(attempts)+"/"+str(self.MAX_WFS_ATTEMPTS)+". "+str(rte))
-                        attempts += 1
-                    else: 
-                        ldslog.error(rte,exc_info=1)
-                        raise
-                else:
-                    break
+                except RuntimeError:
+                    dst_layer.RollbackTransaction()
+                    raise
+                
+
                 
             src_layer.ResetReading()
-            dst_layer.ResetReading()            
+            dst_layer.ResetReading()       
     
     def featureCopyIncremental(self,src_ds,dst_ds,changecol):
         #TDOD. decide whether C_C is better as an arg or a src.prop
         '''DataStore feature-by-feature replication for incremental queries'''
         #build new layer by duplicating source layers  
         max_index = None
-        attempts = 0
         ldslog.info("Using featureCopyIncremental. Per-feature copy")
         for li in range(0,src_ds.GetLayerCount()):
             new_layer = False
@@ -456,78 +480,74 @@ class DataStore(object):
                 
                 (dst_layer,new_layer) = self.buildNewDataLayer(dst_info,src_info,dst_ds)
                 
-            while attempts<self.MAX_WFS_ATTEMPTS:
+            #dont bother with transactions if they're failing > N times
+            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+                dst_layer.StartTransaction()
+            else:
+                ldslog.warn('FBF outside transaction')
+
+            
+            #add/copy features
+            src_feat = src_layer.GetNextFeature()
+            '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
+            if src_feat is not None:
+                new_feat_def = self.partialCloneFeatureDef(src_feat)
+                e = 0
+                while 1:
+                    '''identify the change in the WFS doc (INS,UPD,DEL)'''
+                    change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+                    '''not just copy but possubly delete or update a feature on the DST layer'''
+                    #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
+                    
+                    try:
+                        if change == 'insert': 
+                            e = self.insertFeature(dst_layer,src_feat,new_feat_def)
+                        elif change == 'delete': 
+                            e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
+                        elif change == 'update': 
+                            e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                        else:
+                            ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
+                        #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
+                    except InvalidFeatureException as ife:
+                        ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+                        
+                    if e != 0:                  
+                        ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
+                        if change == 'update':
+                            ldslog.warn('Update failed on SetFeature, attempting delete/insert')
+                            #let delete and insert error handlers take care of any further exceptions
+                            e1 = self.deleteFeature(dst_layer,src_feat,layerconfentry.pkey)
+                            e2 = self.insertFeature(dst_layer,src_feat,new_feat_def)
+                            if e1+e2 != 0:
+                                raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
+                    
+                    
+                    next_feat = src_layer.GetNextFeature()
+                    #On no new features grab the last primary key index and break
+                    if next_feat is None:
+                        if hasattr(self.src_link, 'pkey'):
+                            max_index = src_feat.GetField(self.src_link.pkey)
+                        break
+                    else:
+                        src_feat = next_feat
+                    
+
+            #self._showLayerData(dst_layer)
+            
+            '''Builds an index on a newly created layer'''
+            #May need to be pushed out to subclasses depending on syntax differences
+            if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None:
+                self.buildIndex(layerconfentry,dst_info.layer_name)
+                
+            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 try:
-                    dst_layer.StartTransaction()
-                    
-                    #add/copy features
-                    src_feat = src_layer.GetNextFeature()
-                    '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
-                    if src_feat is not None:
-                        new_feat_def = self.partialCloneFeatureDef(src_feat)
-                        e = 0
-                        while 1:
-                            '''identify the change in the WFS doc (INS,UPD,DEL)'''
-                            change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
-                            '''not just copy but possubly delete or update a feature on the DST layer'''
-                            #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
-                            
-                            try:
-                                if change == 'insert': 
-                                    e = self.insertFeature(dst_layer,src_feat,new_feat_def)
-                                elif change == 'delete': 
-                                    e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
-                                elif change == 'update': 
-                                    e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-                                else:
-                                    ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
-                                #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
-                            except InvalidFeatureException as ife:
-                                ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
-                                
-                            if e != 0:                  
-                                ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-                                if change == 'update':
-                                    ldslog.warn('Update failed on SetFeature, attempting delete/insert')
-                                    #let delete and insert error handlers take care of any further exceptions
-                                    e1 = self.deleteFeature(dst_layer,src_feat,layerconfentry.pkey)
-                                    e2 = self.insertFeature(dst_layer,src_feat,new_feat_def)
-                                    if e1+e2 != 0:
-                                        raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
-                            
-                            
-                            next_feat = src_layer.GetNextFeature()
-                            #On no new features grab the last primary key index and break
-                            if next_feat is None:
-                                if hasattr(self.src_link, 'pkey'):
-                                    max_index = src_feat.GetField(self.src_link.pkey)
-                                break
-                            else:
-                                src_feat = next_feat
-                            
-        
-                    #self._showLayerData(dst_layer)
-                    
-                    '''Builds an index on a newly created layer'''
-                    #May need to be pushed out to subclasses depending on syntax differences
-                    if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None:
-                        self.buildIndex(layerconfentry,dst_info.layer_name)
-                    
                     dst_layer.CommitTransaction()
+                except RuntimeError:
+                    dst_layer.RollbackTransaction()
+                    raise
+                    
     
-                except RuntimeError as rte:
-                    #Usually a recoverable server load problem so try again
-                    if attempts<self.MAX_WFS_ATTEMPTS \
-                        and (re.search('HTTP error code : 504',str(rte)) 
-                             or re.search('HTTP error code : 502',str(rte)) 
-                             or re.search('HTTP error code : 404',str(rte))):
-                        ldslog.warn("Failed LDS fetch attempt "+str(attempts)+"/"+str(self.MAX_WFS_ATTEMPTS)+". "+str(rte))
-                        attempts += 1
-                    else: 
-                        ldslog.error(rte,exc_info=1)
-                        raise
-                else:
-                    break
             
             src_layer.ResetReading()
             dst_layer.ResetReading()
@@ -695,7 +715,7 @@ class DataStore(object):
                            
     def changeColumnIntToString(self,table,column):
         '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 
-        '''NOTE. No longer used! column change done at build time'''
+        #NOTE. No longer used! column change done at build time
         self.executeSQL('alter table '+table+' alter '+column+' type character varying')
         
     def identify64Bit(self,name):
@@ -819,7 +839,14 @@ class DataStore(object):
         else:
             return
         ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
-        self.executeSQL(cmd)
+        
+        try:
+            self.executeSQL(cmd)
+        except RuntimeError as rte:
+            if re.search('already exists', str(rte)): 
+                ldslog.warn(rte)
+            else:
+                raise
 
     
     # private methods

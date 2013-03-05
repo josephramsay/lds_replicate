@@ -123,7 +123,15 @@ class PostgreSQLDataStore(DataStore):
         else:
             return
         ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
-        self.executeSQL(cmd)
+        
+        
+        try:
+            self.executeSQL(cmd)
+        except RuntimeError as rte:
+            if re.search('already exists', str(rte)): 
+                ldslog.warn(rte)
+            else:
+                raise
         
         
         
