@@ -194,11 +194,11 @@ class DataStore(object):
         ds = None
         '''initialise a DS for writing'''
         try:
+            #we turn ogr exceptions off here so reported errors don't kill DS initialisation 
             ogr.DontUseExceptions()
             ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME=='WFS' else dsn, update = 1 if self.getOverwrite()=='YES' else 0)       
             if ds is None:
                 raise DSReaderException("Error opening DS "+str(dsn)+(', attempting DS create.' if create else ', quitting.'))
-        #catches DSReader (but not runtime) error, but don't fail since we'll try to init a new DS
         except (RuntimeError,DSReaderException) as dsre1:
             #print "DSReaderException",dsre1 
             ldslog.error(dsre1,exc_info=1)

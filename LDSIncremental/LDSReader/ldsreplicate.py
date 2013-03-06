@@ -216,25 +216,25 @@ def main():
             
 
     #aggregation point for LDS errors
+    
+    mm = '*** Complete *** '
     try:
         proc()
     except HTTPError as he:
         ldslog.error('Error connecting to LDS. '+str(he))
-        print str(he)
-        sys.exit(1)
+        mm = '*** Failed 1 *** '
     except DSReaderException as dse:
         ldslog.error('Error creating DataSource. '+str(dse))
-        print str(dse)
-        sys.exit(1)
+        mm = '*** Failed 2 *** '
     except Exception as e:
         #if errors are getting through we catch/report them
-        ldslog.warn("Error! "+str(e))
-        sys.exit(1)
+        ldslog.error("Error! "+str(e))
+        mm = '*** Failed 3 *** '
         
     
     et = datetime.now()
     
-    m2 = '*** Complete *** '+str(et.isoformat())
+    m2 = mm + str(et.isoformat())
     print m2
     ldslog.info(m2)
     
