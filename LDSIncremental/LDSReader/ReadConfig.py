@@ -429,23 +429,23 @@ class MainFileReader(object):
     
     def readMiscConfig(self):
         
-        sixtyfourlayers = ()
-        partitionlayers = ()
+        sixtyfourlayers = None
+        partitionlayers = None
         #NB. for v:x772 ps=1000000 is too small, 100000-1999999 returns None but ps=10000000 is too large, hangs or quits on XML parse fail
         partitionsize = None
         temptable = None
         
         try: 
-            sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
-            #LC: sixtyfourlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in self.cp.get(self.MISC, '64bitlayers').split(',')]
+            #sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
+            sixtyfourlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
         except NoSectionError:
             ldslog.warn("Misc: No Misc section detected looking for 64bit Layer specification")
         except NoOptionError:
             ldslog.warn("Misc: No 64bit Layers specified. NB. '64bitlayers'")
             
         try: 
-            partitionlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
-            #LC: partitionlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in self.cp.get(self.MISC, 'partitionlayers').split(',')]
+            #partitionlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
+            partitionlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
         except NoSectionError:
             ldslog.warn("Misc: No Misc section detected looking for Problem Layer specification")
         except NoOptionError:

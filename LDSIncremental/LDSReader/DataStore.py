@@ -89,7 +89,7 @@ class DataStore(object):
         #PYLINT. Set by TP but defined here. Not sure I agree with this requirement since it enforces specific instantiation order
         self.layer = None
         self.layerconf = None
-        self. OVERWRITE = None
+        self.OVERWRITE = None
         self.driver = None
         self.uri = None
         self.cql = None

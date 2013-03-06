@@ -20,7 +20,7 @@ from DataStore import DataStore
 
 class WFSDataStore(DataStore):
     '''
-    PostgreSQL DataStore
+    WFS DataStore, intended to be overridden by SRC specific implementation
     '''
 
     DRIVER_NAME = "WFS"
@@ -43,9 +43,14 @@ class WFSDataStore(DataStore):
         '''URI method returns source file name'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.conn_str
+        #possible defaults?
+        fmt = 'GML2'
+        key = None
+        svc = 'wfs'
+        ver = '1.0.0'
         typ = "&typeName="+layername
-        fmt = "&outputFormat="+self.fmt
-        return self.url+self.key+"/?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt
+        fmt = "&outputFormat="+fmt
+        return self.uri+key+"/?service="+svc+"&version="+ver+"&request=GetFeature"+typ+fmt
     
     def destinationURI(self,layername):
         '''URI method returns destination file name'''

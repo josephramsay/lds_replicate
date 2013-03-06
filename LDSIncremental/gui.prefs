@@ -1,0 +1,10 @@
+[prefs]
+dest = PostgreSQL
+layer = v:x787
+uconf = ldsincr.external.conf
+group = 
+epsg = 
+fd = None
+td = None
+int = False
+

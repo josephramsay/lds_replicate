@@ -42,6 +42,7 @@ ldslog.addHandler(fh)
         
 
 class LDSRepl(QtGui.QMainWindow):
+    '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
   
     def __init__(self):
         super(LDSRepl, self).__init__()
