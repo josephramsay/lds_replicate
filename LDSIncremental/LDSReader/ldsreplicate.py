@@ -125,9 +125,11 @@ def main():
             print __version__
             sys.exit(0)
         elif opt in ("-1","--drivercopy"):
+            #undocumented
             ldslog.info("Forcing DriverCopy")
             fbf = False
         elif opt in ("-2","--featurecopy"):
+            #undocumented
             ldslog.info("Forcing FeatureCopy")
             fbf = True
         elif opt in ("-f","--fromdate"):
