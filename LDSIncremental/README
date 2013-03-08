@@ -111,5 +111,5 @@ will be overriden globally in the config file or on the command line.
 
    
 
-A1. Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July  
+A1. Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds > ~July 2012 
 A2. Additional fixes implemented in GDAL 1.9.2 including SR handling (for ESRI) and attribute filters

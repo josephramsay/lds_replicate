@@ -178,7 +178,7 @@ def main():
 #        sys.exit(1)
     st = datetime.now()
     m1 = '*** Begin    *** '+str(st.isoformat())
-    print m1
+    print, pg, 
     ldslog.info(m1)
     tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,ie,fbf)
     
