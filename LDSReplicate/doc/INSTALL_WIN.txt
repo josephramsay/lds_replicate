@@ -1,0 +1,51 @@
+Some usefule GDAL installation instructions can be found at these two websites:
+
+http://pythongisandstuff.wordpress.com/2011/07/07/installing-gdal-and-ogr-for-python-on-windows/
+http://cartometric.com/blog/2011/10/17/install-gdal-on-windows/
+
+
+
+The basic installation procedure is
+
+Download
+--------
+
+Download GDAL and the GDAL python bindings. As of this writing the latest versions are:
+http://www.gisinternals.com/sdk/Download.aspx?file=release-1600-gdal-mapserver\gdal-110dev-1600-core.msi
+http://www.gisinternals.com/sdk/Download.aspx?file=release-1600-gdal-mapserver\GDAL-1.10.0.win32-py2.7.msi
+
+Download the LINZ replication package from github.
+https://github.com/josephramsay/LDS/archive/master.zip
+
+
+Install
+-------
+Install the GDAL package.
+gdal-110dev-1600-core.msi
+
+Then manually add the GDAL install location to the PATH system variable
+
+
+Open: Control-Panel
+Open: System
+Select: Advanced
+Select: Environment Variables
+choose PATH from the 'System variables' selection box and click edit
+Add "c:\Program Files\GDAL;" to the Variable value: string. NB. Make this the first entry in the PATH string to bypass previous/bogus installations
+
+
+Install the Python bindings.
+GDAL-1.10.0.win32-py2.7.msi
+
+Unzip the master.zip file to a convenient location
+Make a copy of the ldsincr.conf file giving it a meaningful name. This is your user preferences file.
+Edit your user preferences file adding your API key and changing other settings to suit your particular environment.
+
+NB. All that is absolutely needed here is an API key and optionally this could be added to the main config file instead 
+
+
+
+Test
+----
+To test whether GDAL has installed correctly open a command prompt and type ogr2ogr. If things have installed correctly you should see the ogr2ogr Usage message returned.
+To test whether the LDS replication script works correctly try the commandline "python <path-to>/ldsreplicate.py -h". This should return a Usage message
