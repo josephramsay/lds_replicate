@@ -19,6 +19,7 @@ Created on 17/09/2012
 
 import unittest
 import os
+import re
 import sys
 import time
 import logging
@@ -53,9 +54,10 @@ class TestUI(unittest.TestCase):
     DATE1 = '2012-02-25'
     DATE2 = '2012-09-17'
     
-    PATH_L = '/home/jramsay/git/LDS/LDSReplicate/lds/'
-    PATH_W = 'F:\\git\\LDS\\LDSReplicate\\lds\\'
-    PATH_C = PATH_W.replace('\\','/').replace('C:','/cygdrive/c')
+    PATH_L = '../../'
+    PATH_W = '..\\..\\'
+    PATH_C = re.sub(r'(\w):',r'/cygdrive/\1',PATH_W.replace('\\','/'))
+
     OUTP_L = ('pg',)#'fg','sl')
     OUTP_W = ('ms',)#'sl','fg')
     CONF_L = 'ldsincr.lnx.conf'

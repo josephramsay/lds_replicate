@@ -67,6 +67,7 @@ class DataStore(object):
     LDS_CONFIG_TABLE = 'lds_config'
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
+    #candidates for user config
     MAXIMUM_WFS_ATTEMPTS = 5
     TRANSACTION_THRESHOLD_WFS_ATTEMPTS = 4
     
@@ -87,6 +88,7 @@ class DataStore(object):
         '''
         Constructor inits driver and some date specific settings. Arguments are for config overrides 
         '''
+
         #PYLINT. Set by TP but defined here. Not sure I agree with this requirement since it enforces specific instantiation order
         self.layer = None
         self.layerconf = None
@@ -423,9 +425,8 @@ class DataStore(object):
                 
             #add/copy features
             #src_layer.ResetReading()
-            print 'getting first feat'
             src_feat = src_layer.GetNextFeature()
-            print 'didnt get a seg fault'
+
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
             if src_feat is not None:
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
@@ -448,11 +449,10 @@ class DataStore(object):
                 except RuntimeError:
                     dst_layer.RollbackTransaction()
                     raise
-                
-
-                
+            
             src_layer.ResetReading()
-            dst_layer.ResetReading()       
+            dst_layer.ResetReading()    
+
     
     def featureCopyIncremental(self,src_ds,dst_ds,changecol):
         #TDOD. decide whether C_C is better as an arg or a src.prop

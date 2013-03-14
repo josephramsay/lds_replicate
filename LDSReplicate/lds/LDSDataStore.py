@@ -66,7 +66,7 @@ class LDSDataStore(WFSDataStore):
         '''Adds GDAL options at driver initialisation, pagination_allowed and page_size'''
         #CPL_CURL_VERBOSE for those ogrerror/generalerror
         #OGR_WFS_PAGING_ALLOWED, OGR_WFS_PAGE_SIZE, OGR_WFS_BASE_START_INDEX
-        local_opts = ['CPL_CURL_VERBOSE=YES','OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
+        local_opts = ['OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
         
         return super(LDSDataStore,self).getConfigOptions(layer_id) + local_opts    
     

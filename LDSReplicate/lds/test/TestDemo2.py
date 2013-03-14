@@ -48,7 +48,7 @@ class TestDemo2(unittest.TestCase):
     def setUp(self):
         self.MS="MSSQL:server=LZ104588-VM\SQLExpress;database=LDSINCR;UID=mssqluser;PWD=mssqlpass;Driver=SQL Server Native Client 11.0;Schema=dbo"
         #super(TestUI,self).setUp()
-        self.APP = '../conf/ldsreplicate.py'
+        self.APP = '../../ldsreplicate.py'
         if 'inux' in sys.platform:
             self.DB = 'pg'
             self.UC = "../conf/ldsincr.lnx.conf"

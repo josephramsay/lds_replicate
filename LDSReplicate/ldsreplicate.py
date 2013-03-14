@@ -34,6 +34,7 @@ python LDSReader/ldsreplicate.py -l <layer_id>
 
 '''
 
+
 import sys
 import os
 import getopt
@@ -75,7 +76,6 @@ def main():
         <output>
     '''
 
-    
     td = None
     fd = None
     ly = None
@@ -180,7 +180,7 @@ def main():
     print m1
     ldslog.info(m1)
     tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,ie,fbf)
-    
+
     proc = None
     #output format
     if len(args)==0:
@@ -217,7 +217,6 @@ def main():
             
 
     #aggregation point for LDS errors
-    
     mm = '*** Complete *** '
     try:
         proc()
