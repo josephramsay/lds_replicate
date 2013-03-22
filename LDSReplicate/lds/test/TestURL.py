@@ -24,18 +24,24 @@ import logging
 import subprocess
 
 from lds.DataStore import MalformedConnectionString
+from lds.LDSUtilities import LDSUtilities
 
-ldslog = logging.getLogger('LDS')
-ldslog.setLevel(logging.DEBUG)
+ldslog = LDSUtilities.setupLogging()
 
-df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
-#df = '../debug.log'
-fh = logging.FileHandler(df,'a')
-fh.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-fh.setFormatter(formatter)
-ldslog.addHandler(fh)
+#ldslog = logging.getLogger('LDS')
+#ldslog.setLevel(logging.DEBUG)
+#
+#path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../log/"))
+#if not os.path.exists(path):
+#    os.mkdir(path)
+#df = os.path.join(path,"debug.log")
+#
+#fh = logging.FileHandler(df,'a')
+#fh.setLevel(logging.DEBUG)
+#
+#formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+#fh.setFormatter(formatter)
+#ldslog.addHandler(fh)
 
 
 class TestURL(unittest.TestCase):

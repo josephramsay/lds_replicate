@@ -73,12 +73,12 @@ class SpatiaLiteDataStore(DataStore):
         return os.path.join(self.path,self.name+self.SUFFIX)
     
 
-    def getConfigOptions(self,layer_id):
+    def getConfigOptions(self):
         '''SL config opts'''
         #DS options: METADATA, SPATIALITE, INIT_WITH_EPSG
         local_opts = ['SQLITE_LIST_ALL_TABLES='+self.SQLITE_LIST_ALL_TABLES]
         
-        return super(SpatiaLiteDataStore,self).getConfigOptions(layer_id) + local_opts
+        return super(SpatiaLiteDataStore,self).getConfigOptions() + local_opts
     
     def getLayerOptions(self,layer_id):
         '''SL layer'''

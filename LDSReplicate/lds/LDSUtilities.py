@@ -26,8 +26,6 @@ import string
 
 from urllib2 import urlopen
 from StringIO import StringIO
-
-
 from lxml import etree
 
 ldslog = logging.getLogger('LDS')
@@ -289,6 +287,25 @@ class LDSUtilities(object):
         if nstr == None or nstr=='None' or all(i in string.whitespace for i in nstr):
             return None
         return nstr
+    
+    @staticmethod
+    def setupLogging():
+        log = logging.getLogger('LDS')
+        log.setLevel(logging.DEBUG)
+        
+        path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../log/"))
+        if not os.path.exists(path):
+            os.mkdir(path)
+        df = os.path.join(path,"debug.log")
+        
+        fh = logging.FileHandler(df,'w')
+        fh.setLevel(logging.DEBUG)
+        
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s %(lineno)d - %(message)s')
+        fh.setFormatter(formatter)
+        log.addHandler(fh)
+        
+        return ldslog
 
 class ConfigInitialiser(object):
     '''Initialises configuration, for use at first run'''

@@ -97,11 +97,11 @@ class PostgreSQLDataStore(DataStore):
         return uri
 
 
-    def getConfigOptions(self,layer_id):
+    def getConfigOptions(self):
         '''Add PG options for SCHEMA and GEO_NAME'''
         #PG_USE_COPY,PGSQL_OGR_FID,PG_USE_BASE64
         local_opts = ['PG_USE_COPY=YES','PG_USE_BASE64=YES']        
-        return super(PostgreSQLDataStore,self).getConfigOptions(layer_id) + local_opts    
+        return super(PostgreSQLDataStore,self).getConfigOptions() + local_opts    
     
     def getLayerOptions(self,layer_id):
         '''PG layer creation options'''

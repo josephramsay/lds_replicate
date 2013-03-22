@@ -126,7 +126,7 @@ class DataStore(object):
         
      
     def applyConfigOptions(self):
-        for opt in self.getConfigOptions(None):
+        for opt in self.getConfigOptions():
             ldslog.info('Applying '+self.DRIVER_NAME+' option; '+opt)
             k,v = str(opt).split('=')
             gdal.SetConfigOption(k.strip(),v.strip())
@@ -177,7 +177,7 @@ class DataStore(object):
     def getOverwrite(self):
         return self.OVERWRITE   
     
-    def getConfigOptions(self,layer_id):
+    def getConfigOptions(self):
         '''Returns common options, overridden in subclasses for source specifc options'''
         return []    
     

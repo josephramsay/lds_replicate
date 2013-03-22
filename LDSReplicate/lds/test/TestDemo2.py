@@ -25,7 +25,12 @@ import logging
 ldslog = logging.getLogger('LDS')
 ldslog.setLevel(logging.DEBUG)
 
-df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
+
+path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../log/"))
+if not os.path.exists(path):
+    os.mkdir(path)
+df = os.path.join(path,"debug.log")
+
 #df = '../debug.log'
 fh = logging.FileHandler(df,'w')
 fh.setLevel(logging.DEBUG)
@@ -70,44 +75,44 @@ class TestDemo2(unittest.TestCase):
         pass
 
 
-    def test01Parcels(self):
-        '''parcels'''
-        #772 = nz_primary_parcels
-        l = 772
-        self.prepLayer(l, self.DB)
-        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" init "+self.DB
-        print st
-        #self.assertEquals(os.system(st),0)
-        
-        
-    def test02Roads(self):
-        '''Road subsections'''
-        #793 = nz_road_centre_line_subsections_electoral
-        l = 793
-        self.prepLayer(l, self.DB)
-        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" "+self.DB
-        print st
-        self.assertEquals(os.system(st),0)
-        
-        
-    def test03StreetAddr(self):
-        '''test boundingbox command and sr conversion'''
-        #779 = nz_street_address_electoral
-        l = 779
-        self.prepLayer(l, self.DB)
-        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" "+self.DB
-        print st
-        self.assertEquals(os.system(st),0)
-        
-        
-    def test04GeodeticMarks(self):
-        '''geodetic marks'''
-        #787 = nz_geodetic_marks
-        l = 787
-        self.prepLayer(l, self.DB)
-        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" "+self.DB
-        print st
-        self.assertEquals(os.system(st),0)
+#    def test01Parcels(self):
+#        '''parcels'''
+#        #772 = nz_primary_parcels
+#        l = 772
+#        self.prepLayer(l, self.DB)
+#        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" init "+self.DB
+#        print st
+#        #self.assertEquals(os.system(st),0)
+#        
+#        
+#    def test02Roads(self):
+#        '''Road subsections'''
+#        #793 = nz_road_centre_line_subsections_electoral
+#        l = 793
+#        self.prepLayer(l, self.DB)
+#        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" "+self.DB
+#        print st
+#        self.assertEquals(os.system(st),0)
+#        
+#        
+#    def test03StreetAddr(self):
+#        '''test boundingbox command and sr conversion'''
+#        #779 = nz_street_address_electoral
+#        l = 779
+#        self.prepLayer(l, self.DB)
+#        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" "+self.DB
+#        print st
+#        self.assertEquals(os.system(st),0)
+#        
+#        
+#    def test04GeodeticMarks(self):
+#        '''geodetic marks'''
+#        #787 = nz_geodetic_marks
+#        l = 787
+#        self.prepLayer(l, self.DB)
+#        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" "+self.DB
+#        print st
+#        self.assertEquals(os.system(st),0)
         
               
     def test05ASPTitleParcels(self):
@@ -149,15 +154,15 @@ class TestDemo2(unittest.TestCase):
         print st
         self.assertEquals(os.system(st),0)
         
-    def test09LandDistrict(self):
-        '''geodetic marks'''
-        #785 = nz_land_districts
-        l = 785
-        self.prepLayer(l, self.DB)
-        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" "+self.DB
-        print st
-        self.assertEquals(os.system(st),0)
-              
+#    def test09LandDistrict(self):
+#        '''geodetic marks'''
+#        #785 = nz_land_districts
+#        l = 785
+#        self.prepLayer(l, self.DB)
+#        st = "python "+self.APP+" -u "+self.UC+" -l v:x"+str(l)+" -e 2193 -c "+self.BB+" "+self.DB
+#        print st
+#        self.assertEquals(os.system(st),0)
+#              
 
     def prepLayer(self,l,o):
         '''Common layer clean function'''

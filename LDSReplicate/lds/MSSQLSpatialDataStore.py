@@ -60,7 +60,7 @@ class MSSQLSpatialDataStore(DataStore):
         return self._commonURI(layer)
         
     def validateConnStr(self,cs):
-        '''The MSSQL connection string must be something like; MSSQL:server=.\MSSQLSERVER2008;database=dbname;trusted_connection=yes'''
+        '''The MSSQL connection string must be something like (minimum); MSSQL:server=.\MSSQLSERVER2008;database=dbname;trusted_connection=yes'''
         if not re.search('^MSSQL:',cs,flags=re.IGNORECASE):
             '''TODO. We could append a MSSQL here instead'''
             raise MalformedConnectionString('MSSQL declaration must begin with \'MSSQL:\'')
@@ -76,8 +76,12 @@ class MSSQLSpatialDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.validateConnStr(self.conn_str)
         #return "MSSQL:server={};database={};trusted_connection={};".format(self.server, self.dbname, self.trust)
-        sstr = ";Schema={}".format(self.schema) if self.schema is not None and self.schema !='' else ""
-        uri = "MSSQL:server={};database={};UID={};PWD={};Driver={}".format(self.server, self.dbname, self.usr, self.pwd,self.odbc)+sstr
+        sstr = ";Schema={}".format(self.schema) if LDSUtilities.mightAsWellBeNone(self.schema) is not None else ""
+        usr = ";UID='{}'".format(self.usr) if LDSUtilities.mightAsWellBeNone(self.usr) is not None else ""
+        pwd = ";PWD='{}'".format(self.pwd) if LDSUtilities.mightAsWellBeNone(self.pwd) is not None else ""
+        drv = ";Driver='{}'".format(self.odbc) if LDSUtilities.mightAsWellBeNone(self.odbc) is not None else ""
+        tcn = ";trusted_connection='{}'".format(self.trust) if LDSUtilities.mightAsWellBeNone(self.trust) is not None else ""
+        uri = "MSSQL:server={};database={}".format(self.server, self.dbname, self.odbc)+usr+pwd+drv+sstr+tcn
         ldslog.debug(uri)
         return uri
         
@@ -138,7 +142,7 @@ class MSSQLSpatialDataStore(DataStore):
                 raise
                 
 
-    def getConfigOptions(self,layer_id):
+    def getConfigOptions(self):
         '''dataset creation not supported so no options'''
         local_opts = []
         return super(MSSQLSpatialDataStore,self).getConfigOptions() + local_opts

@@ -84,8 +84,13 @@ class ESRIDataStore(DataStore):
         return datasource
         
         
-    def getOptions(self,layer_id):
+    def getLayerOptions(self,layer_id):
         '''Direct push through to super since no pan-ESRI specific options'''
         
-        return super(ESRIDataStore,self).getOptions(layer_id)
+        return super(ESRIDataStore,self).getLayerOptions(layer_id)
+    
+    def getConfigOptions(self):
+        '''Direct push through to super'''
+        
+        return super(ESRIDataStore,self).getConfigOptions()
         

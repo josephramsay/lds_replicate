@@ -34,9 +34,9 @@ class WFSDataStore(DataStore):
         
         #(self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
         
-    def getConfigOptions(self,layer_id):
+    def getConfigOptions(self):
         '''Pass up getConfigOptions call'''
-        return super(WFSDataStore,self).getConfigOptions(layer_id)
+        return super(WFSDataStore,self).getConfigOptions()
     
     def getLayerOptions(self,layer_id):
         '''Pass up getLayerOptions call'''

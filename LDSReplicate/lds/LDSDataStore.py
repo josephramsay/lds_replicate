@@ -62,13 +62,13 @@ class LDSDataStore(WFSDataStore):
             
 
 
-    def getConfigOptions(self,layer_id):
+    def getConfigOptions(self):
         '''Adds GDAL options at driver initialisation, pagination_allowed and page_size'''
         #CPL_CURL_VERBOSE for those ogrerror/generalerror
         #OGR_WFS_PAGING_ALLOWED, OGR_WFS_PAGE_SIZE, OGR_WFS_BASE_START_INDEX
         local_opts = ['OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
-        
-        return super(LDSDataStore,self).getConfigOptions(layer_id) + local_opts    
+        local_opts += ['OGR_WFS_USE_STREAMING=NO']
+        return super(LDSDataStore,self).getConfigOptions() + local_opts    
     
     def getLayerOptions(self,layer_id):
         '''Adds GDAL options at driver initialisation, pagination_allowed and page_size'''
@@ -105,6 +105,7 @@ class LDSDataStore(WFSDataStore):
         uri = self.url+self.key+"/wfs?service=WFS&version=1.1.0&request=GetCapabilities"
         ldslog.debug(uri)
         return uri
+    
     
     def validateAPIKey(self,kstr):
         '''Make sure the provided key conforms to the required format'''
@@ -179,6 +180,14 @@ class LDSDataStore(WFSDataStore):
         ldslog.debug(uri)
         return uri
     
+    def sourceURI_feats(self,layername):
+        '''Endpoint constructor to fetch number of features for a specific layer. for: Trigger manual paging for broken JSON'''
+        #version must be 1.1.0 or > for this to work. NB outputFormat doesn't seem to have any effect here either so its omitted
+        ver="1.1.0"
+        typ = "&typeName="+layername
+        uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+ver+"&request=GetFeature&resultType=hits"+typ
+        ldslog.debug(uri)
+        return uri
     
     
     def _buildPageStr(self):

@@ -24,17 +24,24 @@ import sys
 import time
 import logging
 
-ldslog = logging.getLogger('LDS')
-ldslog.setLevel(logging.DEBUG)
+from lds.LDSUtilities import LDSUtilities
 
-df = os.path.normpath(os.path.join(os.path.dirname(__file__), "../debug.log"))
-#df = '../debug.log'
-fh = logging.FileHandler(df,'a')
-fh.setLevel(logging.DEBUG)
+ldslog = LDSUtilities.setupLogging()
 
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-fh.setFormatter(formatter)
-ldslog.addHandler(fh)
+#ldslog = logging.getLogger('LDS')
+#ldslog.setLevel(logging.DEBUG)
+#
+#path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../log/"))
+#if not os.path.exists(path):
+#    os.mkdir(path)
+#df = os.path.join(path,"debug.log")
+#
+#fh = logging.FileHandler(df,'a')
+#fh.setLevel(logging.DEBUG)
+#
+#formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+#fh.setFormatter(formatter)
+#ldslog.addHandler(fh)
 
 
 #class TestUI(LDSIncrTestCase):
