@@ -769,14 +769,15 @@ class DataStore(object):
         #DataStore._showFeatureData(fin)
         #DataStore._showFeatureData(fout)
         '''prepopulate any 64 replacement lists. this is done once per 64bit inclusive layer so not too intensive'''
-        if self.sixtyfour and not hasattr(self,'sufi_list'): 
+        if self.sixtyfour and (not hasattr(self,'sufi_list') or self.sufi_list is None): 
             self.sufi_list = {}
             doc = None
             for fin_no in range(0,fin.GetFieldCount()):
                 fin_field_name = fin.GetFieldDefnRef(fin_no).GetName()
                 if self.identify64Bit(fin_field_name) and fin_field_name not in self.sufi_list:
                     if doc is None:
-                        doc = LDSUtilities.readDocument(self.src_link.getURI())
+                        #fetch the GC document in GML2 format for column extraction. #TODO JSON extractor
+                        doc = LDSUtilities.readDocument(re.sub('JSON|GML3','GML2',self.src_link.getURI()))
                     self.sufi_list[fin_field_name] = SUFIExtractor.readURI(doc,fin_field_name)
             
         '''populate non geometric fields'''
@@ -956,9 +957,10 @@ class DataStore(object):
                     #we return here too since we assume user only wants to delete one layer, re-indexing issues occur for more than one deletion
                     return True
             ldslog.warning('Matching layer name not found, '+name+'. Attempting base level delete.')
-            if self._baseDeleteLayer(name):
-                ldslog.error('Unable to clean layer, '+str(self.layer))
-                raise DatasourceOpenException('Unable to clean layer, '+str(self.layer))
+            try:
+                self._baseDeleteLayer(name)
+            except:
+                raise DatasourceOpenException('Unable to clean layer, '+str(layer))
             return True
                 
                     

@@ -195,7 +195,7 @@ class MSSQLSpatialDataStore(DataStore):
     def versionCheck(self):
         '''MSSQL version checker'''
         #Microsoft SQL Server 2008 R2 (RTM) - 10.50.1600.1
-        from VersionChecker import VersionChecker,UnsupportedVersionException
+        from VersionUtilities import VersionChecker,UnsupportedVersionException
 
         msv_cmd = 'SELECT @@version'
 

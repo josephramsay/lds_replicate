@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSReplicate -  VersionChecker
+LDSReplicate -  VersionUtilities
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -38,6 +38,9 @@ MSSQL versions since 8
     
 '''
 
+#__version__ = '0.0.5.0'
+
+
 import osgeo.gdal
 import subprocess
 import re
@@ -49,6 +52,14 @@ from ReadConfig import MainFileReader
 
 class UnsupportedVersionException(Exception): pass
 
+class AppVersion(object):
+    __version__ = '0.0.5.0'
+    
+    @staticmethod
+    def getVersion():
+        return AppVersion.__version__
+    
+    
 class VersionChecker(object):
 
 

@@ -23,6 +23,8 @@ import sys
 import logging
 from datetime import datetime
 
+sys.path.append('..')
+
 from lds.LDSUtilities import LDSUtilities
 
 ldslog = LDSUtilities.setupLogging()

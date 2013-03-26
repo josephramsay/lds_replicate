@@ -24,6 +24,8 @@ import sys
 import time
 import logging
 
+sys.path.append('..')
+
 from lds.LDSUtilities import LDSUtilities
 
 ldslog = LDSUtilities.setupLogging()

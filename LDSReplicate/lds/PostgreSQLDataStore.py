@@ -146,7 +146,7 @@ class PostgreSQLDataStore(DataStore):
         
     def versionCheck(self):
         '''Postgres/Postgis version checker'''
-        from VersionChecker import VersionChecker,UnsupportedVersionException
+        from VersionUtilities import VersionChecker,UnsupportedVersionException
 
         pgv_cmd = 'SELECT version()'
         pgisv_cmd = 'SELECT postgis_full_version()'

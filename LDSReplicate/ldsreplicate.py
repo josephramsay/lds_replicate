@@ -46,7 +46,7 @@ from urllib2 import HTTPError
 
 from lds.TransferProcessor import TransferProcessor
 from lds.TransferProcessor import InputMisconfigurationException
-from lds.VersionChecker import VersionChecker, UnsupportedVersionException
+from lds.VersionUtilities import AppVersion, VersionChecker, UnsupportedVersionException
 from lds.DataStore import DSReaderException
 from lds.LDSUtilities import LDSUtilities
 
@@ -67,8 +67,7 @@ ldslog = LDSUtilities.setupLogging()
 #fh.setFormatter(formatter)
 #ldslog.addHandler(fh)
 
-__version__ = '0.0.4'
-
+__version__ = AppVersion.getVersion()
 
 def usage():
     print "Usage: python LDSReader/ldsreplicate.py -l <layer_id> [-f <from date>|-t <to date>|-c <cql filter>|-s <src conn str>|-d <dst conn str>|-v|-h] <output> [full]"

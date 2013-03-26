@@ -25,6 +25,7 @@ from WFSDataStore import WFSDataStore
 from urllib2 import urlopen
 from LDSUtilities import LDSUtilities
 from DataStore import MalformedConnectionString
+from VersionUtilities import AppVersion
 
 ldslog = logging.getLogger('LDS')
 
@@ -66,7 +67,8 @@ class LDSDataStore(WFSDataStore):
         '''Adds GDAL options at driver initialisation, pagination_allowed and page_size'''
         #CPL_CURL_VERBOSE for those ogrerror/generalerror
         #OGR_WFS_PAGING_ALLOWED, OGR_WFS_PAGE_SIZE, OGR_WFS_BASE_START_INDEX
-        local_opts = ['OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
+        local_opts = ['GDAL_HTTP_USERAGENT=LDSReplicate/'+str(AppVersion.getVersion())]
+        local_opts += ['OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
         local_opts += ['OGR_WFS_USE_STREAMING=NO']
         return super(LDSDataStore,self).getConfigOptions() + local_opts    
     

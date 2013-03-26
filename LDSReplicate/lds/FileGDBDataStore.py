@@ -108,7 +108,7 @@ class FileGDBDataStore(ESRIDataStore):
 #No way to retrieve the version of a FileGDB database. Nice consistency ESRI 
 #    def versionCheck(self):
 #        '''FileGDB version checker'''
-#        from VersionChecker import VersionChecker,UnsupportedVersionException
+#        from VersionUtilities import VersionChecker,UnsupportedVersionException
 #
 #        fgv_cmd = 'file '+str(self._commonURI(None)+'/gdb')
 #        

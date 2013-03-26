@@ -25,6 +25,7 @@ from lds.TransferProcessor import TransferProcessor
 from lds.LDSDataStore import LDSDataStore
 from lds.ReadConfig import GUIPrefsReader
 from lds.LDSUtilities import LDSUtilities
+from lds.VersionUtilities import AppVersion
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -44,6 +45,7 @@ ldslog = LDSUtilities.setupLogging()
 #fh.setFormatter(formatter)
 #ldslog.addHandler(fh)
 
+__version__ = AppVersion.getVersion()
 
 class LDSRepl(QtGui.QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''

@@ -214,7 +214,7 @@ class SpatiaLiteDataStore(DataStore):
 
     def versionCheck(self):
         '''SpatiaLite/SQLite version checker'''
-        from VersionChecker import VersionChecker,UnsupportedVersionException
+        from VersionUtilities import VersionChecker,UnsupportedVersionException
 
         slv_cmd = 'file '+str(self._commonURI(None))
         

@@ -23,6 +23,8 @@ import time
 import logging
 import subprocess
 
+sys.path.append('..')
+
 from lds.DataStore import MalformedConnectionString
 from lds.LDSUtilities import LDSUtilities
 

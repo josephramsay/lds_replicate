@@ -39,7 +39,9 @@ class LDSUtilities(object):
     @staticmethod
     def splitLayerName(layername):
         '''Splits a layer name typically in the format v:x### into /v/x### for URI inclusion'''
-        return "/"+layername.split(":")[0]+"/"+layername.split(":")[1]
+        #return "/"+"/".join(layername.split(":"))
+        return "/"+re.sub(":","/",layername)
+
     
     @staticmethod
     def cropChangeset(layername):
@@ -102,7 +104,7 @@ class LDSUtilities(object):
 
     @staticmethod
     def xmlEscape(url):
-        '''Simple XML escaping regex used to properly format WFS URLS (though it doesn't seem to be needed)'''
+        '''Simple XML escaping regex used to properly format WFS URLS (wfs specs as for it but it doesn't seem to be needed)'''
         #first 4, simple replace: "=&quot; '=&apos; <=&lt; >=&gt; &=&amp;
         url = re.sub('"','&quot;',url)
         url = re.sub('\'','&apos;',url)
@@ -116,6 +118,7 @@ class LDSUtilities(object):
     @staticmethod
     def percentEncode(url):
         '''Simple http bracket/comma escaping regex used to properly format WFS URLS'''
+        #this is the full list but we should only need a small subset of these, i.e. brackets, spaces and commas
         #!     #     $     &     '     (     )     *     +     ,     /     :     ;     =     ?     @     [     ]
         #%21   %23   %24   %26   %27   %28   %29   %2A   %2B   %2C   %2F   %3A   %3B   %3D   %3F   %40   %5B   %5D
         url = re.sub('\(','%28',url)
