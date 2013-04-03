@@ -4,14 +4,17 @@
 Name "LDS Replicate"
 
 # General Symbol Definitions
-!define REGKEY "SOFTWARE\$(^Name)"
+!define APPNAME $(^Name)
+!define REGKEY "SOFTWARE\${APPNAME}"
 !define VERSION 0.0.5
 !define COMPANY "Land Information New Zealand"
 !define URL https://www.linz.govt.nz/
 
 # Included files
 !include Sections.nsh
+!include nsDialogs.nsh
 !include InstallOptions.nsh
+!include EnvVarUpdate.nsh
 !include x64.nsh
 
 # Reserved Files
@@ -24,6 +27,7 @@ Var StartMenuGroup
 Page license
 Page components
 Page directory
+Page custom EnvReqCreate EnvReqLeave
 Page custom StartMenuGroupSelect "" ": Start Menu Folder"
 ;Page custom APIKeyPageFunction
 Page instfiles
@@ -97,7 +101,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\SpatiaLiteDataStore.py
     File F:\git\LDS\LDSReplicate\lds\TemporaryDataStore.py
     File F:\git\LDS\LDSReplicate\lds\TransferProcessor.py
-    File F:\git\LDS\LDSReplicate\lds\Versionchecker.py
+    File F:\git\LDS\LDSReplicate\lds\VersionUtilities.py
     File F:\git\LDS\LDSReplicate\lds\WFSDataStore.py
     SetOutPath $INSTDIR\apps\ldsreplicate\lds\test
     File F:\git\LDS\LDSReplicate\lds\test\__init__.py
@@ -105,6 +109,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\test\TestDemo1.py
     File F:\git\LDS\LDSReplicate\lds\test\TestDemo2.py
     File F:\git\LDS\LDSReplicate\lds\test\TestSpeed.py
+    File F:\git\LDS\LDSReplicate\lds\test\TestSize.py
     File F:\git\LDS\LDSReplicate\lds\test\TestUI.py
     File F:\git\LDS\LDSReplicate\lds\test\TestURL.py
     SetOutPath $INSTDIR\apps\ldsreplicate\log
@@ -141,15 +146,15 @@ Section -post SEC0005
     WriteRegStr HKLM "${REGKEY}" StartMenuGroup $StartMenuGroup
     SetOutPath $INSTDIR
     WriteUninstaller $INSTDIR\uninstall.exe
-    !insertmacro CREATE_SMGROUP_SHORTCUT "Uninstall $(^Name)" $INSTDIR\uninstall.exe
-    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" DisplayName "$(^Name)"
-    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" DisplayVersion "${VERSION}"
-    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" Publisher "${COMPANY}"
-    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" URLInfoAbout "${URL}"
-    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" DisplayIcon $INSTDIR\uninstall.exe
-    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" UninstallString $INSTDIR\uninstall.exe
-    WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" NoModify 1
-    WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" NoRepair 1
+    !insertmacro CREATE_SMGROUP_SHORTCUT "Uninstall ${APPNAME}" $INSTDIR\uninstall.exe
+    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" DisplayName "${APPNAME}"
+    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" DisplayVersion "${VERSION}"
+    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" Publisher "${COMPANY}"
+    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" URLInfoAbout "${URL}"
+    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" DisplayIcon $INSTDIR\uninstall.exe
+    WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" UninstallString $INSTDIR\uninstall.exe
+    WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" NoModify 1
+    WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" NoRepair 1
 SectionEnd
 
 # Macro for selecting uninstaller sections
@@ -172,17 +177,17 @@ done${UNSECTION_ID}:
 !macroend
 
 Section /o -un.License UNSEC0003
-    RmDir /r /REBOOTOK $INSTDIR
+    RmDir /r /REBOOTOK $INSTDIR\license
     DeleteRegValue HKLM "${REGKEY}\Components" License
 SectionEnd
 
 Section /o -un.GDAL UNSEC0002
-    RmDir /r /REBOOTOK $INSTDIR
+    RmDir /r /REBOOTOK $INSTDIR\bin\gdal
     DeleteRegValue HKLM "${REGKEY}\Components" GDAL
 SectionEnd
 
 Section /o "-un.Python 2.7" UNSEC0001
-    RmDir /r /REBOOTOK $INSTDIR
+    RmDir /r /REBOOTOK $INSTDIR\apps\python27
     DeleteRegValue HKLM "${REGKEY}\Components" "Python 2.7"
 SectionEnd
 
@@ -190,25 +195,29 @@ Section /o "-un.LDS Replicate" UNSEC0000
     Delete /REBOOTOK $INSTDIR\setup_vars.bat
     Delete /REBOOTOK $INSTDIR\ldsreplicate_gui.bat
     Delete /REBOOTOK $INSTDIR\ldsreplicate.bat
-    RmDir /r /REBOOTOK $INSTDIR\apps
+    RmDir /r /REBOOTOK $INSTDIR\apps\ldsreplicate
     DeleteRegValue HKLM "${REGKEY}\Components" "LDS Replicate"
 SectionEnd
 
 Section -un.post UNSEC0004
-    DeleteRegKey HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)"
-    !insertmacro DELETE_SMGROUP_SHORTCUT "Uninstall $(^Name)"
+    DeleteRegKey HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
+    !insertmacro DELETE_SMGROUP_SHORTCUT "Uninstall ${APPNAME}"
     Delete /REBOOTOK $INSTDIR\uninstall.exe
     DeleteRegValue HKLM "${REGKEY}" StartMenuGroup
     DeleteRegValue HKLM "${REGKEY}" Path
     DeleteRegKey /IfEmpty HKLM "${REGKEY}\Components"
     DeleteRegKey /IfEmpty HKLM "${REGKEY}"
     RmDir /REBOOTOK $SMPROGRAMS\$StartMenuGroup
+    RmDir /REBOOTOK $INSTDIR\apps
+    RmDir /REBOOTOK $INSTDIR\bin
     RmDir /REBOOTOK $INSTDIR
     Push $R0
     StrCpy $R0 $StartMenuGroup 1
     StrCmp $R0 ">" no_smgroup
 no_smgroup:
     Pop $R0
+    
+    Call un.EnvReqUninstall
 SectionEnd
 
 # Installer functions
@@ -228,38 +237,116 @@ FunctionEnd
 
 Function .onInit
     InitPluginsDir
-;    !insertmacro INSTALLOPTIONS_EXTRACT "lds-apikey.ini"
-    ${If} ${RunningX64}
-       DetailPrint "Installer running on 64-bit host"
-       ; disable registry redirection (enable access to 64-bit portion of registry)
-       SetRegView 64
-       ; change install dir
-       StrCpy $INSTDIR "$PROGRAMFILES64\LDS Replicate"
-    ${EndIf}
 FunctionEnd
 
-;Function WriteNewUserConf
-;    FileOpen $5 "$INSTDIR\SomeFile.txt" r
-;    FileSeek $5 1000 ; we want to start reading at the 1000th byte
-;    FileRead $5 $1 ; we read until the end of line (including carriage return and new line) and save it to $1
-;    FileRead $5 $2 10 ; read 10 characters from the next line
-;    FileClose $5 ;
-;     
-;    FileOpen $4 "$DESKTOP\ldsincr.user.conf" w
-;    FileWrite $4 "hello"
-;    FileClose $4
-;FunctionEnd
+#Custom user page functions
+Function EnvReqCreate
+    Var /Global Dialog
+    Var /Global Label1
+    Var /Global Label2
+    Var /Global CheckBox1
+    Var /Global CheckBox1_State
+    Var /Global CheckBox2
+    Var /Global CheckBox2_State
+    Var /Global CheckBox3
+    Var /Global CheckBox3_State
+    
+    nsDialogs::Create /NOUNLOAD 1018
+    Pop $Dialog
+    ${If} $Dialog == error
+        Abort
+    ${EndIf}
+    
+    ${NSD_CreateLabel} 0 0 100% 12u "Permanently Install LDSReplicate Environment Variables?"
+    Pop $Label1
+    ${NSD_CreateLabel} 0 20 100% 24u "(Not required if using the supplied batch (.bat) scripts$\n or when components and their paths are already installed)"
+    Pop $Label2
+    
+    ${NSD_CreateCheckbox} 0 50u 100% 10u "&System PATH"
+    Pop $CheckBox1
+    ${If} $CheckBox1_State == ${BST_CHECKED}
+        ${NSD_Check} $CheckBox1
+    ${EndIf}
+    
+    ${NSD_CreateCheckbox} 0 65u 100% 10u "&PYTHONPATH"
+    Pop $CheckBox2
+    ${If} $CheckBox2_State == ${BST_CHECKED}
+        ${NSD_Check} $CheckBox2
+    ${EndIf}
+    
+    ${NSD_CreateCheckbox} 0 80u 100% 10u "&GDAL_DRIVER and GDAL_PLUGINS"
+    Pop $CheckBox3
+    ${If} $CheckBox3_State == ${BST_CHECKED}
+        ${NSD_Check} $CheckBox3
+    ${EndIf}
 
-;doesnt matter since the user is going to have to change/add their connection data anyway
-;Function APIKeyPageFunction ;Function name defined with Page command
-;  !insertmacro INSTALLOPTIONS_DISPLAY "lds-apikey.ini"
-;FunctionEnd
+    nsDialogs::Show
+FunctionEnd
 
-;Function ValidateAPIKey
-;  !insertmacro INSTALLOPTIONS_READ $R0 "lds-apikey.ini" "Field 1" "Text"
-;  !insertmacro INSTALLOPTIONS_EXTRACT_AS "apps\ldsreplicate\conf\ldsincr.user.conf" "ldsincr.user.conf"
-;  !insertmacro INSTALLOPTIONS_WRITE "ldsincr.user.conf" "LDS" "Key" $R0
-;FunctionEnd
+Function EnvReqLeave
+    ;system path
+    ${NSD_GetState} $CheckBox1 $CheckBox1_State
+    ${If} $CheckBox1_State == ${BST_CHECKED}
+        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR"
+        ${EnvVarUpdate} $0 "PATH" "P" "HKLM" "$INSTDIR\bin\gdal"
+        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\apps\python27"
+        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\apps\ldsreplicate"
+        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\gdal\bin"
+        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\gdal\gdalplugins"
+        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\gdal\gdal-data"  
+    ${EndIf}
+    
+    ;pythonpath
+    ${NSD_GetState} $CheckBox2 $CheckBox2_State
+    ${If} $CheckBox2_State == ${BST_CHECKED}
+       ${EnvVarUpdate} $0 "PYTHONHOME" "A" "HKLM" "$INSTDIR\python27"
+       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\python27"
+       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\DLLs"
+       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\lib"
+       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\lib\lib-tk"
+       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\lib\site-packages"
+       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\lib\site-packages\osgeo" 
+    ${EndIf}
+   
+    ;gdal
+    ${NSD_GetState} $CheckBox3 $CheckBox3_State
+    ${If} $CheckBox3_State == ${BST_CHECKED}
+       ${EnvVarUpdate} $0 "GDAL_DATA" "A" "HKLM" "$INSTDIR\bin\gdal\gdal-data"
+       ${EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "A" "HKLM" "$INSTDIR\bin\gdal\gdalplugins"
+       ${EnvVarUpdate} $0 "PROJ_LIB" "A" "HKLM" "$INSTDIR\bin\gdal\projlib"
+    ${EndIf}
+    
+    SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+
+FunctionEnd
+
+Function un.EnvReqUninstall
+
+    DetailPrint "actually Uninstalling ${REGKEY} installed at $INSTDIR"
+    
+    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR"
+    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal"
+    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\python27"
+    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\ldsreplicate"
+    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\bin"
+    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\gdalplugins"
+    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\gdal-data"  
+
+    ${un.EnvVarUpdate} $0 "PYTHONHOME" "R" "HKLM" "$INSTDIR\python27"
+    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\python27"
+    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\DLLs"
+    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib"
+    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\lib-tk"
+    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\site-packages"
+    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\site-packages\osgeo" 
+
+    ${un.EnvVarUpdate} $0 "GDAL_DATA" "R" "HKLM" "$INSTDIR\bin\gdal\gdal-data"
+    ${un.EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "R" "HKLM" "$INSTDIR\bin\gdal\gdalplugins"
+    ${un.EnvVarUpdate} $0 "PROJ_LIB" "R" "HKLM" "$INSTDIR\bin\gdal\projlib"
+    
+    SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+
+FunctionEnd
 
 Function CreateSMGroupShortcut
     Exch $R0 ;PATH
@@ -278,8 +365,13 @@ FunctionEnd
 
 # Uninstaller functions
 Function un.onInit
+    SetRegView 64
+
     ReadRegStr $INSTDIR HKLM "${REGKEY}" Path
     ReadRegStr $StartMenuGroup HKLM "${REGKEY}" StartMenuGroup
+    
+    ;ReadRegStr isnt supposed to work on 64
+    ;ReadRegStr $StartMenuGroup HKLM "${REGKEY}" StartMenuGroup
     !insertmacro SELECT_UNSECTION "LDS Replicate" ${UNSEC0000}
     !insertmacro SELECT_UNSECTION "Python 2.7" ${UNSEC0001}
     !insertmacro SELECT_UNSECTION GDAL ${UNSEC0002}

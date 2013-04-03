@@ -18,7 +18,6 @@ Created on 17/09/2012
 '''
 
 import unittest
-import os
 import sys
 import pcapy
 
@@ -45,7 +44,7 @@ class TestSize(unittest.TestCase):
     '''Data Size test of ldsreplicate.py. Must be run as admin/root to get access to interfaces'''
     
     #        WACA,    land-dist, name-assoc, antarctic (non-NZ sref, RSRGD)
-    LAYER = ('v:x836','v:x785', 'v:x787', 'v:x1203')
+    LAYER = ('v:x787',)#('v:x772','v:x836','v:x785', 'v:x787', 'v:x1203')
     LAYER_GEODETIC = ('v:x784','v:x786','v:x787','v:x788','v:x789','v:x817','v:x839','v:x1029')
     LAYER_ASPATIAL = ('v:x1203','v:x1209','v:x1204','v:x1208','v:x1211','v:x1210','v:x1199')
     LAYER_PROBLEM = ('v:x772','v:x293')
@@ -56,11 +55,6 @@ class TestSize(unittest.TestCase):
     
     LAYER_ALL = LAYER_GEODETIC+LAYER_ASPATIAL+LAYER_HYDRO+LAYER_TOPO
     #2113=Wellington NZGD2000, 3788=AKL islands WGS84,2759=NAD83/HARN Alabama
-    EPSG = (2113,3788,2759)
-    DATE = '2012-03-20'
-    
-    DATE1 = '2012-02-25'
-    DATE2 = '2012-09-17'
     
     PATH_L = '/home/jramsay/git/LDS/LDSReplicate/'
     PATH_W = 'F:\\git\\LDS\\LDSReplicate\\'
@@ -112,18 +106,18 @@ class TestSize(unittest.TestCase):
 
                 tp2 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_2, None)
                 self.prepLayer(tp2,o)
-                d2t,d2r = self.monitor(self.selectProcess(tp2,o))
-                print 'GML2::layer::',l,' data='+str(d2t)+'b.','rate='+str(d2r)+'b/s.'
+                d2t,d2r,d2c = self.monitor(self.selectProcess(tp2,o))
+                print 'GML2::layer::',l,' data='+str(d2t/1000)+'kb.','rate='+str(d2r)+'b/s.','count='+str(d2c)
                 
                 tp3 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_3, None)
                 self.prepLayer(tp3,o)
-                d3t,d3r = self.monitor(self.selectProcess(tp3,o))
-                print 'GML3::layer::',l,' data='+str(d3t)+'b.','rate='+str(d3r)+'b/s.'
+                d3t,d3r,d3c = self.monitor(self.selectProcess(tp3,o))
+                print 'GML3::layer::',l,' data='+str(d3t/1000)+'kb.','rate='+str(d3r)+'b/s.','count='+str(d3c)
 
                 tpj = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_J, None)
                 self.prepLayer(tpj, o) 
-                djt,djr = self.monitor(self.selectProcess(tpj,o))
-                print 'JSON::layer::',l,' data='+str(djt)+'b.','rate='+str(djr)+'b/s.'
+                djt,djr,djc = self.monitor(self.selectProcess(tpj,o))
+                print 'JSON::layer::',l,' data='+str(djt/1000)+'kb.','rate='+str(djr)+'b/s.','count='+str(djc)
                 
         self.assertTrue(True)
         
@@ -155,10 +149,10 @@ class TestSize(unittest.TestCase):
         nm = NetMonitor(dev,None)
         nm.start()
         proc()
-        nm.active = False
+        nm.stop()
         nm.join()
         
-        return nm.totaltransfer,nm.avg_rate
+        return nm.totaltransfer,nm.getAverageRate(),nm.count
     
         
     def prepLayerGeodetic(self,o):
@@ -184,7 +178,7 @@ from pcapy import PcapError
 
 class NetMonitor(threading.Thread):
 
-    _timeout = 1
+    _timeout = 0.001
     _snaplen = 65535#4096
 
     @classmethod
@@ -197,7 +191,7 @@ class NetMonitor(threading.Thread):
 
         self.active = True
         try:
-            self.netmon = pcapy.open_live(device, self._snaplen, True, self._timeout * 1000)
+            self.netmon = pcapy.open_live(device, self._snaplen, True, int(self._timeout * 1000))
             self.netmon.setfilter('host wfs.data.linz.govt.nz')
             self.dumper = self.netmon.dump_open("../log/pktdump.log")
         except PcapError as pce:
@@ -208,31 +202,31 @@ class NetMonitor(threading.Thread):
         self.totaltransfer = 0 # total number of Bytes transfered
 
         #<--- this is to calc average transfer B/s
-        self.temp_bps = 0 # sums up B/s values from each dispatch iteration (eventually used to calc average value)
+        self.temp_bytes_per_sec = 0 # sums up B/s values from each dispatch iteration (eventually used to calc average value)
         self.count = 0 # number of dispatch iterations (eventually used to calc average B/s value)
         #--->
 
-        self.dispatch_bs = 0 # sums up packets size for one dispatch call
+        self.dispatch_bytes = 0 # sums up packets size for one dispatch call
 
 
     def handlePacket(self, header, data):
         # method is called for each packet by dispatch call (pcapy)
-        self.dispatch_bs += len(data) #header.getlen() #len(data)
-        ldslog.debug("h: (len:{}, clen:{}, ts:{}), d:{}".format(header.getlen(), header.getcaplen(), header.getts(), len(data)))
+        self.dispatch_bytes += len(data) #header.getlen() #len(data)
+        #ldslog.debug("h: (len:{}, clen:{}, ts:{}), d:{}".format(header.getlen(), header.getcaplen(), header.getts(), len(data)))
         self.dumper.dump(header, data)
 
 
     def update(self):
-        self.dispatch_bs = 0
+        self.dispatch_bytes = 0
         # process packets
         packets_nr = self.netmon.dispatch(-1, self.handlePacket)
-        self.totaltransfer += self.dispatch_bs
+        self.totaltransfer += self.dispatch_bytes
 
         self.count += 1
-        self.currentrate = self.dispatch_bs  # add single dispatch B/s -> timeout is 1 s
-        self.temp_bps += self.currentrate
+        self.currentrate = self.dispatch_bytes / self._timeout  # add single dispatch B/s -> timeout is 1 s
+        self.temp_bytes_per_sec += self.currentrate
 
-        ldslog.debug('Count:{},\tCurrent Rate: {}B/s,\tAverage Rate: {}B/s,\tTotal:{}B'.format(self.count, self.current_rate, self.avg_rate, self.totaltransfer))
+        #ldslog.debug('Count:{},\tCurrent Rate: {}B/s,\tAverage Rate: {}B/s,\tTotal:{}B, Pkts NR: {}'.format(self.count, self.currentrate, self.getAverageRate(), self.totaltransfer, packets_nr))
 
         return self.currentrate, packets_nr
 
@@ -240,7 +234,7 @@ class NetMonitor(threading.Thread):
 
     def getAverageRate(self):
         if self.count:
-            return self.temp_bps / self.count
+            return self.temp_bytes_per_sec / self.count
         else:
             return 0
 
@@ -250,14 +244,18 @@ class NetMonitor(threading.Thread):
 
     def run(self):
         while(self.active):
+            #call update() every timeout (1s) till no longer active
             self.update()
             time.sleep(self._timeout)
 
+    def stop(self):
+        self.active = False
+        
 
     # average B/s rate
-    avg_rate = property(getAverageRate)
+    #avg_rate = property(getAverageRate)
     # current B/s rate 
-    current_rate = property(getCurrentRate)
+    #current_rate = property(getCurrentRate)
 
 ###----------------------------------------------------------------------------        
         

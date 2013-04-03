@@ -29,22 +29,6 @@ from lds.VersionUtilities import AppVersion
 
 ldslog = LDSUtilities.setupLogging()
 
-#ldslog = logging.getLogger('LDS')
-#ldslog.setLevel(logging.DEBUG)
-#
-#
-#path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../log/"))
-#if not os.path.exists(path):
-#    os.mkdir(path)
-#df = os.path.join(path,"debug.log")
-#
-#fh = logging.FileHandler(df,'a')
-#fh.setLevel(logging.DEBUG)
-#
-#formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-#fh.setFormatter(formatter)
-#ldslog.addHandler(fh)
-
 __version__ = AppVersion.getVersion()
 
 class LDSRepl(QtGui.QMainWindow):
@@ -85,8 +69,7 @@ class LDSRepl(QtGui.QMainWindow):
         prefs = LDSPrefsEditor()
         prefs.setWindowTitle('LDS Preferences Editor')
         prefs.show() 
-        
-        
+    
 class LDSControls(QtGui.QFrame):
     
     def __init__(self,parent):
@@ -399,8 +382,6 @@ class LDSPrefsEditor(QtGui.QMainWindow):
         self.editor.textedit.setText(filedata)
         self.statusbar.showMessage('Editing '+self.filename)
         f.close()
-
-
         
 class LDSPrefsFrame(QtGui.QFrame):
     
@@ -420,12 +401,303 @@ class LDSPrefsFrame(QtGui.QFrame):
         
         self.setLayout(vbox)  
 
+
+        
+#---> QWizard Section <----------------------------------------------------------------------------
+       
+class LDSConfigWizard(QtGui.QWizard):
+    def __init__(self, parent=None):
+        super(LDSConfigWizard, self).__init__(parent)
+        
+        self.plist = {'lds':(0,'LDS',LDSConfigPage),
+                 'pg':(1,'PostgreSQL',PostgreSQLConfigPage),
+                 'ms':(2,'MSSQLSpatial',MSSQLSpatialConfigPage),
+                 'fg':(3,'FileGDB',FileGDBConfigPage),
+                 'sl':(4,'SpatiaLite',SpatiaLiteConfigPage),
+                 'final':(5,'Final',ConfirmationPage)}
+        
+        for key in self.plist.keys():
+            self.setPage(self.plist.get(key)[0],self.plist.get(key)[2](self))
+
+        self.setWindowTitle("QVariant Test")
+        self.resize(640,480)
+
+        
+class LDSConfigPage(QtGui.QWizardPage):
+    def __init__(self, parent=None):
+        super(LDSConfigPage, self).__init__(parent)
+        
+        self.parent = parent 
+        
+        self.setTitle('LDS Configuration Options')
+
+        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        
+        #labels
+        cfileLabel = QtGui.QLabel('User Config File')
+        keyLabel = QtGui.QLabel('LDS API Key')
+        destLabel = QtGui.QLabel('Output Type')
+        
+        #edit boxes
+        self.cfileEdit = QtGui.QLineEdit('')
+        self.keyEdit = QtGui.QLineEdit('')
+        self.destSelect = QtGui.QComboBox()
+        self.destSelect.addItem('')
+        self.destSelect.addItem(self.parent.plist.get('pg')[1], self.parent.plist.get('pg')[0])
+        self.destSelect.addItem(self.parent.plist.get('ms')[1], self.parent.plist.get('ms')[0])
+        self.destSelect.addItem(self.parent.plist.get('fg')[1], self.parent.plist.get('fg')[0])
+        self.destSelect.addItem(self.parent.plist.get('sl')[1], self.parent.plist.get('sl')[0])
+        
+        self.registerField("cfile",self.cfileEdit,"currentStringData")
+        self.registerField("apikey",self.keyEdit,"currentStringData")
+        self.registerField('destselect',self.destSelect,"currentIndex")
+        
+        #buttons
+        cfileButton = QtGui.QPushButton("...")
+        cfileButton.setToolTip('Select Config File')
+        cfileButton.setBaseSize(100, 100)
+        cfileButton.clicked.connect(self.selectConfFile)
+
+
+        #grid
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(10)
+        
+        grid.addWidget(cfileLabel, 1, 0)
+        grid.addWidget(self.cfileEdit, 1, 2)
+        grid.addWidget(cfileButton, 1, 3)        
+        
+        grid.addWidget(keyLabel, 2, 0)
+        grid.addWidget(self.keyEdit, 2, 2)
+        
+        grid.addWidget(destLabel, 3, 0)
+        grid.addWidget(self.destSelect, 3, 2)
+
+        #layout       
+        self.setLayout(grid)
+        
+    def selectConfFile(self):
+        self.cfileEdit.setText(QtGui.QFileDialog.getOpenFileName())
+
+    def nextId(self):
+        return int(self.field('destselect').toString())
+        
+        
+        #self.parent.setCentralWidget(self.parent.pgconf)
+class PostgreSQLConfigPage(QtGui.QWizardPage):
+    def __init__(self,parent=None):
+        super(PostgreSQLConfigPage, self).__init__(parent)
+        
+        self.parent = parent 
+        
+        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        
+        
+        #labels
+        hostLabel = QtGui.QLabel('PostgreSQL Host')
+        portLabel = QtGui.QLabel('PostgreSQL Port')
+        dbnameLabel = QtGui.QLabel('PostgreSQL DB Name')
+        schemaLabel = QtGui.QLabel('PostgreSQL DB Schema')
+        usrLabel = QtGui.QLabel('Username')
+        pwdLabel = QtGui.QLabel('Password')
+        
+        #edit boxes
+        self.hostEdit = QtGui.QLineEdit('')
+        self.portEdit = QtGui.QLineEdit('')
+        self.dbnameEdit = QtGui.QLineEdit('')
+        self.schemaEdit = QtGui.QLineEdit('')
+        self.usrEdit = QtGui.QLineEdit('')
+        self.pwdEdit = QtGui.QLineEdit('')
+        
+
+        #grid
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(10)
+        
+        #layout
+        grid.addWidget(hostLabel, 1, 0)
+        grid.addWidget(self.hostEdit, 1, 2)
+        
+        grid.addWidget(portLabel, 2, 0)
+        grid.addWidget(self.portEdit, 2, 2)
+        
+        grid.addWidget(dbnameLabel, 3, 0)
+        grid.addWidget(self.dbnameEdit, 3, 2)
+        
+        grid.addWidget(schemaLabel, 4, 0)
+        grid.addWidget(self.schemaEdit, 4, 2)
+        
+        grid.addWidget(usrLabel, 5, 0)
+        grid.addWidget(self.usrEdit, 5, 2)
+        
+        grid.addWidget(pwdLabel, 6, 0)
+        grid.addWidget(self.pwdEdit, 6, 2)
+        
+        
+        #layout                
+        self.setLayout(grid)  
+        
+
+    def nextId(self):
+        return self.parent.plist.get('final')[0]
+        
+
+        
+        
+class MSSQLSpatialConfigPage(QtGui.QWizardPage):
+    def __init__(self,parent=None):
+        super(MSSQLSpatialConfigPage, self).__init__(parent)
+        
+        self.parent = parent 
+        
+        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        
+        #labels
+        serverLabel = QtGui.QLabel('MSSQLSpatial Server')
+        dbnameLabel = QtGui.QLabel('MSSQLSpatial DB Name')
+        schemaLabel = QtGui.QLabel('MSSQLSpatial DB Schema')
+        trustLabel = QtGui.QLabel('Trust')
+        usrLabel = QtGui.QLabel('Username')
+        pwdLabel = QtGui.QLabel('Password')
+        
+        #edit boxes
+        self.serverEdit = QtGui.QLineEdit('')
+        self.dbnameEdit = QtGui.QLineEdit('')
+        self.schemaEdit = QtGui.QLineEdit('')
+        self.trustEdit = QtGui.QLineEdit('')#make this a CB?
+        self.usrEdit = QtGui.QLineEdit('')
+        self.pwdEdit = QtGui.QLineEdit('')
+        
+
+        #grid
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(10)
+        
+        #layout
+        grid.addWidget(serverLabel, 1, 0)
+        grid.addWidget(self.serverEdit, 1, 2)
+        
+        grid.addWidget(dbnameLabel, 2, 0)
+        grid.addWidget(self.dbnameEdit, 2, 2)
+        
+        grid.addWidget(schemaLabel, 3, 0)
+        grid.addWidget(self.schemaEdit, 3, 2)
+        
+        grid.addWidget(trustLabel, 4, 0)
+        grid.addWidget(self.trustEdit, 4, 2)
+        
+        grid.addWidget(usrLabel, 5, 0)
+        grid.addWidget(self.usrEdit, 5, 2)
+        
+        grid.addWidget(pwdLabel, 6, 0)
+        grid.addWidget(self.pwdEdit, 6, 2)
+
+        self.setLayout(grid)
+          
+    def nextId(self):
+        return self.parent.plist.get('final')[0]
+        
+class FileGDBConfigPage(QtGui.QWizardPage):
+    def __init__(self,parent=None):
+        super(FileGDBConfigPage, self).__init__(parent)
+        
+        self.parent = parent 
+        
+        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        
+        #labels
+        fileLabel = QtGui.QLabel('FileGDB DB File')
+        
+        #edit boxes
+        self.fileEdit = QtGui.QLineEdit('')#file selection dialog?
+        
+        #buttons
+        fileButton = QtGui.QPushButton("...")
+        fileButton.setToolTip('Select FileGDB File')
+        fileButton.clicked.connect(self.selectFileGDBFile)
+        
+        
+        #grid
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(10)
+        
+        #layout                
+        grid.addWidget(fileLabel,1,0)
+        grid.addWidget(self.fileEdit,2,0)
+        grid.addWidget(fileButton,2,3)
+ 
+        
+        self.setLayout(grid)  
+
+    def selectFileGDBFile(self):
+        self.fileEdit.setText(QtGui.QFileDialog.getOpenFileName())
+        
+    def nextId(self):
+        return self.parent.plist.get('final')[0]
+        
+        
+class SpatiaLiteConfigPage(QtGui.QWizardPage):
+    def __init__(self,parent=None):
+        super(SpatiaLiteConfigPage, self).__init__(parent)
+        
+        self.parent = parent 
+        
+        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        
+        #labels
+        fileLabel = QtGui.QLabel('SpatiaLite DB File')
+        
+        #edit boxes
+        self.fileEdit = QtGui.QLineEdit('')
+        
+        #buttons
+        fileButton = QtGui.QPushButton("...")
+        fileButton.setToolTip('Select SpatiaLite File')
+        fileButton.clicked.connect(self.selectSpatiaLiteFile)
+        
+
+        #grid
+        grid = QtGui.QGridLayout()
+        grid.setSpacing(10)
+        
+        #layout
+        grid.addWidget(fileLabel, 1, 0)
+        grid.addWidget(self.fileEdit, 2, 0)
+        grid.addWidget(fileButton, 2, 3)        
+        
+        #layout       
+        vbox = QtGui.QVBoxLayout()
+        vbox.addLayout(grid)     
+        
+        self.setLayout(vbox)  
+
+    def selectSpatiaLiteFile(self):
+        self.fileEdit.setText(QtGui.QFileDialog.getOpenFileName())
+        
+    def nextId(self):
+        return self.parent.plist.get('final')[0]
+
+class ConfirmationPage(QtGui.QWizardPage):
+    def __init__(self,parent=None):
+        super(ConfirmationPage, self).__init__(parent)
+        
+        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        
+        #labels
+        label = QtGui.QLabel('PostgreSQL Host')
+        
+        vbox = QtGui.QVBoxLayout()
+        vbox.addWidget(label)     
+        self.setLayout(vbox)  
         
 def main():
   
     app = QtGui.QApplication(sys.argv)
-    lds = LDSRepl()
-    lds.show()
+    #lds = LDSRepl()
+    #lds.show()
+    
+    ldsc = LDSConfigWizard()
+    ldsc.show()
     sys.exit(app.exec_())
     
     
