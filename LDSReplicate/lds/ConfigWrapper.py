@@ -88,8 +88,13 @@ class ConfigWrapper(object):
             ml = self.mainconfig.readWFSConfig()
             if self.userconfig is not None:
                 ul = self.userconfig.readWFSConfig()
+        elif drv=='Proxy':
+            '''Proxy parameters'''
+            ml = self.mainconfig.readProxyConfig()
+            if self.userconfig is not None:
+                ul = self.userconfig.readProxyConfig()
         elif drv=='Misc':
-            '''Doesn't match a driver name, just misc global parameters'''
+            '''Misc global parameters'''
             ml = self.mainconfig.readMiscConfig()
             if self.userconfig is not None:
                 ul = self.userconfig.readMiscConfig()
@@ -108,5 +113,15 @@ class ConfigWrapper(object):
         pval = None if self.userconfig is None else self.userconfig.readMainProperty(drv,prop)
         return self.mainconfig.readMainProperty(drv,prop) if pval is None else pval
 
+    @staticmethod
+    def buildNewUserConfig(ucfile,uctriples):
+
+        uc = MainFileReader("../conf/"+str(ucfile)+'.conf',False)
+        for sfv in uctriples:
+            section = sfv[0]
+            field = sfv[1]
+            value = sfv[2]
+            uc.writeMainProperty(section, field, value)
+        
         
         

@@ -381,6 +381,45 @@ class SUFIExtractor(object):
         #ldslog.debug(sufi)
         
         return sufi
+    
+class Encrypt(object):
+    ENC_PREFIX = "ENC:"
+    #SbO, not secret at all actually
+    key = open('conf/ldsincr.conf','r').readline(16)
+    from Crypto import Random
+    ivstr = Random.get_random_bytes(16)
+    
+    
+    @classmethod
+    def secure(cls,plaintext):
+        import base64
+        from Crypto.Cipher import AES
+        aes = AES.new(cls.key, AES.MODE_CBC, cls.ivstr)
+        sec = base64.b64encode(aes.encrypt(Encrypt._pad(plaintext)))
+        return sec
+
+    
+    @classmethod
+    def unSecure(cls,sectext):
+        import base64
+        from Crypto.Cipher import AES
+        aes = AES.new(cls.key, AES.MODE_CBC, cls.ivstr)
+        plain = Encrypt._strip(aes.decrypt(base64.b64decode(sectext)))
+        return plain
+    
+    @staticmethod
+    def _pad(sectext):
+        import random
+        pn = 15-len(sectext)%16
+        pad = '' if pn==0 else str(random.randint(10**(pn-1),10**pn-1))
+        return sectext+pad+hex(pn)[2:]#.lstrip('0x') doesn't work for 0x0
+        
+    @staticmethod    
+    def _strip(padtext):
+        pn = padtext[-1]
+        return padtext[:len(padtext)-int(pn,16)-1]
+        
+
         
 class LayerConfEntry(object):
     '''Storage class for layer config info'''

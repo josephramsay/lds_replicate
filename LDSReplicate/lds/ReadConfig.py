@@ -35,6 +35,7 @@ class MainFileReader(object):
     Config file reader/writer
     '''
     LDSN = 'LDS'
+    PROXY = 'Proxy'
     MISC = 'Misc'
 
 
@@ -324,38 +325,6 @@ class MainFileReader(object):
         return (path,name,config,epsg,cql)
     
     
-#    def readOracleConfig(self):
-#
-#        instance = self.cp.get('Oracle', 'instance')
-#        usr = self.cp.get('Oracle', 'user')
-#        pwd = self.cp.get('Oracle', 'pass')
-#        
-#        return (instance,usr,pwd)
-#        
-#        
-#    def readMySQLConfig(self):
-#
-#        host = self.cp.get('MySQL', 'host')
-#        port = self.cp.get('MySQL', 'port')
-#        dbname = self.cp.get('MySQL', 'dbname')
-#        usr = self.cp.get('MySQL', 'user')
-#        pwd = self.cp.get('MySQL', 'pass')
-#        
-#        return (host,port,dbname,usr,pwd)
-#    
-#    def readArcSDEConfig(self):
-#
-#        server = self.cp.get('ArcSDE', 'server')
-#        instance = self.cp.get('ArcSDE', 'instance')
-#        database = self.cp.get('ArcSDE', 'database')
-#        username = self.cp.get('ArcSDE', 'user')
-#        password = self.cp.get('ArcSDE', 'pass')
-#        
-#        return (server, instance, database, username, password) 
-
-    
-    
-    #web
     
     def readWFSConfig(self):
         '''Generic WFS config file reader'''
@@ -363,14 +332,6 @@ class MainFileReader(object):
         
         return self.readLDSConfig()
     
-#        url = self.cp.get('WFS', 'url') 
-#        key = self.cp.get('WFS', 'key') 
-#        svc = self.cp.get('WFS', 'svc') 
-#        ver = self.cp.get('WFS', 'ver')
-#        fmt = self.cp.get('WFS', 'fmt')
-#        cql = self.cp.get('WFS', 'cql')    
-#        
-#        return (url,key,svc,ver,fmt,cql)    
     
     def readLDSConfig(self):
         '''LDs specific config file reader'''
@@ -427,6 +388,52 @@ class MainFileReader(object):
         
         return (url,key,svc,ver,fmt,cql)
     
+    def readProxyConfig(self):
+        '''Proxy config reader'''
+        
+        #use_defaults determines whether we use default values. For a user config this may not be wise
+        #since a user config is a custom file relying on the main config for absent values not last-resort defaults
+        host = None
+        port = None
+        usr = None
+        pwd = None
+        
+        if self.use_defaults:
+            auth = 'NTLM'
+        else:
+            auth = None
+        
+        try:
+            host = self.cp.get(self.PROXY, 'host')
+        except NoOptionError as noe:
+            ldslog.warn("Proxy: No Proxy assumed "+str(noe))
+        except NoSectionError as nse:
+            ldslog.warn("Proxy: No Proxy assumed "+str(nse))
+            
+        try:
+            port = self.cp.get(self.PROXY, 'port')
+        except NoOptionError, NoSectionError:
+            ldslog.warn("Proxy: No Proxy assumed")
+            
+        try:
+            auth = self.cp.get(self.PROXY, 'auth')
+        except NoOptionError, NoSectionError:
+            ldslog.warn("Proxy: No Proxy assumed")
+
+        try:
+            usr = self.cp.get(self.PROXY, 'user')
+        except NoOptionError, NoSectionError:
+            ldslog.warn("Proxy: No Proxy assumed")        
+        
+        try:
+            pwd = self.cp.get(self.PROXY, 'pass')
+        except NoOptionError, NoSectionError:
+            ldslog.warn("Proxy: No Proxy assumed") 
+            
+
+        
+        return (host,port,auth,usr,pwd)
+    
     def readMiscConfig(self):
         
         sixtyfourlayers = None
@@ -479,6 +486,17 @@ class MainFileReader(object):
             return None
         return value
     
+    
+    
+    def writeMainProperty(self,section,field,value):
+        '''Write changes to named config table'''
+        try:            
+            self.cp.set(section,field,value if value is not None else '')
+            with open(self.filename, 'w') as configfile:
+                self.cp.write(configfile)
+            ldslog.debug("Check "+str(field)+" for section "+str(section)+" is set to "+str(value)+" : GetField="+self.cp.get(section, field))                                                                                        
+        except Exception as e:
+            ldslog.warn('Problem writing to config file. '+str(e))
     
     # Functions above relate to connection config info
     #----------------------------------------------------------------------------------------------

@@ -15,9 +15,16 @@ Created on 13/02/2013
 @author: jramsay
 '''
 
-from PyQt4 import QtGui, QtCore
+from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
+                         QVBoxLayout, QHBoxLayout, QGridLayout,
+                         QRegExpValidator, QCheckBox, QMessageBox, 
+                         QMainWindow, QAction, QIcon, qApp, QFrame,
+                         QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
+                         QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
+from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir)
 
 import os
+import re
 import sys
 import logging
 
@@ -31,7 +38,7 @@ ldslog = LDSUtilities.setupLogging()
 
 __version__ = AppVersion.getVersion()
 
-class LDSRepl(QtGui.QMainWindow):
+class LDSRepl(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
   
     def __init__(self):
@@ -46,15 +53,15 @@ class LDSRepl(QtGui.QMainWindow):
         self.statusbar = self.statusBar()
         self.statusbar.showMessage('Ready')
         
-        openAction = QtGui.QAction(QtGui.QIcon('open.png'), '&Open', self)        
+        openAction = QAction(QIcon('open.png'), '&Open', self)        
         openAction.setShortcut('Ctrl+O')
         openAction.setStatusTip('Open Prefs Editor')
         openAction.triggered.connect(self.launchEditor)
         
-        exitAction = QtGui.QAction(QtGui.QIcon('exit.png'), '&Exit', self)        
+        exitAction = QAction(QIcon('exit.png'), '&Exit', self)        
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit Application')
-        exitAction.triggered.connect(QtGui.qApp.quit)
+        exitAction.triggered.connect(qApp.quit)
         
         menubar = self.menuBar()
 
@@ -70,7 +77,7 @@ class LDSRepl(QtGui.QMainWindow):
         prefs.setWindowTitle('LDS Preferences Editor')
         prefs.show() 
     
-class LDSControls(QtGui.QFrame):
+class LDSControls(QFrame):
     
     def __init__(self,parent):
         super(LDSControls, self).__init__()
@@ -88,79 +95,79 @@ class LDSControls(QtGui.QFrame):
         
         
         
-        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
-        destLabel = QtGui.QLabel('Destination')
-        layerLabel = QtGui.QLabel('Layer')
-        groupLabel = QtGui.QLabel('Group')
-        epsgLabel = QtGui.QLabel('EPSG')
-        fromDateLabel = QtGui.QLabel('From Date')
-        toDateLabel = QtGui.QLabel('To Date')
+        destLabel = QLabel('Destination')
+        layerLabel = QLabel('Layer')
+        groupLabel = QLabel('Group')
+        epsgLabel = QLabel('EPSG')
+        fromDateLabel = QLabel('From Date')
+        toDateLabel = QLabel('To Date')
         
-        initLabel = QtGui.QLabel('Initialise')
-        cleanLabel = QtGui.QLabel('Clean')
-        internalLabel = QtGui.QLabel('Internal')
-        confLabel = QtGui.QLabel('User Config')
+        initLabel = QLabel('Initialise')
+        cleanLabel = QLabel('Clean')
+        internalLabel = QLabel('Internal')
+        confLabel = QLabel('User Config')
 
         #edit boxes
-        self.layerEdit = QtGui.QLineEdit(rlist[1])   
-        self.groupEdit = QtGui.QLineEdit(rlist[3])
-        self.epsgEdit = QtGui.QLineEdit(rlist[4])
-        self.confEdit = QtGui.QLineEdit(rlist[2])
+        self.layerEdit = QLineEdit(rlist[1])   
+        self.groupEdit = QLineEdit(rlist[3])
+        self.epsgEdit = QLineEdit(rlist[4])
+        self.confEdit = QLineEdit(rlist[2])
         
         #menus
         self.destmenulist = ('','MSSQL','PostgreSQL','SpatiaLite','FileGDB') 
-        self.destMenu = QtGui.QComboBox(self)
+        self.destMenu = QComboBox(self)
         self.destMenu.addItems(self.destmenulist)
         self.destMenu.setCurrentIndex(self.destmenulist.index(rlist[0]))
         
        
         
         #date selection
-        self.fromDateEdit = QtGui.QDateEdit()
+        self.fromDateEdit = QDateEdit()
         if LDSUtilities.mightAsWellBeNone(rlist[5]) is not None:
-            self.fromDateEdit.setDate(QtCore.QDate(int(rlist[5][0:4]),int(rlist[5][5:7]),int(rlist[5][8:10]))) 
+            self.fromDateEdit.setDate(QDate(int(rlist[5][0:4]),int(rlist[5][5:7]),int(rlist[5][8:10]))) 
         self.fromDateEdit.setCalendarPopup(True)
         self.fromDateEdit.setEnabled(False)
         
-        self.toDateEdit = QtGui.QDateEdit()
+        self.toDateEdit = QDateEdit()
         if LDSUtilities.mightAsWellBeNone(rlist[6]) is not None:
-            self.toDateEdit.setDate(QtCore.QDate(int(rlist[6][0:4]),int(rlist[6][5:7]),int(rlist[6][8:10]))) 
+            self.toDateEdit.setDate(QDate(int(rlist[6][0:4]),int(rlist[6][5:7]),int(rlist[6][8:10]))) 
         self.toDateEdit.setCalendarPopup(True)
         self.toDateEdit.setEnabled(False)
         
         #check boxes
-        self.fromDateEnable = QtGui.QCheckBox()
+        self.fromDateEnable = QCheckBox()
         self.fromDateEnable.setCheckState(False)
         self.fromDateEnable.clicked.connect(self.doFromDateEnable)
 
         
-        self.toDateEnable = QtGui.QCheckBox()
+        self.toDateEnable = QCheckBox()
         self.toDateEnable.setCheckState(False) 
         self.toDateEnable.clicked.connect(self.doToDateEnable)
         
-        self.internalTrigger = QtGui.QCheckBox()
+        self.internalTrigger = QCheckBox()
         self.internalTrigger.setCheckState(rlist[7]=='True')
         
-        self.initTrigger = QtGui.QCheckBox()
+        self.initTrigger = QCheckBox()
         self.initTrigger.setCheckState(False)
         
-        self.cleanTrigger = QtGui.QCheckBox()
+        self.cleanTrigger = QCheckBox()
         self.cleanTrigger.setCheckState(False)
         
         
         #buttons
-        okButton = QtGui.QPushButton("OK")
+        okButton = QPushButton("OK")
         okButton.setToolTip('Execute selected replication')
         okButton.clicked.connect(self.doOkClickAction)
         
-        cancelButton = QtGui.QPushButton("Cancel")
+        cancelButton = QPushButton("Cancel")
         cancelButton.setToolTip('Cancel LDS Replicate')       
-        cancelButton.clicked.connect(QtCore.QCoreApplication.instance().quit) 
+        cancelButton.clicked.connect(QCoreApplication.instance().quit) 
 
         #grid
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         grid.setSpacing(10)
         
         
@@ -199,34 +206,34 @@ class LDSControls(QtGui.QFrame):
         grid.addWidget(self.toDateEnable, 7, 1)
         grid.addWidget(self.toDateEdit, 7, 2)
 
-        vbox1 = QtGui.QVBoxLayout()
+        vbox1 = QVBoxLayout()
         vbox1.addStretch(1)
         vbox1.addWidget(internalLabel)
         vbox1.addWidget(self.internalTrigger)
         
-        vbox2 = QtGui.QVBoxLayout()
+        vbox2 = QVBoxLayout()
         vbox2.addStretch(1)
         vbox2.addWidget(initLabel)
         vbox2.addWidget(self.initTrigger)
         
-        vbox3 = QtGui.QVBoxLayout()
+        vbox3 = QVBoxLayout()
         vbox3.addStretch(1)
         vbox3.addWidget(cleanLabel)
         vbox3.addWidget(self.cleanTrigger)
         
-        hbox3 = QtGui.QHBoxLayout()
+        hbox3 = QHBoxLayout()
         hbox3.addStretch(1)
         hbox3.addLayout(vbox1)
         hbox3.addLayout(vbox2)
         hbox3.addLayout(vbox3)
         
-        hbox4 = QtGui.QHBoxLayout()
+        hbox4 = QHBoxLayout()
         hbox4.addStretch(1)
         hbox4.addWidget(okButton)
         hbox4.addWidget(cancelButton)
         
 
-        vbox = QtGui.QVBoxLayout()
+        vbox = QVBoxLayout()
         #vbox.addStretch(1)
         vbox.addLayout(grid)
         vbox.addLayout(hbox3)
@@ -243,15 +250,15 @@ class LDSControls(QtGui.QFrame):
     def centre(self):
         
         qr = self.frameGeometry()
-        cp = QtGui.QDesktopWidget().availableGeometry().center()
+        cp = QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
         
     def closeEvent(self, event):
         
-        reply = QtGui.QMessageBox.question(self, 'Message', "Are you sure to quit?", QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, QtGui.QMessageBox.No)
+        reply = QMessageBox.question(self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-        if reply == QtGui.QMessageBox.Yes:
+        if reply == QMessageBox.Yes:
             event.accept()
         else:
             event.ignore()       
@@ -308,7 +315,7 @@ class LDSControls(QtGui.QFrame):
         
 #--------------------------------------------------------------------------------------------------
 
-class LDSPrefsEditor(QtGui.QMainWindow):
+class LDSPrefsEditor(QMainWindow):
     
     def __init__(self):
         super(LDSPrefsEditor, self).__init__()
@@ -319,22 +326,22 @@ class LDSPrefsEditor(QtGui.QMainWindow):
         self.setCentralWidget(self.editor)
 
         
-        openAction = QtGui.QAction(QtGui.QIcon('open.png'), '&Open', self)        
+        openAction = QAction(QIcon('open.png'), '&Open', self)        
         openAction.setShortcut('Ctrl+O')
         openAction.setStatusTip('Open File')
         openAction.triggered.connect(self.openFile)
         
-        saveAction = QtGui.QAction(QtGui.QIcon('save.png'), '&Save', self)        
+        saveAction = QAction(QIcon('save.png'), '&Save', self)        
         saveAction.setShortcut('Ctrl+S')
         saveAction.setStatusTip('Save Changes')
         saveAction.triggered.connect(self.saveFile)
         
-        saveAsAction = QtGui.QAction(QtGui.QIcon('save.png'), '&Save As', self)        
+        saveAsAction = QAction(QIcon('save.png'), '&Save As', self)        
         saveAsAction.setShortcut('Ctrl+A')
         saveAsAction.setStatusTip('Save Changes')
         saveAsAction.triggered.connect(self.saveAsFile)
         
-        exitAction = QtGui.QAction(QtGui.QIcon('exit.png'), '&Exit', self)        
+        exitAction = QAction(QIcon('exit.png'), '&Exit', self)        
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit Application')
         exitAction.triggered.connect(self.close)
@@ -359,7 +366,7 @@ class LDSPrefsEditor(QtGui.QMainWindow):
         self.show() 
         
     def saveAsFile(self):
-        filename = QtGui.QFileDialog.getSaveFileName(self, 'Save File As', os.path.join(os.getcwd(),'../conf/'))#os.getenv('HOME'))
+        filename = QFileDialog.getSaveFileName(self, 'Save File As', os.path.join(os.getcwd(),'../conf/'))#os.getenv('HOME'))
         f = open(filename, 'w')
         filedata = self.editor.textedit.toPlainText()
         f.write(filedata)
@@ -372,9 +379,9 @@ class LDSPrefsEditor(QtGui.QMainWindow):
         f.close()
         
     def openFile(self):
-        f=QtCore.QDir.Filter(1)
+        f=QDir.Filter(1)
         
-        filedialog = QtGui.QFileDialog()
+        filedialog = QFileDialog()
         filedialog.setFilter(f)
         self.filename = filedialog.getOpenFileName(self, 'Open File', os.path.join(os.getcwd(),'../conf/'))#os.getenv('HOME'))
         f = open(self.filename, 'r')
@@ -383,7 +390,7 @@ class LDSPrefsEditor(QtGui.QMainWindow):
         self.statusbar.showMessage('Editing '+self.filename)
         f.close()
         
-class LDSPrefsFrame(QtGui.QFrame):
+class LDSPrefsFrame(QFrame):
     
     def __init__(self,parent):
         super(LDSPrefsFrame, self).__init__()
@@ -394,18 +401,17 @@ class LDSPrefsFrame(QtGui.QFrame):
     def initUI(self):
 
         #edit boxes
-        self.textedit = QtGui.QTextEdit() 
+        self.textedit = QTextEdit() 
         
-        vbox = QtGui.QVBoxLayout()
+        vbox = QVBoxLayout()
         vbox.addWidget(self.textedit)
         
         self.setLayout(vbox)  
 
-
-        
+  
 #---> QWizard Section <----------------------------------------------------------------------------
        
-class LDSConfigWizard(QtGui.QWizard):
+class LDSConfigWizard(QWizard):
     def __init__(self, parent=None):
         super(LDSConfigWizard, self).__init__(parent)
         
@@ -414,57 +420,76 @@ class LDSConfigWizard(QtGui.QWizard):
                  'ms':(2,'MSSQLSpatial',MSSQLSpatialConfigPage),
                  'fg':(3,'FileGDB',FileGDBConfigPage),
                  'sl':(4,'SpatiaLite',SpatiaLiteConfigPage),
-                 'final':(5,'Final',ConfirmationPage)}
+                 'proxy':(5,'Proxy',ProxyConfigPage),
+                 'final':(6,'Final',ConfirmationPage)}
         
         for key in self.plist.keys():
-            self.setPage(self.plist.get(key)[0],self.plist.get(key)[2](self))
+            index = self.plist.get(key)[0]
+            page = self.plist.get(key)[2]
+            self.setPage(index, page(self,key))
+
 
         self.setWindowTitle("QVariant Test")
         self.resize(640,480)
 
         
-class LDSConfigPage(QtGui.QWizardPage):
-    def __init__(self, parent=None):
+class LDSConfigPage(QWizardPage):
+    def __init__(self, parent=None,key=None):
         super(LDSConfigPage, self).__init__(parent)
         
         self.parent = parent 
+        self.key = 'lds'
         
-        self.setTitle('LDS Configuration Options')
+        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
 
-        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
-        cfileLabel = QtGui.QLabel('User Config File')
-        keyLabel = QtGui.QLabel('LDS API Key')
-        destLabel = QtGui.QLabel('Output Type')
+        fileLabel = QLabel('User Config File')
+        keyLabel = QLabel('LDS API Key')
+        destLabel = QLabel('Output Type')
+        proxyLabel = QLabel('Configure Proxy')
+        encryptionLabel = QLabel('Enable Password Protection')
         
         #edit boxes
-        self.cfileEdit = QtGui.QLineEdit('')
-        self.keyEdit = QtGui.QLineEdit('')
-        self.destSelect = QtGui.QComboBox()
+        self.fileEdit = QLineEdit('')
+        self.keyEdit = QLineEdit('')
+        
+        #dropdown
+        self.destSelect = QComboBox()
         self.destSelect.addItem('')
         self.destSelect.addItem(self.parent.plist.get('pg')[1], self.parent.plist.get('pg')[0])
         self.destSelect.addItem(self.parent.plist.get('ms')[1], self.parent.plist.get('ms')[0])
         self.destSelect.addItem(self.parent.plist.get('fg')[1], self.parent.plist.get('fg')[0])
         self.destSelect.addItem(self.parent.plist.get('sl')[1], self.parent.plist.get('sl')[0])
         
-        self.registerField("cfile",self.cfileEdit,"currentStringData")
-        self.registerField("apikey",self.keyEdit,"currentStringData")
-        self.registerField('destselect',self.destSelect,"currentIndex")
+        
+        self.keyEdit.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9]{32}"), self))
+        
+        #checkbox
+        self.proxyEnable = QCheckBox()
+        self.encryptionEnable = QCheckBox()
+
+        
+        self.registerField(self.key+"file",self.fileEdit)
+        self.registerField(self.key+"apikey",self.keyEdit)
+        self.registerField(self.key+"dest",self.destSelect,"currentIndex")
+        self.registerField(self.key+"proxy",self.proxyEnable)
+        self.registerField(self.key+"encryption",self.encryptionEnable)
         
         #buttons
-        cfileButton = QtGui.QPushButton("...")
+        cfileButton = QPushButton("...")
         cfileButton.setToolTip('Select Config File')
         cfileButton.setBaseSize(100, 100)
         cfileButton.clicked.connect(self.selectConfFile)
 
 
         #grid
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         grid.setSpacing(10)
         
-        grid.addWidget(cfileLabel, 1, 0)
-        grid.addWidget(self.cfileEdit, 1, 2)
+        grid.addWidget(fileLabel, 1, 0)
+        grid.addWidget(self.fileEdit, 1, 2)
         grid.addWidget(cfileButton, 1, 3)        
         
         grid.addWidget(keyLabel, 2, 0)
@@ -472,46 +497,137 @@ class LDSConfigPage(QtGui.QWizardPage):
         
         grid.addWidget(destLabel, 3, 0)
         grid.addWidget(self.destSelect, 3, 2)
+        
+        grid.addWidget(proxyLabel, 4, 0)
+        grid.addWidget(self.proxyEnable, 4, 2)
+        
+        grid.addWidget(encryptionLabel, 5, 0)
+        grid.addWidget(self.encryptionEnable, 5, 2)
 
         #layout       
         self.setLayout(grid)
         
     def selectConfFile(self):
-        self.cfileEdit.setText(QtGui.QFileDialog.getOpenFileName())
+        self.fileEdit.setText(QFileDialog.getOpenFileName())
 
     def nextId(self):
-        return int(self.field('destselect').toString())
+        if self.field(self.key+"proxy").toBool():
+            return self.parent.plist.get('proxy')[0]
+        return int(self.field(self.key+"dest").toString())
+        
+class ProxyConfigPage(QWizardPage):
+    def __init__(self, parent=None,key=None):
+        super(ProxyConfigPage, self).__init__(parent)
+        
+        self.parent = parent 
+        self.key = key
+        
+        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+
+        QToolTip.setFont(QFont('SansSerif', 10))
+        
+        #labels
+        hostLabel = QLabel('Proxy Host')
+        portLabel = QLabel('Proxy Port')
+        authLabel = QLabel('Authentication')
+        usrLabel = QLabel('Username')
+        pwdLabel = QLabel('Password')
+        
+        #edit boxes
+        self.hostEdit = QLineEdit('')
+        self.portEdit = QLineEdit('')
+        
+        #dropdown
+        self.authSelect = QComboBox()
+        self.authSelect.addItem('')
+        self.authSelect.addItem('BASIC',1)
+        self.authSelect.addItem('NTLM',2)
+
+        
+        self.usrEdit = QLineEdit('')
+        self.pwdEdit = QLineEdit('')
+        self.pwdEdit.setEchoMode(QLineEdit.Password)
+        
+        self.portEdit.setValidator(QRegExpValidator(QRegExp("\d{1,5}"), self))
+        
+        self.registerField(self.key+"host",self.hostEdit)
+        self.registerField(self.key+"port",self.portEdit)
+        self.registerField(self.key+"auth",self.authSelect,"currentIndex")
+        self.registerField(self.key+"usr",self.usrEdit)
+        self.registerField(self.key+"pwd",self.pwdEdit)
+
+        #grid
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        
+        #layout
+        grid.addWidget(hostLabel, 1, 0)
+        grid.addWidget(self.hostEdit, 1, 2)
+        
+        grid.addWidget(portLabel, 2, 0)
+        grid.addWidget(self.portEdit, 2, 2)
+        
+        grid.addWidget(authLabel, 3, 0)
+        grid.addWidget(self.authSelect, 3, 2)
+        
+        grid.addWidget(usrLabel, 4, 0)
+        grid.addWidget(self.usrEdit, 4, 2)
+        
+        grid.addWidget(pwdLabel, 5, 0)
+        grid.addWidget(self.pwdEdit, 5, 2)
         
         
-        #self.parent.setCentralWidget(self.parent.pgconf)
-class PostgreSQLConfigPage(QtGui.QWizardPage):
-    def __init__(self,parent=None):
+        #layout                
+        self.setLayout(grid)  
+        
+    def selectConfFile(self):
+        self.fileEdit.setText(QFileDialog.getOpenFileName())
+
+    def nextId(self):
+        #now go to selected dest configger
+        return int(self.field("ldsdest").toString())
+            
+class PostgreSQLConfigPage(QWizardPage):
+    def __init__(self,parent=None,key=None):
         super(PostgreSQLConfigPage, self).__init__(parent)
         
         self.parent = parent 
+        self.key = key
         
-        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+
+        
+        QToolTip.setFont(QFont('SansSerif', 10))
         
         
         #labels
-        hostLabel = QtGui.QLabel('PostgreSQL Host')
-        portLabel = QtGui.QLabel('PostgreSQL Port')
-        dbnameLabel = QtGui.QLabel('PostgreSQL DB Name')
-        schemaLabel = QtGui.QLabel('PostgreSQL DB Schema')
-        usrLabel = QtGui.QLabel('Username')
-        pwdLabel = QtGui.QLabel('Password')
+        hostLabel = QLabel('PostgreSQL Host')
+        portLabel = QLabel('PostgreSQL Port')
+        dbnameLabel = QLabel('PostgreSQL DB Name')
+        schemaLabel = QLabel('PostgreSQL DB Schema')
+        usrLabel = QLabel('Username')
+        pwdLabel = QLabel('Password')
         
         #edit boxes
-        self.hostEdit = QtGui.QLineEdit('')
-        self.portEdit = QtGui.QLineEdit('')
-        self.dbnameEdit = QtGui.QLineEdit('')
-        self.schemaEdit = QtGui.QLineEdit('')
-        self.usrEdit = QtGui.QLineEdit('')
-        self.pwdEdit = QtGui.QLineEdit('')
+        self.hostEdit = QLineEdit('')
+        self.portEdit = QLineEdit('')
+        self.dbnameEdit = QLineEdit('')
+        self.schemaEdit = QLineEdit('')
+        self.usrEdit = QLineEdit('')
+        self.pwdEdit = QLineEdit('')
+        self.pwdEdit.setEchoMode(QLineEdit.Password)
         
+        self.portEdit.setValidator(QRegExpValidator(QRegExp("\d{1,5}"), self))
+        
+        self.registerField(self.key+"host",self.hostEdit)
+        self.registerField(self.key+"port",self.portEdit)
+        self.registerField(self.key+"dbname",self.dbnameEdit)
+        self.registerField(self.key+"schema",self.schemaEdit)
+        self.registerField(self.key+"usr",self.usrEdit)
+        self.registerField(self.key+"pwd",self.pwdEdit)
 
         #grid
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         grid.setSpacing(10)
         
         #layout
@@ -544,33 +660,46 @@ class PostgreSQLConfigPage(QtGui.QWizardPage):
 
         
         
-class MSSQLSpatialConfigPage(QtGui.QWizardPage):
-    def __init__(self,parent=None):
+class MSSQLSpatialConfigPage(QWizardPage):
+    def __init__(self,parent=None,key=None):
         super(MSSQLSpatialConfigPage, self).__init__(parent)
         
         self.parent = parent 
+        self.key = key
         
-        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+
+        
+        QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
-        serverLabel = QtGui.QLabel('MSSQLSpatial Server')
-        dbnameLabel = QtGui.QLabel('MSSQLSpatial DB Name')
-        schemaLabel = QtGui.QLabel('MSSQLSpatial DB Schema')
-        trustLabel = QtGui.QLabel('Trust')
-        usrLabel = QtGui.QLabel('Username')
-        pwdLabel = QtGui.QLabel('Password')
+        serverLabel = QLabel('MSSQLSpatial Server')
+        dbnameLabel = QLabel('MSSQLSpatial DB Name')
+        schemaLabel = QLabel('MSSQLSpatial DB Schema')
+        trustLabel = QLabel('Trust')
+        usrLabel = QLabel('Username')
+        pwdLabel = QLabel('Password')
         
         #edit boxes
-        self.serverEdit = QtGui.QLineEdit('')
-        self.dbnameEdit = QtGui.QLineEdit('')
-        self.schemaEdit = QtGui.QLineEdit('')
-        self.trustEdit = QtGui.QLineEdit('')#make this a CB?
-        self.usrEdit = QtGui.QLineEdit('')
-        self.pwdEdit = QtGui.QLineEdit('')
+        self.serverEdit = QLineEdit('')
+        self.dbnameEdit = QLineEdit('')
+        self.schemaEdit = QLineEdit('')
+        self.trustEdit = QLineEdit('')#make this a CB?
+        self.usrEdit = QLineEdit('')
+        self.pwdEdit = QLineEdit('')
+        self.pwdEdit.setEchoMode(QLineEdit.Password)
+
+        self.trustEdit.setValidator(QRegExpValidator(QRegExp("yes|no", re.IGNORECASE), self))
         
+        self.registerField("msserver",self.serverEdit)
+        self.registerField(self.key+"dbname",self.dbnameEdit)
+        self.registerField(self.key+"schema",self.schemaEdit)
+        self.registerField(self.key+"trust",self.trustEdit)
+        self.registerField(self.key+"usr",self.usrEdit)
+        self.registerField(self.key+"pwd",self.pwdEdit)
 
         #grid
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         grid.setSpacing(10)
         
         #layout
@@ -597,28 +726,36 @@ class MSSQLSpatialConfigPage(QtGui.QWizardPage):
     def nextId(self):
         return self.parent.plist.get('final')[0]
         
-class FileGDBConfigPage(QtGui.QWizardPage):
-    def __init__(self,parent=None):
+class FileGDBConfigPage(QWizardPage):
+    def __init__(self,parent=None,key=None):
         super(FileGDBConfigPage, self).__init__(parent)
         
         self.parent = parent 
+        self.key = key
         
-        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+
+        
+        QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
-        fileLabel = QtGui.QLabel('FileGDB DB File')
+        fileLabel = QLabel('FileGDB DB File')
         
         #edit boxes
-        self.fileEdit = QtGui.QLineEdit('')#file selection dialog?
+        self.fileEdit = QLineEdit('')#file selection dialog?
+        
+        self.fileEdit.setValidator(QRegExpValidator(QRegExp("*.gdb$", re.IGNORECASE), self))
+        
+        self.registerField(self.key+"file",self.fileEdit)
         
         #buttons
-        fileButton = QtGui.QPushButton("...")
+        fileButton = QPushButton("...")
         fileButton.setToolTip('Select FileGDB File')
         fileButton.clicked.connect(self.selectFileGDBFile)
         
         
         #grid
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         grid.setSpacing(10)
         
         #layout                
@@ -630,34 +767,42 @@ class FileGDBConfigPage(QtGui.QWizardPage):
         self.setLayout(grid)  
 
     def selectFileGDBFile(self):
-        self.fileEdit.setText(QtGui.QFileDialog.getOpenFileName())
+        self.fileEdit.setText(QFileDialog.getOpenFileName())
         
     def nextId(self):
         return self.parent.plist.get('final')[0]
         
         
-class SpatiaLiteConfigPage(QtGui.QWizardPage):
-    def __init__(self,parent=None):
+class SpatiaLiteConfigPage(QWizardPage):
+    def __init__(self,parent=None,key=None):
         super(SpatiaLiteConfigPage, self).__init__(parent)
         
         self.parent = parent 
+        self.key = key
         
-        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+
+        
+        QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
-        fileLabel = QtGui.QLabel('SpatiaLite DB File')
+        fileLabel = QLabel('SpatiaLite DB File')
         
         #edit boxes
-        self.fileEdit = QtGui.QLineEdit('')
+        self.fileEdit = QLineEdit('')
+        
+        self.fileEdit.setValidator(QRegExpValidator(QRegExp("*.db$", re.IGNORECASE), self))
+        
+        self.registerField(self.key+"file",self.fileEdit)
         
         #buttons
-        fileButton = QtGui.QPushButton("...")
+        fileButton = QPushButton("...")
         fileButton.setToolTip('Select SpatiaLite File')
         fileButton.clicked.connect(self.selectSpatiaLiteFile)
         
 
         #grid
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         grid.setSpacing(10)
         
         #layout
@@ -666,36 +811,162 @@ class SpatiaLiteConfigPage(QtGui.QWizardPage):
         grid.addWidget(fileButton, 2, 3)        
         
         #layout       
-        vbox = QtGui.QVBoxLayout()
+        vbox = QVBoxLayout()
         vbox.addLayout(grid)     
         
         self.setLayout(vbox)  
 
     def selectSpatiaLiteFile(self):
-        self.fileEdit.setText(QtGui.QFileDialog.getOpenFileName())
+        self.fileEdit.setText(QFileDialog.getOpenFileName())
         
     def nextId(self):
         return self.parent.plist.get('final')[0]
 
-class ConfirmationPage(QtGui.QWizardPage):
-    def __init__(self,parent=None):
+class ConfirmationPage(QWizardPage):
+    def __init__(self,parent=None,key=None):
         super(ConfirmationPage, self).__init__(parent)
+        self.parent = parent
         
-        QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
+        QToolTip.setFont(QFont('SansSerif', 10))
         
-        #labels
-        label = QtGui.QLabel('PostgreSQL Host')
+    def initializePage(self):
+        '''Override initpage'''
+        super(ConfirmationPage, self).initializePage()
+
+        vbox = QVBoxLayout()
+       
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(QLabel('LDS File Name'))     
+        hbox1.addWidget(QLabel(self.field("ldsfile").toString()))   
+            
+        vbox.addLayout(hbox1)
         
-        vbox = QtGui.QVBoxLayout()
-        vbox.addWidget(label)     
-        self.setLayout(vbox)  
+        hbox2 = QHBoxLayout()
+        hbox2.addWidget(QLabel('LDS API Key'))     
+        hbox2.addWidget(QLabel(self.field("ldsapikey").toString()))   
         
+        vbox.addLayout(hbox2)
+    
+        if self.field("ldsproxy").toBool():
+            
+            hbox1 = QHBoxLayout()
+            hbox1.addWidget(QLabel('Proxy Server'))     
+            hbox1.addWidget(QLabel(self.field("proxyhost").toString()))   
+            
+            vbox.addLayout(hbox1)
+        
+            hbox2 = QHBoxLayout()
+            hbox2.addWidget(QLabel('Proxy Port'))     
+            hbox2.addWidget(QLabel(self.field("proxyport").toString()))   
+        
+            vbox.addLayout(hbox2)
+        
+        dest = int(self.field("ldsdest").toString())
+
+        for f in {1:self.getPGFields,2:self.getMSFields,3:self.getFGFields,4:self.getSLFields}.get(dest)():
+            name = QLabel(f[1])
+            value = QLabel(f[2].toString())
+            
+            hbox = QHBoxLayout()
+            hbox.addWidget(name)     
+            hbox.addWidget(value)   
+            
+            vbox.addLayout(hbox)       
+               
+        self.setLayout(vbox)
+        
+    def getPGFields(self):
+        flist = []
+        flist += (('host','PostgreSQL Host',self.field("pghost")),)
+        flist += (('port','PostgreSQL Port',self.field('pgport')),)
+        flist += (('dbname','PostgreSQL DB Name',self.field('pgdbname')),)
+        flist += (('schema','PostgreSQL Schema',self.field('pgschema')),)
+        flist += (('user','PostgreSQL User Name',self.field('pgusr')),)
+        flist += (('pass','PostgreSQL Password',self.field('pgpwd')),)
+        return flist   
+    
+    def getMSFields(self):
+        flist = []
+        flist += ('server','MSSQLSpatial Server String',self.field('msserver'))
+        flist += ('dbname','MSSQLSpatial DB Name',self.field('msdbname'))
+        flist += ('schema','MSSQLSpatial Schema',self.field('msschema'))
+        flist += ('trust','MSSQLSpatial Trust (Yes/No)',self.field('mstrust'))
+        flist += ('user','MSSQLSpatial User Name',self.field('msusr'))
+        flist += ('pass','MSSQLSpatial Password',self.field('mspwd'))
+        return flist  
+    
+    def getFGFields(self):
+        flist = []
+        flist += ('file','FileGDB DB File Name',self.field('fgfile'))
+        return flist  
+    
+    def getSLFields(self):
+        flist = []
+        flist += ('file','SpatiaLite File Name',self.field('slfile'))
+        return flist
+    
+       
+    def validatePage(self):
+        from lds.ReadConfig import MainFileReader as MFR
+        from lds.ConfigWrapper import ConfigWrapper
+        from lds.LDSUtilities import Encrypt
+        rv = super(ConfirmationPage, self).validatePage()
+        
+        
+        encrypt = self.field("ldsencryption").toBool()
+        
+        buildarray = ()
+        
+        buildarray += ((MFR.LDSN,'key',self.field("ldsapikey").toString()),)
+
+        if self.field("ldsproxy").toBool():
+            
+            buildarray += ((MFR.PROXY,'host',self.field("proxyhost").toString()),)
+            buildarray += ((MFR.PROXY,'port',self.field("proxyport").toString()),)
+            buildarray += ((MFR.PROXY,'auth',self.field("proxyauth").toString()),)
+            buildarray += ((MFR.PROXY,'user',self.field("proxyusr").toString()),)
+            pwd = self.field("proxypwd").toString()
+            if encrypt:
+                pwd = Encrypt.ENC_PREFIX+Encrypt.secure(pwd)
+            buildarray += ((MFR.PROXY,'pass',pwd),)
+
+        
+        dest = int(self.field("ldsdest").toString())
+        
+        for f in {1:self.getPGFields,2:self.getMSFields,3:self.getFGFields,4:self.getSLFields}.get(dest)():
+            field = f[0]
+            section = f[1][:f[1].find(' ')]
+            value = str(f[2].toString())
+            if field == 'pass' and encrypt:
+                value = Encrypt.ENC_PREFIX+Encrypt.secure(value)
+            buildarray += ((section,field,value),)
+            
+        ConfigWrapper.buildNewUserConfig(self.field("ldsfile").toString(), buildarray)
+        
+        return rv
+   
+        
+        
+def conf():
+    #func to call config wizz
+    app = QApplication(sys.argv)
+    ldsc = LDSConfigWizard()
+    ldsc.show()
+    sys.exit(app.exec_()) 
+    
 def main():
   
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     #lds = LDSRepl()
     #lds.show()
     
+#    for pwd in ('notlong','secretpassword','superdupermassivesecret','small','myspecialsecretx','myspecialsecret','reallyreallylongpasswordnobodywouldhonestlyuse'):
+#        print len(pwd)
+#        from lds.LDSUtilities import Encrypt
+#        sec = Encrypt.secure(pwd)
+#        pln = Encrypt.unSecure(sec)
+#        print pwd,sec,pln
+        
     ldsc = LDSConfigWizard()
     ldsc.show()
     sys.exit(app.exec_())
