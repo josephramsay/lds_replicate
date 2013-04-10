@@ -16,6 +16,7 @@ Created on 24/07/2012
 '''
 
 import os
+import shutil
 import string
 import logging
 import json
@@ -51,7 +52,17 @@ class MainFileReader(object):
             
         self._readConfigFile(self.filename)
         
+    def initMainFile(self,template=None):
+        #only init if the named file doesn't already exist
+        if not os.path.exists(self.filename):
+            if template is not None:
+                shutil.copyfile(template,self.filename)
+            else:
+                open(self.filename,'w').close()
+            #re read the cp
+            self._readConfigFile(self.filename)
         
+           
     def getSections(self):
         '''List of sections (layernames/datasources)'''
         return self.cp.sections()
@@ -402,7 +413,8 @@ class MainFileReader(object):
             auth = 'NTLM'
         else:
             auth = None
-        
+
+            
         try:
             host = self.cp.get(self.PROXY, 'host')
         except NoOptionError as noe:
@@ -490,7 +502,9 @@ class MainFileReader(object):
     
     def writeMainProperty(self,section,field,value):
         '''Write changes to named config table'''
-        try:            
+        try:
+            if not self.cp.has_section(section):
+                self.cp.add_section(section)            
             self.cp.set(section,field,value if value is not None else '')
             with open(self.filename, 'w') as configfile:
                 self.cp.write(configfile)

@@ -21,7 +21,7 @@ import re
 
 from DataStore import DataStore
 from DataStore import MalformedConnectionString
-from lds.LDSUtilities import LDSUtilities
+from lds.LDSUtilities import LDSUtilities, Encrypt
 
 ldslog = logging.getLogger('LDS')
 
@@ -76,9 +76,16 @@ class MSSQLSpatialDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.validateConnStr(self.conn_str)
         #return "MSSQL:server={};database={};trusted_connection={};".format(self.server, self.dbname, self.trust)
+        if LDSUtilities.mightAsWellBeNone(self.pwd) is not None:
+            if self.pwd.startswith(Encrypt.ENC_PREFIX):
+                pwd = ";PWD='{}'".format(Encrypt.unSecure(self.pwd))
+            else:
+                pwd = ";PWD='{}'".format(self.pwd)
+        else:
+            pwd = ""
+            
         sstr = ";Schema={}".format(self.schema) if LDSUtilities.mightAsWellBeNone(self.schema) is not None else ""
         usr = ";UID='{}'".format(self.usr) if LDSUtilities.mightAsWellBeNone(self.usr) is not None else ""
-        pwd = ";PWD='{}'".format(self.pwd) if LDSUtilities.mightAsWellBeNone(self.pwd) is not None else ""
         drv = ";Driver='{}'".format(self.odbc) if LDSUtilities.mightAsWellBeNone(self.odbc) is not None else ""
         tcn = ";trusted_connection='{}'".format(self.trust) if LDSUtilities.mightAsWellBeNone(self.trust) is not None else ""
         uri = "MSSQL:server={};database={}".format(self.server, self.dbname, self.odbc)+usr+pwd+drv+sstr+tcn

@@ -8,6 +8,6 @@ set PYTHONHOME=%~dp0apps\python27
 set PYTHONPATH=%~dp0apps\python27;%~dp0apps\python27\DLLs;%~dp0apps\python27\lib;%~dp0apps\python27\lib\lib-tk;%~dp0apps\python27\lib\site-packages;%~dp0apps\python27\lib\site-packages\osgeo
 set PROJ_LIB=%~dp0bin\GDAL\projlib
 
-REM Execute LDS Replicate GUI
+REM Execute LDS Replicate
 
-python.exe apps\ldsreplicate\ldsreplicate_gui.py
+python apps\ldsreplicate\ldsreplicate.py %*    

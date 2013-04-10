@@ -21,7 +21,7 @@ import string
 
 from DataStore import DataStore
 from DataStore import MalformedConnectionString
-from LDSUtilities import LDSUtilities
+from LDSUtilities import LDSUtilities, Encrypt
 
 ldslog = logging.getLogger('LDS')
 
@@ -87,9 +87,17 @@ class PostgreSQLDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.validateConnStr(self.conn_str)
         #can't put schema in quotes, causes error but without quotes tables get created in public anyway, still need schema.table syntax
+        if LDSUtilities.mightAsWellBeNone(self.pwd) is not None:
+            if self.pwd.startswith(Encrypt.ENC_PREFIX):
+                pwd = " password='{}'".format(Encrypt.unSecure(self.pwd))
+            else:
+                pwd = " password='{}'".format(self.pwd)
+        else:
+            pwd = ""
+        
         sch = " active_schema={}".format(self.schema) if LDSUtilities.mightAsWellBeNone(self.schema) is not None else ""
         usr = " user='{}'".format(self.usr) if LDSUtilities.mightAsWellBeNone(self.usr) is not None else ""
-        pwd = " password='{}'".format(self.pwd) if LDSUtilities.mightAsWellBeNone(self.pwd) is not None else ""
+        pwd = " password='{}'".format(pwd)
         hst = " host='{}'".format(self.host) if LDSUtilities.mightAsWellBeNone(self.host) is not None else ""
         prt = " port='{}'".format(self.port) if LDSUtilities.mightAsWellBeNone(self.port) is not None else ""
         uri = "PG:dbname='{}'".format(self.dbname)+hst+prt+usr+pwd+sch

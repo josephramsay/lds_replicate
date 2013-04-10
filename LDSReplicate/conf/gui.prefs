@@ -1,7 +1,7 @@
 [prefs]
-dest = PostgreSQL
-layer = v:x787
-uconf = ldsincr.lnx.conf
+dest = SpatiaLite
+layer = None
+uconf = sample.conf
 group = 
 epsg = 
 fd = None

@@ -16,7 +16,7 @@ Created on 23/07/2012
 '''
 
 from DataStore import DataStore
-
+from LDSUtilities import LDSUtilities, Encrypt
 
 class WFSDataStore(DataStore):
     '''
@@ -24,7 +24,8 @@ class WFSDataStore(DataStore):
     '''
 
     DRIVER_NAME = "WFS"
-    
+    PROXY_AUTH = ('BASIC','NTLM','DIGEST','ANY')    
+    #PROXY_AUTH = ('BASIC','NTLM','GSSNEGOTIATE','ANY')    
     def __init__(self,conn_str=None,user_config=None):
         '''
         Init driver and read config
@@ -32,11 +33,33 @@ class WFSDataStore(DataStore):
         
         super(WFSDataStore,self).__init__(conn_str,user_config)
         
+        #We set the proxy options here as this is the collection point for all WFS/network requests
+        self.proxyparams = self.mainconf.readDSParameters('Proxy')
+        
         #(self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
         
     def getConfigOptions(self):
         '''Pass up getConfigOptions call'''
-        return super(WFSDataStore,self).getConfigOptions()
+        proxyconfigoptions = []
+        (host, port, auth, usr, pwd) = self.proxyparams
+        if LDSUtilities.mightAsWellBeNone(host) is not None:
+            hp = 'GDAL_HTTP_PROXY='+str(host)
+            if LDSUtilities.mightAsWellBeNone(port) is not None:
+                hp += ':'+str(port)
+            proxyconfigoptions += hp 
+        if LDSUtilities.mightAsWellBeNone(usr) is not None:
+            up = 'GDAL_HTTP_PROXYUSERPWD='+str(usr)
+            if LDSUtilities.mightAsWellBeNone(pwd) is not None:
+                if pwd.startswith(Encrypt.ENC_PREFIX):
+                    up += ":"+str(Encrypt.unSecure(pwd))
+                else:
+                    up += ":"+str(pwd)
+            proxyconfigoptions += up
+            #NB do we also need to set GDAL_HTTP_USERPWD?
+        if LDSUtilities.mightAsWellBeNone(auth) is not None:
+            proxyconfigoptions += ['GDAL_PROXY_AUTH='+str(usr)]
+            #NB do we also need to set GDAL_HTTP_AUTH?
+        return super(WFSDataStore,self).getConfigOptions()+proxyconfigoptions
     
     def getLayerOptions(self,layer_id):
         '''Pass up getLayerOptions call'''

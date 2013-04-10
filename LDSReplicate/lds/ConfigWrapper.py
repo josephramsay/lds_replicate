@@ -15,6 +15,7 @@ Created on 23/07/2012
 @author: jramsay
 '''
 import logging
+import os
 
 from ReadConfig import MainFileReader, LayerFileReader
 
@@ -114,9 +115,11 @@ class ConfigWrapper(object):
         return self.mainconfig.readMainProperty(drv,prop) if pval is None else pval
 
     @staticmethod
-    def buildNewUserConfig(ucfile,uctriples):
-
-        uc = MainFileReader("../conf/"+str(ucfile)+'.conf',False)
+    def buildNewUserConfig(ucfileid,uctriples):
+        
+        uc = MainFileReader(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../conf/'+str(ucfileid)+'.conf'),False)
+        #uc.initMainFile(os.path.join(os.path.dirname(__file__), '../conf/ldsincr.conf'))
+        uc.initMainFile()
         for sfv in uctriples:
             section = sfv[0]
             field = sfv[1]

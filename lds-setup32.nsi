@@ -26,16 +26,17 @@ Var StartMenuGroup
 Page license
 Page components
 Page directory
-Page custom EnvReqCreate EnvReqLeave
 Page custom StartMenuGroupSelect "" ": Start Menu Folder"
 Page instfiles
+Page custom EnvReqCreate EnvReqLeave
+Page custom ConfigWizzCreate ConfigWizzLeave
 
 # Installer attributes
 OutFile C:\data\lds-setup32.exe
 InstallDir "$PROGRAMFILES\LDS Replicate"
 CRCCheck on
 XPStyle on
-Icon F:\git\LDS\LDSReplicate\doc\LINZ.ico
+Icon F:\git\LDS\LDSReplicate\doc\LINZsmall.ico
 ShowInstDetails show
 AutoCloseWindow false
 LicenseData "F:\git\LDS\license\LDS\LINZ LDS - Creative Commons - Attribution 3.0 New Zealand - CC BY 3.0 NZ.txt"
@@ -61,9 +62,9 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
-    File F:\git\LDS\LDSReplicate\ldsreplicate.bat
-    File F:\git\LDS\LDSReplicate\ldsreplicate_gui.bat
-    File F:\git\LDS\LDSReplicate\setup_vars.bat
+    File F:\git\LDS\LDSReplicate\ldsreplicate.cmd
+    File F:\git\LDS\LDSReplicate\ldsreplicate_gui.cmd
+    File F:\git\LDS\LDSReplicate\setup_vars.cmd
     WriteRegStr HKLM "${REGKEY}\Components" Main 1
 SectionEnd
 
@@ -112,7 +113,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\test\TestURL.py
     SetOutPath $INSTDIR\apps\ldsreplicate\log
     AccessControl::GrantOnFile "$INSTDIR\apps\ldsreplicate\log" "(S-1-5-32-545)" "FullAccess"
-    ;Makes sure we aren't including test logs in installer but using touched file with RW attributes
+    ;Makes sure we aren't leaking test logs in installer. Instead use touched empty file with RW attributes
     File /a /oname=debug.log F:\git\LDS\LDSReplicate\log\empty.debug.log
     SetOutPath $INSTDIR
     WriteRegStr HKLM "${REGKEY}\Components" "LDS Replicate" 1
@@ -236,7 +237,7 @@ FunctionEnd
 
 #Custom user page functions
 Function EnvReqCreate
-    Var /Global Dialog
+    Var /Global Dialog1
     Var /Global Label1
     Var /Global Label2
     Var /Global CheckBox1
@@ -247,8 +248,8 @@ Function EnvReqCreate
     Var /Global CheckBox3_State
     
     nsDialogs::Create /NOUNLOAD 1018
-    Pop $Dialog
-    ${If} $Dialog == error
+    Pop $Dialog1
+    ${If} $Dialog1 == error
         Abort
     ${EndIf}
     
@@ -260,19 +261,19 @@ Function EnvReqCreate
     ${NSD_CreateCheckbox} 0 50u 100% 10u "&System PATH"
     Pop $CheckBox1
     ${If} $CheckBox1_State == ${BST_CHECKED}
-        ${NSD_Check} $CheckBox1
+        ${NSD_UnCheck} $CheckBox1
     ${EndIf}
     
     ${NSD_CreateCheckbox} 0 65u 100% 10u "&PYTHONPATH"
     Pop $CheckBox2
     ${If} $CheckBox2_State == ${BST_CHECKED}
-        ${NSD_Check} $CheckBox2
+        ${NSD_UnCheck} $CheckBox2
     ${EndIf}
     
     ${NSD_CreateCheckbox} 0 80u 100% 10u "&GDAL_DRIVER and GDAL_PLUGINS"
     Pop $CheckBox3
     ${If} $CheckBox3_State == ${BST_CHECKED}
-        ${NSD_Check} $CheckBox3
+        ${NSD_UnCheck} $CheckBox3
     ${EndIf}
 
     nsDialogs::Show
@@ -315,27 +316,75 @@ Function EnvReqLeave
 
 FunctionEnd
 
+Function ConfigWizzCreate
+    Var /Global Dialog2
+    Var /Global Label3
+    Var /Global Label4
+    Var /Global CheckBox4
+    Var /Global CheckBox4_State
+    
+    nsDialogs::Create /NOUNLOAD 1018
+    Pop $Dialog2
+    ${If} $Dialog2 == error
+        Abort
+    ${EndIf}
+    
+    
+    ${NSD_CreateLabel} 0 0 100% 12u "Run the User Configuration Setup Wizard?"
+    Pop $Label3
+    ${NSD_CreateLabel} 0 20 100% 24u "(Alternatively you may copy and edit the template config file, ldsincr.conf)"
+    Pop $Label4
+    
+    ${NSD_CreateCheckbox} 0 95u 100% 10u "&Run Configuration Setup Wizard"
+    Pop $CheckBox4
+    ${If} $CheckBox4_State == ${BST_UNCHECKED}
+        ${NSD_Check} $CheckBox4
+    ${EndIf}
+
+    nsDialogs::Show
+FunctionEnd
+
+Function ConfigWizzLeave
+
+    ${NSD_GetState} $CheckBox4 $CheckBox4_State
+    ${If} $CheckBox4_State == ${BST_CHECKED}
+        ExecWait '"$INSTDIR\ldsreplicate_gui.cmd " "W"' $0
+        messageBox MB_OK "$0"
+    ${EndIf}
+
+FunctionEnd
+
 Function un.EnvReqUninstall
 
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR"
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal"
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\python27"
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\ldsreplicate"
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\bin"
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\gdalplugins"
-    ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\gdal-data"  
+    ${NSD_GetState} $CheckBox1 $CheckBox1_State
+    ${If} $CheckBox1_State == ${BST_CHECKED}
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\python27"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\ldsreplicate"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\bin"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\gdalplugins"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\gdal-data"  
+    ${EndIf}
 
-    ${un.EnvVarUpdate} $0 "PYTHONHOME" "R" "HKLM" "$INSTDIR\python27"
-    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\python27"
-    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\DLLs"
-    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib"
-    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\lib-tk"
-    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\site-packages"
-    ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\site-packages\osgeo" 
 
-    ${un.EnvVarUpdate} $0 "GDAL_DATA" "R" "HKLM" "$INSTDIR\bin\gdal\gdal-data"
-    ${un.EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "R" "HKLM" "$INSTDIR\bin\gdal\gdalplugins"
-    ${un.EnvVarUpdate} $0 "PROJ_LIB" "R" "HKLM" "$INSTDIR\bin\gdal\projlib"
+    ${NSD_GetState} $CheckBox2 $CheckBox2_State
+    ${If} $CheckBox2_State == ${BST_CHECKED}
+        ${un.EnvVarUpdate} $0 "PYTHONHOME" "R" "HKLM" "$INSTDIR\python27"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\python27"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\DLLs"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\lib-tk"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\site-packages"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\site-packages\osgeo" 
+    ${EndIf}
+
+    ${NSD_GetState} $CheckBox3 $CheckBox3_State
+    ${If} $CheckBox3_State == ${BST_CHECKED}
+        ${un.EnvVarUpdate} $0 "GDAL_DATA" "R" "HKLM" "$INSTDIR\bin\gdal\gdal-data"
+        ${un.EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "R" "HKLM" "$INSTDIR\bin\gdal\gdalplugins"
+        ${un.EnvVarUpdate} $0 "PROJ_LIB" "R" "HKLM" "$INSTDIR\bin\gdal\projlib"
+    ${EndIf}
     
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 

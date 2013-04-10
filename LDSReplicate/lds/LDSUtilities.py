@@ -385,7 +385,7 @@ class SUFIExtractor(object):
 class Encrypt(object):
     ENC_PREFIX = "ENC:"
     #SbO, not secret at all actually
-    key = open('conf/ldsincr.conf','r').readline(16)
+    lds = open('conf/ldsincr.conf','r').readline(16)
     from Crypto import Random
     ivstr = Random.get_random_bytes(16)
     
@@ -394,7 +394,7 @@ class Encrypt(object):
     def secure(cls,plaintext):
         import base64
         from Crypto.Cipher import AES
-        aes = AES.new(cls.key, AES.MODE_CBC, cls.ivstr)
+        aes = AES.new(cls.lds, AES.MODE_CBC, cls.ivstr)
         sec = base64.b64encode(aes.encrypt(Encrypt._pad(plaintext)))
         return sec
 
@@ -403,7 +403,7 @@ class Encrypt(object):
     def unSecure(cls,sectext):
         import base64
         from Crypto.Cipher import AES
-        aes = AES.new(cls.key, AES.MODE_CBC, cls.ivstr)
+        aes = AES.new(cls.lds, AES.MODE_CBC, cls.ivstr)
         plain = Encrypt._strip(aes.decrypt(base64.b64decode(sectext)))
         return plain
     
