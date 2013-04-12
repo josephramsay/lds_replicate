@@ -27,17 +27,17 @@ Var StartMenuGroup
 Page license
 Page components
 Page directory
-Page custom EnvReqCreate EnvReqLeave
 Page custom StartMenuGroupSelect "" ": Start Menu Folder"
-;Page custom APIKeyPageFunction
 Page instfiles
+Page custom EnvReqCreate EnvReqLeave
+Page custom ConfigWizzCreate ConfigWizzLeave
 
 # Installer attributes
 OutFile C:\data\lds-setup64.exe
 InstallDir "$PROGRAMFILES\LDS Replicate"
 CRCCheck on
 XPStyle on
-Icon F:\git\LDS\LDSReplicate\doc\LINZ.ico
+Icon F:\git\LDS\LDSReplicate\doc\LINZsmall.ico
 ShowInstDetails show
 AutoCloseWindow false
 LicenseData "F:\git\LDS\license\LDS\LINZ LDS - Creative Commons - Attribution 3.0 New Zealand - CC BY 3.0 NZ.txt"
@@ -63,9 +63,9 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
-    File F:\git\LDS\LDSReplicate\ldsreplicate.bat
-    File F:\git\LDS\LDSReplicate\ldsreplicate_gui.bat
-    File F:\git\LDS\LDSReplicate\setup_vars.bat
+    File F:\git\LDS\LDSReplicate\ldsreplicate.cmd
+    File F:\git\LDS\LDSReplicate\ldsreplicate_gui.cmd
+    File F:\git\LDS\LDSReplicate\setup_vars.cmd
     WriteRegStr HKLM "${REGKEY}\Components" Main 1
 SectionEnd
 
@@ -317,6 +317,43 @@ Function EnvReqLeave
     ${EndIf}
     
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+
+FunctionEnd
+
+Function ConfigWizzCreate
+    Var /Global Dialog2
+    Var /Global Label3
+    Var /Global Label4
+    Var /Global CheckBox4
+    Var /Global CheckBox4_State
+    
+    nsDialogs::Create /NOUNLOAD 1018
+    Pop $Dialog2
+    ${If} $Dialog2 == error
+        Abort
+    ${EndIf}
+    
+    
+    ${NSD_CreateLabel} 0 0 100% 12u "Run the User Configuration Setup Wizard?"
+    Pop $Label3
+    ${NSD_CreateLabel} 0 20 100% 24u "(Alternatively you may copy and edit the template config file, ldsincr.conf)"
+    Pop $Label4
+    
+    ${NSD_CreateCheckbox} 0 95u 100% 10u "&Run Configuration Setup Wizard"
+    Pop $CheckBox4
+    ${If} $CheckBox4_State == ${BST_UNCHECKED}
+        ${NSD_Check} $CheckBox4
+    ${EndIf}
+
+    nsDialogs::Show
+FunctionEnd
+
+Function ConfigWizzLeave
+
+    ${NSD_GetState} $CheckBox4 $CheckBox4_State
+    ${If} $CheckBox4_State == ${BST_CHECKED}
+        ExecWait '"$INSTDIR\ldsreplicate_gui.cmd " W'
+    ${EndIf}
 
 FunctionEnd
 

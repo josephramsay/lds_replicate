@@ -21,6 +21,8 @@ import gdal
 
 import logging
 
+from lxml import etree
+
 from WFSDataStore import WFSDataStore
 from urllib2 import urlopen
 from LDSUtilities import LDSUtilities
@@ -38,6 +40,18 @@ class LDSDataStore(WFSDataStore):
     '''Default GDAL page size'''
     LDS_PAGE_SIZE = 10000
     SUPPORTED_OUTPUT_FORMATS = ('GML2','GML3','JSON')
+    
+
+        #from etree import ElementTree as ET
+    NS = {'g'    : '{http://data.linz.govt.nz/ns/g}', 
+          'gml'  : '{http://www.opengis.net/gml}', 
+          'xlink': '{http://www.w3.org/1999/xlink}', 
+          'r'    : '{http://data.linz.govt.nz/ns/r}', 
+          'ows'  : '{http://www.opengis.net/ows}', 
+          'v'    : '{http://data.linz.govt.nz/ns/v}', 
+          'wfs'  : '{http://www.opengis.net/wfs}', 
+          'xsi'  : '{http://www.w3.org/2001/XMLSchema-instance}', 
+          'ogc'  : '{http://www.opengis.net/ogc}'}
 
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -217,22 +231,42 @@ class LDSDataStore(WFSDataStore):
         return maxfeat+"&cql_filter="+';'.join(cql) if len(cql)>0 else ""
     
     
-    @staticmethod
-    def fetchLayerNames(url):
-        '''Non-GDAL static method for fetching LDS layer ID's using standard URLopen library.
-        TODO. Investigate implementing this using the WFS driver and the relative expense for each'''
+#    @staticmethod
+#    def fetchLayerNames(url):
+#        '''Non-GDAL static method for fetching LDS layer ID's using standard URLopen library.
+#        TODO. Investigate implementing this using the WFS driver and the relative expense for each'''
+#        res = []
+#        mm = re.compile('<Name>('+LDSUtilities.LDS_TN_PREFIX+'\d+)<\/Name>')
+#        tt = re.compile('<Title>(.+)<\/Title>')
+#        lds = urlopen(url)
+#        for line in lds:    
+#            res1 = re.findall(mm,line)
+#            res2 = re.findall(tt,line)
+#            if len(res1)>0:
+#                res += ((res1[0],res2[0]),)
+#        lds.close()
+#        return res
+#    
+    @classmethod
+    def fetchLayerInfo(cls,url):
         res = []
-        mm = re.compile('<Name>('+LDSUtilities.LDS_TN_PREFIX+'\d+)<\/Name>')
-        tt = re.compile('<Title>(.+)<\/Title>')
-        lds = urlopen(url)
-        for line in lds:    
-            res1 = re.findall(mm,line)
-            res2 = re.findall(tt,line)
-            if len(res1)>0:
-                res += ((res1[0],res2[0]),)
-        lds.close()
+        ftxp = "//{0}FeatureType".format(cls.NS['wfs'])
+        nmxp = "./{0}Name".format(cls.NS['wfs'])
+        ttxp = "./{0}Title".format(cls.NS['wfs'])
+        kyxp = "./{0}Keywords/{0}Keyword".format(cls.NS['ows'])
+        
+        
+        tree = etree.parse(url)
+        for ft in tree.findall(ftxp):
+            name = ft.find(nmxp).text
+            title = ft.find(ttxp).text
+            #keys = map(lambda x: x.text, ft.findall(kyxp))
+            keys = [x.text for x in ft.findall(kyxp)]
+            
+            res += ((name,title,keys),)
+            
         return res
-    
+        
     @staticmethod
     def readDocument(url):
         '''Non-GDAL static method for fetching a LDS Datasource as a document'''

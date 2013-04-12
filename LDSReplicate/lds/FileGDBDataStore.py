@@ -35,9 +35,9 @@ class FileGDBDataStore(ESRIDataStore):
         
         super(FileGDBDataStore,self).__init__(conn_str,user_config)
         
-        (self.path,self.name,self.config,self.srs,self.cql) = self.params
+        (self.fname,self.config,self.srs,self.cql) = self.params
         #because sometimes ~ (if included) isnt translated to home
-        self.path = os.path.expanduser(self.path)
+        self.fname = os.path.expanduser(self.fname)
         self.SUFFIX = '.gdb'
         
 
@@ -66,9 +66,9 @@ class FileGDBDataStore(ESRIDataStore):
         '''FileGDB organises tables as individual .gdb file/directories into which contents are written. The layer is configured as if it were a file'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.validateConnStr(self.conn_str)
-        return os.path.join(self.path,self.name+self.SUFFIX)
+        return self.fname+(''if re.search(self.SUFFIX+'$',self.fname,flags=re.IGNORECASE) else self.SUFFIX)
         
-        
+    
     def deleteFieldFromLayer(self,layer,field_id,field_name):
         '''per DS delete field since some do not support this'''
         dsql = "alter table "+layer.GetName()+" drop column "+field_name

@@ -332,7 +332,7 @@ class TransferProcessor(object):
             return
             
         #full LDS layer name listv:x (from LDS WFS)
-        lds_full = zip(*LDSDataStore.fetchLayerNames(capabilities))[0]
+        lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities))[0]
         #list of configured layers (from layer-config file/table)
         lds_read = self.dst.layerconf.getLayerNames()
         

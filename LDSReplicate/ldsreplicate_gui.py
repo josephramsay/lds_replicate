@@ -35,6 +35,12 @@ from lds.ReadConfig import GUIPrefsReader
 from lds.LDSUtilities import LDSUtilities
 from lds.VersionUtilities import AppVersion
 
+from lds.PostgreSQLDataStore import PostgreSQLDataStore as PG
+from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore as MS
+from lds.FileGDBDataStore import FileGDBDataStore as FG
+from lds.SpatiaLiteDataStore import SpatiaLiteDataStore as SL
+
+
 ldslog = LDSUtilities.setupLogging()
 
 __version__ = AppVersion.getVersion()
@@ -111,14 +117,19 @@ class LDSControls(QFrame):
         confLabel = QLabel('User Config')
 
         #edit boxes
-        self.layerEdit = QLineEdit(rlist[1])   
+        self.layerEdit = QLineEdit(rlist[1])
+        self.layerEdit.setToolTip('Enter the layer you want to replicate using either v:x format or layer name')   
         self.groupEdit = QLineEdit(rlist[3])
+        self.groupEdit.setToolTip('Enter a layer keyword or use your own custom keyword to select a group of layers')   
         self.epsgEdit = QLineEdit(rlist[4])
+        self.epsgEdit.setToolTip('Setting an EPSG number here determines the output SR of the layer')   
         self.confEdit = QLineEdit(rlist[2])
+        self.confEdit.setToolTip('Enter your user config file here')   
         
         #menus
-        self.destmenulist = ('','MSSQL','PostgreSQL','SpatiaLite','FileGDB') 
+        self.destmenulist = ('',PG.DRIVER_NAME,MS.DRIVER_NAME,FG.DRIVER_NAME,SL.DRIVER_NAME) 
         self.destMenu = QComboBox(self)
+        self.destMenu.setToolTip('Choose the desired output type')   
         self.destMenu.addItems(self.destmenulist)
         self.destMenu.setCurrentIndex(self.destmenulist.index(rlist[0]))
         
@@ -148,12 +159,15 @@ class LDSControls(QFrame):
         self.toDateEnable.clicked.connect(self.doToDateEnable)
         
         self.internalTrigger = QCheckBox()
+        self.internalTrigger.setToolTip('Sets where layer config settings are stored, external/internal')   
         self.internalTrigger.setCheckState(rlist[7]=='True')
         
         self.initTrigger = QCheckBox()
+        self.initTrigger.setToolTip('Re writes the layer config settings (you need to do this on first run)')   
         self.initTrigger.setCheckState(False)
         
         self.cleanTrigger = QCheckBox()
+        self.cleanTrigger.setToolTip('Instead of replicating, this deletes the layer chosen above')   
         self.cleanTrigger.setCheckState(False)
         
         
@@ -303,6 +317,12 @@ class LDSControls(QFrame):
                                None if uconf is None else uconf, 
                                internal, None)
         
+        #NB init and clean are funcs because they appear as args, not opts in the CL
+        if init:
+            tp.setInitConfig()
+        if clean:
+            tp.setCleanConfig()
+            
         proc = {'PostgreSQL':tp.processLDS2PG,
                 'MSSQL':tp.processLDS2MSSQL,
                 'SpatiaLite':tp.processLDS2SpatiaLite,
@@ -1047,7 +1067,8 @@ class ConfirmationPage(QWizardPage):
         ConfigWrapper.buildNewUserConfig(self.field("ldsfile").toString(), buildarray)
         #save userconf and dest to gui prefs
         gpr = GUIPrefsReader()
-        gpr.write((section,None,self.ldsfile+'.conf'))#add .conf here or not?
+        #zips with (dest,layer,uconf...
+        gpr.write( (section,'',self.ldsfile+('' if re.search('\.conf$',self.ldsfile) else '.conf')) )
         
         return rv
    
@@ -1066,18 +1087,6 @@ def main():
     lds = LDSRepl()
     lds.show()
     sys.exit(app.exec_())
-    
-#    for pwd in ('notlong','secretpassword','superdupermassivesecret','small','myspecialsecretx','myspecialsecret','reallyreallylongpasswordnobodywouldhonestlyuse'):
-#        print len(pwd)
-#        from lds.LDSUtilities import Encrypt
-#        sec = Encrypt.secure(pwd)
-#        pln = Encrypt.unSecure(sec)
-#        print pwd,sec,pln
-
-#    app = QApplication(sys.argv)
-#    ldsc = LDSConfigWizard()
-#    ldsc.show()
-#    sys.exit(app.exec_())
     
     
 if __name__ == '__main__':

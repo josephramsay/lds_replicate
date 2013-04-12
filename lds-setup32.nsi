@@ -348,8 +348,7 @@ Function ConfigWizzLeave
 
     ${NSD_GetState} $CheckBox4 $CheckBox4_State
     ${If} $CheckBox4_State == ${BST_CHECKED}
-        ExecWait '"$INSTDIR\ldsreplicate_gui.cmd " "W"' $0
-        messageBox MB_OK "$0"
+        ExecWait '"$INSTDIR\ldsreplicate_gui.cmd " W'
     ${EndIf}
 
 FunctionEnd

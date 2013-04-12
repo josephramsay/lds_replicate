@@ -253,24 +253,16 @@ class MainFileReader(object):
         cql = None
         
         if self.use_defaults:
-            path = "~"
-            name = "LDSSLITE"
+            fname = "~/LDSSLITE.sqlite3"
             config = "external"
         else:
-            path = None
-            name = None
+            fname = None
             config = None
-
-        
-        try: 
-            path = self.cp.get(SL.DRIVER_NAME, 'path')
-        except NoOptionError:
-            ldslog.warn("SpatiaLite: No path specified, default to Home directory, "+str(path))
         
         try:
-            name = self.cp.get(SL.DRIVER_NAME, 'name')
+            fname = self.cp.get(SL.DRIVER_NAME, 'file')
         except NoOptionError:
-            ldslog.warn("SpatiaLite: No DB name provided, default to "+str(name))
+            ldslog.warn("SpatiaLite: No DB name provided, default to "+str(fname))
             
         try:
             config = self.cp.get(SL.DRIVER_NAME, 'config')
@@ -287,7 +279,7 @@ class MainFileReader(object):
         except NoOptionError:
             ldslog.warn("SL: No CQL Filter specified, fetching all results")
         
-        return (path,name,config,epsg,cql)
+        return (fname,config,epsg,cql)
     
     
     
@@ -299,24 +291,17 @@ class MainFileReader(object):
         cql = None
         
         if self.use_defaults:
-            path = "~"
-            name = "LDSFGDB"
+            fname = "~/LDSFGDB.gdb"
             config = "external"
         else:
-            path = None
-            name = None
+            fname = None
             config = None
 
-        
-        try: 
-            path = self.cp.get(FG.DRIVER_NAME, 'path')
-        except NoOptionError:
-            ldslog.warn("FileGDB: No path specified, default to Home directory, "+str(path))
             
         try:
-            name = self.cp.get(FG.DRIVER_NAME, 'name')
+            fname = self.cp.get(FG.DRIVER_NAME, 'file')
         except NoOptionError:
-            ldslog.warn("FileGDB: No DB name provided, default to "+str(name))
+            ldslog.warn("FileGDB: No DB name provided, default to "+str(fname))
             
         try:
             config = self.cp.get(FG.DRIVER_NAME, 'config')
@@ -333,7 +318,7 @@ class MainFileReader(object):
         except NoOptionError:
             ldslog.warn("FileGDB: No CQL Filter specified, fetching all results")
         
-        return (path,name,config,epsg,cql)
+        return (fname,config,epsg,cql)
     
     
     
@@ -417,33 +402,30 @@ class MainFileReader(object):
             
         try:
             host = self.cp.get(self.PROXY, 'host')
-        except NoOptionError as noe:
-            ldslog.warn("Proxy: No Proxy assumed "+str(noe))
-        except NoSectionError as nse:
-            ldslog.warn("Proxy: No Proxy assumed "+str(nse))
+        except NoSectionError, NoOptionError:
+            ldslog.warn("Proxy: Host not defined, no-Proxy assumed ")
             
         try:
             port = self.cp.get(self.PROXY, 'port')
-        except NoOptionError, NoSectionError:
-            ldslog.warn("Proxy: No Proxy assumed")
+        except NoSectionError, NoOptionError:
+            ldslog.warn("Proxy: Port not defined, no-Proxy assumed")
             
         try:
             auth = self.cp.get(self.PROXY, 'auth')
-        except NoOptionError, NoSectionError:
-            ldslog.warn("Proxy: No Proxy assumed")
+        except NoSectionError, NoOptionError:
+            ldslog.warn("Proxy: Auth not defined, NTLM assumed")
 
         try:
             usr = self.cp.get(self.PROXY, 'user')
-        except NoOptionError, NoSectionError:
-            ldslog.warn("Proxy: No Proxy assumed")        
+        except NoSectionError, NoOptionError:
+            ldslog.warn("Proxy: No user defined")        
         
         try:
             pwd = self.cp.get(self.PROXY, 'pass')
-        except NoOptionError, NoSectionError:
-            ldslog.warn("Proxy: No Proxy assumed") 
+        except NoSectionError, NoOptionError:
+            ldslog.warn("Proxy: No pass defined") 
             
 
-        
         return (host,port,auth,usr,pwd)
     
     def readMiscConfig(self):
@@ -516,7 +498,43 @@ class MainFileReader(object):
     #----------------------------------------------------------------------------------------------
     # Functions [4] below relate to layer config data
     
-class LayerFileReader(object):
+from abc import ABCMeta, abstractmethod    
+
+class LayerReader(object):
+    
+    __metaclass__ = ABCMeta
+    '''abstract super class for holding common functionality'''
+    def __init__(self,fname):
+        pass
+    
+    @abstractmethod
+    def readLayerProperty(self,layer,key):
+        pass
+    
+    @abstractmethod
+    def writeLayerProperty(self,layer,key,value):
+        pass
+    
+    def addCustomTag(self,layerlist,tagname):        
+        '''Write a keyword to all the layers in the provided list'''
+        self._reTag(layerlist, tagname, True)
+                
+    def delCustomTag(self,layerlist,tagname):        
+        '''Delete a keyword from all the layers in the provided list'''
+        self._reTag(layerlist, tagname, False)
+                
+    def _reTag(self,layerlist,tagname,addtag):        
+        '''Add/Delete a keyword from all the layers in the provided list'''
+        for layer in layerlist:
+            keywords = set(str(self.readLayerProperty(layer, 'Category')).split(','))
+            if addtag:
+                keywords.add(tagname)
+            else:
+                keywords.remove(tagname)
+                
+            self.writeLayerProperty(layer, 'Category', ','.join(keywords))
+    
+class LayerFileReader(LayerReader):
     
     def __init__(self,fname):
         '''
@@ -645,10 +663,10 @@ class LayerFileReader(object):
             ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
         except Exception as e:
             ldslog.warn('Problem writing LM date to layer config file. '+str(e))
-
-
             
-class LayerDSReader(object):
+        
+            
+class LayerDSReader(LayerReader):
     '''
     Layer config wrapper for internal format config file.
     '''
@@ -770,8 +788,6 @@ class LayerDSReader(object):
         except Exception as e:
             ldslog.error(e)
             
-         
-         
             
 class GUIPrefsReader(object):
     '''

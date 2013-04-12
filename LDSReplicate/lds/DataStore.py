@@ -41,7 +41,7 @@ ogr.UseExceptions()
 class DSReaderException(Exception): pass
 class LDSReaderException(DSReaderException): pass
 class IncompleteWFSRequestException(LDSReaderException): pass
-class CannotInitialiseDriverType(LDSReaderException): pass
+class DriverInitialisationException(LDSReaderException): pass
 class DatasourceCopyException(LDSReaderException): pass
 class DatasourceCreateException(LDSReaderException): pass
 class DatasourceOpenException(DSReaderException): pass
@@ -135,7 +135,7 @@ class DataStore(object):
 
         self.driver = ogr.GetDriverByName(driver_name)
         if self.driver == None:
-            raise CannotInitialiseDriverType, "Driver cannot be initialised for type "+driver_name
+            raise DriverInitialisationException, "Driver cannot be initialised for type "+driver_name
             
 
     def setURI(self,uri):

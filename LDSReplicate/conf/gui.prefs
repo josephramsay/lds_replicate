@@ -1,7 +1,7 @@
 [prefs]
-dest = SpatiaLite
-layer = None
-uconf = sample.conf
+dest = PostgreSQL
+layer = v:x785
+uconf = ldsincr.win.conf
 group = 
 epsg = 
 fd = None

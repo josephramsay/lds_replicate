@@ -41,10 +41,10 @@ class SpatiaLiteDataStore(DataStore):
 
         super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 
-        (self.path,self.name,self.config,self.srs,self.cql) = self.params 
+        (self.fname,self.config,self.srs,self.cql) = self.params 
         #because sometimes ~ isnt translated to home
-        self.path = os.path.expanduser(self.path)
-        self.SUFFIX = '.db'
+        self.fname = os.path.expanduser(self.fname)
+        self.SUFFIX = ['.db','.sqlite','.sqlite3']
         
         
     def sourceURI(self,layer):
@@ -59,7 +59,7 @@ class SpatiaLiteDataStore(DataStore):
         '''SLITE basic checks. 1 correct file suffix. 2 the directory can be accessed'''
         #-d "/home/<username>/temp/spatialite/ldsincr.db
         if not hasattr(self,'SUFFIX') or not re.search(self.SUFFIX+'$',cs,flags=re.IGNORECASE):
-            raise MalformedConnectionString('SpatiaLite file suffix must be '+self.SUFFIX)
+            raise MalformedConnectionString('SpatiaLite file suffix must be one of '+self.SUFFIX)
         if not os.access(os.path.dirname(cs), os.W_OK):
             raise MalformedConnectionString('Data file path cannot be found')
         return cs
@@ -70,9 +70,9 @@ class SpatiaLiteDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.validateConnStr(self.conn_str)
         #return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
-        return os.path.join(self.path,self.name+self.SUFFIX)
+        return self.fname+('' if re.search('|'.join(self.SUFFIX)+'$',self.fname,flags=re.IGNORECASE) else self.SUFFIX[0])
     
-
+        
     def getConfigOptions(self):
         '''SL config opts'''
         #DS options: METADATA, SPATIALITE, INIT_WITH_EPSG

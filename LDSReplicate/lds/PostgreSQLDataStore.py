@@ -97,7 +97,6 @@ class PostgreSQLDataStore(DataStore):
         
         sch = " active_schema={}".format(self.schema) if LDSUtilities.mightAsWellBeNone(self.schema) is not None else ""
         usr = " user='{}'".format(self.usr) if LDSUtilities.mightAsWellBeNone(self.usr) is not None else ""
-        pwd = " password='{}'".format(pwd)
         hst = " host='{}'".format(self.host) if LDSUtilities.mightAsWellBeNone(self.host) is not None else ""
         prt = " port='{}'".format(self.port) if LDSUtilities.mightAsWellBeNone(self.port) is not None else ""
         uri = "PG:dbname='{}'".format(self.dbname)+hst+prt+usr+pwd+sch

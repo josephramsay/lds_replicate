@@ -385,7 +385,8 @@ class SUFIExtractor(object):
 class Encrypt(object):
     ENC_PREFIX = "ENC:"
     #SbO, not secret at all actually
-    lds = open('conf/ldsincr.conf','r').readline(16)
+    p = os.path.join(os.path.dirname(__file__),'../conf/ldsincr.conf')
+    lds = open(p,'r').readline(16)
     from Crypto import Random
     ivstr = Random.get_random_bytes(16)
     
