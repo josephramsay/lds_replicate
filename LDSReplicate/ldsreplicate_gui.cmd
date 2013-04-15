@@ -16,6 +16,7 @@ REM Execute LDS Replicate GUI
 
 
 IF '%1'=='W' GOTO WIZZ
+IF '%1'=='L' GOTO LWIZZ
 
 REM ----------------------------------------------------------------------------
 :GUI
@@ -31,6 +32,14 @@ REM ----------------------------------------------------------------------------
 echo Starting Configuration Wizard
 cd %PWD%\apps\ldsreplicate
 python -c "from ldsreplicate_gui import conf; conf()"
+
+GOTO END
+
+REM ----------------------------------------------------------------------------
+:LWIZZ
+echo Starting Layer Configuration Wizard
+cd %PWD%\apps\ldsreplicate
+python -c "from ldsreplicate_gui import lconf; lconf()"
 
 GOTO END
 

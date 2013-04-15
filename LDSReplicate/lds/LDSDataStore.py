@@ -249,6 +249,7 @@ class LDSDataStore(WFSDataStore):
 #    
     @classmethod
     def fetchLayerInfo(cls,url):
+        '''Non-GDAL static method for fetching LDS layer ID's using etree parser.'''
         res = []
         ftxp = "//{0}FeatureType".format(cls.NS['wfs'])
         nmxp = "./{0}Name".format(cls.NS['wfs'])
