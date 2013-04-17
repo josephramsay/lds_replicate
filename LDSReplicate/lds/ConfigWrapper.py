@@ -67,21 +67,22 @@ class ConfigWrapper(object):
 
     def readDSParameters(self,drv):
         '''Returns the datasource parameters. By request updated to let users override parts of the basic config file'''
+        from DataStore import DataStore
         ul = ()
 
-        if drv=='PostgreSQL':
+        if drv==DataStore.DRIVER_NAMES['pg']:
             ml = self.mainconfig.readPostgreSQLConfig()
             if self.userconfig is not None:
                 ul = self.userconfig.readPostgreSQLConfig()
-        elif drv=='MSSQLSpatial':
+        elif drv==DataStore.DRIVER_NAMES['ms']:
             ml = self.mainconfig.readMSSQLConfig()
             if self.userconfig is not None:
                 ul = self.userconfig.readMSSQLConfig()
-        elif drv=='FileGDB':
+        elif drv==DataStore.DRIVER_NAMES['fg']:
             ml = self.mainconfig.readFileGDBConfig()
             if self.userconfig is not None:
                 ul = self.userconfig.readFileGDBConfig()
-        elif drv=='SQLite':
+        elif drv==DataStore.DRIVER_NAMES['sl']:
             ml = self.mainconfig.readSpatiaLiteConfig()
             if self.userconfig is not None:
                 ul = self.userconfig.readSpatiaLiteConfig()

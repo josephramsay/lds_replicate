@@ -61,7 +61,7 @@ class TransferProcessor(object):
     ###layers_with_64bit_ints = map(lambda s: 'v:x'+s, ('1203','1204','1205','1028','1029'))
     #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
     
-    
+    LP_SUFFIX = ".layer.properties"
     
     def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None,fbf=None):
         #ldsu? lnl?
@@ -229,22 +229,45 @@ class TransferProcessor(object):
             return False
         return True
     
+    def initDestination(self,dstname):
+        proc = {PostgreSQLDataStore.DRIVER_NAME:PostgreSQLDataStore,
+                MSSQLSpatialDataStore.DRIVER_NAME:MSSQLSpatialDataStore,
+                SpatiaLiteDataStore.DRIVER_NAME:SpatiaLiteDataStore,
+                FileGDBDataStore.DRIVER_NAME:FileGDBDataStore
+                }.get(LDSUtilities.standardiseDriverNames(dstname))
+        return proc(self.destination_str,self.user_config)
     
-    def processLDS2PG(self):
-        '''process LDS to PG convenience method'''
-        self.processLDS(PostgreSQLDataStore(self.destination_str,self.user_config))
+    def editLayerConf(self,layerlist, dstname,customkey='GUI:selection'):
+        '''using the available TP initialisers, setup and build a new layer config'''
+        dst = self.initDestination(dstname)
+        src = LDSDataStore(self.source_str,self.user_config) 
+        src.applyConfigOptions()
+        dst.setupLayerConfig(self.isConfInternal())
+        capabilities = src.getCapabilities()
+        TransferProcessor.initLayerConfig(capabilities,dst)
+        #--------------------
+        lconf = TransferProcessor.getLayerConf(dst)
+        for layer in layerlist:
+            v1 = lconf.readLayerProperty(layer, 'category')
+            v2 = v1+","+str(customkey)
+            lconf.writeLayerProperty(layer, 'category', v2)    
         
-    def processLDS2MSSQL(self):
-        '''process LDS to PG convenience method'''
-        self.processLDS(MSSQLSpatialDataStore(self.destination_str,self.user_config))
         
-    def processLDS2SpatiaLite(self):
-        '''process LDS to SpatiaLite convenience method'''
-        self.processLDS(SpatiaLiteDataStore(self.destination_str,self.user_config))
-        
-    def processLDS2FileGDB(self):
-        '''process LDS to FileGDB convenience method'''
-        self.processLDS(FileGDBDataStore(self.destination_str,self.user_config))
+#    def processLDS2PG(self):
+#        '''process LDS to PG convenience method'''
+#        self.processLDS(self.initDestination('PostgreSQL'))
+#        
+#    def processLDS2MSSQL(self):
+#        '''process LDS to PG convenience method'''
+#        self.processLDS(self.initDestination('MSSQLSpatial'))
+#        
+#    def processLDS2SpatiaLite(self):
+#        '''process LDS to SpatiaLite convenience method'''
+#        self.processLDS(self.initDestination('SpatiaLite'))
+#        
+#    def processLDS2FileGDB(self):
+#        '''process LDS to FileGDB convenience method'''
+#        self.processLDS(self.initDestination('FileGDB'))
         
 
         
@@ -269,7 +292,7 @@ class TransferProcessor(object):
         fdate = None
         tdate = None
         
-        fname = dst.DRIVER_NAME.lower()+".layer.properties"
+        #fname = dst.DRIVER_NAME.lower()+self.LP_SUFFIX
         
         self.dst = dst
         self.dst.applyConfigOptions()
@@ -292,27 +315,12 @@ class TransferProcessor(object):
         #because we need to read a new config from the SRC and write it to the DST config both of these must be initialised
         self.dst.setupLayerConfig(self.isConfInternal())
         if self.getInitConfig():
-            xml = LDSDataStore.readDocument(capabilities)
-            if dst.isConfInternal():
-                res = ConfigInitialiser.buildConfiguration(xml,'json')
-                #open the internal layer table and populate with res 
-                self.dst.buildConfigLayer(str(res))
-            else:
-                res = ConfigInitialiser.buildConfiguration(xml,'file')
-                #open and write res to the external layer config file
-                open(os.path.join(os.path.dirname(__file__), '../conf/',fname),'w').write(str(res))
+            TransferProcessor.initLayerConfig(capabilities,dst)                
                 
-                
-        # *** Decide whether to use internal or external layer config ***
-        if dst.isConfInternal():
-            #set the layerconf using the existing DS for common accessor functions 
-            self.dst.layerconf = LayerDSReader(self.dst)
-        else:
-            #set the layerconf to a reader that accesses a DS delimited external file
-            self.dst.layerconf = LayerFileReader(fname)
+        self.dst.layerconf = TransferProcessor.getLayerConf(dst)
         
         if self.dst.layerconf is None:
-            raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table. fn="+str(fname)+',int='+str(dst.isConfInternal()))
+            raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table. int="+str(dst.isConfInternal()))
         
         # *** Once the layer config is initialised we can do a layer name check ***
         if self.layer is None:
@@ -372,17 +380,7 @@ class TransferProcessor(object):
             if fdate is None:
                 raise InputMisconfigurationException("From-Date provided but format incorrect {-fd yyyy-MM-dd[Thh:mm:ss}")
             else:
-                self.setIncremental()
-
-
-#        if check_layer is None:
-#            '''If layer is not specified the result is ALL layers though this selection list is still moderated by group and validity'''
-#            layer = 'ALL'  
-#        elif LDSUtilities.checkLayerName(self.dst.layerconf,self.layer):
-#            layer = self.layer
-#        else:
-#            raise InputMisconfigurationException("Layer name provided but format incorrect {-l "+LDSUtilities.LDS_TN_PREFIX+"###}")
-        
+                self.setIncremental()       
               
         #this is the first time we use the incremental flag to do something (and it should only be needed once?)
         #if incremental is false we want a duplicate of the whole layer so fullreplicate
@@ -541,5 +539,27 @@ class TransferProcessor(object):
             ldslog.info("No update required for layer "+layer_i+" since [start:"+fd.isoformat()+" >= finish:"+td.isoformat()+"] by at least 1 day")
         return
     
-    
-
+    @classmethod
+    def getLayerConf(cls,dst):
+        '''Return an internal/external layerconf object'''
+        # *** Decide whether to use internal or external layer config ***
+        if dst.isConfInternal():
+            #set the layerconf using the existing DS for common accessor functions 
+            return LayerDSReader(dst)
+        else:
+            #set the layerconf to a reader that accesses a DS delimited external file
+            return LayerFileReader(dst.DRIVER_NAME.lower()+cls.LP_SUFFIX)
+            
+            
+    @classmethod
+    def initLayerConfig(cls,capabilities,dst):
+        '''class method initialising a layer config'''
+        xml = LDSDataStore.readDocument(capabilities)
+        if dst.isConfInternal():
+            res = ConfigInitialiser.buildConfiguration(xml,'json')
+            #open the internal layer table and populate with res 
+            dst.buildConfigLayer(str(res))
+        else:
+            res = ConfigInitialiser.buildConfiguration(xml,'file')
+            #open and write res to the external layer config file
+            open(os.path.join(os.path.dirname(__file__), '../conf/',dst.DRIVER_NAME.lower()+cls.LP_SUFFIX),'w').write(str(res))

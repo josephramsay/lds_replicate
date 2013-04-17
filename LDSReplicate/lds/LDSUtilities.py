@@ -277,6 +277,25 @@ class LDSUtilities(object):
         return LayerConfEntry(pkey,name,group,gcol,index,epsg,lmod,disc,cql)
     
     @staticmethod
+    def standardiseDriverNames(dname):
+        '''Returns standard identifier (defined by DRIVER_NAME) for different dests'''
+
+        if dname.lower() in ("pg", "postgres", "postgresql"):
+            from PostgreSQLDataStore import PostgreSQLDataStore
+            return PostgreSQLDataStore.DRIVER_NAME
+        elif dname.lower() in ("ms", "mssql", "mssqlserver"):
+            from MSSQLSpatialDataStore import MSSQLSpatialDataStore
+            return MSSQLSpatialDataStore.DRIVER_NAME
+        elif dname.lower() in ("sl", "slite", "spatialite","sqlite"):
+            from SpatiaLiteDataStore import SpatiaLiteDataStore
+            return SpatiaLiteDataStore.DRIVER_NAME
+        elif dname.lower() in ("fg", "fgdb", "filegdb"):
+            from FileGDBDataStore import FileGDBDataStore
+            return FileGDBDataStore.DRIVER_NAME
+        return None
+    
+    
+    @staticmethod
     def readDocument(url):
         '''Non-Driver method for fetching LDS DS as a document'''
         ldslog.debug("LDs URL "+url)
@@ -322,10 +341,11 @@ class ConfigInitialiser(object):
         res = transform(doc)
         hackpk = {'file':ConfigInitialiser._hackPrimaryKeyFieldCP,'json':ConfigInitialiser._hackPrimaryKeyFieldJSON}.get(fileid)
         return hackpk(str(res))
+    
  
     @staticmethod
     def _hackPrimaryKeyFieldCP(cpdoc,csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
-        '''temporary hack method to rewrite the layerconf primary key field for ConfigParser file types'''
+        '''temporary hack method to rewrite the layerconf primary key field for ConfigParser file types using Koordinates supplied PK CSV'''
         import csv,io
         from ConfigParser import ConfigParser, NoSectionError
         cp = ConfigParser()

@@ -31,7 +31,8 @@ class MSSQLSpatialDataStore(DataStore):
     MSSQL:server=.\MSSQLSERVER2008;database=dbname;trusted_connection=yes
     '''
 
-    DRIVER_NAME = "MSSQLSpatial"
+    DRIVER_NAME = DataStore.DRIVER_NAMES['ms']#"MSSQLSpatial"
+    
     #wkbNone removed
     ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
                       ogr.wkbPolygon, ogr.wkbMultiPoint, ogr.wkbMultiLineString, 

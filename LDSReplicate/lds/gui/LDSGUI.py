@@ -24,22 +24,14 @@ from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
 from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir)
 
 import os
-import re
 import sys
-import logging
 
 from lds.TransferProcessor import TransferProcessor
-from lds.LDSDataStore import LDSDataStore
-from lds.WFSDataStore import WFSDataStore
 from lds.ReadConfig import GUIPrefsReader
 from lds.LDSUtilities import LDSUtilities
 from lds.VersionUtilities import AppVersion
 
-from lds.PostgreSQLDataStore import PostgreSQLDataStore as PG
-from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore as MS
-from lds.FileGDBDataStore import FileGDBDataStore as FG
-from lds.SpatiaLiteDataStore import SpatiaLiteDataStore as SL
-
+from lds.DataStore import DataStore
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -127,7 +119,7 @@ class LDSControls(QFrame):
         self.confEdit.setToolTip('Enter your user config file here')   
         
         #menus
-        self.destmenulist = ('',PG.DRIVER_NAME,MS.DRIVER_NAME,FG.DRIVER_NAME,SL.DRIVER_NAME) 
+        self.destmenulist = ['',]+DataStore.DRIVER_NAMES.values()
         self.destMenu = QComboBox(self)
         self.destMenu.setToolTip('Choose the desired output type')   
         self.destMenu.addItems(self.destmenulist)
@@ -172,6 +164,10 @@ class LDSControls(QFrame):
         
         
         #buttons
+        initButton = QPushButton("Initialise")
+        initButton.setToolTip('Initialise the Layer Configuration')
+        initButton.clicked.connect(self.doInitClickAction)
+        
         okButton = QPushButton("OK")
         okButton.setToolTip('Execute selected replication')
         okButton.clicked.connect(self.doOkClickAction)
@@ -242,6 +238,7 @@ class LDSControls(QFrame):
         hbox3.addLayout(vbox3)
         
         hbox4 = QHBoxLayout()
+        hbox4.addWidget(initButton)
         hbox4.addStretch(1)
         hbox4.addWidget(okButton)
         hbox4.addWidget(cancelButton)
@@ -283,8 +280,7 @@ class LDSControls(QFrame):
     def doToDateEnable(self):
         self.toDateEdit.setEnabled(self.toDateEnable.isChecked())  
           
-    def doOkClickAction(self):
-        
+    def readParameters(self):
         destination = str(self.destmenulist[self.destMenu.currentIndex()])
         layer = str(self.layerEdit.text())
         uconf = str(self.confEdit.text())
@@ -298,6 +294,26 @@ class LDSControls(QFrame):
         init = self.initTrigger.isChecked()
         clean = self.cleanTrigger.isChecked()
         
+        return destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean
+    
+    def doInitClickAction(self):
+        destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.readParameters()
+        self.parent.statusbar.showMessage('Initialising Layer config')
+          
+        tp = TransferProcessor(layer, 
+                               None if group is None else group, 
+                               None if epsg is None else epsg, 
+                               None if fd is None else fd, 
+                               None if td is None else td,
+                               None, None, None, 
+                               None if uconf is None else uconf, 
+                               internal, None)
+
+        self.openLayerConfigSelector(tp,uconf,destination)
+        
+    def doOkClickAction(self):
+        destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.readParameters()
+        
         self.parent.statusbar.showMessage('Replicating '+layer)
 
         #'dest','layer','uconf','group','epsg','fd','td','int'
@@ -306,7 +322,6 @@ class LDSControls(QFrame):
         ldslog.info('dest='+destination+', layer'+layer+', conf='+uconf+', group='+group+', epsg='+epsg)
         ldslog.info('fd='+str(fd)+', td='+str(td)+', fe='+str(fe)+', te='+str(te))
         ldslog.info('int='+str(internal)+', init='+str(init)+', clean='+str(clean))
-
 
         tp = TransferProcessor(layer, 
                                None if group is None else group, 
@@ -320,18 +335,19 @@ class LDSControls(QFrame):
         #NB init and clean are funcs because they appear as args, not opts in the CL
         if init:
             tp.setInitConfig()
+            #if you are initialising probably want to do a layer select?
+            self.openLayerConfigSelector(tp,uconf,destination)
         if clean:
             tp.setCleanConfig()
             
-        proc = {'PostgreSQL':tp.processLDS2PG,
-                'MSSQL':tp.processLDS2MSSQL,
-                'SpatiaLite':tp.processLDS2SpatiaLite,
-                'FileGDB':tp.processLDS2FileGDB
-                }.get(destination)
-        proc()
+        tp.processLDS(tp.initDestination(destination))
         
         self.parent.statusbar.showMessage('Replication of '+layer+' complete')
         
+    def openLayerConfigSelector(self,tp,uconf,destination):
+        from lds.gui.LayerTableConfigSelector import LayerTableConfigSelector
+        ldsc = LayerTableConfigSelector(tp,uconf,destination)
+        ldsc.show()   
         
 #--------------------------------------------------------------------------------------------------
 

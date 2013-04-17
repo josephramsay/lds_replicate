@@ -777,7 +777,7 @@ class LayerDSReader(LayerReader):
         return None if LU.mightAsWellBeNone(prop) is None else prop
 
     def writeLayerProperty(self,pkey,field,value):
-        '''Write changes to layer config table'''
+        '''Write changes to layer config table. Keyword changes are written as a comma-seperated value '''
         #ogr.UseExceptions()
         try:
             layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)

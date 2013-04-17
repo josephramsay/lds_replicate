@@ -34,10 +34,10 @@ __version__ = AppVersion.getVersion()
 
 
 def lconf():
-    #func to call config wizz
-    from lds.gui.LayerConfigWizard import LDSLayerConfigWizard
+    #func to call layer config selector
+    from lds.gui.LayerTableConfigSelector import LayerTableConfigSelector
     app = QApplication(sys.argv)
-    ldsc = LDSLayerConfigWizard()
+    ldsc = LayerTableConfigSelector()
     ldsc.show()
     sys.exit(app.exec_())         
         

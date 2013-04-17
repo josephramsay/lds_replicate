@@ -47,27 +47,32 @@ __version__ = AppVersion.getVersion()
        
 class LayerTableConfigSelector(QMainWindow):
     
-    testdata = [('v:x845', '12 Mile Territorial Sea Limit Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries','testkey']), 
+    testdata = [('v:x845', '12 Mile Territorial Sea Limit Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries','GUI:selection']), 
                 ('v:x846', '12 Mile Territorial Sea Outer Limit', ['New Zealand', 'Hydrographic &  Maritime', 'Maritime Boundaries']), 
                 ('v:x842', '200 Mile Exclusive Economic Zone Outer Limits', ['New  Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
                 ('v:x844', '24 Mile Contiguous Zone  Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
                 ('v:x843', '24 Mile  Contiguous Zone Outer Limits', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
-                ('v:x1198', 'ASP: Check Combination', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','testkey']), 
+                ('v:x1198', 'ASP: Check Combination', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','GUI:selection']), 
                 ('v:x1199', 'ASP: GED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index']), 
-                ('v:x1202', 'ASP:  MED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','testkey'])] 
+                ('v:x1202', 'ASP:  MED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','GUI:selection'])] 
 
-    def __init__(self,user_config=None):
+    def __init__(self,tp=None,uconf='GUI:selection',dest='PostgreSQL'):
+        '''Main entry point for the Layer selection dialog'''
         super(LayerTableConfigSelector, self).__init__()
         #TODO. 
         #1. keywords filter
         #2. conf writer/reader
         #3. 
         
+        self.tp = tp
+        self.uconf = uconf
+        self.dest = dest
         
         #lds = LDSDataStore(None,'ldsincr.lnx.conf') 
         #capabilities = lds.getCapabilities()
         #self.data = LDSDataStore.fetchLayerInfo(capabilities)
 
+        
         self.data = self.testdata
         self.model = LayerTableModel(self)
         
@@ -91,7 +96,6 @@ class LayerTableModel(QAbstractTableModel):
     def __init__(self, parent=None):    
         super(LayerTableModel, self).__init__()
         self.parent = parent
-        self.userkey = 'myfile'#user conf name
         self.layerdata = []
         self.setData(self.parent.data)
         
@@ -104,15 +108,14 @@ class LayerTableModel(QAbstractTableModel):
         return len(self.layerdata[0])
     
     def data(self,index=None,role=None): 
-        print role
-        if (role != Qt.DisplayRole):
-            print 'not'
-            return QVariant()
-        ri = index.row()
-        ci = index.column()
-        if ci==2:
-            return '; '.join(self.layerdata[ri][2])#cant use comma for some reason
-        return self.layerdata[ri][ci]
+        #print role
+        if (role == Qt.DisplayRole):
+            ri = index.row()
+            ci = index.column()
+            if ci==2:
+                return '; '.join(self.layerdata[ri][2])#cant use comma for some reason
+            return self.layerdata[ri][ci]
+        return QVariant()
     
     #???
     def headerData(self,x=None,y=None,z=None):
@@ -213,9 +216,12 @@ class LayerSelectionPage(QFrame):
     def doSelectClickAction(self):
         select = self.ltv.selectionModel()
         if select.hasSelection():
-            print [self.parent.data[self.sfpmodel.mapToSource(mi).row()] for mi in select.selectedRows()]
+            selection = [vx[0] for vx in [self.parent.data[self.sfpmodel.mapToSource(mi).row()] for mi in select.selectedRows()]]
+            #self.parent.tp.setKeywordModifyList(selection)
+            self.parent.tp.editLayerConf(selection, self.parent.dest, self.parent.uconf)
         else:
             print 'No Selection'
+            
 
 class LDSSortFilterProxyModel(QSortFilterProxyModel):
     def __init__(self, parent=None):
@@ -235,7 +241,8 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
     def filterAcceptsRow(self,row,parent):
         '''Override for row filter function'''
         for i in range(0,self.sourceModel().columnCount()):
-            field = str(self.sourceModel().data(self.sourceModel().index(row, i, parent)))
+            field = self.sourceModel().data(self.sourceModel().index(row, i, parent),Qt.DisplayRole)
+            #print 'field="',field,'"    search_string="',self.ftext,'"'
             if re.search(self.ftext,field,re.IGNORECASE):
                 return True
         return False        
@@ -244,6 +251,7 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
 def main():
     #func to call config wizz
     app = QApplication(sys.argv)
+    print 'this isnt going to work without a valid TP'
     ldsc = LayerTableConfigSelector()
     ldsc.show()
     sys.exit(app.exec_()) 

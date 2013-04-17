@@ -55,6 +55,7 @@ class InaccessibleLayerException(DSReaderException): pass
 class InaccessibleFeatureException(DSReaderException): pass
 
 
+
 class DataStore(object):
     '''
     DataStore superclasses PostgreSQL, LDS(WFS), FileGDB and SpatiaLite datastores.
@@ -64,6 +65,8 @@ class DataStore(object):
     __metaclass__ = ABCMeta
 
 
+    DRIVER_NAMES = {'pg':'PostgreSQL','ms':'MSSQLSpatial','sl':'SQLite','fg':'FileGDB'}
+    
     LDS_CONFIG_TABLE = 'lds_config'
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'

@@ -124,13 +124,7 @@ class TestSize(unittest.TestCase):
         
             
     def selectProcess(self,processor,procname):
-        return {
-         'pg':processor.processLDS2PG,
-         'ms':processor.processLDS2MSSQL,
-         'sl':processor.processLDS2SpatiaLite,
-         'fg':processor.processLDS2FileGDB,
-         }.get(procname)   
-    
+        return processor.processLDS(processor.initDestination(procname)) 
     
     def executeComparison(self,p1,p2):
 

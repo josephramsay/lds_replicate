@@ -37,7 +37,7 @@ GOTO END
 
 REM ----------------------------------------------------------------------------
 :LWIZZ
-echo Starting Layer Configuration Wizard
+echo Starting Layer Configuration Selector
 cd %PWD%\apps\ldsreplicate
 python -c "from ldsreplicate_gui import lconf; lconf()"
 

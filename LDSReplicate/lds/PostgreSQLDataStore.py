@@ -30,7 +30,7 @@ class PostgreSQLDataStore(DataStore):
     PostgreSQL DataStore
     '''
     
-    DRIVER_NAME = "PostgreSQL"
+    DRIVER_NAME = DataStore.DRIVER_NAMES['pg']#PostgreSQL"
     PG_USE_COPY = "NO"
     PG_USE_BASE64 = "YES"
     

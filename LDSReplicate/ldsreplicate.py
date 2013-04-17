@@ -193,6 +193,7 @@ def main():
         sys.exit(0)
     else: 
         '''since we're not breaking the switch the last arg read will be the DST used, ie proc gets overwritten'''
+        pn = None
         for arg in args:
             if arg.lower() in ("init", "initialise", "initalize"):
                 ldslog.info("Initialisation of configuration files/tables requested. Implies FULL rebuild")
@@ -200,31 +201,18 @@ def main():
             elif arg in ("clean"):
                 ldslog.info("Cleaning named layer")
                 tp.setCleanConfig()
-            elif arg.lower() in ("pg", "postgres","postgresql"):
-                proc = tp.processLDS2PG
-            elif arg.lower() in ("ms", "mssql","mssqlserver"):
-                proc = tp.processLDS2MSSQL
-    #        elif arg in ("mi", "mapinfo"):
-    #            tp.processLDS2Mapinfo()
-    #        elif arg in ("shp", "shapefile"):
-    #            tp.processLDS2Shape() 
-    #        elif arg in ("csv", "csvfile"):
-    #            tp.processLDS2CSV()
-            elif arg.lower() in ("sl","slite", "spatialite"):
-                proc = tp.processLDS2SpatiaLite
-            elif arg.lower() in ("fg","fgdb", "filegdb"):
-                proc = tp.processLDS2FileGDB
-    #        elif arg in ("arc", "sde", "arcsde"):
-    #            tp.processLDS2ArcSDE()
             else:
-                print __doc__
-                raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) declaration required")
+                pn = LDSUtilities.standardiseDriverNames(arg)
+                
+        if pn == None:
+            print __doc__
+            raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) declaration required")
             
 
     #aggregation point for LDS errors
     mm = '*** Complete *** '
     try:
-        proc()
+        tp.processLDS(pn)
     except HTTPError as he:
         ldslog.error('Error connecting to LDS. '+str(he))
         mm = '*** Failed 1 *** '

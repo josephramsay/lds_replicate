@@ -134,8 +134,8 @@ class TestSpeed(unittest.TestCase):
                 #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc,        fbf)
                 tp1 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF, '1') #driver
                 tp2 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF, '2') #feature
-                d1 = self.execute(self.selectProcess(tp1,o)) 
-                d2 = self.execute(self.selectProcess(tp2,o))
+                d1 = self.execute(self.selectProcess,tp1,o) 
+                d2 = self.execute(self.selectProcess,tp2,o)
                 
                 print 'layer::',l,'featureCopy::',d1,'driverCopy::',d2
                 timing += ((l,d1,d2),)
@@ -154,21 +154,12 @@ class TestSpeed(unittest.TestCase):
         
             
     def selectProcess(self,processor,procname):
-        return {
-         'pg':processor.processLDS2PG,
-         'ms':processor.processLDS2MSSQL,
-         'sl':processor.processLDS2SpatiaLite,
-         'fg':processor.processLDS2FileGDB,
-         }.get(procname)   
+        return processor.processLDS(processor.initDestination(procname))  
     
-    
-    def executeComparison(self,p1,p2):
 
-        return self.execute(p1),self.execute(p2)
-
-    def execute(self,proc):
+    def execute(self,proc,tp,o):
         st = datetime.now()
-        proc()
+        proc(tp,o)
         et = datetime.now()
         return (et-st).total_seconds()
    

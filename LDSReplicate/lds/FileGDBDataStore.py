@@ -20,7 +20,7 @@ import os
 import re
 
 from ESRIDataStore import ESRIDataStore
-from DataStore import MalformedConnectionString
+from DataStore import DataStore,MalformedConnectionString
 
 ldslog = logging.getLogger('LDS')
 
@@ -28,7 +28,7 @@ class FileGDBDataStore(ESRIDataStore):
     '''
     FileGDB DataStore wrapper for file location and options 
     '''
-    DRIVER_NAME = "FileGDB"
+    DRIVER_NAME = DataStore.DRIVER_NAMES['fg']#"FileGDB"
 
     def __init__(self,conn_str=None,user_config=None):
         

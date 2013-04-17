@@ -31,7 +31,8 @@ class SpatiaLiteDataStore(DataStore):
     SpatiaLite  DataStore
     '''
     
-    DRIVER_NAME = "SQLite"
+    DRIVER_NAME = DataStore.DRIVER_NAMES['sl']#"SQLite"
+    
     SQLITE_LIST_ALL_TABLES = 'YES'
       
     def __init__(self,conn_str=None,user_config=None):
