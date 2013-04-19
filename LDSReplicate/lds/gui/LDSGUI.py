@@ -345,8 +345,8 @@ class LDSControls(QFrame):
         self.parent.statusbar.showMessage('Replication of '+layer+' complete')
         
     def openLayerConfigSelector(self,tp,uconf,destination):
-        from lds.gui.LayerTableConfigSelector import LayerTableConfigSelector
-        ldsc = LayerTableConfigSelector(tp,uconf,destination)
+        from lds.gui.LayerConfigSelector import LayerConfigSelector
+        ldsc = LayerConfigSelector(tp,uconf,destination)
         ldsc.show()   
         
 #--------------------------------------------------------------------------------------------------
