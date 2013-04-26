@@ -30,9 +30,8 @@ import re
 import sys
 import copy
 
-
-from lds.ReadConfig import GUIPrefsReader
-from lds.LDSUtilities import LDSUtilities
+from lds.LDSDataStore import LDSDataStore
+from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 
 
@@ -49,18 +48,18 @@ HCOLS = 2
        
 class LayerConfigSelector(QMainWindow):
     
-    testdata = [('v:x845', '12 Mile Territorial Sea Limit Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries','GUI:selection']), 
+    testdata = [('v:x845', '12 Mile Territorial Sea Limit Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries','TESTSELECT']), 
                 ('v:x846', '12 Mile Territorial Sea Outer Limit', ['New Zealand', 'Hydrographic &  Maritime', 'Maritime Boundaries']), 
                 ('v:x842', '200 Mile Exclusive Economic Zone Outer Limits', ['New  Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
                 ('v:x844', '24 Mile Contiguous Zone  Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
                 ('v:x843', '24 Mile  Contiguous Zone Outer Limits', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
-                ('v:x1198', 'ASP: Check Combination', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','GUI:selection']), 
+                ('v:x1198', 'ASP: Check Combination', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','TESTSELECT']), 
                 ('v:x1199', 'ASP: GED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index']), 
-                ('v:x1202', 'ASP:  MED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','GUI:selection'])] 
+                ('v:x1202', 'ASP:  MED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','TESTSELECT'])] 
 
-    def __init__(self,tp=None,uconf='GUI:selection',dest='PostgreSQL'):
+    def __init__(self,parent,tp,uconf,group,dest='PostgreSQL'):
         '''Main entry point for the Layer selection dialog'''
-        super(LayerConfigSelector, self).__init__()
+        super(LayerConfigSelector, self).__init__(parent)
         #TODO. 
         #1. keywords filter
         #2. conf writer/reader
@@ -68,17 +67,38 @@ class LayerConfigSelector(QMainWindow):
         
         self.tp = tp
         self.uconf = uconf
+        self.group = group
         self.dest = dest
         
-        #lds = LDSDataStore(None,'ldsincr.lnx.conf') 
-        #capabilities = lds.getCapabilities()
-        #self.mdata = LDSDataStore.fetchLayerInfo(capabilities)
+        lds = LDSDataStore(None,uconf) 
+        
+        #if a lconf exists read layer info from it first otherwise read from capabilities
+        dst = tp.initDestination(dest)
+        l3dat = tp.getLayerConf(dst).getLConfAs3Array()
 
-        self.mdata = self.testdata
+        if l3dat is None:
+            lds = LDSDataStore(None,uconf) 
+            l3dat = LDSDataStore.fetchLayerInfo(lds.getCapabilities())
+
+        self.complete = l3dat
+
+        [l[2] for l in self.complete]
+        
+        self.reserved = set()
+
+        for i in [l[2] for l in self.complete]:
+            self.reserved |= set(i) 
+               
+        #read the translated primary keys file
+        self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
+        
+        av_sl = self.splitData(str(group))
+        
         self.available_model = LayerTableModel(self,'L::available')
-        self.available_model.initData(self.mdata)
+        self.available_model.initData(av_sl[0],self.inclayers)
         
         self.selection_model = LayerTableModel(self,'R::selection')
+        self.selection_model.initData(av_sl[1],self.inclayers)
         
         self.page = LayerSelectionPage(self)
         self.setCentralWidget(self.page)
@@ -87,6 +107,16 @@ class LayerConfigSelector(QMainWindow):
         self.setWindowTitle("LDS Layer Selection")
         self.resize(725,480)
 
+    def splitData(self,keyword):
+        '''splits up the data according to a selection keyword'''
+        alist = []
+        slist = []
+        for dp in self.complete:
+            if keyword in dp[2]:
+                slist.append(dp)
+            else:
+                alist.append(dp)
+        return alist,slist
         
     
 class LayerTableModel(QAbstractTableModel):
@@ -98,10 +128,13 @@ class LayerTableModel(QAbstractTableModel):
 
     
     def __init__(self, parent=None,name=''):    
-        super(LayerTableModel, self).__init__()
+        super(LayerTableModel, self).__init__(parent)
         self.parent = parent
         self.name = name
         self.mdata = []
+        self.ilist = []
+        self.ifont = QFont()
+        self.ifont.setBold(True)
         
         
     #abstract subclass funcs
@@ -114,13 +147,9 @@ class LayerTableModel(QAbstractTableModel):
 
     def data(self,index=None,role=None): 
         #print role
+        ri = index.row()
+        ci = index.column()
         if (role == Qt.DisplayRole):
-            ri = index.row()
-            ci = index.column()
-            if ri>self.rowCount()-1:
-                print "row exceed"
-            if ci>self.columnCount()-1:
-                print "col exceed"
             if ci==2:
                 try:
                     d = '; '.join(self.mdata[ri][ci])
@@ -134,18 +163,17 @@ class LayerTableModel(QAbstractTableModel):
             except Exception as e:
                 print 'err',e
             return self.mdata[ri][ci]
-        return QVariant()
-    
-    #???
-    def headerData(self,x=None,y=None,z=None):
-        return ('ID','Title','Keywords')
+        if (role == Qt.FontRole):
+            if self.mdata[ri][0] in self.ilist:
+                return self.ifont
+        return QVariant()        
     
     #editable datamodel subclass funcs
     
-    
-
-    def initData(self,data):
-        self.mdata = data
+    def initData(self,mdata,ilist=None):
+        self.mdata = copy.copy(mdata)
+        if ilist is not None:
+            self.ilist = ilist
         
     def addData(self,additions):
         point = len(self.mdata)#append to end
@@ -193,7 +221,7 @@ class LayerSelectionPage(QFrame):
     colparams = ((0,65,'Name'), (1,250,'Title'), (2,350,'Keywords'))
     
     def __init__(self, parent=None):
-        super(LayerSelectionPage, self).__init__()
+        super(LayerSelectionPage, self).__init__(parent)
         self.parent = parent
 
         QToolTip.setFont(QFont('SansSerif', 10))
@@ -231,9 +259,11 @@ class LayerSelectionPage(QFrame):
         cancelbutton.clicked.connect(QCoreApplication.instance().quit) 
         
         resetbutton = QPushButton('Reset')
+        resetbutton.setToolTip('Reset all selections (Initialise any existing keyword selections)')       
+        resetbutton.clicked.connect(self.doResetClickAction) 
         
-        self.available_sfpm = LDSSortFilterProxyModel(self)
-        self.selection_sfpm = LDSSortFilterProxyModel(self)
+        self.available_sfpm = LDSSFPAvailableModel(self)
+        self.selection_sfpm = LDSSFPSelectionModel(self)
         
         self.available_sfpm.setSourceModel(self.parent.available_model)
         self.selection_sfpm.setSourceModel(self.parent.selection_model)
@@ -243,8 +273,13 @@ class LayerSelectionPage(QFrame):
         filteredit.setToolTip('Filter results table (filter operates across all fields)')       
         filteredit.textChanged.connect(self.available_sfpm.setActiveFilter);
         
-        keywordedit = QLineEdit('')
-        keywordedit.setToolTip('Select unique identifier to be saved in layer config (keyword)')       
+        self.keywordedit = QLineEdit(self.parent.group)
+        self.keywordedit.setToolTip('Select unique identifier to be saved in layer config (keyword)')
+        #keywordedit.textChanged.connect(self.selection_sfpm.setActiveFilter);
+        
+        #notes.      
+        #1. use selection filter to select stored keywords or to save new keywords
+        #keywordedit.textChanged.connect(self.selection_sfpm.setActiveFilter);  
 
         
         #header
@@ -316,11 +351,12 @@ class LayerSelectionPage(QFrame):
         vbox3.addLayout(hbox0)
         
         hbox1 = QHBoxLayout()
+        hbox1.addWidget(resetbutton)
+        hbox1.addStretch(1)
         hbox1.addWidget(keywordlabel)
-        hbox1.addWidget(keywordedit)
+        hbox1.addWidget(self.keywordedit)
         
         hbox2 = QHBoxLayout()
-        hbox2.addWidget(resetbutton)
         hbox2.addStretch(1)
         hbox2.addWidget(selectbutton)
         hbox2.addWidget(cancelbutton)
@@ -334,13 +370,8 @@ class LayerSelectionPage(QFrame):
         
     def doSelectClickAction(self):
         '''Main selection action, takes selection and adds to conf layer (via tp)'''
-        select = self.selection_model.selectionModel()
-        if select.hasSelection():
-            selection = [vx[0] for vx in [self.parent.mdata[self.sfpmodel.mapToSource(mi).row()] for mi in select.selectedRows()]]
-            #self.parent.tp.setKeywordModifyList(selection)
-            self.parent.tp.editLayerConf(selection, self.parent.dest, self.parent.uconf)
-        else:
-            print 'No Selection'
+        self.parent.tp.editLayerConf(self.parent.selection_model.mdata, self.parent.dest, str(self.keywordedit.text()))
+        self.parent.close()
             
     
     def doChooseAllClickAction(self):
@@ -351,7 +382,7 @@ class LayerSelectionPage(QFrame):
         self.parent.selection_model.mdata += self.parent.available_model.mdata
         self.parent.selection_model.layoutChanged.emit()
         self.parent.available_model.layoutAboutToBeChanged.emit()
-        self.parent.available_model.mdata = []
+        self.parent.available_model.initData([])
         self.parent.available_model.layoutChanged.emit()
     
     def doChooseClickAction(self):
@@ -360,7 +391,7 @@ class LayerSelectionPage(QFrame):
         if select.hasSelection():
             self.transferSelectedRows(select.selectedRows(),self.available_sfpm,self.selection_sfpm)
         else:
-            print 'No Selection'
+            ldslog.warn('L2R > Transfer action without selection')
             
     def transferSelectedRows(self,indices,from_model,to_model):
         tlist = []
@@ -378,7 +409,7 @@ class LayerSelectionPage(QFrame):
         if select.hasSelection():
             self.transferSelectedRows(select.selectedRows(),self.selection_sfpm,self.available_sfpm)
         else:
-            print 'No Selection'
+            ldslog.warn('R2L < Transfer action without selection')
             
     
     def doRejectAllClickAction(self):
@@ -386,8 +417,20 @@ class LayerSelectionPage(QFrame):
         self.parent.available_model.mdata += self.parent.selection_model.mdata
         self.parent.available_model.layoutChanged.emit()
         self.parent.selection_model.layoutAboutToBeChanged.emit()
-        self.parent.selection_model.mdata = []
-        self.parent.selection_model.layoutChanged.emit()
+        self.parent.selection_model.initData([])
+        self.parent.selection_model.layoutChanged.emit() 
+        
+    def doResetClickAction(self):
+        '''reset the available pane and if there is anything in the keyword box use this to init the selection pane'''
+        av_sl = self.parent.splitData(str(self.keywordedit.text()))
+        self.parent.available_model.layoutAboutToBeChanged.emit()
+        self.parent.selection_model.layoutAboutToBeChanged.emit()
+        self.parent.available_model.initData(av_sl[0])
+        self.parent.selection_model.initData(av_sl[1])
+        self.parent.available_model.layoutChanged.emit() 
+        self.parent.selection_model.layoutChanged.emit() 
+        
+        print 'this is the reset button'
             
 
 class LDSSortFilterProxyModel(QSortFilterProxyModel):
@@ -396,6 +439,9 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
         self.parent = parent
         self.ftext = ''
         self.regexfilter = None
+        
+    def toggleFilter(self):
+        self.direction = not self.direction
         
     def setActiveFilter(self,text):
         self.ftext = str(text)
@@ -412,8 +458,6 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
     def translate(self,pil):
         return [self.mapToSource(pi) for pi in pil]
         
-        
-        
     def getData(self,proxyindex):
         sourceindex = self.mapToSource(proxyindex)
         return self.sourceModel().getData(sourceindex)
@@ -424,10 +468,58 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
             field = self.sourceModel().data(self.sourceModel().index(row, i, parent),Qt.DisplayRole)
             #print 'field="',field,'"    search_string="',self.ftext,'"'
             if re.search(self.ftext,field,re.IGNORECASE):
-                return True
-        return False        
+                return self.direction
+        return not self.direction        
     
+
+class LDSSFPSelectionModel(LDSSortFilterProxyModel):
+    '''Selection model for selected layers, initialised with all layers but filters on keyword'''
+    def __init__(self, parent=None):
+        super(LDSSFPSelectionModel, self).__init__(parent)
+        self.parent = parent
+        self.ftext = ''
+        self.regexfilter = None
+        self.direction = True # True is 'normal' direction
+        
+    def setActiveFilter(self,text):
+        self.ftext = str(text)
+        self.invalidateFilter()
     
+#enable this is we decide to also use the keyword box to filter results (problematic for invalid keywords, new or wrong)
+#    def filterAcceptsRow(self,row,parent):
+#        '''Override for row filter function, filters on keyword data'''      
+#        
+#        #for i in range(0,self.sourceModel().columnCount()):
+#        keyfield = self.sourceModel().data(self.sourceModel().index(row, 2, parent),Qt.DisplayRole)
+#        
+#        for key in keyfield:
+#            print 'S-SELECT :: field="',key,'"    search_string="',self.ftext,'"'
+#            if re.search(self.ftext,key,re.IGNORECASE):
+#                return self.direction
+#        return not self.direction  
+    
+class LDSSFPAvailableModel(LDSSortFilterProxyModel):
+    def __init__(self, parent=None):
+        super(LDSSFPAvailableModel, self).__init__(parent)
+        self.parent = parent
+        self.ftext = ''
+        self.regexfilter = None
+        self.direction = True # True is 'normal' direction
+
+    def setActiveFilter(self,text):
+        self.ftext = str(text)
+        self.invalidateFilter()
+    
+    def filterAcceptsRow(self,row,parent):
+        '''Override for row filter function, filter from filteredit box'''
+        for i in range(0,self.sourceModel().columnCount()):
+            field = self.sourceModel().data(self.sourceModel().index(row, i, parent),Qt.DisplayRole)
+            #print 'field="',field,'"    search_string="',self.ftext,'"'
+            if re.search(self.ftext,field,re.IGNORECASE):
+                return self.direction
+        return not self.direction     
+        
+
 def main():
     #func to call config wizz
     app = QApplication(sys.argv)

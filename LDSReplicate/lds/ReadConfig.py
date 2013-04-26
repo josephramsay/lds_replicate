@@ -60,8 +60,7 @@ class MainFileReader(object):
             else:
                 open(self.filename,'w').close()
             #re read the cp
-            self._readConfigFile(self.filename)
-        
+            self._readConfigFile(self.filename)        
            
     def getSections(self):
         '''List of sections (layernames/datasources)'''
@@ -154,8 +153,6 @@ class MainFileReader(object):
             cql = None
         
         return (host,port,dbname,schema,usr,pwd,over,config,epsg,cql)
-    
-    
     
     def readMSSQLConfig(self):
         '''MSSQL specific config file reader'''
@@ -281,8 +278,6 @@ class MainFileReader(object):
         
         return (fname,config,epsg,cql)
     
-    
-    
     def readFileGDBConfig(self):
         '''FileGDB specific config file reader'''
         from FileGDBDataStore import FileGDBDataStore as FG
@@ -319,15 +314,12 @@ class MainFileReader(object):
             ldslog.warn("FileGDB: No CQL Filter specified, fetching all results")
         
         return (fname,config,epsg,cql)
-    
-    
-    
+        
     def readWFSConfig(self):
         '''Generic WFS config file reader'''
         '''Since this now keys on the driver name, WFS is read before LDS and LDS not at all, So...'''
         
         return self.readLDSConfig()
-    
     
     def readLDSConfig(self):
         '''LDs specific config file reader'''
@@ -500,8 +492,15 @@ class MainFileReader(object):
     
 from abc import ABCMeta, abstractmethod    
 
+#override function to ensure method names stay consistent
+def override(interface_class):
+    def overrider(method):
+        assert(method.__name__ in dir(interface_class))
+        return method
+    return overrider
+
 class LayerReader(object):
-    
+
     __metaclass__ = ABCMeta
     '''abstract super class for holding common functionality'''
     def __init__(self,fname):
@@ -514,6 +513,23 @@ class LayerReader(object):
     @abstractmethod
     def writeLayerProperty(self,layer,key,value):
         pass
+    
+    @abstractmethod
+    def readLayerParameters(self,layer):
+        pass
+    
+    @abstractmethod
+    def findLayerIdByName(self,lname):
+        pass
+    
+    @abstractmethod
+    def getLayerNames(self):
+        pass
+    
+    @abstractmethod
+    def buildConfigLayer(self,res):
+        pass
+    
     
     def addCustomTag(self,layerlist,tagname):        
         '''Write a keyword to all the layers in the provided list'''
@@ -533,6 +549,15 @@ class LayerReader(object):
                 keywords.remove(tagname)
                 
             self.writeLayerProperty(layer, 'Category', ','.join(keywords))
+
+    def getLConfAs3Array(self):
+        '''Specialised conversion of the entire lconf as an array of pkey,name and keys for GUI use'''
+        lca = []
+        for layer in self.getLayerNames():
+            lce = self.readLayerParameters(layer)
+            lca.append((layer,lce.name,lce.group.split(',')),)
+        return lca
+    
     
 class LayerFileReader(LayerReader):
     
@@ -542,29 +567,34 @@ class LayerFileReader(LayerReader):
         '''
 
         self.cp = None
+        self.fname = fname
         self.filename = os.path.join(os.path.dirname(__file__), '../conf/',fname)
             
         self._readConfigFile(self.filename)
         
         
+    def buildConfigLayer(self,res):
+        '''Just write a file in conf with the name <driver>.layer.properties'''
+        open(os.path.join(os.path.dirname(__file__), '../conf/',self.fname),'w').write(str(res))
+        
     def _readConfigFile(self,fname):
         '''Reads named config file'''
         #Split off so you can override the config file on the same reader object if needed
         self.cp = ConfigParser.ConfigParser()
-        self.cp.read(fname)
-        
-        
-    def getSections(self):
-        '''List of sections (layernames/datasources)'''
-        return self.cp.sections()    
+        self.cp.read(fname)  
     
-
+    @override(LayerReader)
     def findLayerIdByName(self,name):
         '''Reverse lookup of section by associated name, finds first occurance only'''
         lid = filter(lambda n: name==self.cp.get(n,'name'),self.getLayerNames())
         return lid[0] if len(lid)>0 else None
     
+    @override(LayerReader)
+    def getLayerNames(self):
+        '''Returns sections from properties file'''
+        return self.cp.sections()
     
+    @override(LayerReader)
     def readLayerProperty(self,layer,key):
         try:
             value = self.cp.get(layer, key)
@@ -576,10 +606,18 @@ class LayerFileReader(LayerReader):
             return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
         return value
     
-    def getLayerNames(self):
-        '''Returns sections from properties file'''
-        return self.cp.sections()
-    
+    @override(LayerReader)
+    def writeLayerProperty(self,layer,field,value):
+        '''Write changes to layer config table'''
+        try:            
+            self.cp.set(layer,field,value if value is not None else '')
+            with open(self.filename, 'w') as configfile:
+                self.cp.write(configfile)
+            ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
+        except Exception as e:
+            ldslog.warn('Problem writing LM date to layer config file. '+str(e))
+            
+    @override(LayerReader)
     def readLayerParameters(self,layer):
     #def readLayerSchemaConfig(self,layer):
         '''Full Layer config reader. Returns the config values for the whole layer or makes sensible guesses for defaults'''
@@ -652,19 +690,8 @@ class LayerFileReader(LayerReader):
             cql = None
             
         return LayerConfEntry(pkey,name,group,gcol,index,epsg,lmod,disc,cql)
-
         
-    def writeLayerProperty(self,layer,field,value):
-        '''Write changes to layer config table'''
-        try:            
-            self.cp.set(layer,field,value if value is not None else '')
-            with open(self.filename, 'w') as configfile:
-                self.cp.write(configfile)
-            ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
-        except Exception as e:
-            ldslog.warn('Problem writing LM date to layer config file. '+str(e))
             
-        
             
 class LayerDSReader(LayerReader):
     '''
@@ -683,7 +710,7 @@ class LayerDSReader(LayerReader):
         self.namelist = ()
             
 
-    def buildConfigLayer(self,config_array):
+    def buildConfigLayer(self,res):
         '''Builds the config table into and using the active DS'''
         #TODO check initds for conf table name
         #if not hasattr(self.dso,'ds') or self.dso.ds is None:
@@ -706,7 +733,7 @@ class LayerDSReader(LayerReader):
             #also add a field to the table definition, i.e. column
             config_layer.CreateField(fld_def,True)                
         
-        for row in json.loads(config_array):
+        for row in json.loads(res):
             config_feat = ogr.Feature(feat_def)
             #HACK
             #if self.DRIVER_NAME == 'MSSQLSpatial':
@@ -731,6 +758,7 @@ class LayerDSReader(LayerReader):
     def getConfigGeometry(self):
         return ogr.wkbNone
     
+    @override(LayerReader)
     def findLayerIdByName(self,lname):
         '''Reverse lookup of section by associated name, finds first occurance only'''
         layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
@@ -742,7 +770,7 @@ class LayerDSReader(LayerReader):
             feat = layer.GetNextFeature()
         return None
         
-
+    @override(LayerReader)
     def getLayerNames(self):
         '''Returns configured layers for respective layer properties file'''
         if not self.namelist:
@@ -754,7 +782,8 @@ class LayerDSReader(LayerReader):
                 feat = layer.GetNextFeature()
         
         return self.namelist
-     
+    
+    @override(LayerReader) 
     def readLayerParameters(self,pkey):
         '''Full Layer config reader'''
         from DataStore import InaccessibleFeatureException
@@ -765,7 +794,8 @@ class LayerDSReader(LayerReader):
         if feat is None:
             InaccessibleFeatureException('Cannot access feature with id='+str(pkey)+' in layer '+str(layer.GetName()))
         return LU.extractFields(feat)
-         
+    
+    @override(LayerReader)     
     def readLayerProperty(self,pkey,field):
         '''Single property reader'''
         layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
@@ -775,7 +805,8 @@ class LayerDSReader(LayerReader):
             return None
         prop = feat.GetField(field)
         return None if LU.mightAsWellBeNone(prop) is None else prop
-
+    
+    @override(LayerReader)
     def writeLayerProperty(self,pkey,field,value):
         '''Write changes to layer config table. Keyword changes are written as a comma-seperated value '''
         #ogr.UseExceptions()

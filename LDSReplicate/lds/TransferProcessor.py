@@ -21,6 +21,7 @@ import os
 from datetime import datetime 
 
 from DataStore import DataStore
+#from DataStore.DataStore import CONF_INT, CONF_EXT
 from DataStore import ASpatialFailureException
 
 from LDSDataStore import LDSDataStore
@@ -153,10 +154,9 @@ class TransferProcessor(object):
             self.clearFBF()
             
         self.confinternal = None
-        if ie != None and ie is True:
-            self.setConfInternal()
-        elif ie != None and ie is False:
-            self.clearConfInternal()
+        if ie in [DataStore.CONF_EXT,DataStore.CONF_INT]:
+            self.setConfInternal(ie)
+
 
         
     def __str__(self):
@@ -183,13 +183,10 @@ class TransferProcessor(object):
         return self.FBF
     
     #Internal/External flag to override config set option
-    def setConfInternal(self):
-        self.confinternal = True
+    def setConfInternal(self,confinternal):
+        self.confinternal = confinternal
          
-    def clearConfInternal(self):
-        self.confinternal = False
-         
-    def isConfInternal(self):
+    def getConfInternal(self):
         return self.confinternal
     
     #initilaise config flags
@@ -236,40 +233,32 @@ class TransferProcessor(object):
                 FileGDBDataStore.DRIVER_NAME:FileGDBDataStore
                 }.get(LDSUtilities.standardiseDriverNames(dstname))
         return proc(self.destination_str,self.user_config)
-    
-    def editLayerConf(self,layerlist, dstname,customkey='GUI:selection'):
-        '''using the available TP initialisers, setup and build a new layer config'''
-        dst = self.initDestination(dstname)
+
+    def initTempDST(self,dstname):
+        '''Given a  dest name, setup a new destination object (so we can access its lconf)'''
+        #HACK!!!
+        
         src = LDSDataStore(self.source_str,self.user_config) 
         src.applyConfigOptions()
-        dst.setupLayerConfig(self.isConfInternal())
+        
+        dst = self.initDestination(dstname)
+        dst.transferIETernal(self.getConfInternal())
+        dst.layerconf = TransferProcessor.getLayerConf(dst)  
         capabilities = src.getCapabilities()
         TransferProcessor.initLayerConfig(capabilities,dst)
-        #--------------------
-        lconf = TransferProcessor.getLayerConf(dst)
-        for layer in layerlist:
+        return dst
+        
+    def editLayerConf(self,layerlist, dstname,customkey='CUSTOM'):
+        '''Using the available TP initialisers, setup and build a new temporary layer config. 
+        This is used (only) by the LayerConfig GUI for appending custom tags.
+        Written as a temporary method so its a confusing mix of static and instance methods'''
+        #using customkey=CUSTOM so some kind of selection is made even if the user doesn't select a specific keyword 
+        lconf = TransferProcessor.getLayerConf(self.initTempDST(dstname))
+        for layer in [ll[0] for ll in layerlist]:
             v1 = lconf.readLayerProperty(layer, 'category')
             v2 = v1+","+str(customkey)
-            lconf.writeLayerProperty(layer, 'category', v2)    
-        
-        
-#    def processLDS2PG(self):
-#        '''process LDS to PG convenience method'''
-#        self.processLDS(self.initDestination('PostgreSQL'))
-#        
-#    def processLDS2MSSQL(self):
-#        '''process LDS to PG convenience method'''
-#        self.processLDS(self.initDestination('MSSQLSpatial'))
-#        
-#    def processLDS2SpatiaLite(self):
-#        '''process LDS to SpatiaLite convenience method'''
-#        self.processLDS(self.initDestination('SpatiaLite'))
-#        
-#    def processLDS2FileGDB(self):
-#        '''process LDS to FileGDB convenience method'''
-#        self.processLDS(self.initDestination('FileGDB'))
-        
-
+            lconf.writeLayerProperty(layer, 'category', v2)
+                
         
     def processLDS(self,dst):
         '''Process with LDS as a source and the destination supplied as an argument.
@@ -311,16 +300,16 @@ class TransferProcessor(object):
         
         capabilities = self.src.getCapabilities()
         
-        #init a new DS for the DST to read config table (not needed for config file...)
-        #because we need to read a new config from the SRC and write it to the DST config both of these must be initialised
-        self.dst.setupLayerConfig(self.isConfInternal())
-        if self.getInitConfig():
-            TransferProcessor.initLayerConfig(capabilities,dst)                
+        #transfer internal/external from TP to DS
+        self.dst.transferIETernal(self.getConfInternal())          
                 
-        self.dst.layerconf = TransferProcessor.getLayerConf(dst)
+        self.dst.layerconf = TransferProcessor.getLayerConf(self.dst)        
+        
+        if self.getInitConfig():
+            TransferProcessor.initLayerConfig(capabilities,self.dst) 
         
         if self.dst.layerconf is None:
-            raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table. int="+str(dst.isConfInternal()))
+            raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(dst.getConfInternal()))
         
         # *** Once the layer config is initialised we can do a layer name check ***
         if self.layer is None:
@@ -541,25 +530,17 @@ class TransferProcessor(object):
     
     @classmethod
     def getLayerConf(cls,dst):
-        '''Return an internal/external layerconf object'''
-        # *** Decide whether to use internal or external layer config ***
-        if dst.isConfInternal():
-            #set the layerconf using the existing DS for common accessor functions 
-            return LayerDSReader(dst)
-        else:
-            #set the layerconf to a reader that accesses a DS delimited external file
-            return LayerFileReader(dst.DRIVER_NAME.lower()+cls.LP_SUFFIX)
+        '''Decide whether to use internal or external layer config'''
+        fn = dst.DRIVER_NAME.lower()+cls.LP_SUFFIX
+        return LayerDSReader(dst) if dst.getConfInternal()==DataStore.CONF_INT else LayerFileReader(fn)
+
             
             
     @classmethod
     def initLayerConfig(cls,capabilities,dst):
-        '''class method initialising a layer config'''
+        '''class method initialising a layer config using the capabilities document'''
         xml = LDSDataStore.readDocument(capabilities)
-        if dst.isConfInternal():
-            res = ConfigInitialiser.buildConfiguration(xml,'json')
-            #open the internal layer table and populate with res 
-            dst.buildConfigLayer(str(res))
-        else:
-            res = ConfigInitialiser.buildConfiguration(xml,'file')
-            #open and write res to the external layer config file
-            open(os.path.join(os.path.dirname(__file__), '../conf/',dst.DRIVER_NAME.lower()+cls.LP_SUFFIX),'w').write(str(res))
+        res = ConfigInitialiser.buildConfiguration(xml,'file' if dst.getConfInternal()==DataStore.CONF_EXT else 'json')
+        dst.layerconf.buildConfigLayer(str(res))
+        
+        

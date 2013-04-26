@@ -346,18 +346,17 @@ class ConfigInitialiser(object):
     @staticmethod
     def _hackPrimaryKeyFieldCP(cpdoc,csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
         '''temporary hack method to rewrite the layerconf primary key field for ConfigParser file types using Koordinates supplied PK CSV'''
-        import csv,io
+        import io
         from ConfigParser import ConfigParser, NoSectionError
+        
         cp = ConfigParser()
         cp.readfp(io.BytesIO(str(cpdoc)))
-        with open(csvfile, 'rb') as csvtext:
-            reader = csv.reader(csvtext, delimiter=',', quotechar='"')
-            reader.next()
-            for line in reader:
-                try:
-                    cp.set(str(LDSUtilities.LDS_TN_PREFIX+line[0]),'pkey',line[2].replace('"','').lstrip())
-                except NoSectionError as nse:
-                    ldslog.warn('PK hack CP: '+str(nse))
+
+        for item in ConfigInitialiser.readCSV(csvfile):
+            try:
+                cp.set(str(LDSUtilities.LDS_TN_PREFIX+item[0]),'pkey',item[2].replace('"','').lstrip())
+            except NoSectionError as nse:
+                ldslog.warn('PK hack CP: '+str(nse))
 
         #CP doesn't have a simple non-file write method?!?
         cps = "# LDS Layer Properties Initialiser - File\n"
@@ -372,18 +371,31 @@ class ConfigInitialiser(object):
     def _hackPrimaryKeyFieldJSON(jtext,csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
         '''temporary hack method to rewrite the layerconf primary key field in JSON responses'''
         import json
-        import csv
-
+        
         jdata = json.loads(jtext)
+
+        for item in ConfigInitialiser.readCSV(csvfile):
+            for jline in jdata:
+                if LDSUtilities.LDS_TN_PREFIX+item[0] == str(jline[0]):
+                    jline[1] = item[2].replace('"','').lstrip()
+
+                        
+        return json.dumps(jdata)
+    
+    @staticmethod
+    def readCSV(csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
+        import csv
+        
+        res = []
         with open(csvfile, 'rb') as csvtext:
             reader = csv.reader(csvtext, delimiter=',', quotechar='"')
             reader.next()
             for line in reader:
-                for jline in jdata:
-                    if LDSUtilities.LDS_TN_PREFIX+line[0] == str(jline[0]):
-                        jline[1] = line[2].replace('"','').lstrip()
-                        
-        return json.dumps(jdata)
+                res.append(line)
+        return res
+    
+    
+        
     
 class SUFIExtractor(object):
     '''XSL parser to read big int columns returning a dict of id<->col matches'''

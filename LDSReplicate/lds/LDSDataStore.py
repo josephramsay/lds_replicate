@@ -42,7 +42,7 @@ class LDSDataStore(WFSDataStore):
     SUPPORTED_OUTPUT_FORMATS = ('GML2','GML3','JSON')
     
 
-        #from etree import ElementTree as ET
+    #Namespace declarations
     NS = {'g'    : '{http://data.linz.govt.nz/ns/g}', 
           'gml'  : '{http://www.opengis.net/gml}', 
           'xlink': '{http://www.w3.org/1999/xlink}', 

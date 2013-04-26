@@ -31,6 +31,7 @@ from abc import ABCMeta, abstractmethod
 from LDSUtilities import LDSUtilities,SUFIExtractor
 from ProjectionReference import Projection
 from ConfigWrapper import ConfigWrapper
+#from TransferProcessor import CONF_EXT, CONF_INT
 #from LDSDataStore import LDSDataStore
 
 ldslog = logging.getLogger('LDS')
@@ -76,6 +77,8 @@ class DataStore(object):
     
     DRIVER_NAME = '<init in subclass>'
     
+    DEFAULT_IE = 'external'
+    
     CONFIG_COLUMNS = ('id','pkey','name','category','lastmodified','geocolumn','index','epsg','discard','cql')
     #TEMP_DS_TYPES = ('Memory','ESRI Shapefile','Mapinfo File','GeoJSON','GMT','DXF')
     
@@ -86,6 +89,8 @@ class DataStore(object):
                       ogr.wkbPolygon25D, ogr.wkbMultiPoint25D, ogr.wkbMultiLineString25D, 
                       ogr.wkbMultiPolygon25D, ogr.wkbGeometryCollection25D)
     
+    CONF_INT = 'internal'
+    CONF_EXT = 'external'
     
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -160,13 +165,10 @@ class DataStore(object):
     def getSRS(self):
         return self.srs  
     
-    def setConfInternal(self):
-        self.config = True
-            
-    def clearConfInternal(self):
-        self.config = False
+    def setConfInternal(self,config):
+        self.config = config
          
-    def isConfInternal(self):
+    def getConfInternal(self):
         return self.config       
     
     #--------------------------  
@@ -396,7 +398,6 @@ class DataStore(object):
             new_layer = False
             src_layer = src_ds.GetLayer(li)
 
-            #TODO. resolve conflict between lastmodified and fdate
             src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
             
             '''retrieve per-layer settings from props'''
@@ -1068,16 +1069,21 @@ class DataStore(object):
                 
 
 
-    def setupLayerConfig(self,override_int):
+    def transferIETernal(self,override_int_ext):
         '''Read internal OR external from main config file and set, default to internal'''
-        #TODO... fix the ugly
-        if override_int is None:
-            if 'external' in map(lambda x: x.lower() if type(x) is str else x,self.mainconf.readDSParameters(self.DRIVER_NAME)):
-                self.clearConfInternal()
+        if override_int_ext is None:
+            #look for 'external' in all the params returned by the mainconf <driver> section (converting to lower case...)
+            #this is because each DS has differnt parameters in diffeent positions
+            plist = [str(x).lower() for x in self.mainconf.readDSParameters(self.DRIVER_NAME)]
+            if self.CONF_EXT in plist:
+                self.setConfInternal(self.CONF_EXT)
+            elif self.CONF_INT in plist:
+                self.setConfInternal(self.CONF_INT)
             else:
-                self.setConfInternal()
+                self.setConfInternal(self.DEFAULT_IE)
         else:
-            self.setConfInternal() if override_int else self.clearConfInternal()
+            #if overriding
+            self.setConfInternal(override_int_ext)
             
 
     def versionCheck(self):

@@ -17,33 +17,30 @@ Created on 23/07/2012
 import logging
 import os
 
-from ReadConfig import MainFileReader, LayerFileReader
+from ReadConfig import MainFileReader#, LayerFileReader
 
 ldslog = logging.getLogger('LDS')
 
 class ConfigWrapper(object):
     '''
-    Convenience wrapper class to config-file reader instances. Facade for file reader/table reader 
+    Convenience wrapper class to main and user config-file reader instances. Main function is to allows user to override main.
     '''
+    #TODO. since we dont use this as a Layer reader anymore consider removing it completely
 
     def __init__(self,config_file=None):
-        #                    user cf         ,layer props file name
-        '''this is not a ogr function so we dont need a driver and therefore wont call super'''
-        #some layer config properties may not be needed and wont be read eg WFS so None arg wont set layerconfig
-        
-        
+
         self.CONFIG_FILE = "ldsincr.conf"
         
-        self.layerconfig = None
-        self.mainconfig = None
-        self.userconfig = None
+        #self.layerconfig = None #internal/external; but only external is coded an never used
+        self.mainconfig = None  #always a file
+        self.userconfig = None  #always a file
 
-        self.setupMainConfig(config_file)
+        self.setupMainAndUserConfig(config_file)
         #dont set up layerconfig by default. Wait till we know whether we want a new build (initconfig) 
         #self.setupLayerConfig()
 
 
-    def setupMainConfig(self,inituserconfig):
+    def setupMainAndUserConfig(self,inituserconfig):
         '''Sets up a reader to the main configuration file or alternatively, a user specified config file.
         Userconfig is not mean't to replace mainconfig, just overwrite the parts the user has decided to customise'''
         self.userconfig = None
@@ -52,14 +49,14 @@ class ConfigWrapper(object):
         self.mainconfig = MainFileReader("../conf/"+self.CONFIG_FILE,True)
         
         
-    def setupLayerConfig(self,filename):
-        '''Adds a layerconfig file object which will be requested if external sepcified in main config'''
-        self.layerconfig = LayerFileReader(filename)
-        
-        
-    def getLayerNames(self):
-        '''Returns configured layers for respective layer properties file'''
-        return self.layerconfig.getSections()
+#    def setupLayerConfig(self,filename):
+#        '''Adds a layerconfig file object which will be requested if external sepcified in main config'''
+#        self.layerconfig = LayerFileReader(filename)
+#        
+#        
+#    def getLayerNames(self):
+#        '''Returns configured layers for respective layer properties file'''
+#        return self.layerconfig.getSections()
     
         
 #    #==============MAINCONFIG===========================================================
@@ -117,7 +114,7 @@ class ConfigWrapper(object):
 
     @staticmethod
     def buildNewUserConfig(ucfileid,uctriples):
-        
+        '''static method to initialise a user config from an array of parameters'''
         uc = MainFileReader(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../conf/'+str(ucfileid)+'.conf'),False)
         #uc.initMainFile(os.path.join(os.path.dirname(__file__), '../conf/ldsincr.conf'))
         uc.initMainFile()

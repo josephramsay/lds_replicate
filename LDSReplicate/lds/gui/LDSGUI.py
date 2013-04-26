@@ -309,7 +309,7 @@ class LDSControls(QFrame):
                                None if uconf is None else uconf, 
                                internal, None)
 
-        self.openLayerConfigSelector(tp,uconf,destination)
+        self.openLayerConfigSelector(tp,uconf,group,destination)
         
     def doOkClickAction(self):
         destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.readParameters()
@@ -336,7 +336,7 @@ class LDSControls(QFrame):
         if init:
             tp.setInitConfig()
             #if you are initialising probably want to do a layer select?
-            self.openLayerConfigSelector(tp,uconf,destination)
+            self.openLayerConfigSelector(tp,uconf,group,destination)
         if clean:
             tp.setCleanConfig()
             
@@ -344,9 +344,9 @@ class LDSControls(QFrame):
         
         self.parent.statusbar.showMessage('Replication of '+layer+' complete')
         
-    def openLayerConfigSelector(self,tp,uconf,destination):
+    def openLayerConfigSelector(self,tp,uconf,group,destination):
         from lds.gui.LayerConfigSelector import LayerConfigSelector
-        ldsc = LayerConfigSelector(tp,uconf,destination)
+        ldsc = LayerConfigSelector(self,tp,uconf,group,destination)
         ldsc.show()   
         
 #--------------------------------------------------------------------------------------------------
