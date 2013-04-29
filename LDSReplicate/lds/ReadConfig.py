@@ -530,6 +530,10 @@ class LayerReader(object):
     def buildConfigLayer(self,res):
         pass
     
+    @abstractmethod
+    def exists(self):
+        pass
+    
     
     def addCustomTag(self,layerlist,tagname):        
         '''Write a keyword to all the layers in the provided list'''
@@ -551,11 +555,16 @@ class LayerReader(object):
             self.writeLayerProperty(layer, 'Category', ','.join(keywords))
 
     def getLConfAs3Array(self):
-        '''Specialised conversion of the entire lconf as an array of pkey,name and keys for GUI use'''
+        '''Specialised conversion of the entire lconf to an array of layer-id,name and keys... for GUI use'''
+        return [(i[0],i[2],i[3]) for i in self.getLConfAsArray()] 
+    
+    def getLConfAsArray(self):
+        '''Returns a read lconf as an array'''
         lca = []
         for layer in self.getLayerNames():
             lce = self.readLayerParameters(layer)
-            lca.append((layer,lce.name,lce.group.split(',')),)
+            #pkey,name,group,gcol,index,epsg,lmod,disc,cql
+            lca.append((layer,lce.pkey,lce.name,lce.group.split(','),lce.gcol,lce.index,lce.epsg,lce.lmod,lce.disc,lce.cql),)
         return lca
     
     
@@ -565,22 +574,24 @@ class LayerFileReader(LayerReader):
         '''
         Constructor
         '''
-
-        self.cp = None
+        self.cp = ConfigParser.ConfigParser()
         self.fname = fname
         self.filename = os.path.join(os.path.dirname(__file__), '../conf/',fname)
             
         self._readConfigFile(self.filename)
         
-        
+    def exists(self):
+        '''TF test to decide whether to init'''
+        return len(self.cp.sections())>0
+    
     def buildConfigLayer(self,res):
         '''Just write a file in conf with the name <driver>.layer.properties'''
-        open(os.path.join(os.path.dirname(__file__), '../conf/',self.fname),'w').write(str(res))
+        open(self.filename,'w').write(str(res))
+        self._readConfigFile(self.filename)
         
     def _readConfigFile(self,fname):
         '''Reads named config file'''
         #Split off so you can override the config file on the same reader object if needed
-        self.cp = ConfigParser.ConfigParser()
         self.cp.read(fname)  
     
     @override(LayerReader)
@@ -710,6 +721,11 @@ class LayerDSReader(LayerReader):
         self.namelist = ()
             
 
+    def exists(self):
+        '''Test for DS table'''
+        #FIXME. tests DS only!!!
+        return (self.dso.ds is not None)
+        
     def buildConfigLayer(self,res):
         '''Builds the config table into and using the active DS'''
         #TODO check initds for conf table name

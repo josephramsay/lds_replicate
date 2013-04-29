@@ -1,8 +1,8 @@
 [prefs]
 dest = PostgreSQL
 layer = v:x785
-uconf = ldsincr.win.conf
-group = 
+uconf = ldsincr.lnx.conf
+group = TEST5
 epsg = 
 fd = None
 td = None

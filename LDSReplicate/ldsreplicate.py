@@ -152,10 +152,10 @@ def main():
             dc = val
         elif opt in ("-c","--cql"):
             cq = val
-        elif opt in ("-i","--internal"):
-            ie = True
-        elif opt in ("-x","--external"):
-            ie = False
+        elif opt in ("-i","--int","--internal"):
+            ie = 'internal'
+        elif opt in ("-x","--ext","--external"):
+            ie = 'external'
         elif opt in ("-u","--userconf"):
             uc = val
         else:

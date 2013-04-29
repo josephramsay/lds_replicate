@@ -221,7 +221,7 @@ class TransferProcessor(object):
     
     def hasPrimaryKey(self,testlayer):
         '''Reads layer conf pkey identifier. If PK is None or something, use this to decide processing type i.e. no PK = driverCopy'''
-        hpk = self.dst.layerconf.readLayerProperty(testlayer,'pkey')
+        hpk = self.dst.getLayerConf().readLayerProperty(testlayer,'pkey')
         if hpk is None:
             return False
         return True
@@ -234,30 +234,28 @@ class TransferProcessor(object):
                 }.get(LDSUtilities.standardiseDriverNames(dstname))
         return proc(self.destination_str,self.user_config)
 
-    def initTempDST(self,dstname):
-        '''Given a  dest name, setup a new destination object (so we can access its lconf)'''
-        #HACK!!!
-        
+
+    def initSource(self):
+        '''Initialise a new source, LDS nominally'''
         src = LDSDataStore(self.source_str,self.user_config) 
+        src.setPartitionSize(self.partitionsize)#partitionsize may not exist yet!
         src.applyConfigOptions()
+        return src
         
-        dst = self.initDestination(dstname)
-        dst.transferIETernal(self.getConfInternal())
-        dst.layerconf = TransferProcessor.getLayerConf(dst)  
-        capabilities = src.getCapabilities()
-        TransferProcessor.initLayerConfig(capabilities,dst)
-        return dst
-        
-    def editLayerConf(self,layerlist, dstname,customkey='CUSTOM'):
+    def editLayerConf(self,layerlist, dstname, customkey='CUSTOM'):
         '''Using the available TP initialisers, setup and build a new temporary layer config. 
         This is used (only) by the LayerConfig GUI for appending custom tags.
         Written as a temporary method so its a confusing mix of static and instance methods'''
         #using customkey=CUSTOM so some kind of selection is made even if the user doesn't select a specific keyword 
-        lconf = TransferProcessor.getLayerConf(self.initTempDST(dstname))
+        dst = self.initDestination(dstname)
+        dst.setLayerConf(TransferProcessor.getNewLayerConf(dst))
+        if not dst.getLayerConf().exists():
+            src = self.initSource()
+            self.initLayerConfig(src.getCapabilities(),dst)
         for layer in [ll[0] for ll in layerlist]:
-            v1 = lconf.readLayerProperty(layer, 'category')
+            v1 = dst.getLayerConf().readLayerProperty(layer, 'category')
             v2 = v1+","+str(customkey)
-            lconf.writeLayerProperty(layer, 'category', v2)
+            dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
                 
         
     def processLDS(self,dst):
@@ -294,28 +292,26 @@ class TransferProcessor(object):
         
         (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.temptable) = self.dst.mainconf.readDSParameters('Misc')
         
-        self.src = LDSDataStore(self.source_str,self.user_config) 
-        self.src.setPartitionSize(self.partitionsize)
-        self.src.applyConfigOptions()
+        self.src = self.initSource()
         
         capabilities = self.src.getCapabilities()
         
         #transfer internal/external from TP to DS
         self.dst.transferIETernal(self.getConfInternal())          
                 
-        self.dst.layerconf = TransferProcessor.getLayerConf(self.dst)        
+        self.dst.setLayerConf(TransferProcessor.getNewLayerConf(self.dst))        
         
         if self.getInitConfig():
             TransferProcessor.initLayerConfig(capabilities,self.dst) 
         
-        if self.dst.layerconf is None:
+        if self.dst.getLayerConf() is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(dst.getConfInternal()))
         
         # *** Once the layer config is initialised we can do a layer name check ***
         if self.layer is None:
             layer = 'ALL'
         else:
-            layer = LDSUtilities.checkLayerName(self.dst.layerconf,self.layer)
+            layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.layer)
             if layer is None:
                 raise InputMisconfigurationException("Layer name provided but format incorrect. Must be; -l {"+LDSUtilities.LDS_TN_PREFIX+"#### | <Layer-Name>}")
         
@@ -331,7 +327,7 @@ class TransferProcessor(object):
         #full LDS layer name listv:x (from LDS WFS)
         lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities))[0]
         #list of configured layers (from layer-config file/table)
-        lds_read = self.dst.layerconf.getLayerNames()
+        lds_read = self.dst.getLayerConf().getLayerNames()
         
         lds_valid = set(lds_full).intersection(set(lds_read))
         
@@ -341,7 +337,7 @@ class TransferProcessor(object):
             self.lnl = ()
             lg = set(self.group.split(','))
             for lid in lds_valid:
-                cats = self.dst.layerconf.readLayerProperty(lid,'category')
+                cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
                 if cats is not None and set(cats.split(',')).intersection(lg):
                     self.lnl += (lid,)
         else:
@@ -410,9 +406,9 @@ class TransferProcessor(object):
         '''Replicate the requested layer non-incrementally'''
         
         #Set filters in URI call using layer            
-        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(layer_i,'cql')))
+        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.getLayerConf().readLayerProperty(layer_i,'cql')))
         #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy
-        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.layerconf.readLayerProperty(layer_i,'epsg')))
+        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.getLayerConf().readLayerProperty(layer_i,'epsg')))
 
         #while (True):
         self.src.setURI(self.src.sourceURI(layer_i))
@@ -452,7 +448,7 @@ class TransferProcessor(object):
     def autoIncrementLayer(self,layer_i,fdate,tdate):
         '''For a specified layer read provided date ranges and call incremental'''
         if fdate is None or fdate == '':    
-            fdate = self.dst.layerconf.readLayerProperty(layer_i,'lastmodified')
+            fdate = self.dst.getLayerConf().readLayerProperty(layer_i,'lastmodified')
             if fdate is None or fdate == '':
                 fdate = DataStore.EARLIEST_INIT_DATE
                 
@@ -481,9 +477,9 @@ class TransferProcessor(object):
         #Once an individual layer has been defined...
         #croplayer = LDSUtilities.cropChangeset(layer_i)
         #Filters are set on the SRC since they're built into the URL, they are however specified per DST    
-        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.layerconf.readLayerProperty(layer_i,'cql')))
+        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.getLayerConf().readLayerProperty(layer_i,'cql')))
         #SRS are set in the DST since the conversion takes place during the write process.
-        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.layerconf.readLayerProperty(layer_i,'epsg')))
+        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.getLayerConf().readLayerProperty(layer_i,'epsg')))
         
         td = datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S')
         fd = datetime.strptime(fdate,'%Y-%m-%dT%H:%M:%S')
@@ -496,7 +492,7 @@ class TransferProcessor(object):
             if layer_i in self.partitionlayers:
                 if not haspk:
                     raise PrimaryKeyUnavailableException('Cannot partition layer '+str(layer_i)+'without a valid primary key')
-                self.src.setPrimaryKey(self.dst.layerconf.readLayerProperty(layer_i,'pkey'))
+                self.src.setPrimaryKey(self.dst.getLayerConf().readLayerProperty(layer_i,'pkey'))
                 self.src.setPartitionStart(0)
                 self.src.setPartitionSize(self.partitionsize)#redundant, set earlier
                 self.setFBF()
@@ -529,18 +525,25 @@ class TransferProcessor(object):
         return
     
     @classmethod
-    def getLayerConf(cls,dst):
-        '''Decide whether to use internal or external layer config'''
-        fn = dst.DRIVER_NAME.lower()+cls.LP_SUFFIX
+    def getNewLayerConf(cls,dst):
+        '''Decide whether to use internal or external layer config and return the appropriate instantiation'''
+        fn = dst.DRIVER_NAME.lower()+cls.LP_SUFFIX  
         return LayerDSReader(dst) if dst.getConfInternal()==DataStore.CONF_INT else LayerFileReader(fn)
 
             
             
     @classmethod
-    def initLayerConfig(cls,capabilities,dst):
-        '''class method initialising a layer config using the capabilities document'''
-        xml = LDSDataStore.readDocument(capabilities)
-        res = ConfigInitialiser.buildConfiguration(xml,'file' if dst.getConfInternal()==DataStore.CONF_EXT else 'json')
-        dst.layerconf.buildConfigLayer(str(res))
+    def parseCapabilitiesDoc(cls,capabilitiesurl,file_json):
+        '''Class method returning the capabilities doc as requested, in either JSON or CP format'''
+        xml = LDSDataStore.readDocument(capabilitiesurl)
+        return ConfigInitialiser.buildConfiguration(xml,file_json)
+  
+        
+    @classmethod
+    def initLayerConfig(cls,capabilitiesurl,dst):
+        '''Class method initialising a layer config using the capabilities document'''
+        file_json = 'json' if dst.getConfInternal()==DataStore.CONF_INT else 'file'
+        res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json)
+        dst.getLayerConf().buildConfigLayer(str(res))
         
         

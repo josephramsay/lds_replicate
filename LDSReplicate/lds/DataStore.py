@@ -182,6 +182,12 @@ class DataStore(object):
     def getOverwrite(self):
         return self.OVERWRITE   
     
+    def getLayerConf(self):
+        return self.layerconf
+    
+    def setLayerConf(self,layerconf):
+        self.layerconf = layerconf
+    
     def getConfigOptions(self):
         '''Returns common options, overridden in subclasses for source specifc options'''
         return []    
@@ -1073,7 +1079,7 @@ class DataStore(object):
         '''Read internal OR external from main config file and set, default to internal'''
         if override_int_ext is None:
             #look for 'external' in all the params returned by the mainconf <driver> section (converting to lower case...)
-            #this is because each DS has differnt parameters in diffeent positions
+            #this is because each DS has different parameters in different positions
             plist = [str(x).lower() for x in self.mainconf.readDSParameters(self.DRIVER_NAME)]
             if self.CONF_EXT in plist:
                 self.setConfInternal(self.CONF_EXT)

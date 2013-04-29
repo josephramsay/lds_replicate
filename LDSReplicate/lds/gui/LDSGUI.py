@@ -221,10 +221,10 @@ class LDSControls(QFrame):
         vbox1.addWidget(internalLabel)
         vbox1.addWidget(self.internalTrigger)
         
-        vbox2 = QVBoxLayout()
-        vbox2.addStretch(1)
-        vbox2.addWidget(initLabel)
-        vbox2.addWidget(self.initTrigger)
+        #vbox2 = QVBoxLayout()
+        #vbox2.addStretch(1)
+        #vbox2.addWidget(initLabel)
+        #vbox2.addWidget(self.initTrigger)
         
         vbox3 = QVBoxLayout()
         vbox3.addStretch(1)
@@ -234,7 +234,7 @@ class LDSControls(QFrame):
         hbox3 = QHBoxLayout()
         hbox3.addStretch(1)
         hbox3.addLayout(vbox1)
-        hbox3.addLayout(vbox2)
+        #hbox3.addLayout(vbox2)
         hbox3.addLayout(vbox3)
         
         hbox4 = QHBoxLayout()
@@ -290,7 +290,7 @@ class LDSControls(QFrame):
         te = self.toDateEnable.isChecked()
         fd = None if fe is False else str(self.fromDateEdit.date().toString('yyyy-MM-dd'))
         td = None if te is False else str(self.toDateEdit.date().toString('yyyy-MM-dd'))
-        internal = self.internalTrigger.isChecked()
+        internal = 'internal' if self.internalTrigger.isChecked() else 'external'
         init = self.initTrigger.isChecked()
         clean = self.cleanTrigger.isChecked()
         
@@ -346,7 +346,7 @@ class LDSControls(QFrame):
         
     def openLayerConfigSelector(self,tp,uconf,group,destination):
         from lds.gui.LayerConfigSelector import LayerConfigSelector
-        ldsc = LayerConfigSelector(self,tp,uconf,group,destination)
+        ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
         ldsc.show()   
         
 #--------------------------------------------------------------------------------------------------

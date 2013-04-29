@@ -384,6 +384,7 @@ class ConfigInitialiser(object):
     
     @staticmethod
     def readCSV(csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
+        '''Look for PK assigments in the Koordinates supplied csv'''
         import csv
         
         res = []
