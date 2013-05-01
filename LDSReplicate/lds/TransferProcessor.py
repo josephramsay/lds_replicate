@@ -227,6 +227,7 @@ class TransferProcessor(object):
         return True
     
     def initDestination(self,dstname):
+        '''Init a new destination using instantiated uconf (and dest str if provided)'''
         proc = {PostgreSQLDataStore.DRIVER_NAME:PostgreSQLDataStore,
                 MSSQLSpatialDataStore.DRIVER_NAME:MSSQLSpatialDataStore,
                 SpatiaLiteDataStore.DRIVER_NAME:SpatiaLiteDataStore,
@@ -238,25 +239,9 @@ class TransferProcessor(object):
     def initSource(self):
         '''Initialise a new source, LDS nominally'''
         src = LDSDataStore(self.source_str,self.user_config) 
-        src.setPartitionSize(self.partitionsize)#partitionsize may not exist yet!
+        src.setPartitionSize(self.partitionsize)#partitionsize may not exist when this is called but thats okay!
         src.applyConfigOptions()
-        return src
-        
-    def editLayerConf(self,layerlist, dstname, customkey='CUSTOM'):
-        '''Using the available TP initialisers, setup and build a new temporary layer config. 
-        This is used (only) by the LayerConfig GUI for appending custom tags.
-        Written as a temporary method so its a confusing mix of static and instance methods'''
-        #using customkey=CUSTOM so some kind of selection is made even if the user doesn't select a specific keyword 
-        dst = self.initDestination(dstname)
-        dst.setLayerConf(TransferProcessor.getNewLayerConf(dst))
-        if not dst.getLayerConf().exists():
-            src = self.initSource()
-            self.initLayerConfig(src.getCapabilities(),dst)
-        for layer in [ll[0] for ll in layerlist]:
-            v1 = dst.getLayerConf().readLayerProperty(layer, 'category')
-            v2 = v1+","+str(customkey)
-            dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
-                
+        return src                
         
     def processLDS(self,dst):
         '''Process with LDS as a source and the destination supplied as an argument.
@@ -342,8 +327,7 @@ class TransferProcessor(object):
                     self.lnl += (lid,)
         else:
             self.lnl = lds_valid
-            
-            
+                      
         # ***HACK*** big layer bypass (address this with partitions)
         #self.lnl = filter(lambda l: l not in self.partitionlayers, self.lnl)
         

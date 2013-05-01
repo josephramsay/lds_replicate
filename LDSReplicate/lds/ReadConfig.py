@@ -17,7 +17,6 @@ Created on 24/07/2012
 
 import os
 import shutil
-import string
 import logging
 import json
 import ogr
@@ -723,8 +722,10 @@ class LayerDSReader(LayerReader):
 
     def exists(self):
         '''Test for DS table'''
-        #FIXME. tests DS only!!!
-        return (self.dso.ds is not None)
+        if self.ds is not None:
+            if self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE) is not None:
+                return True
+        return False
         
     def buildConfigLayer(self,res):
         '''Builds the config table into and using the active DS'''
@@ -738,7 +739,7 @@ class LayerDSReader(LayerReader):
         except Exception as e:
             ldslog.warn("Exception deleting config layer: "+str(e))
         
-        config_layer = self.ds.CreateLayer(self.dso.LDS_CONFIG_TABLE,None,self.getConfigGeometry(),['OVERWRITE=YES'])
+        config_layer = self.ds.CreateLayer(self.dso.LDS_CONFIG_TABLE, None, self.getConfigGeometry(), ['OVERWRITE=YES'])
         
         feat_def = ogr.FeatureDefn()
         for name in self.dso.CONFIG_COLUMNS:

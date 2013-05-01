@@ -15,13 +15,13 @@ Created on 13/02/2013
 @author: jramsay
 '''
 
-from PyQt4.QtGui import (QApplication, QLabel, 
+from PyQt4.QtGui import (QApplication, QLabel, QComboBox,
                          QVBoxLayout, QHBoxLayout, QGridLayout,QAbstractItemView,
-                         QSizePolicy,QSortFilterProxyModel,
+                         QSizePolicy,QSortFilterProxyModel, QTextBrowser,
                          QMainWindow, QFrame, QStandardItemModel, 
                          QLineEdit,QToolTip, QFont, QHeaderView, 
-                         QPushButton, QTableView,QMessageBox)
-from PyQt4.QtCore import (Qt, QCoreApplication, QAbstractTableModel, QVariant)
+                         QPushButton, QTableView,QMessageBox, QGroupBox)
+from PyQt4.QtCore import (Qt, QCoreApplication, QAbstractTableModel, QVariant, QRect,SIGNAL)
 
 
 
@@ -32,6 +32,7 @@ import copy
 import json
 
 from lds.LDSDataStore import LDSDataStore
+from lds.DataStore import DataStore
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 
@@ -67,28 +68,17 @@ class LayerConfigSelector(QMainWindow):
         self.group = group
         self.dest = dest
 
-
-        #initialise layer data using existing source otherwise capabilities
-        #get SRC here since we need it later for the reserved words anyway
-        src = tp.initSource()
-        dst = tp.initDestination(dest)
-        dst.transferIETernal(tp.getConfInternal())    
-        dst.setLayerConf(tp.getNewLayerConf(dst))
-        if not dst.getLayerConf().exists():
-            tp.initLayerConfig(src.getCapabilities(),dst)
+        self.src,self.dst = self.initSrcAndDst()
         
-        self.complete = dst.getLayerConf().getLConfAs3Array()
-        self.reserved = set()
-
-        #read the capabilities doc (as json) for reserved words
-        for i in [l[3] for l in json.loads(tp.parseCapabilitiesDoc(src.getCapabilities(),'json'))]:
-            self.reserved |= set(i) 
-               
-        #read the translated primary keys file
+        self.complete = self.getComplete()
+        self.reserved = self.getReserved()#this should never change
+        self.assigned = self.getAssigned()
+           
+        #read the translated primary keys file to determine incremental-able layers
         self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
         
         #Build models splitting by keyword if necessary 
-        av_sl = self.splitData(str(group))
+        av_sl = self.splitData(str(group),self.complete)
         
         self.available_model = LayerTableModel('L::available',self)
         self.available_model.initData(av_sl[0],self.inclayers)
@@ -103,11 +93,84 @@ class LayerConfigSelector(QMainWindow):
         self.setWindowTitle("LDS Layer Selection")
         self.resize(725,480)
 
-    def splitData(self,keyword):
-        '''splits up the data according to a selection keyword'''
+    def getComplete(self):
+        '''Reads the lconf from file/table'''
+        return self.dst.getLayerConf().getLConfAs3Array()
+    
+    def getReserved(self):
+        '''Read the capabilities doc (as json) for reserved words'''
+        reserved = set()
+        for i in [l[3] for l in json.loads(self.tp.parseCapabilitiesDoc(self.src.getCapabilities(),'json'))]:
+            reserved.update(set(i))
+        return reserved
+            
+    def getAssigned(self):
+        '''Read the complete config doc for all keywords and diff out reserved. Requires init of complete and reserved'''   
+        assigned = set() 
+        for i in [x[2] for x in self.complete]:
+            assigned.update(set(i))
+        assigned.difference_update(self.reserved)
+        
+        return assigned
+        
+        
+    def initSrcAndDst(self):
+        '''Initialises src and dst objects'''
+        #initialise layer data using existing source otherwise use the capabilities doc
+        #get SRC here since we need it later for the reserved words anyway
+        src = self.tp.initSource()
+        dst = self.tp.initDestination(self.dest)
+        #if internal lconf meed to init the DB
+        if self.tp.getConfInternal()==DataStore.CONF_INT:
+            dst.transferIETernal(self.tp.getConfInternal())
+            dst.ds = dst.initDS(dst.destinationURI(None))
+        dst.setLayerConf(self.tp.getNewLayerConf(dst))
+        ##if a lconf has not been created build a new one
+        if not dst.getLayerConf().exists():
+            self.tp.initLayerConfig(src.getCapabilities(),dst)
+            
+        return src,dst
+    
+    def resetLayers(self):
+        '''Rebuilds lconf from scratch'''
+        self.tp.initLayerConfig(self.src.getCapabilities(),self.dst)
+        self.refreshLayers()
+
+        
+    def refreshLayers(self,customkey=None):
+        '''Refreshes lconf from a reread of the lconf object'''
+        self.complete = self.getComplete()
+        av_sl = self.splitData(customkey,self.complete)
+        self.signalModels('PRE')
+        self.available_model.initData(av_sl[0],self.inclayers)
+        self.selection_model.initData(av_sl[1],self.inclayers)
+        self.signalModels('POST')
+        
+    
+    def addKeyToLayers(self, customkey='CUSTOM'):
+        '''Add custom key to the selection_model list of layers'''
+        #using customkey=CUSTOM so some kind of selection is made even if the user doesn't select a specific keyword 
+        for layer in [ll[0] for ll in self.selection_model.mdata]:
+            v1 = self.dst.getLayerConf().readLayerProperty(layer, 'category')
+            v2 = v1 if re.search(customkey,v1) else v1+","+str(customkey)
+            self.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
+        self.refreshLayers(customkey)
+            
+    def delKeyFromLayers(self, customkey='CUSTOM'):
+        '''Remove a custom key from the layers selected in the selection_model. Needn't delete the key from all associated layers'''
+        #using customkey=CUSTOM so some kind of selection is made even if the user doesn't select a specific keyword 
+        for layer in [ll[0] for ll in self.selection_model.mdata]:
+            v1 = self.dst.getLayerConf().readLayerProperty(layer, 'category')
+            v2 = re.sub(',+',',',''.join(v1.split(str(customkey))).strip(','))
+            self.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
+        self.refreshLayers(customkey)
+    
+    @staticmethod
+    def splitData(keyword,complete):
+        '''Splits up the 'complete' layer list according to whether it has the selection keyword or not'''
         alist = []
         slist = []
-        for dp in self.complete:
+        for dp in complete:
             if keyword in dp[2]:
                 slist.append(dp)
             else:
@@ -115,13 +178,13 @@ class LayerConfigSelector(QMainWindow):
         return alist,slist
     
     def signalModels(self,prepost):
+        '''Convenience method to call the Layout Change signals when models are modified'''
         if prepost=='PRE':        
             self.available_model.layoutAboutToBeChanged.emit()
             self.selection_model.layoutAboutToBeChanged.emit()
         elif prepost=='POST':
             self.available_model.layoutChanged.emit()
             self.selection_model.layoutChanged.emit() 
-        
         
     
 class LayerTableModel(QAbstractTableModel):
@@ -224,7 +287,7 @@ class LayerTableModel(QAbstractTableModel):
         
 class LayerSelectionPage(QFrame):
     #TODO. Filtering, (visible) row selection, multi selection
-    colparams = ((0,65,'Name'), (1,250,'Title'), (2,350,'Keywords'))
+    colparams = ((0,65,'Name'), (1,235,'Title'), (2,350,'Keywords'))
     XFER_BW = 40
     def __init__(self, parent=None):
         super(LayerSelectionPage, self).__init__(parent)
@@ -238,7 +301,7 @@ class LayerSelectionPage(QFrame):
         selectionlabel = QLabel('Layer Selections')
         keywordlabel = QLabel('Keyword')
         
-        #button
+        #selection buttons
         chooseallbutton = QPushButton('>>')
         chooseallbutton.setFixedWidth(self.XFER_BW)
         chooseallbutton.clicked.connect(self.doChooseAllClickAction)
@@ -255,18 +318,32 @@ class LayerSelectionPage(QFrame):
         rejectallbutton.setFixedWidth(self.XFER_BW)
         rejectallbutton.clicked.connect(self.doRejectAllClickAction)
         
+        #operation buttons
+        addbutton = QPushButton('+')
+        addbutton.setFixedWidth(self.XFER_BW)
+        addbutton.setToolTip('Assign Keyword to layers in the Layer-Selection pane')
+        addbutton.clicked.connect(self.doAddClickAction)        
         
-        selectbutton = QPushButton('Select')
-        selectbutton.setToolTip('Process selected rows')
-        selectbutton.clicked.connect(self.doSelectClickAction)
+        delbutton = QPushButton('-')
+        delbutton.setFixedWidth(self.XFER_BW)
+        delbutton.setToolTip('Remove Keyword assignment from layers in the Layer-Selection pane')
+        delbutton.clicked.connect(self.doDelClickAction)
+                
+        inspbutton = QPushButton('?')
+        inspbutton.setFixedWidth(self.XFER_BW)
+        inspbutton.setToolTip('Re-read all layers, displaying layers assigned the named Keyword (below) in the Layer-Selection pane')       
+        inspbutton.clicked.connect(self.doReadClickAction)
         
-        cancelbutton = QPushButton('Cancel')
-        cancelbutton.setToolTip('Cancel Layer Selection')       
-        cancelbutton.clicked.connect(QCoreApplication.instance().quit) 
+        finishbutton = QPushButton('Finish')
+        finishbutton.setToolTip('Finish and Close layer selection dialog')
+        #finishbutton.clicked.connect(self.destroy) 
+        #self.connect(self.quit, SIGNAL('clicked()'), self.close)
+        finishbutton.clicked.connect(QCoreApplication.instance().quit) 
         
         resetbutton = QPushButton('Reset')
-        resetbutton.setToolTip('Reset all selections (Initialise any existing keyword selections)')       
-        resetbutton.clicked.connect(self.doResetClickAction) 
+        resetbutton.font()
+        resetbutton.setToolTip('Read Layer from LDS GetCapabilities request. Overwrites current Layer Config')       
+        resetbutton.clicked.connect(self.doResetClickAction)
         
         self.available_sfpm = LDSSFPAvailableModel(self)
         self.selection_sfpm = LDSSFPSelectionModel(self)
@@ -276,12 +353,20 @@ class LayerSelectionPage(QFrame):
         
         #textedits
         filteredit = QLineEdit('')
-        filteredit.setToolTip('Filter results table (filter operates across all fields)')       
-        filteredit.textChanged.connect(self.available_sfpm.setActiveFilter);
+        filteredit.setToolTip('Filter Available-Layers pane (filter operates across Name and Title fields and accepts Regex expressions)')       
+        filteredit.textChanged.connect(self.available_sfpm.setActiveFilter)
         
-        self.keywordedit = QLineEdit(self.parent.group)
-        self.keywordedit.setToolTip('Select unique identifier to be saved in layer config (keyword)')
-        #keywordedit.textChanged.connect(self.selection_sfpm.setActiveFilter);
+        #self.keywordedit = QTextBrowser()#QLineEdit(self.parent.group)
+        #self.keywordedit.setToolTip('Select unique identifier to be saved in layer config (keyword)')
+        #>>>#keywordedit.textChanged.connect(self.selection_sfpm.setActiveFilter)
+        self.keywordcombo = QComboBox()
+        self.keywordcombo.setToolTip('Select or Add a unique identifier to be saved in layer config (keyword)')
+        self.keywordcombo.addItems(list(self.parent.assigned))
+        self.keywordcombo.setEditable(True)
+
+        keywordedit = self.keywordcombo.lineEdit()
+        keywordedit.setText(self.parent.group)
+        
         
         #notes.      
         #1. use selection filter to select stored keywords or to save new keywords
@@ -309,7 +394,7 @@ class LayerSelectionPage(QFrame):
         self.selection.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.selection.setSelectionMode(QAbstractItemView.MultiSelection)
         
-        #interesting, must set model after selection attributes but before hheaders else row selections/headers don't work properly
+        #interesting, must set model after selection attributes but before headers else row selections/headers don't work properly
         self.available.setModel(self.available_sfpm)
         self.selection.setModel(self.selection_sfpm)
         
@@ -318,8 +403,6 @@ class LayerSelectionPage(QFrame):
         
         self.selection.setSortingEnabled(True)
         self.selection.setHorizontalHeader(headview2)
-        
-        
 
         for cp in self.colparams:
             self.available.setColumnWidth(cp[0],cp[1])
@@ -333,60 +416,104 @@ class LayerSelectionPage(QFrame):
         
         
         #layout  
-        vbox0 = QVBoxLayout()
-        vbox0.addWidget(chooseallbutton)
-        vbox0.addWidget(choosebutton)
-        vbox0.addWidget(rejectbutton)
-        vbox0.addWidget(rejectallbutton)
+        #gbox0 = QGroupBox('Keyword Selection')
+        #gbox0.setFlat(True)
         
-        vbox1 = QVBoxLayout()
-        vbox1.addWidget(availablelabel)
-        vbox1.addWidget(self.available)
-        vbox1.addWidget(filterlabel)
-        vbox1.addWidget(filteredit)
-        
-        vbox2 = QVBoxLayout()
-        vbox2.addWidget(selectionlabel)
-        vbox2.addWidget(self.selection)
-        vbox2.addWidget(keywordlabel)
-        vbox2.addWidget(self.keywordedit)
-        
-        hbox0 = QHBoxLayout()
-        hbox0.addLayout(vbox1)
-        hbox0.addLayout(vbox0)
-        hbox0.addLayout(vbox2)
+        #gbox1 = QGroupBox('Layer Config Controls')
+        #gbox1.setFlat(True)
 
+        #line0 = QFrame()
+        #line0.setGeometry(QRect())#320, 150, 118, 3))
+        #line0.setFrameShape(QFrame.HLine)
+        #line0.setFrameShadow(QFrame.Sunken)
+
+        vbox00 = QVBoxLayout()
+        vbox00.addWidget(availablelabel)
+        vbox00.addWidget(self.available)
+        
+        vbox01 = QVBoxLayout()
+        vbox01.addWidget(chooseallbutton)
+        vbox01.addWidget(choosebutton)
+        vbox01.addWidget(rejectbutton)
+        vbox01.addWidget(rejectallbutton)
+        
+        vbox02 = QVBoxLayout()
+        vbox02.addWidget(selectionlabel)
+        vbox02.addWidget(self.selection)
+
+        
+        vbox10 = QVBoxLayout()
+        vbox10.addWidget(filterlabel)
+        vbox10.addWidget(filteredit)
+        
+        hbox12 = QHBoxLayout()
+        hbox12.addWidget(keywordlabel)
+        hbox12.addStretch(1)
+        hbox12.addWidget(inspbutton)
+        hbox12.addWidget(addbutton)
+        hbox12.addWidget(delbutton)
+        
+        vbox12 = QVBoxLayout()
+        vbox12.addLayout(hbox12)
+        vbox12.addWidget(self.keywordcombo)
+                
+        #00|01|02
+        #10|11|12
+        grid0 = QGridLayout()
+        grid0.addLayout(vbox00,0,0)
+        grid0.addLayout(vbox01,0,1)
+        grid0.addLayout(vbox02,0,2)
+        grid0.addLayout(vbox10,1,0)
+        grid0.addLayout(vbox12,1,2)
         
         
         hbox2 = QHBoxLayout()
         hbox2.addWidget(resetbutton)
         hbox2.addStretch(1)
-        hbox2.addWidget(selectbutton)
-        hbox2.addWidget(cancelbutton)
+        hbox2.addWidget(finishbutton)
+        #gbox1.setLayout(hbox2)
+        
+        
         
         vbox3 = QVBoxLayout()
-        vbox3.addLayout(hbox0)
+        vbox3.addLayout(grid0)
+        #vbox3.addLayout(hbox3)
+        #vbox3.addWidget(line0)
         vbox3.addLayout(hbox2)
+        
         try:
             self.setLayout(vbox3)
         except Exception as e:
             print e
         
-    def doSelectClickAction(self):
+    def doAddClickAction(self):
         '''Main selection action, takes selection and adds to conf layer (via tp)'''
-        ktext = str(self.keywordedit.text())
+        ktext = str(self.keywordcombo.lineEdit().text())
         if ktext in self.parent.reserved:
             QMessageBox.about(self, "Reserved Keyword","'{0}' is a reserved keyword, please select again".format(ktext))
             return
-        self.parent.tp.editLayerConf(self.parent.selection_model.mdata, self.parent.dest, ktext)
-        self.parent.close()
+        self.parent.addKeyToLayers(ktext)
+        if ktext not in self.parent.assigned:
+            self.keywordcombo.addItem(ktext)
+            self.parent.assigned.update([ktext])
+
+        
+    def doDelClickAction(self):
+        '''Main selection action, takes selection and adds to conf layer (via tp)'''
+        ktext = str(self.keywordcombo.lineEdit().text())
+        if ktext in self.parent.reserved:
+            QMessageBox.about(self, "Reserved Keyword","'{0}' is a reserved keyword, please select again".format(ktext))
+            return
+        self.parent.delKeyFromLayers(ktext)
+        self.parent.assigned = self.parent.getAssigned()
+        if ktext not in self.parent.assigned:
+            self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
+            self.keywordcombo.clearEditText()
             
-    
     def doChooseAllClickAction(self):
-#        si = self.available.selectedIndexes()
-#        self.transferSelectedRows(si,self.available_sfpm,self.selection_sfpm)  
         self.parent.signalModels('PRE')
-        self.parent.selection_model.mdata += self.parent.available_model.mdata
+        #self.parent.selection_model.mdata += self.parent.available_model.mdata
+        self.parent.selection_model.initData(self.parent.complete)
         self.parent.available_model.initData([])
         self.parent.signalModels('POST')
     
@@ -397,6 +524,7 @@ class LayerSelectionPage(QFrame):
             self.transferSelectedRows(select.selectedRows(),self.available_sfpm,self.selection_sfpm)
         else:
             ldslog.warn('L2R > Transfer action without selection')
+        self.available.clearSelection()
             
     def transferSelectedRows(self,indices,from_model,to_model):
         tlist = []
@@ -406,7 +534,6 @@ class LayerSelectionPage(QFrame):
 
         to_model.addData([t[1] for t in tlist])
         from_model.delData([t[0] for t in tlist])
-
             
     def doRejectClickAction(self):
         '''Takes available selected and moves to selection'''
@@ -415,21 +542,33 @@ class LayerSelectionPage(QFrame):
             self.transferSelectedRows(select.selectedRows(),self.selection_sfpm,self.available_sfpm)
         else:
             ldslog.warn('R2L < Transfer action without selection')
-            
-    
+        self.selection.clearSelection()
+                
     def doRejectAllClickAction(self):
         self.parent.signalModels('PRE')
-        self.parent.available_model.mdata += self.parent.selection_model.mdata
+        #self.parent.available_model.mdata += self.parent.selection_model.mdata
+        self.parent.available_model.initData(self.parent.complete)
         self.parent.selection_model.initData([])
         self.parent.signalModels('POST')
         
-    def doResetClickAction(self):
+    def doReadClickAction(self):
         '''Reset the available pane and if there is anything in the keyword box use this to init the selection pane'''
-        av_sl = self.parent.splitData(str(self.keywordedit.text()))
+        ktext = str(self.keywordcombo.lineEdit().text())
+        av_sl = self.parent.splitData(ktext,self.parent.complete)
         self.parent.signalModels('PRE')
         self.parent.available_model.initData(av_sl[0])
         self.parent.selection_model.initData(av_sl[1])
         self.parent.signalModels('POST')
+    
+    def doResetClickAction(self):
+        '''Main selection action, takes selection and adds to conf layer (via tp)'''
+        #int warning (QWidget parent, QString title, QString text, QString button0Text, QString button1Text = QString(), QString button2Text = QString(), int defaultButtonNumber = 0, int escapeButtonNumber = -1)
+        ans = QMessageBox.warning(self, "Reset","This action will reset your Layer Configuration settings to the current LDS state (potentially adding new layers). Continue?","Continue","Cancel")
+        if ans:
+            ldslog.warn('Cancelling Reset operation')
+            return
+        ldslog.warn('Reset Layer Config')
+        self.parent.resetLayers()
 
             
 

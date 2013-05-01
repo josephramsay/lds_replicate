@@ -32,7 +32,7 @@ from LDSUtilities import LDSUtilities,SUFIExtractor
 from ProjectionReference import Projection
 from ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
-#from LDSDataStore import LDSDataStore
+
 
 ldslog = logging.getLogger('LDS')
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
@@ -215,12 +215,13 @@ class DataStore(object):
     
     def initDS(self,dsn=None,create=True):
         '''Initialise the data source calling a provided DSN or self.dsn and a flag to indicate whether we should try and create a DS if none found'''
+        from WFSDataStore import WFSDataStore
         ds = None
         '''initialise a DS for writing'''
         try:
             #we turn ogr exceptions off here so reported errors don't kill DS initialisation 
             ogr.DontUseExceptions()
-            ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME=='WFS' else dsn, update = 1 if self.getOverwrite()=='YES' else 0)       
+            ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)       
             if ds is None:
                 raise DSReaderException("Error opening DS "+str(dsn)+(', attempting DS create.' if create else ', quitting.'))
         except (RuntimeError,DSReaderException) as dsre1:
