@@ -16,7 +16,6 @@ Created on 24/07/2012
 '''
 
 import os
-import shutil
 import logging
 import json
 import ogr
@@ -26,8 +25,6 @@ from ConfigParser import NoOptionError,NoSectionError
 from LDSUtilities import LDSUtilities as LU
 
 
-
-    
 ldslog = logging.getLogger('LDS')
 
 class MainFileReader(object):
@@ -37,9 +34,11 @@ class MainFileReader(object):
     LDSN = 'LDS'
     PROXY = 'Proxy'
     MISC = 'Misc'
+    
+    DEFAULT_MF = 'ldsincr.conf'
 
 
-    def __init__(self,cfpath,use_defaults):
+    def __init__(self,cfpath=LU.standardiseUserConfigName(DEFAULT_MF),use_defaults=True):
         '''
         Constructor
         '''
@@ -52,14 +51,12 @@ class MainFileReader(object):
         self._readConfigFile(self.filename)
         
     def initMainFile(self,template=None):
-        #only init if the named file doesn't already exist
-        if not os.path.exists(self.filename):
+        #I think I was insane when I wrote the previous version of this method... Its supposed to do a touch|init+read
+        with file(self.filename,'w') as f:
             if template is not None:
-                shutil.copyfile(template,self.filename)
-            else:
-                open(self.filename,'w').close()
-            #re read the cp
-            self._readConfigFile(self.filename)        
+                f.write(template)
+        self._readConfigFile(self.filename)    
+     
            
     def getSections(self):
         '''List of sections (layernames/datasources)'''
@@ -585,7 +582,9 @@ class LayerFileReader(LayerReader):
     
     def buildConfigLayer(self,res):
         '''Just write a file in conf with the name <driver>.layer.properties'''
-        open(self.filename,'w').write(str(res))
+        #open(self.filename,'w').write(str(res))
+        with open(self.filename,'w') as lconf: 
+            lconf.write(str(res))
         self._readConfigFile(self.filename)
         
     def _readConfigFile(self,fname):

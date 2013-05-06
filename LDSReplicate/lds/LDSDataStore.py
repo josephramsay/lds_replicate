@@ -267,18 +267,6 @@ class LDSDataStore(WFSDataStore):
             res += ((name,title,keys),)
             
         return res
-        
-    @staticmethod
-    def readDocument(url):
-        '''Non-GDAL static method for fetching a LDS Datasource as a document'''
-        ldslog.debug("LDs URL "+url)
-        lds = urlopen(url)
-        data = lds.read()
-        lds.close()
-        return data
-        
-        
-
 
 #    def read(self,dsn):
 #        '''Simple Read method for LDS data store'''

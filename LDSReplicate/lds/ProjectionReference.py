@@ -83,7 +83,8 @@ class Projection(object):
     def downloadESRISpatialReference(srid):
         '''down load a working esri WKT from spatialrefrence.org. Looks like this is just the same as MorphTo0ESRI'''
         url = 'http://spatialreference.org/ref/epsg/'+str(srid)+'/esriwkt/'
-        wkt = urlopen(url).read()
+        with urlopen(url) as esriref:
+            wkt = esriref.read()
         srs = osr.SpatialReference()
         srs.ImportFromWkt(wkt)
         return srs

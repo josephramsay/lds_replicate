@@ -18,7 +18,7 @@ import logging
 import os
 
 from ReadConfig import MainFileReader#, LayerFileReader
-
+from LDSUtilities import LDSUtilities
 ldslog = logging.getLogger('LDS')
 
 class ConfigWrapper(object):
@@ -28,8 +28,6 @@ class ConfigWrapper(object):
     #TODO. since we dont use this as a Layer reader anymore consider removing it completely
 
     def __init__(self,config_file=None):
-
-        self.CONFIG_FILE = "ldsincr.conf"
         
         #self.layerconfig = None #internal/external; but only external is coded an never used
         self.mainconfig = None  #always a file
@@ -45,8 +43,8 @@ class ConfigWrapper(object):
         Userconfig is not mean't to replace mainconfig, just overwrite the parts the user has decided to customise'''
         self.userconfig = None
         if inituserconfig is not None:
-            self.userconfig = MainFileReader("../conf/"+inituserconfig,False)
-        self.mainconfig = MainFileReader("../conf/"+self.CONFIG_FILE,True)
+            self.userconfig = MainFileReader(LDSUtilities.standardiseUserConfigName(inituserconfig),False)
+        self.mainconfig = MainFileReader()
         
         
 #    def setupLayerConfig(self,filename):
@@ -101,7 +99,7 @@ class ConfigWrapper(object):
             return None
         
         params = map(lambda x,y: y if x is None else x,ul,ml)
-        
+        #params = [y if x is None else x for x,y in zip(ul,ml)]  
         
         return params
 
@@ -113,9 +111,9 @@ class ConfigWrapper(object):
         return self.mainconfig.readMainProperty(drv,prop) if pval is None else pval
 
     @staticmethod
-    def buildNewUserConfig(ucfileid,uctriples):
+    def buildNewUserConfig(ucfile,uctriples):
         '''static method to initialise a user config from an array of parameters'''
-        uc = MainFileReader(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../conf/'+str(ucfileid)+'.conf'),False)
+        uc = MainFileReader(ucfile,False)
         #uc.initMainFile(os.path.join(os.path.dirname(__file__), '../conf/ldsincr.conf'))
         uc.initMainFile()
         for sfv in uctriples:

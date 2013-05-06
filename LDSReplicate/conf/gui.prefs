@@ -1,10 +1,10 @@
 [prefs]
 dest = PostgreSQL
-layer = v:x785
-uconf = ldsincr.lnx.conf
-group = TEST5
-epsg = 
+layer = 
+uconf = /home/jramsay/git/LDS/LDSReplicate/conf/sample.conf
+group = SPECIAL
+epsg = 2193
 fd = None
 td = None
-int = False
+int = external
 

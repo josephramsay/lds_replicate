@@ -105,9 +105,6 @@ class TransferProcessor(object):
         
         self.layer = None
         if ly != None:
-            #since a layer name must begin with v:x we can 
-            #1. look up v:xNNN 
-            #2. see if the provided name exists in the lcf and maps to a v:x number
             self.layer = ly
             
         self.source_str = None
@@ -293,7 +290,7 @@ class TransferProcessor(object):
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(dst.getConfInternal()))
         
         # *** Once the layer config is initialised we can do a layer name check ***
-        if self.layer is None:
+        if LDSUtilities.mightAsWellBeNone(self.layer) is None:
             layer = 'ALL'
         else:
             layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.layer)
@@ -302,12 +299,12 @@ class TransferProcessor(object):
         
         
         # *** Assuming layer check is okay it should be safe to perform operations on the layer; the first one, delete ***
-        if self.getCleanConfig():
-            '''clean a selected layer (once the layer conf file has been established)'''
-            if self.dst._cleanLayerByRef(self.dst.ds,self.layer):
-                self.dst.clearLastModified(self.layer)
-            '''once a layer is cleaned don't need to continue so quit'''
-            return
+#        if self.getCleanConfig():
+#            '''clean a selected layer (once the layer conf file has been established)'''
+#            if self.dst._cleanLayerByRef(self.dst.ds,self.layer):
+#                self.dst.clearLastModified(self.layer)
+#            '''once a layer is cleaned don't need to continue so quit'''
+#            return
             
         #full LDS layer name listv:x (from LDS WFS)
         lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities))[0]
@@ -353,7 +350,10 @@ class TransferProcessor(object):
               
         #this is the first time we use the incremental flag to do something (and it should only be needed once?)
         #if incremental is false we want a duplicate of the whole layer so fullreplicate
-        if not self.getIncremental():
+        if self.getCleanConfig():
+            self.fullClean(layer)
+            return
+        elif not self.getIncremental():
             ldslog.info("Full Replicate on "+str(layer)+" using group "+str(self.group))
             self.fullReplicate(layer)
         elif fdate is None or tdate is None:
@@ -369,6 +369,17 @@ class TransferProcessor(object):
         #missing case is; if one date provided and other sg ? caught by elif (consider using the valid date?)
     
     #----------------------------------------------------------------------------------------------
+    def fullClean(self,layer):
+        if layer is 'ALL':
+            for layer_i in self.lnl:
+                self.fullCleanLayer(layer_i)
+        '''once all layers are cleaned don't need to continue so quit'''
+        return
+    
+    def fullCleanLayer(self,layer_i):
+        '''clean a selected layer (once the layer conf file has been established)'''
+        if self.dst._cleanLayerByRef(self.dst.ds,layer_i):
+            self.dst.clearLastModified(layer_i)
     
     def fullReplicate(self,layer):
         '''Replicate across the whole date range'''
@@ -519,7 +530,7 @@ class TransferProcessor(object):
     @classmethod
     def parseCapabilitiesDoc(cls,capabilitiesurl,file_json):
         '''Class method returning the capabilities doc as requested, in either JSON or CP format'''
-        xml = LDSDataStore.readDocument(capabilitiesurl)
+        xml = LDSUtilities.readDocument(capabilitiesurl)
         return ConfigInitialiser.buildConfiguration(xml,file_json)
   
         

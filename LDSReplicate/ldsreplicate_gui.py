@@ -50,6 +50,7 @@ def conf():
     sys.exit(app.exec_()) 
     
 def main():
+    #main application
     from  lds.gui.LDSGUI import LDSRepl
     app = QApplication(sys.argv)
     lds = LDSRepl()

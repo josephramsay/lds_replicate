@@ -120,7 +120,7 @@ class LayerConfigSelector(QMainWindow):
         #get SRC here since we need it later for the reserved words anyway
         src = self.tp.initSource()
         dst = self.tp.initDestination(self.dest)
-        #if internal lconf meed to init the DB
+        #if internal lconf need to init the DB
         if self.tp.getConfInternal()==DataStore.CONF_INT:
             dst.transferIETernal(self.tp.getConfInternal())
             dst.ds = dst.initDS(dst.destinationURI(None))
@@ -336,9 +336,7 @@ class LayerSelectionPage(QFrame):
         
         finishbutton = QPushButton('Finish')
         finishbutton.setToolTip('Finish and Close layer selection dialog')
-        #finishbutton.clicked.connect(self.destroy) 
-        #self.connect(self.quit, SIGNAL('clicked()'), self.close)
-        finishbutton.clicked.connect(QCoreApplication.instance().quit) 
+        finishbutton.clicked.connect(self.parent.close) 
         
         resetbutton = QPushButton('Reset')
         resetbutton.font()
@@ -565,8 +563,10 @@ class LayerSelectionPage(QFrame):
         #int warning (QWidget parent, QString title, QString text, QString button0Text, QString button1Text = QString(), QString button2Text = QString(), int defaultButtonNumber = 0, int escapeButtonNumber = -1)
         ans = QMessageBox.warning(self, "Reset","This action will reset your Layer Configuration settings to the current LDS state (potentially adding new layers). Continue?","Continue","Cancel")
         if ans:
+            #Cancel
             ldslog.warn('Cancelling Reset operation')
             return
+        #Continue
         ldslog.warn('Reset Layer Config')
         self.parent.resetLayers()
 

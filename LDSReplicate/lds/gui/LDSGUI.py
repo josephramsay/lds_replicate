@@ -24,11 +24,12 @@ from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
 from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir)
 
 import os
+import re
 import sys
 
 from lds.TransferProcessor import TransferProcessor
 from lds.ReadConfig import GUIPrefsReader
-from lds.LDSUtilities import LDSUtilities
+from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 
 from lds.DataStore import DataStore
@@ -57,6 +58,16 @@ class LDSRepl(QMainWindow):
         openAction.setStatusTip('Open Prefs Editor')
         openAction.triggered.connect(self.launchEditor)
         
+        initUCAction = QAction(QIcon('uc.png'), '&UserWizard', self)   
+        initUCAction.setShortcut('Ctrl+U')
+        initUCAction.setStatusTip('Open User Config Wizard')
+        initUCAction.triggered.connect(self.runWizardAction)
+        
+        initLCAction = QAction(QIcon('lc.png'), '&LayerConfig', self)   
+        initLCAction.setShortcut('Ctrl+L')
+        initLCAction.setStatusTip('Open Layer Config Editor')
+        initLCAction.triggered.connect(self.runLayerConfigAction)
+        
         exitAction = QAction(QIcon('exit.png'), '&Exit', self)        
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit Application')
@@ -67,6 +78,9 @@ class LDSRepl(QMainWindow):
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(openAction)
         fileMenu.addSeparator()
+        fileMenu.addAction(initUCAction)
+        fileMenu.addAction(initLCAction)
+        fileMenu.addSeparator()
         fileMenu.addAction(exitAction)
 
         helpMenu = menubar.addMenu('&Help')
@@ -74,14 +88,50 @@ class LDSRepl(QMainWindow):
     def launchEditor(self, checked=None):
         prefs = LDSPrefsEditor()
         prefs.setWindowTitle('LDS Preferences Editor')
-        prefs.show() 
-    
+        prefs.show()
+        
+    def runWizardAction(self):
+        from lds.gui.MainConfigWizard import LDSConfigWizard
+        uc_3rd = self.controls.readParameters()
+        self.statusbar.showMessage('Initialising User Config File')
+        ldscw = LDSConfigWizard(LDSUtilities.standardiseUserConfigName(uc_3rd[2]))
+        ldscw.exec_()
+        
+    def runLayerConfigAction(self):
+        from lds.gui.LayerConfigSelector import LayerConfigSelector
+        destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.controls.readParameters()
+        
+        self.statusbar.showMessage('Editing Layer Config')
+                  
+        tp = TransferProcessor(layer, 
+                               None if group is None else group, 
+                               None if epsg is None else epsg, 
+                               None if fd is None else fd, 
+                               None if td is None else td,
+                               None, None, None, 
+                               None if uconf is None else uconf, 
+                               internal, None)
+        
+        ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
+        ldsc.show()
+        
+        
 class LDSControls(QFrame):
+    
+    #GD_PATH = open(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data/gds.csv'),'r')
+    GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
     
     def __init__(self,parent):
         super(LDSControls, self).__init__()
         self.parent = parent
         self.gpr = GUIPrefsReader()
+        #read GDAL EPSG files, splitting by NZ and RestOfTheWorld
+        gcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'gcs.csv'))
+        pcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'pcs.csv'))
+        self.nzlsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]] \
+                   + [e[0]+' - '+e[1] for e in pcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]]
+        self.rowsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]] \
+                   + [e[0]+' - '+e[1] for e in pcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]]
         self.initUI()
         
     def initUI(self):
@@ -103,7 +153,6 @@ class LDSControls(QFrame):
         fromDateLabel = QLabel('From Date')
         toDateLabel = QLabel('To Date')
         
-        initLabel = QLabel('Initialise')
         cleanLabel = QLabel('Clean')
         internalLabel = QLabel('Internal')
         confLabel = QLabel('User Config')
@@ -113,17 +162,29 @@ class LDSControls(QFrame):
         self.layerEdit.setToolTip('Enter the layer you want to replicate using either v:x format or layer name')   
         self.groupEdit = QLineEdit(rlist[3])
         self.groupEdit.setToolTip('Enter a layer keyword or use your own custom keyword to select a group of layers')   
-        self.epsgEdit = QLineEdit(rlist[4])
-        self.epsgEdit.setToolTip('Setting an EPSG number here determines the output SR of the layer')   
+        #self.epsgEdit = QLineEdit(rlist[4])
+        #self.epsgEdit.setToolTip('Setting an EPSG number here determines the output SR of the layer')  
         self.confEdit = QLineEdit(rlist[2])
         self.confEdit.setToolTip('Enter your user config file here')   
         
+        self.epsgcombo = QComboBox()
+        self.epsgcombo.setToolTip('Setting an EPSG number here determines the output SR of the layer')  
+        self.epsgcombo.addItems(self.nzlsr)
+        self.epsgcombo.insertSeparator(len(self.nzlsr))
+        self.epsgcombo.addItems(self.rowsr)
+        self.epsgcombo.setEditable(True)
+        
+        if LDSUtilities.mightAsWellBeNone(rlist[4])!=None:
+            epsgedit = self.epsgcombo.lineEdit()
+            epsgedit.setText([e for e in self.nzlsr+self.rowsr if re.match('^\s*(\d+).*',e).group(1)==rlist[4]][0])
+        
         #menus
         self.destmenulist = ['',]+DataStore.DRIVER_NAMES.values()
+        destindex = self.destmenulist.index(LDSUtilities.standardiseDriverNames(rlist[0]))
         self.destMenu = QComboBox(self)
         self.destMenu.setToolTip('Choose the desired output type')   
         self.destMenu.addItems(self.destmenulist)
-        self.destMenu.setCurrentIndex(self.destmenulist.index(rlist[0]))
+        self.destMenu.setCurrentIndex(destindex)
         
        
         
@@ -206,7 +267,7 @@ class LDSControls(QFrame):
         grid.addWidget(self.groupEdit, 4, 2)
         
         grid.addWidget(epsgLabel, 5, 0)
-        grid.addWidget(self.epsgEdit, 5, 2)
+        grid.addWidget(self.epsgcombo, 5, 2)
 
         grid.addWidget(fromDateLabel, 6, 0)
         grid.addWidget(self.fromDateEnable, 6, 1)
@@ -285,7 +346,7 @@ class LDSControls(QFrame):
         layer = str(self.layerEdit.text())
         uconf = str(self.confEdit.text())
         group = str(self.groupEdit.text())
-        epsg = str(self.epsgEdit.text())
+        epsg = re.match('^\s*(\d+).*',str(self.epsgcombo.lineEdit().text())).group(1)
         fe = self.fromDateEnable.isChecked()
         te = self.toDateEnable.isChecked()
         fd = None if fe is False else str(self.fromDateEdit.date().toString('yyyy-MM-dd'))
@@ -297,29 +358,30 @@ class LDSControls(QFrame):
         return destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean
     
     def doInitClickAction(self):
-        destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.readParameters()
-        self.parent.statusbar.showMessage('Initialising Layer config')
-          
-        tp = TransferProcessor(layer, 
-                               None if group is None else group, 
-                               None if epsg is None else epsg, 
-                               None if fd is None else fd, 
-                               None if td is None else td,
-                               None, None, None, 
-                               None if uconf is None else uconf, 
-                               internal, None)
+        '''Initialise the LC on LC-button-click, action'''
+        self.parent.runLayerConfigAction()
 
-        self.openLayerConfigSelector(tp,uconf,group,destination)
-        
     def doOkClickAction(self):
         destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.readParameters()
+
+        uconf = LDSUtilities.standardiseUserConfigName(uconf)
+        if not os.path.exists(uconf):
+            self.userConfMessage(uconf)
+            return
         
+        destination_path = LDSUtilities.standardiseLayerConfigName(destination)
+        destination_driver = LDSUtilities.standardiseDriverNames(destination)
+        if not os.path.exists(destination_path):
+            self.layerConfMessage(destination_path)
+            return
+  
+        #-----------------------------------------------------
+                                
         self.parent.statusbar.showMessage('Replicating '+layer)
 
         #'dest','layer','uconf','group','epsg','fd','td','int'
-        self.gpr.write((destination,layer,uconf,group,epsg,fd,td,internal))
-        
-        ldslog.info('dest='+destination+', layer'+layer+', conf='+uconf+', group='+group+', epsg='+epsg)
+        self.gpr.write((destination_driver,layer,uconf,group,epsg,fd,td,internal))        
+        ldslog.info('dest='+destination_driver+', layer'+layer+', conf='+uconf+', group='+group+', epsg='+epsg)
         ldslog.info('fd='+str(fd)+', td='+str(td)+', fe='+str(fe)+', te='+str(te))
         ldslog.info('int='+str(internal)+', init='+str(init)+', clean='+str(clean))
 
@@ -336,18 +398,41 @@ class LDSControls(QFrame):
         if init:
             tp.setInitConfig()
             #if you are initialising probably want to do a layer select?
-            self.openLayerConfigSelector(tp,uconf,group,destination)
+            #self.openLayerConfigSelector_THISSHOULDTHROWANERROR(tp,uconf,group,destination)
         if clean:
             tp.setCleanConfig()
             
-        tp.processLDS(tp.initDestination(destination))
+        tp.processLDS(tp.initDestination(destination_driver))
+        l_g = group if group is not None else (layer if layer is not None else 'layers')
+        self.parent.statusbar.showMessage('Replication of '+l_g+' complete')
         
-        self.parent.statusbar.showMessage('Replication of '+layer+' complete')
+    def userConfMessage(self,uconf):
+        ucans = QMessageBox.warning(self, 'User Config Missing', 
+                                'Specified User-Config file, '+str(uconf)+' does not exist', 
+                                'Retry','Initialise')
+        if not ucans:
+            #Retry
+            ldslog.warn('Retry specifying UC')
+            self.confEdit.setText('')
+            return
+        #Init
+        ldslog.warn('Reset User Config Wizard')
+        self.parent.runWizardAction()
+
+
+    def layerConfMessage(self,dest):
+        lcans = QMessageBox.warning(self, 'Layer Config Missing', 
+                                'Required Layer-Config file, '+str(dest)+' does not exist', 
+                                'Retry','Run Wizard')
+        if not lcans:
+            #Retry
+            ldslog.warn('Retry specifying LC')
+            self.destMenu.setCurrentIndex(0)
+            return
+        #Init
+        ldslog.warn('Reset Layer Config')
+        self.doInitClickAction()
         
-    def openLayerConfigSelector(self,tp,uconf,group,destination):
-        from lds.gui.LayerConfigSelector import LayerConfigSelector
-        ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
-        ldsc.show()   
         
 #--------------------------------------------------------------------------------------------------
 
@@ -403,16 +488,15 @@ class LDSPrefsEditor(QMainWindow):
         
     def saveAsFile(self):
         filename = QFileDialog.getSaveFileName(self, 'Save File As', os.path.join(os.getcwd(),'../conf/'))#os.getenv('HOME'))
-        f = open(filename, 'w')
         filedata = self.editor.textedit.toPlainText()
-        f.write(filedata)
-        f.close()
+        with open(filename, 'w') as f:
+            f.write(filedata)
         
     def saveFile(self):
-        f = open(self.filename, 'w')
         filedata = self.editor.textedit.toPlainText()
-        f.write(filedata)
-        f.close()
+        with open(self.filename, 'w') as f:
+            f.write(filedata)
+
         
     def openFile(self):
         f=QDir.Filter(1)
@@ -420,11 +504,11 @@ class LDSPrefsEditor(QMainWindow):
         filedialog = QFileDialog()
         filedialog.setFilter(f)
         self.filename = filedialog.getOpenFileName(self, 'Open File', os.path.join(os.getcwd(),'../conf/'))#os.getenv('HOME'))
-        f = open(self.filename, 'r')
-        filedata = f.read()
+        with open(self.filename, 'r') as f:
+            filedata = f.read()
         self.editor.textedit.setText(filedata)
         self.statusbar.showMessage('Editing '+self.filename)
-        f.close()
+
         
 class LDSPrefsFrame(QFrame):
     

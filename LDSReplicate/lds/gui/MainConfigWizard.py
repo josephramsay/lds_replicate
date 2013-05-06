@@ -53,8 +53,9 @@ __version__ = AppVersion.getVersion()
        
 class LDSConfigWizard(QWizard):
     
-    def __init__(self, parent=None):
+    def __init__(self, uchint=None, parent=None):
         super(LDSConfigWizard, self).__init__(parent)
+        self.uchint = uchint
         
         self.plist = {'lds':(0,'LDS',LDSConfigPage),
                  'pg':(1,'PostgreSQL',PostgreSQLConfigPage),
@@ -79,7 +80,7 @@ class LDSConfigPage(QWizardPage):
         super(LDSConfigPage, self).__init__(parent)
         
         self.parent = parent 
-        self.key = 'lds'
+        self.key = key#'lds'
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Here you can enter a name for your custom configuration file, your LDS API key and required output. Also select whether you want to configure a proxy or enable password encryption')
@@ -102,7 +103,7 @@ class LDSConfigPage(QWizardPage):
 
         
         #edit boxes
-        self.fileEdit = QLineEdit('')
+        self.fileEdit = QLineEdit(self.parent.uchint)
         self.fileEdit.setToolTip('Name of user config file (without .conf suffix)')
         self.keyEdit = QLineEdit('')
         self.keyEdit.setToolTip('This is your LDS API key. If you have an account you can copy your key from here <a href="http://data.linz.govt.nz/my/api/">http://data.linz.govt.nz/my/api/</a>')
@@ -613,6 +614,17 @@ class ConfirmationPage(QWizardPage):
                 
                 vbox.addLayout(hbox)   
                
+#        startcheckbox = QCheckBox()
+#        
+#        hbox7 = QHBoxLayout()
+#        hbox7.addWidget(QLabel('Launch LDS Application?'))     
+#        hbox7.addWidget(startcheckbox)
+#        
+#        self.registerField("startimmediate",startcheckbox)
+#        
+#        vbox.addLayout(hbox7)
+        
+           
         self.setLayout(vbox)
         
     def getPGFields(self):
@@ -679,12 +691,13 @@ class ConfirmationPage(QWizardPage):
                 value = Encrypt.ENC_PREFIX+Encrypt.secure(value)
             buildarray += ((section,name,value),)
             
-        #save values to user config file
-        ConfigWrapper.buildNewUserConfig(self.field("ldsfile").toString(), buildarray)
+        ucfile = LDSUtilities.standardiseUserConfigName(str(self.field("ldsfile").toString()))
+        #save values to user config file 
+        ConfigWrapper.buildNewUserConfig(ucfile, buildarray)
         #save userconf and dest to gui prefs
         gpr = GUIPrefsReader()
         #zips with (dest,layer,uconf...
-        gpr.write( (section,'',self.ldsfile+('' if re.search('\.conf$',self.ldsfile) else '.conf')) )
+        gpr.write(( section,'',ucfile))
         
         return rv
    
@@ -692,10 +705,19 @@ class ConfirmationPage(QWizardPage):
         
 def main():
     #func to call config wizz
-    app = QApplication(sys.argv)
+    app0 = QApplication(sys.argv)
     ldsc = LDSConfigWizard()
     ldsc.show()
-    sys.exit(app.exec_()) 
+    rv0 = app0.exec_()
+    rv1 = 0
+    if rv0==0:
+        from  lds.gui.LDSGUI import LDSRepl
+        app1 = QApplication(sys.argv)
+        lds = LDSRepl()
+        lds.show()
+        rv1 = app1.exec_()
+    
+    sys.exit(rv1 + rv0)
     
     
     

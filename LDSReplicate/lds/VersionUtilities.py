@@ -82,31 +82,32 @@ class VersionChecker(object):
     @staticmethod
     def getPostGISVersion():
 
-        mfr = MainFileReader(os.path.join(os.path.dirname(__file__), '../conf/ldsincr.conf'),True).readPostgreSQLConfig()
+        mfr = MainFileReader().readPostgreSQLConfig()
         cmd = "psql -c 'select postgis_full_version()' "+mfr[2]
-        sp = subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        for line in sp.stdout.readlines():
-            m1 = re.search('POSTGIS=\"(\d+\.\d+\.\d+)',line)
-            postgis = m1.group(1) if m1 is not None else None
-            
-            m2 = re.search('GEOS=\"(\d+\.\d+\.\d+)',line)
-            geos = m2.group(1) if m2 is not None else None
-            
-            m3 = re.search('PROJ=\"Rel.\s+(\d+\.\d+\.\d+)',line)
-            proj = m3.group(1) if m3 is not None else None
-            
-            m4 = re.search('GDAL=\"GDAL\s+(\d+\.\d+)',line)
-            gdal = m4.group(1) if m4 is not None else None
-            
-            m5 = re.search('LIBXML=\"(\d+\.\d+\.\d+)',line)
-            libxml = m5.group(1) if m5 is not None else None
+        with subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as sp:
+            #sp = subprocess.Popen(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            for line in sp.stdout.readlines():
+                m1 = re.search('POSTGIS=\"(\d+\.\d+\.\d+)',line)
+                postgis = m1.group(1) if m1 is not None else None
+                
+                m2 = re.search('GEOS=\"(\d+\.\d+\.\d+)',line)
+                geos = m2.group(1) if m2 is not None else None
+                
+                m3 = re.search('PROJ=\"Rel.\s+(\d+\.\d+\.\d+)',line)
+                proj = m3.group(1) if m3 is not None else None
+                
+                m4 = re.search('GDAL=\"GDAL\s+(\d+\.\d+)',line)
+                gdal = m4.group(1) if m4 is not None else None
+                
+                m5 = re.search('LIBXML=\"(\d+\.\d+\.\d+)',line)
+                libxml = m5.group(1) if m5 is not None else None
             
         return {'PostGIS':postgis,'GEOS':geos,'PROJ':proj,'GDAL':gdal,'LIBXML':libxml}
     
     @staticmethod
     def getPostgreSQLVersion():
 
-        mfr = MainFileReader(os.path.join(os.path.dirname(__file__), '../conf/ldsincr.conf'),True).readPostgreSQLConfig()
+        mfr = MainFileReader().readPostgreSQLConfig()
         cmd = "psql -c 'select version()' "+mfr[2]
         postgresql = VersionChecker.getVersionFromShell(cmd,'PostgreSQL\s+(\d+\.\d+\.\d+)')
 
@@ -114,10 +115,11 @@ class VersionChecker(object):
     
     @staticmethod
     def getVersionFromShell(command,searchstring):
-        sp = subprocess.Popen(command,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        for line in sp.stdout.readlines():
-            match = re.search(searchstring,line)
-            if match is not None: return match.group(1)
+        #sp = subprocess.Popen(command,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        with subprocess.Popen(command,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as sp:
+            for line in sp.stdout.readlines():
+                match = re.search(searchstring,line)
+                if match is not None: return match.group(1)
         return None
         
     

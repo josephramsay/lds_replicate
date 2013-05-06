@@ -25,6 +25,7 @@ import ast
 import string
 
 from urllib2 import urlopen
+from contextlib import closing
 from StringIO import StringIO
 from lxml import etree
 
@@ -279,29 +280,24 @@ class LDSUtilities(object):
     @staticmethod
     def standardiseDriverNames(dname):
         '''Returns standard identifier (defined by DRIVER_NAME) for different dests'''
-
+        from DataStore import DataStore
         if dname.lower() in ("pg", "postgres", "postgresql"):
-            from PostgreSQLDataStore import PostgreSQLDataStore
-            return PostgreSQLDataStore.DRIVER_NAME
+            return DataStore.DRIVER_NAMES['pg']
         elif dname.lower() in ("ms", "mssql", "mssqlserver"):
-            from MSSQLSpatialDataStore import MSSQLSpatialDataStore
-            return MSSQLSpatialDataStore.DRIVER_NAME
+            return DataStore.DRIVER_NAMES['ms']
         elif dname.lower() in ("sl", "slite", "spatialite","sqlite"):
-            from SpatiaLiteDataStore import SpatiaLiteDataStore
-            return SpatiaLiteDataStore.DRIVER_NAME
+            return DataStore.DRIVER_NAMES['sl']
         elif dname.lower() in ("fg", "fgdb", "filegdb"):
-            from FileGDBDataStore import FileGDBDataStore
-            return FileGDBDataStore.DRIVER_NAME
+            return DataStore.DRIVER_NAMES['fg']
         return None
     
     
     @staticmethod
     def readDocument(url):
         '''Non-Driver method for fetching LDS DS as a document'''
-        ldslog.debug("LDs URL "+url)
-        lds = urlopen(url)
-        data = lds.read()
-        lds.close()
+        ldslog.debug("LDS URL "+url)
+        with closing(urlopen(url)) as lds:
+            data = lds.read()
         return data
     
     @staticmethod
@@ -328,6 +324,36 @@ class LDSUtilities(object):
         log.addHandler(fh)
         
         return ldslog
+    
+        
+    @staticmethod
+    def standardiseLayerConfigName(layerprefix):
+        '''Standardise to a layer config file name and check if it exists'''
+        LP = '.layer.properties'
+        layerprefix = LDSUtilities.standardiseDriverNames(layerprefix).lower()
+        base = os.path.basename(layerprefix)
+        filename = base + ('' if re.search(LP+'$', base) else LP)
+        return os.path.abspath(os.path.join(os.path.dirname(__file__),'../conf/',filename))
+    
+    @classmethod
+    def checkForLayerConfig(cls,layerprefix):
+        '''Get standardised user config file name and check if it exists'''
+        lpath = cls.standardiseLayerConfigName(layerprefix)
+        return lpath if os.path.exists(lpath) else None
+    
+    @staticmethod
+    def standardiseUserConfigName(userprefix):
+        '''Standardise to a user config file name'''
+        UP = '.conf'
+        base = os.path.basename(userprefix)
+        filename = base + ('' if re.search(UP+'$', base) else UP)
+        return os.path.abspath(os.path.join(os.path.dirname(__file__),'../conf/',filename))
+        
+    @classmethod
+    def checkForUserConfig(cls,userprefix):
+        '''Get standardised user config file name and check if it exists'''
+        upath = cls.standardiseUserConfigName(userprefix)
+        return upath if os.path.exists(upath) else None
 
 class ConfigInitialiser(object):
     '''Initialises configuration, for use at first run'''
@@ -394,16 +420,17 @@ class ConfigInitialiser(object):
             for line in reader:
                 res.append(line)
         return res
-    
-    
+        
+
         
     
 class SUFIExtractor(object):
     '''XSL parser to read big int columns returning a dict of id<->col matches'''
     @staticmethod
     def readURI(xml,colname):
-        converter = open(os.path.join(os.path.dirname(__file__), '../conf/sufiselector.xsl'),'r').read()
-
+        p = os.path.join(os.path.dirname(__file__), '../conf/sufiselector.xsl')
+        with open(p,'r') as sufireader:
+            converter = sufireader.read()
         xslt = etree.XML(converter.replace('#REPLACE',colname))
         transform = etree.XSLT(xslt)
         
@@ -416,10 +443,12 @@ class SUFIExtractor(object):
         return sufi
     
 class Encrypt(object):
+    from ReadConfig import MainFileReader
     ENC_PREFIX = "ENC:"
     #SbO, not secret at all actually
-    p = os.path.join(os.path.dirname(__file__),'../conf/ldsincr.conf')
-    lds = open(p,'r').readline(16)
+    p = LDSUtilities.standardiseUserConfigName(MainFileReader.DEFAULT_MF)
+    with open(p,'r') as confile:
+        lds = confile.readline(16)
     from Crypto import Random
     ivstr = Random.get_random_bytes(16)
     
