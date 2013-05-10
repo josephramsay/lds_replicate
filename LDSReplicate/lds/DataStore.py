@@ -92,6 +92,8 @@ class DataStore(object):
     CONF_INT = 'internal'
     CONF_EXT = 'external'
     
+    ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
+    
     def __init__(self,conn_str=None,user_config=None):
         '''
         Constructor inits driver and some date specific settings. Arguments are for config overrides 
@@ -101,6 +103,7 @@ class DataStore(object):
         self.layer = None
         self.layerconf = None
         self.OVERWRITE = None
+        self.incremental = None
         self.driver = None
         self.uri = None
         self.cql = None
@@ -132,6 +135,20 @@ class DataStore(object):
         '''set of <potential> columns not needed in final output, global'''
         self.optcols = set(['__change__','gml_id'])
         
+
+    #incr flag copied straight from Datastore
+    #def setIncremental(self,itype):
+    #    if itype in self.ITYPES:
+    #        self.incremental = itype
+            
+    def clearIncremental(self):
+        self.incremental = False
+            
+    def setIncremental(self):
+        self.incremental = True
+         
+    def getIncremental(self):
+        return self.incremental 
      
     def applyConfigOptions(self):
         for opt in self.getConfigOptions():
@@ -203,10 +220,16 @@ class DataStore(object):
         '''Abstract URI method for returning source. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method sourceURI not implemented")
     
+#    @abstractmethod
+#    def sourceURI_incrd(self,layer):
+#        '''Abstract URI method for returning source. Raises NotImplementedError if accessed directly'''
+#        raise NotImplementedError("Abstract method sourceURI_incrd not implemented")
+    
     @abstractmethod
     def destinationURI(self,layer):
         '''Abstract URI method for returning destination. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method destinationURI not implemented")
+    
     
     @abstractmethod
     def validateConnStr(self,conn_str):
@@ -254,34 +277,24 @@ class DataStore(object):
         self.ds = self.initDS(dsn,create)
         #self.ds = self.driver.Open(dsn)
     
-    def write(self,src,dsn,incr_haspk,fbf,sixtyfour,temptable,srsconv):
+    def write(self,src,dsn,sixtyfour):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
-
         #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
         self.src_link = src
         #we need to store 64 beyond fC/dC flag to identify need for sufi-to-str conversion
         self.sixtyfour = sixtyfour
-        max_key = None
         self.attempts = 0
         
         while self.attempts < self.MAXIMUM_WFS_ATTEMPTS:
             try:
                 #if incr&haspk then fCi
-                if incr_haspk:
+                if self.getIncremental():
                     # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
-                    max_key = self.featureCopyIncremental(src.ds,self.ds,src.CHANGE_COL)
+                    self.featureCopyIncremental(self.src_link.ds,self.ds,self.src_link.CHANGE_COL)
                 else:
-                    max_key = self.featureCopy(src.ds,self.ds)
-        #        #if not(incr&haspk) & 64b attempt fC
-        #        elif sixtyfour or srsconv or fbf or DONT_USE_DIRECT_COPY:
-        #            #do a featureCopy* if override asks or if a table has big ints
-        #            max_key = self.featureCopy(src.ds,self.ds)
-        #        else:
-        #            # no cols to delete and no operational instructions, just duplicate. No good for partition copying since entire layer is specified
-        #            self.driverCopy(src.ds,self.ds,temptable) 
+                    self.featureCopy(self.src_link.ds,self.ds)
     
             except RuntimeError as rte:
-                import gdal
                 em = gdal.GetLastErrorMsg()
                 en = gdal.GetLastErrorNo()
                 ldslog.warn("ErrorMsg: "+str(em))
@@ -306,8 +319,7 @@ class DataStore(object):
                     raise
             else:
                 break
-            
-        return max_key
+
         
     def closeDS(self):
         '''close a DS with sync and destroy'''
@@ -315,62 +327,62 @@ class DataStore(object):
         self.ds.SyncToDisk()
         self.ds.Destroy()  
               
-    def driverCopy(self,src_ds,dst_ds,temptable):
-        '''Copy from source to destination using the driver copy and without manipulating data'''       
-        from TemporaryDataStore import TemporaryDataStore
-        
-        ldslog.info("Using driverCopy. Non-Incremental driver copy")
-        for li in range(0,src_ds.GetLayerCount()):
-            src_layer = src_ds.GetLayer(li)
-            src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
-            
-            #ref_name = self.layerconf.readConvertedLayerName(src_layer_name)
-            #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
-            layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
-            
-            dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
-            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if all(i in string.whitespace for i in layerconfentry.disc) else [])
-            
-            try:
-                #TODO test on MSSQL since schemas sometimes needed ie non dbo
-                dst_ds.DeleteLayer(dst_info.layer_id)          
-            except ValueError as ve:
-                ldslog.warn("Cannot delete layer "+dst_info.layer_id+". It probably doesn't exist. "+str(ve))
-                
-
-            try:
-                if temptable == 'DIRECT':                    
-                    layer = dst_ds.CopyLayer(src_layer,dst_info.layer_id,self.getLayerOptions(src_info.layer_id))
-                    self.deleteOptionalColumns(layer)
-                elif temptable in TemporaryDataStore.TEMP_MAP.keys():
-                    tds = TemporaryDataStore.getInstance(temptable)()
-                    tds_ds = tds.initDS()
-                    tds_layer = tds_ds.CopyLayer(src_layer,dst_info.layer_id,[])
-                    tds.deleteOptionalColumns(tds_layer)
-                    layer = dst_ds.CopyLayer(tds_layer,dst_info.layer_id,self.getLayerOptions(src_info.layer_id))
-                    #tds_ds.SyncToDisk()
-                    tds_ds.Destroy()  
-                else:
-                    ldslog.error('Cannot match DS type "'+str(temptable)+'" with known types '+str(TemporaryDataStore.TEMP_MAP.keys()))
-                    raise UnknownTemporaryDSType('Cannot match DS type "'+str(temptable)+'" with known types '+str(TemporaryDataStore.TEMP_MAP.keys()))
-            except RuntimeError as rte:
-                if 'General function failure' in str(rte):
-                    #GFF usually indicates a driver copy error (FGDB)
-                    ldslog.error('GFF on driver copy. Recommend upgrade to GDAL > 1.9.2')
-                else:
-                    raise
-
-            #if the copy succeeded we now need to build an index and delete unwanted columns so get the new layer     
-            #layer = dst_ds.GetLayer(dst_layer_name)
-            if layer is None:
-                # **HACK** the only way to get around driver copy failures seems to be by doing a feature-by-feature featureCopyIncremental and changing the sref 
-                ldslog.error('Layer not created, attempting feature-by-feature copy')
-                return self.featureCopyIncremental(src_ds,dst_ds,None)
-
-            if layerconfentry.index is not None:
-                self.buildIndex(layerconfentry,dst_info.layer_name)
-            
-        return
+#    def driverCopy(self,src_ds,dst_ds,temptable):
+#        '''Copy from source to destination using the driver copy and without manipulating data'''       
+#        from TemporaryDataStore import TemporaryDataStore
+#        
+#        ldslog.info("Using driverCopy. Non-Incremental driver copy")
+#        for li in range(0,src_ds.GetLayerCount()):
+#            src_layer = src_ds.GetLayer(li)
+#            src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
+#            
+#            #ref_name = self.layerconf.readConvertedLayerName(src_layer_name)
+#            #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
+#            layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
+#            
+#            dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
+#            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if all(i in string.whitespace for i in layerconfentry.disc) else [])
+#            
+#            try:
+#                #TODO test on MSSQL since schemas sometimes needed ie non dbo
+#                dst_ds.DeleteLayer(dst_info.layer_id)          
+#            except ValueError as ve:
+#                ldslog.warn("Cannot delete layer "+dst_info.layer_id+". It probably doesn't exist. "+str(ve))
+#                
+#
+#            try:
+#                if temptable == 'DIRECT':                    
+#                    layer = dst_ds.CopyLayer(src_layer,dst_info.layer_id,self.getLayerOptions(src_info.layer_id))
+#                    self.deleteOptionalColumns(layer)
+#                elif temptable in TemporaryDataStore.TEMP_MAP.keys():
+#                    tds = TemporaryDataStore.getInstance(temptable)()
+#                    tds_ds = tds.initDS()
+#                    tds_layer = tds_ds.CopyLayer(src_layer,dst_info.layer_id,[])
+#                    tds.deleteOptionalColumns(tds_layer)
+#                    layer = dst_ds.CopyLayer(tds_layer,dst_info.layer_id,self.getLayerOptions(src_info.layer_id))
+#                    #tds_ds.SyncToDisk()
+#                    tds_ds.Destroy()  
+#                else:
+#                    ldslog.error('Cannot match DS type "'+str(temptable)+'" with known types '+str(TemporaryDataStore.TEMP_MAP.keys()))
+#                    raise UnknownTemporaryDSType('Cannot match DS type "'+str(temptable)+'" with known types '+str(TemporaryDataStore.TEMP_MAP.keys()))
+#            except RuntimeError as rte:
+#                if 'General function failure' in str(rte):
+#                    #GFF usually indicates a driver copy error (FGDB)
+#                    ldslog.error('GFF on driver copy. Recommend upgrade to GDAL > 1.9.2')
+#                else:
+#                    raise
+#
+#            #if the copy succeeded we now need to build an index and delete unwanted columns so get the new layer     
+#            #layer = dst_ds.GetLayer(dst_layer_name)
+#            if layer is None:
+#                # **HACK** the only way to get around driver copy failures seems to be by doing a feature-by-feature featureCopyIncremental and changing the sref 
+#                ldslog.error('Layer not created, attempting feature-by-feature copy')
+#                return self.featureCopyIncremental(src_ds,dst_ds,None)
+#
+#            if layerconfentry.index is not None:
+#                self.buildIndex(layerconfentry,dst_info.layer_name)
+#            
+#        return
     
         
     def deleteOptionalColumns(self,dst_layer):
@@ -469,7 +481,7 @@ class DataStore(object):
         #TDOD. decide whether C_C is better as an arg or a src.prop
         '''DataStore feature-by-feature replication for incremental queries'''
         #build new layer by duplicating source layers  
-        max_index = None
+
         ldslog.info("Using featureCopyIncremental. Per-feature copy")
         for li in range(0,src_ds.GetLayerCount()):
             new_layer = False
@@ -483,15 +495,21 @@ class DataStore(object):
             layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
             
             dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
-            
-                
+
             ldslog.info("Dest layer: "+dst_info.layer_id)
             
             '''parse discard columns'''
             self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
             
             try:
-                dst_layer = dst_ds.GetLayer(dst_info.layer_id)
+                if layerconfentry.lmod:
+                    #if the layer conf had a lastmodified don't overwrite
+                    dst_layer = dst_ds.GetLayer(dst_info.layer_id)
+                else:
+                    src_info.spatial_ref = src_layer.GetSpatialRef()
+                    src_info.geometry = src_layer.GetGeomType()
+                    src_info.layer_defn = src_layer.GetLayerDefn()
+                    (dst_layer,_) = self.buildNewDataLayer(dst_info, src_info, dst_ds)
             except RuntimeError as rer:
                 '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created'''
                 ldslog.warning("Runtime Error fetching layer. "+str(rer))
@@ -682,9 +700,6 @@ class DataStore(object):
         
         '''build layer replacing poly with multi and revert to def if that doesn't work'''
         try:
-            #gs = 'GEOGCS'
-            #sr = osr.SpatialReference('EPSG:4167')
-            #ac = sr.GetAuthorityCode(None)
             dst_layer = dst_ds.CreateLayer(dst_info.layer_name, dst_info.spatial_ref, dst_info.geometry, opts)
         except RuntimeError as rer:
             ldslog.error("Cannot create layer. "+str(rer))
@@ -1092,9 +1107,10 @@ class DataStore(object):
             #if overriding
             self.setConfInternal(override_int_ext)
             
-
+    @abstractmethod
     def versionCheck(self):
         '''A version check to be used once the DS have been initialised... if normal checks cant be established eg psql on w32'''
+        #Obviously this returns a default True for any subclasses that dont support it
         return True
 
 

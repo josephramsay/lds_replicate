@@ -51,7 +51,8 @@ class LDSUtilities(object):
     
     @staticmethod
     def checkDateFormat(xdate):
-        '''Checks a date parameter conforms to yyyy-MM-ddThh:mm:ss format'''        
+        '''Checks a date parameter conforms to yyyy-MM-ddThh:mm:ss format'''       
+        #why not just use... datetime.strptime(xdate,'%Y-%m-%dT%H:%M:%S')
         if type(xdate) is str:
             if re.search('^\d{4}\-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$',xdate):
                 return xdate
@@ -67,8 +68,10 @@ class LDSUtilities(object):
         '''Makes sure a layer name conforms to v:x format'''
         if type(lname) is str:
             if re.search('^'+LDSUtilities.LDS_TN_PREFIX+'\d+$',lname):
+                #if its an ID (v:x) and it matches a configured id return it
                 return lname if lname in lconf.getLayerNames() else None
             else:
+                #if its a name (NZ Special Points) return matching ID
                 return lconf.findLayerIdByName(lname)
         return None
          
@@ -280,14 +283,15 @@ class LDSUtilities(object):
     @staticmethod
     def standardiseDriverNames(dname):
         '''Returns standard identifier (defined by DRIVER_NAME) for different dests'''
+        dname = dname.lower()
         from DataStore import DataStore
-        if dname.lower() in ("pg", "postgres", "postgresql"):
+        if re.match('pg|postgres',dname):
             return DataStore.DRIVER_NAMES['pg']
-        elif dname.lower() in ("ms", "mssql", "mssqlserver"):
+        elif re.match('ms|microsoft|sqlserver',dname):
             return DataStore.DRIVER_NAMES['ms']
-        elif dname.lower() in ("sl", "slite", "spatialite","sqlite"):
+        elif re.match('sl|sqlite|spatialite',dname):
             return DataStore.DRIVER_NAMES['sl']
-        elif dname.lower() in ("fg", "fgdb", "filegdb"):
+        elif re.match('fg|filegdb|esri',dname):
             return DataStore.DRIVER_NAMES['fg']
         return None
     
@@ -305,6 +309,12 @@ class LDSUtilities(object):
         if nstr == None or nstr=='None' or all(i in string.whitespace for i in nstr):
             return None
         return nstr
+    
+    @staticmethod
+    def enum(*sequential, **named):
+        #http://stackoverflow.com/questions/36932/how-can-i-represent-an-enum-in-python
+        enums = dict(zip(sequential, range(len(sequential))), **named)
+        return type('Enum', (), enums)
     
     @staticmethod
     def setupLogging():
@@ -345,7 +355,7 @@ class LDSUtilities(object):
     def standardiseUserConfigName(userprefix):
         '''Standardise to a user config file name'''
         UP = '.conf'
-        base = os.path.basename(userprefix)
+        base = os.path.basename(str(userprefix))
         filename = base + ('' if re.search(UP+'$', base) else UP)
         return os.path.abspath(os.path.join(os.path.dirname(__file__),'../conf/',filename))
         

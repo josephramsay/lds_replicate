@@ -23,7 +23,8 @@ ldslog = logging.getLogger('LDS')
 
 class ConfigWrapper(object):
     '''
-    Convenience wrapper class to main and user config-file reader instances. Main function is to allows user to override main.
+    Convenience wrapper class to main and user config-file reader instances. Main function of this class is to 
+    allow user to override selected portions of the main config file.
     '''
     #TODO. since we dont use this as a Layer reader anymore consider removing it completely
 
@@ -110,17 +111,23 @@ class ConfigWrapper(object):
         pval = None if self.userconfig is None else self.userconfig.readMainProperty(drv,prop)
         return self.mainconfig.readMainProperty(drv,prop) if pval is None else pval
 
-    @staticmethod
-    def buildNewUserConfig(ucfile,uctriples):
-        '''static method to initialise a user config from an array of parameters'''
-        uc = MainFileReader(ucfile,False)
+    @classmethod
+    def buildNewUserConfig(cls,ucfilename,uctriples):
+        '''Class method to initialise a user config from an array of parameters'''
+        uc = MainFileReader(ucfilename,False)
         #uc.initMainFile(os.path.join(os.path.dirname(__file__), '../conf/ldsincr.conf'))
         uc.initMainFile()
+        cls.writeUserConfigData(uc,uctriples)
+
+            
+    @classmethod
+    def writeUserConfigData(cls,ucfile,uctriples):
+        '''Write config data to config file'''
         for sfv in uctriples:
             section = sfv[0]
             field = sfv[1]
             value = sfv[2]
-            uc.writeMainProperty(section, field, value)
+            ucfile.writeMainProperty(section, field, value)
         
         
         

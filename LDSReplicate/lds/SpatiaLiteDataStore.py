@@ -217,9 +217,14 @@ class SpatiaLiteDataStore(DataStore):
         '''SpatiaLite/SQLite version checker'''
         from VersionUtilities import VersionChecker,UnsupportedVersionException
 
-        slv_cmd = 'file '+str(self._commonURI(None))
+        #gets the version number of the sqlite data file
+        #slv_cmd = 'file '+str(self._commonURI(None))
+        #slv_ver = VersionChecker.getVersionFromShell(slv_cmd,'SQLite (\d+\.\w+) database')
         
-        slv_ver = VersionChecker.getVersionFromShell(slv_cmd,'SQLite (\d+\.\w+) database')
+        #Gets the version of the sqlite application
+        slv_cmd = 'sqlite -version'
+        slv_ver = VersionChecker.getVersionFromShell(slv_cmd,'(\d+\.*\d*\.*\d*)')
+        
         
         if VersionChecker.compareVersions(VersionChecker.SpatiaLite_MIN, slv_ver if slv_ver is not None else VersionChecker.SpatiaLite_MIN):
             raise UnsupportedVersionException('SpatiaLite version '+str(slv_ver)+' does not meet required minumum '+str(VersionChecker.SpatiaLite_MIN))

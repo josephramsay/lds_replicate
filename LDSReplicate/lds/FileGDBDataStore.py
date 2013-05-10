@@ -119,4 +119,8 @@ class FileGDBDataStore(ESRIDataStore):
 #        
 #
 #        return True
+
+    def versionCheck(self):
+        '''Nothing to check?'''
+        return super(FileGDBDataStore,self).versionCheck()
         

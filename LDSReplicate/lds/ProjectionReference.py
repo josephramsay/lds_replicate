@@ -20,6 +20,7 @@ import osr
 import logging
 
 from urllib2 import urlopen
+from contextlib import closing
 
 ldslog =  logging.getLogger('LDS')
 
@@ -83,7 +84,7 @@ class Projection(object):
     def downloadESRISpatialReference(srid):
         '''down load a working esri WKT from spatialrefrence.org. Looks like this is just the same as MorphTo0ESRI'''
         url = 'http://spatialreference.org/ref/epsg/'+str(srid)+'/esriwkt/'
-        with urlopen(url) as esriref:
+        with closing(urlopen(url)) as esriref:
             wkt = esriref.read()
         srs = osr.SpatialReference()
         srs.ImportFromWkt(wkt)

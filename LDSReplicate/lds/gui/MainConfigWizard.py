@@ -31,7 +31,7 @@ import logging
 from lds.TransferProcessor import TransferProcessor
 from lds.LDSDataStore import LDSDataStore
 from lds.WFSDataStore import WFSDataStore
-from lds.ReadConfig import GUIPrefsReader
+from lds.ReadConfig import GUIPrefsReader, MainFileReader
 from lds.LDSUtilities import LDSUtilities
 from lds.VersionUtilities import AppVersion
 
@@ -53,15 +53,18 @@ __version__ = AppVersion.getVersion()
        
 class LDSConfigWizard(QWizard):
     
-    def __init__(self, uchint=None, parent=None):
+    def __init__(self, uchint=None, sechint=None, parent=None):
         super(LDSConfigWizard, self).__init__(parent)
         self.uchint = uchint
+        self.sechint = sechint
+
+        self.setMFR(self.uchint)
         
         self.plist = {'lds':(0,'LDS',LDSConfigPage),
                  'pg':(1,'PostgreSQL',PostgreSQLConfigPage),
                  'ms':(2,'MSSQLSpatial',MSSQLSpatialConfigPage),
                  'fg':(3,'FileGDB',FileGDBConfigPage),
-                 'sl':(4,'SpatiaLite',SpatiaLiteConfigPage),
+                 'sl':(4,'SQLite',SpatiaLiteConfigPage),
                  'proxy':(5,'Proxy',ProxyConfigPage),
                  'final':(6,'Final',ConfirmationPage)}
         
@@ -73,7 +76,15 @@ class LDSConfigWizard(QWizard):
 
         self.setWindowTitle("LDS Configuration Setup Wizard")
         self.resize(640,480)
+        
 
+    def setMFR(self,uc):
+        '''Inits a new MFR. If UC exists gets touched else a new 'blank' named file is opened. Its also read as a configparser obj'''        
+        self.mfr = MainFileReader(uc)
+    
+    def getMFR(self):
+        return self.mfr
+        
         
 class LDSConfigPage(QWizardPage):
     def __init__(self, parent=None,key=None):
@@ -81,6 +92,8 @@ class LDSConfigPage(QWizardPage):
         
         self.parent = parent 
         self.key = key#'lds'
+        
+        (ldsurl,ldskey,ldssvc,ldsver,ldsfmt,ldscql) = self.parent.mfr.readLDSConfig()
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Here you can enter a name for your custom configuration file, your LDS API key and required output. Also select whether you want to configure a proxy or enable password encryption')
@@ -105,17 +118,27 @@ class LDSConfigPage(QWizardPage):
         #edit boxes
         self.fileEdit = QLineEdit(self.parent.uchint)
         self.fileEdit.setToolTip('Name of user config file (without .conf suffix)')
-        self.keyEdit = QLineEdit('')
+        self.keyEdit = QLineEdit(ldskey)
         self.keyEdit.setToolTip('This is your LDS API key. If you have an account you can copy your key from here <a href="http://data.linz.govt.nz/my/api/">http://data.linz.govt.nz/my/api/</a>')
+        
+        
         
         #dropdown
         self.destSelect = QComboBox()
         self.destSelect.setToolTip('Choose from one of four possible output destinations')
         self.destSelect.addItem('')
-        self.destSelect.addItem(self.parent.plist.get('pg')[1], self.parent.plist.get('pg')[0])
-        self.destSelect.addItem(self.parent.plist.get('ms')[1], self.parent.plist.get('ms')[0])
-        self.destSelect.addItem(self.parent.plist.get('fg')[1], self.parent.plist.get('fg')[0])
-        self.destSelect.addItem(self.parent.plist.get('sl')[1], self.parent.plist.get('sl')[0])
+        for itemkey in ('pg','ms','fg','sl'):
+            itemindex = self.parent.plist.get(itemkey)[0]
+            itemdata = self.parent.plist.get(itemkey)[1]
+            self.destSelect.addItem(itemdata, itemindex)
+            if itemdata == self.parent.sechint:
+                self.destSelect.setCurrentIndex(itemindex)
+                
+             
+#        self.destSelect.addItem(self.parent.plist.get('pg')[1], self.parent.plist.get('pg')[0])
+#        self.destSelect.addItem(self.parent.plist.get('ms')[1], self.parent.plist.get('ms')[0])
+#        self.destSelect.addItem(self.parent.plist.get('fg')[1], self.parent.plist.get('fg')[0])
+#        self.destSelect.addItem(self.parent.plist.get('sl')[1], self.parent.plist.get('sl')[0])
         
         
         self.keyEdit.setValidator(QRegExpValidator(QRegExp("[a-fA-F0-9]{32}", re.IGNORECASE), self))
@@ -184,6 +207,8 @@ class ProxyConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key
         
+        (pxyhost,pxyport,pxyauth,pxyusr,pxypwd) = self.parent.mfr.readProxyConfig()
+        
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the hostname/ip-address, port number and authentication details of your HTTP proxy')
 
@@ -197,9 +222,9 @@ class ProxyConfigPage(QWizardPage):
         pwdLabel = QLabel('Password')
         
         #edit boxes
-        self.hostEdit = QLineEdit('')
+        self.hostEdit = QLineEdit(pxyhost)
         self.hostEdit.setToolTip('Enter Proxy host (IP Address or hostname)')
-        self.portEdit = QLineEdit('')
+        self.portEdit = QLineEdit(pxyport)
         self.portEdit.setToolTip('Enter Proxy port')
         
         #dropdown
@@ -211,10 +236,11 @@ class ProxyConfigPage(QWizardPage):
         for method in WFSDataStore.PROXY_AUTH:
             self.authSelect.addItem(method,index)
             index += 1
+        self.authSelect.setCurrentIndex(0 if LDSUtilities.mightAsWellBeNone(pxyauth) is None else WFSDataStore.PROXY_AUTH.index(pxyauth))
         
-        self.usrEdit = QLineEdit('')
+        self.usrEdit = QLineEdit(pxyusr)
         self.usrEdit.setToolTip('Enter your proxy username (if required)')
-        self.pwdEdit = QLineEdit('')
+        self.pwdEdit = QLineEdit('')#pxypwd
         self.usrEdit.setToolTip('Enter your proxy password (if required)')
         self.pwdEdit.setEchoMode(QLineEdit.Password)
         
@@ -264,6 +290,8 @@ class PostgreSQLConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key
         
+        (pghost,pgport,pgdbname,pgschema,pgusr,pgpwd,pgover,pgconfig,pgepsg,pgcql) = self.parent.mfr.readPostgreSQLConfig()
+        
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the hostname/ip-address, port number, name and schema of your PostgreSQL server instance.')
 
@@ -280,17 +308,17 @@ class PostgreSQLConfigPage(QWizardPage):
         pwdLabel = QLabel('Password')
         
         #edit boxes
-        self.hostEdit = QLineEdit('')
+        self.hostEdit = QLineEdit(pghost)
         self.hostEdit.setToolTip('Enter the name of your PostgreSQL host/IP-address')
-        self.portEdit = QLineEdit('')
+        self.portEdit = QLineEdit(pgport)
         self.portEdit.setToolTip('Enter the PostgreSQL listen port')
-        self.dbnameEdit = QLineEdit('')
+        self.dbnameEdit = QLineEdit(pgdbname)
         self.dbnameEdit.setToolTip('Enter the name of the PostgreSQL DB to connect with')
-        self.schemaEdit = QLineEdit('')
+        self.schemaEdit = QLineEdit(pgschema)
         self.schemaEdit.setToolTip('Set the database schema here')
-        self.usrEdit = QLineEdit('')
+        self.usrEdit = QLineEdit(pgusr)
         self.usrEdit.setToolTip('Name of PostgreSQL account/user')
-        self.pwdEdit = QLineEdit('')
+        self.pwdEdit = QLineEdit('')#pgpwd
         self.pwdEdit.setToolTip('Enter PostgreSQL account password')
         self.pwdEdit.setEchoMode(QLineEdit.Password)
         
@@ -342,6 +370,8 @@ class MSSQLSpatialConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key
         
+        (msodbc,msserver,msdsn,mstrust,msdbname,msschema,msusr,mspwd,msconfig,msepsg,mscql) = self.parent.mfr.readMSSQLConfig()
+        
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the server string (host\instance) name and schema of your MSSQL server. Select "Trust" if using trusted authentication')
 
@@ -357,17 +387,18 @@ class MSSQLSpatialConfigPage(QWizardPage):
         pwdLabel = QLabel('Password')
         
         #edit boxes
-        self.serverEdit = QLineEdit('') 
+        self.serverEdit = QLineEdit(msserver) 
         self.serverEdit.setToolTip('Enter MSSQL Server string. Format typically <host-name>\<db-instance>')
-        self.dbnameEdit = QLineEdit('')
+        self.dbnameEdit = QLineEdit(msdbname)
         self.dbnameEdit.setToolTip('Enter the name of the MSSQL database')
-        self.schemaEdit = QLineEdit('')
+        self.schemaEdit = QLineEdit(msschema)
         self.schemaEdit.setToolTip('Enter schema name (this is not mandatory but a common default in MSSQL is "dbo")')
-        self.trustCheckBox = QCheckBox('')
+        self.trustCheckBox = QCheckBox('YES')
+        self.trustCheckBox.setChecked(mstrust is not None and mstrust.lower()=='yes')
         self.trustCheckBox.setToolTip('Use MSSQL trusted client authentication')
-        self.usrEdit = QLineEdit('')
+        self.usrEdit = QLineEdit(msusr)
         self.usrEdit.setToolTip('Enter MSSQL Username')
-        self.pwdEdit = QLineEdit('')
+        self.pwdEdit = QLineEdit('')#mspwd
         self.pwdEdit.setToolTip('Enter MSSQL Password')
         self.pwdEdit.setEchoMode(QLineEdit.Password)
 
@@ -416,6 +447,8 @@ class FileGDBConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key
         
+        (fgfname,fgconfig,fgepsg,fgcql) = self.parent.mfr.readFileGDBConfig()
+        
         self.filter = ".*\.gdb$"
         self.proceed = False
         
@@ -429,7 +462,7 @@ class FileGDBConfigPage(QWizardPage):
         fileLabel = QLabel('FileGDB DB directory')
         
         #edit boxes
-        self.fileEdit = QLineEdit('')#dir selection dialog? Can't prefilter file selection for directories
+        self.fileEdit = QLineEdit(fgfname)#dir selection dialog? Can't prefilter file selection for directories
         self.fileEdit.setToolTip('Enter FileGDB directory (must have .gdb suffix)')
         
         self.fileEdit.setValidator(QRegExpValidator(QRegExp(self.filter, re.IGNORECASE), self))
@@ -475,6 +508,8 @@ class SpatiaLiteConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key
         
+        (slfname,slconfig,slepsg,slcql) = self.parent.mfr.readSpatiaLiteConfig()
+        
         self.proceed = False
         self.filter = ".*\.db$|.*\.sqlite\d*$"
         
@@ -488,7 +523,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         fileLabel = QLabel('SpatiaLite DB File')
         
         #edit boxes
-        self.fileEdit = QLineEdit('')
+        self.fileEdit = QLineEdit(slfname)
         self.fileEdit.setToolTip('Select or create SpatiaLite data file (recommended suffixes .db and .sqlite)')
         
         self.fileEdit.setValidator(QRegExpValidator(QRegExp(self.filter, re.IGNORECASE), self))
@@ -534,7 +569,11 @@ class ConfirmationPage(QWizardPage):
         super(ConfirmationPage, self).__init__(parent)
         self.parent = parent
         
-        self.destlist = {1:('PostgreSQL',self.getPGFields),2:('MSSQLSpatial',self.getMSFields),3:('FileGDB',self.getFGFields),4:('SpatiaLite',self.getSLFields)}
+        #TODO. integrate properly with plist
+        self.destlist = {self.parent.plist.get('pg')[0]:(self.parent.plist.get('pg')[1],self.getPGFields),
+                         self.parent.plist.get('ms')[0]:(self.parent.plist.get('ms')[1],self.getMSFields),
+                         self.parent.plist.get('fg')[0]:(self.parent.plist.get('fg')[1],self.getFGFields),
+                         self.parent.plist.get('sl')[0]:(self.parent.plist.get('sl')[1],self.getSLFields)}
         
         self.setTitle('Confirm Your Selection')
         self.setSubTitle('The values recorded below are ready to be written to the configuration file. Click "Finish" to confirm')
@@ -596,7 +635,8 @@ class ConfirmationPage(QWizardPage):
             hbox6.addWidget(QLabel(self.field("proxyusr").toString()))   
         
             vbox.addLayout(hbox6)
-        
+            
+        #select dest from index of destmenu
         self.selected = self.destlist.get(int(self.field("ldsdest").toString()))
         sec3 = QLabel(self.selected[0])
         sec3.setFont(hfont)
@@ -693,7 +733,8 @@ class ConfirmationPage(QWizardPage):
             
         ucfile = LDSUtilities.standardiseUserConfigName(str(self.field("ldsfile").toString()))
         #save values to user config file 
-        ConfigWrapper.buildNewUserConfig(ucfile, buildarray)
+        self.parent.setMFR(self.ldsfile)
+        ConfigWrapper.writeUserConfigData(self.parent.getMFR(), buildarray)
         #save userconf and dest to gui prefs
         gpr = GUIPrefsReader()
         #zips with (dest,layer,uconf...

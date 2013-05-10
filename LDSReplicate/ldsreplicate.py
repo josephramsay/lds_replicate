@@ -92,8 +92,6 @@ def main():
     uc = None
     ie = None
     
-    fbf = None
-    
     gdal_ver = VersionChecker.getGDALVersion()   
     #pgis_ver = VersionChecker.getPostGISVersion()   
     #pg_ver = VersionChecker.getPostgreSQLVersion()
@@ -112,7 +110,7 @@ def main():
     
     # parse command line options
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hv12ixf:t:l:g:e:s:d:c:u:", ["help","version","drivercopy","featurecopy","internal","external","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
+        opts, args = getopt.getopt(sys.argv[1:], "hvixf:t:l:g:e:s:d:c:u:", ["help","version","internal","external","fromdate=","todate=","layer=","group=","epsg=","source=","destination=","cql=","userconf="])
         ldslog.info("OPTS:"+str(opts))
         ldslog.info("ARGS:"+str(args))
     except getopt.error, msg:
@@ -128,14 +126,6 @@ def main():
         elif opt in ("-v", "--version"):
             print __version__
             sys.exit(0)
-        elif opt in ("-1","--drivercopy"):
-            #undocumented
-            ldslog.info("Forcing DriverCopy")
-            fbf = False
-        elif opt in ("-2","--featurecopy"):
-            #undocumented
-            ldslog.info("Forcing FeatureCopy")
-            fbf = True
         elif opt in ("-f","--fromdate"):
             fd = val 
         elif opt in ("-t","--todate"):
@@ -169,30 +159,25 @@ def main():
             "-d (--destination) Connection string for destination DS," \
             "-c (--cql) Filter definition in CQL format," \
             "-u (--user) User defined config file used as partial override for ldsincr.conf," \
-            "-1 (--drivercopy) Testing option to force driver level copy (sometimes faster method used for layer duplication ignoring data modifications)" \
-            "-2 (--featurecopy) Testing option to force feature level copy (used for incremental updates)" \
             "-i (--internal) Override internal/external setting in main config, use internal" \
             "-x (--external) Override internal/external setting in main config, use external" \
             "-h (--help) Display this message"
             sys.exit(2)
 
 #    #TODO consider ly argument to specify a file name containing a list of layers? 
-#    if ly is None:
-#        raise InputMisconfigurationException("Layer name required (-l)")
-#        sys.exit(1)
+
     st = datetime.now()
     m1 = '*** Begin    *** '+str(st.isoformat())
     print m1
     ldslog.info(m1)
-    tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,ie,fbf)
+    tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,ie)
 
-    proc = None
     #output format
     if len(args)==0:
         print __doc__
         sys.exit(0)
     else: 
-        '''since we're not breaking the switch the last arg read will be the DST used, ie proc gets overwritten'''
+        #since we're not breaking the switch the last arg read will be the DST used
         pn = None
         for arg in args:
             if arg.lower() in ("init", "initialise", "initalize"):
@@ -202,9 +187,10 @@ def main():
                 ldslog.info("Cleaning named layer")
                 tp.setCleanConfig()
             else:
+                #if we dont have init/clean the only other arg must be output type
                 pn = LDSUtilities.standardiseDriverNames(arg)
                 
-        if pn == None:
+        if pn is None:
             print __doc__
             raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) declaration required")
             

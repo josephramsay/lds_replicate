@@ -102,19 +102,19 @@ class TestSize(unittest.TestCase):
         for o in self.OUTP:
             for l in self.LAYER:#+self.LAYER_ASPATIAL+self.LAYER_GEODETIC+self.LAYER_HYDRO+self.LAYER_TOPO:
                 
-                #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc,        fbf)
+                #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc)
 
-                tp2 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_2, None)
+                tp2 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_2)
                 self.prepLayer(tp2,o)
                 d2t,d2r,d2c = self.monitor(self.selectProcess(tp2,o))
                 print 'GML2::layer::',l,' data='+str(d2t/1000)+'kb.','rate='+str(d2r)+'b/s.','count='+str(d2c)
                 
-                tp3 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_3, None)
+                tp3 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_3)
                 self.prepLayer(tp3,o)
                 d3t,d3r,d3c = self.monitor(self.selectProcess(tp3,o))
                 print 'GML3::layer::',l,' data='+str(d3t/1000)+'kb.','rate='+str(d3r)+'b/s.','count='+str(d3c)
 
-                tpj = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_J, None)
+                tpj = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_J)
                 self.prepLayer(tpj, o) 
                 djt,djr,djc = self.monitor(self.selectProcess(tpj,o))
                 print 'JSON::layer::',l,' data='+str(djt/1000)+'kb.','rate='+str(djr)+'b/s.','count='+str(djc)

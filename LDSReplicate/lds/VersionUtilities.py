@@ -67,7 +67,7 @@ class VersionChecker(object):
     PostgreSQL_MIN = '8.4'
     PostGIS_MIN = '2.0'
     MSSQL_MIN = '10.0.0.0'
-    SpatiaLite_MIN = '2.x'
+    SpatiaLite_MIN = '2.0'
     FileGDB_MIN = '$1,000,000.00'
     
     def __init__(self,params):
@@ -109,18 +109,30 @@ class VersionChecker(object):
 
         mfr = MainFileReader().readPostgreSQLConfig()
         cmd = "psql -c 'select version()' "+mfr[2]
-        postgresql = VersionChecker.getVersionFromShell(cmd,'PostgreSQL\s+(\d+\.\d+\.\d+)')
+        postgresql = VersionChecker.getVersionFromShell(cmd,'PostgreSQL\s+(\d+\.*\d*\.*\d*)')
 
         return {'PostgreSQL':postgresql}
     
     @staticmethod
     def getVersionFromShell(command,searchstring):
-        #sp = subprocess.Popen(command,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        with subprocess.Popen(command,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as sp:
-            for line in sp.stdout.readlines():
-                match = re.search(searchstring,line)
-                if match is not None: return match.group(1)
-        return None
+        ret = None
+        sp = subprocess.Popen(command,shell=True, stdout=subprocess.PIPE)
+        for line in sp.stdout.readlines():
+            match = re.search(searchstring,line)
+            if match is not None: 
+                ret = match.group(1)
+        try:
+            sp.kill()
+        except:
+            pass
+        return ret
+        
+        #No context management for subprocess v 2.7!!!
+#        with subprocess.Popen(command,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as sp:
+#            for line in sp.stdout.readlines():
+#                match = re.search(searchstring,line)
+#                if match is not None: return match.group(1)
+#        return None
         
     
     

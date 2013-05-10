@@ -38,26 +38,32 @@ class MainFileReader(object):
     DEFAULT_MF = 'ldsincr.conf'
 
 
-    def __init__(self,cfpath=LU.standardiseUserConfigName(DEFAULT_MF),use_defaults=True):
+    def __init__(self,cfpath=None,use_defaults=True):
         '''
         Constructor
         '''
-        thisdir = os.path.dirname(__file__)
+        self.use_defaults = use_defaults
+        #if we dont give the constructor a file path is uses the template file (which may not be a good idea...)
+        if cfpath is None:
+            self.filename = LU.standardiseUserConfigName(self.DEFAULT_MF)
+        else:
+            #Standardise since there is no guarantee cfpath is going to be in the reqd format to start with (since its a user entry)
+            self.filename = LU.standardiseUserConfigName(cfpath)
+
         
         self.cp = None
-        self.use_defaults = use_defaults
-        self.filename=os.path.join(thisdir,cfpath)
-            
-        self._readConfigFile(self.filename)
+        self.initMainFile()
         
-    def initMainFile(self,template=None):
+    def initMainFile(self,template=''):
+        '''Open and populate a new config file with 'template' else just touch it. Then call the reader'''
         #I think I was insane when I wrote the previous version of this method... Its supposed to do a touch|init+read
-        with file(self.filename,'w') as f:
-            if template is not None:
-                f.write(template)
+        with file(self.filename,'a' if template is '' else 'w') as f:
+            f.write(template)
         self._readConfigFile(self.filename)    
      
-           
+    def hasSection(self,secname):
+        return secname in self.getSections()
+    
     def getSections(self):
         '''List of sections (layernames/datasources)'''
         return self.cp.sections()
@@ -97,6 +103,9 @@ class MainFileReader(object):
         
         try:
             host = self.cp.get(PG.DRIVER_NAME, 'host')
+        except NoSectionError:
+            ldslog.warn("No PostgreSQL section")
+            return (None,)*10
         except NoOptionError as noe:
             ldslog.warn(noe)
             
@@ -180,6 +189,9 @@ class MainFileReader(object):
         
         try:
             odbc = self.cp.get(MS.DRIVER_NAME, 'odbc')
+        except NoSectionError:
+            ldslog.warn("No MSSQLSpatial section")
+            return (None,)*11
         except NoOptionError as noe:
             ldslog.warn(noe)
             
@@ -254,6 +266,9 @@ class MainFileReader(object):
         
         try:
             fname = self.cp.get(SL.DRIVER_NAME, 'file')
+        except NoSectionError:
+            ldslog.warn("No SpatiaLite section")
+            return (None,)*4
         except NoOptionError:
             ldslog.warn("SpatiaLite: No DB name provided, default to "+str(fname))
             
@@ -291,6 +306,9 @@ class MainFileReader(object):
             
         try:
             fname = self.cp.get(FG.DRIVER_NAME, 'file')
+        except NoSectionError:
+            ldslog.warn("No FileGDB section")
+            return (None,)*4
         except NoOptionError:
             ldslog.warn("FileGDB: No DB name provided, default to "+str(fname))
             
@@ -390,27 +408,30 @@ class MainFileReader(object):
             
         try:
             host = self.cp.get(self.PROXY, 'host')
-        except NoSectionError, NoOptionError:
+        except NoSectionError:
+            ldslog.warn("No Proxy section")
+            return (None,)*5
+        except NoOptionError:
             ldslog.warn("Proxy: Host not defined, no-Proxy assumed ")
             
         try:
             port = self.cp.get(self.PROXY, 'port')
-        except NoSectionError, NoOptionError:
+        except NoOptionError:
             ldslog.warn("Proxy: Port not defined, no-Proxy assumed")
             
         try:
             auth = self.cp.get(self.PROXY, 'auth')
-        except NoSectionError, NoOptionError:
+        except NoOptionError:
             ldslog.warn("Proxy: Auth not defined, NTLM assumed")
 
         try:
             usr = self.cp.get(self.PROXY, 'user')
-        except NoSectionError, NoOptionError:
+        except NoOptionError:
             ldslog.warn("Proxy: No user defined")        
         
         try:
             pwd = self.cp.get(self.PROXY, 'pass')
-        except NoSectionError, NoOptionError:
+        except NoOptionError:
             ldslog.warn("Proxy: No pass defined") 
             
 
@@ -563,6 +584,7 @@ class LayerReader(object):
             lca.append((layer,lce.pkey,lce.name,lce.group.split(','),lce.gcol,lce.index,lce.epsg,lce.lmod,lce.disc,lce.cql),)
         return lca
     
+#--------------------------------------------------------------------------------------------------
     
 class LayerFileReader(LayerReader):
     
@@ -700,7 +722,7 @@ class LayerFileReader(LayerReader):
             
         return LayerConfEntry(pkey,name,group,gcol,index,epsg,lmod,disc,cql)
         
-            
+#--------------------------------------------------------------------------------------------------            
             
 class LayerDSReader(LayerReader):
     '''

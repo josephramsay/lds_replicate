@@ -59,6 +59,7 @@ class PostgreSQLDataStore(DataStore):
         '''URI method returns source DB instance'''
         return self._commonURI(layer)
     
+    
     def destinationURI(self,layer):
         '''URI method returns destination DB instance'''
         return self._commonURI(layer)

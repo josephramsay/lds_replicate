@@ -16,12 +16,10 @@ Created on 26/07/2012
 '''
 
 import logging
-import os
 
 from datetime import datetime 
 
 from DataStore import DataStore
-#from DataStore.DataStore import CONF_INT, CONF_EXT
 from DataStore import ASpatialFailureException
 
 from LDSDataStore import LDSDataStore
@@ -40,7 +38,11 @@ from ReadConfig import LayerFileReader, LayerDSReader
 ldslog = logging.getLogger('LDS')
 
 
-class InputMisconfigurationException(Exception): pass
+class InputMisconfigurationException(Exception): 
+    def __init__(self, msg):
+        super(InputMisconfigurationException,self).__init__(msg)
+        ldslog.error('InputMisconfigurationException :: Improperly formatter input argument, '+str(msg))
+        
 class PrimaryKeyUnavailableException(Exception): pass
 class LayerConfigurationException(Exception): pass
 class DatasourceInitialisationException(Exception): pass
@@ -65,10 +67,9 @@ class TransferProcessor(object):
     LP_SUFFIX = ".layer.properties"
     
     def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None,fbf=None):
-        #ldsu? lnl?
+
         self.CLEANCONF = None
         self.INITCONF = None
-        self.INCR = None
         
         self.src = None
         self.dst = None 
@@ -77,11 +78,6 @@ class TransferProcessor(object):
         self.partitionsize = None
         self.sixtyfourlayers = None
         self.temptable = None
-        
-        #self.lnl = LDSDataStore.fetchLayerNames(self.src.getCapabilities())
-        
-        #do a driver copy unless valid dates have been provided indicating changeset
-        self.clearIncremental()
         
         #only do a config file rebuild if requested
         self.clearInitConfig()
@@ -143,13 +139,6 @@ class TransferProcessor(object):
         if uc != None:
             self.user_config = uc   
             
-        #FBF should really only be used for testing
-        self.FBF = None
-        if fbf != None and fbf is True:
-            self.setFBF()
-        elif fbf != None and fbf is False:
-            self.clearFBF()
-            
         self.confinternal = None
         if ie in [DataStore.CONF_EXT,DataStore.CONF_INT]:
             self.setConfInternal(ie)
@@ -159,25 +148,6 @@ class TransferProcessor(object):
     def __str__(self):
         return 'Layer:{layer}, Group:{group}, CQL:{cql}, '.format(layer=self.layer,group=self.group,cql=self.cql)
     
-    #incr flag copied straight from Datastore
-    def setIncremental(self):
-        self.INCR = True
-         
-    def clearIncremental(self):
-        self.INCR = False
-         
-    def getIncremental(self):
-        return self.INCR
-    
-    #Feature-by-Feature flag to override incremental
-    def setFBF(self):
-        self.FBF = True
-         
-    def clearFBF(self):
-        self.FBF = False
-         
-    def getFBF(self):
-        return self.FBF
     
     #Internal/External flag to override config set option
     def setConfInternal(self,confinternal):
@@ -218,10 +188,7 @@ class TransferProcessor(object):
     
     def hasPrimaryKey(self,testlayer):
         '''Reads layer conf pkey identifier. If PK is None or something, use this to decide processing type i.e. no PK = driverCopy'''
-        hpk = self.dst.getLayerConf().readLayerProperty(testlayer,'pkey')
-        if hpk is None:
-            return False
-        return True
+        return self.dst.getLayerConf().readLayerProperty(testlayer,'pkey') is not None
     
     def initDestination(self,dstname):
         '''Init a new destination using instantiated uconf (and dest str if provided)'''
@@ -241,26 +208,8 @@ class TransferProcessor(object):
         return src                
         
     def processLDS(self,dst):
-        '''Process with LDS as a source and the destination supplied as an argument.
-        
-        The logic here is:
-        
-        if layer is not specified, do them all {$layer = All}
-        else if a group is specified do the layers in that group
-        else if layer specified do that layer {$layer = L[i]} (provided its in the group)
-        
-        ie layer>group>all
-        
-        if dates specified as 'ALL' do full replication on $layer
-        else if (both) dates are specified do incr on this range for $layer
-        else do auto-increment on $layer (where auto picks last-mod and current dates as range)
-        '''
-        
-        #NB self.cql <- commandline, self.src.cql <- ldsincr.conf, 
-        
-        fdate = None
-        tdate = None
-        
+        '''Process with LDS as a source and the destination supplied as an argument'''
+
         #fname = dst.DRIVER_NAME.lower()+self.LP_SUFFIX
         
         self.dst = dst
@@ -289,236 +238,135 @@ class TransferProcessor(object):
         if self.dst.getLayerConf() is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(dst.getConfInternal()))
         
-        # *** Once the layer config is initialised we can do a layer name check ***
-        if LDSUtilities.mightAsWellBeNone(self.layer) is None:
-            layer = 'ALL'
-        else:
-            layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.layer)
-            if layer is None:
-                raise InputMisconfigurationException("Layer name provided but format incorrect. Must be; -l {"+LDSUtilities.LDS_TN_PREFIX+"#### | <Layer-Name>}")
+
+        #------------------------------------------------------------------------------------------
         
-        
-        # *** Assuming layer check is okay it should be safe to perform operations on the layer; the first one, delete ***
-#        if self.getCleanConfig():
-#            '''clean a selected layer (once the layer conf file has been established)'''
-#            if self.dst._cleanLayerByRef(self.dst.ds,self.layer):
-#                self.dst.clearLastModified(self.layer)
-#            '''once a layer is cleaned don't need to continue so quit'''
-#            return
-            
-        #full LDS layer name listv:x (from LDS WFS)
+        #Full LDS layer name listv:x (from LDS WFS)
         lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities))[0]
-        #list of configured layers (from layer-config file/table)
+        #List of configured layers (from layer-config file/table)
         lds_read = self.dst.getLayerConf().getLayerNames()
         
+        #Valid layers are those that exist in LDS and are also configured in the LC
         lds_valid = set(lds_full).intersection(set(lds_read))
         
         #Filter by group designation
 
         if LDSUtilities.mightAsWellBeNone(self.group) is not None:
-            self.lnl = ()
+            #A group is provided. It could be an empty group in which case no layers are selected
+            lds_group = set()
             lg = set(self.group.split(','))
             for lid in lds_valid:
                 cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
                 if cats is not None and set(cats.split(',')).intersection(lg):
-                    self.lnl += (lid,)
+                    lds_group += (lid,)
         else:
-            self.lnl = lds_valid
-                      
+            lds_group = lds_valid
+                     
+        #finally we check for a requested layer. NB Logic change 9/5/13. Layer decl depends on group decl
+        layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.layer)
+        if layer is None:
+            #We shouldnt need to check layer name validity taken from a group since they're automatically 'valid' 
+            self.lnl = lds_group
+        elif layer in lds_group:
+            self.lnl = (layer,)
+        else:
+            raise InputMisconfigurationException('Layer'+str(layer)+' invalid or not part of requested group')
+                            
         # ***HACK*** big layer bypass (address this with partitions)
-        #self.lnl = filter(lambda l: l not in self.partitionlayers, self.lnl)
+        #self.lnl = filter(lambda final_layer: final_layer not in self.partitionlayers, self.lnl)
         
         #override config file dates with command line dates if provided
-        ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}".format(len(lds_full),len(lds_read),len(self.lnl)))
+        ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}, SelectedLayers={}".format(len(lds_full),len(lds_read),len(lds_group),len(self.lnl)))
         #ldslog.debug("Layer List:"+str(self.lnl))
         
+        #------------------------------------------------------------------------------------------  
         
-        '''if valid dates are provided we assume copyDS'''
-        if self.todate is not None:
-            tdate = LDSUtilities.checkDateFormat(self.todate)
-            if tdate is None:
-                raise InputMisconfigurationException("To-Date provided but format incorrect {-td yyyy-MM-dd[Thh:mm:ss]}")
-            else:
-                self.setIncremental()
-        
-        if self.fromdate is not None:
-            fdate = LDSUtilities.checkDateFormat(self.fromdate)
-            if fdate is None:
-                raise InputMisconfigurationException("From-Date provided but format incorrect {-fd yyyy-MM-dd[Thh:mm:ss}")
-            else:
-                self.setIncremental()       
-              
-        #this is the first time we use the incremental flag to do something (and it should only be needed once?)
-        #if incremental is false we want a duplicate of the whole layer so fullreplicate
+        #Before we go any further, if this is a cleaning job, no point doing anymore setup. Start deleting
         if self.getCleanConfig():
-            self.fullClean(layer)
+            for cleanlayer in self.lnl:
+                self.cleanLayer(cleanlayer)
             return
-        elif not self.getIncremental():
-            ldslog.info("Full Replicate on "+str(layer)+" using group "+str(self.group))
-            self.fullReplicate(layer)
-        elif fdate is None or tdate is None:
-            '''do auto incremental'''
-            ldslog.info("Auto Incremental on "+str(layer)+" using group "+str(self.group)+" : "+str(fdate)+" to "+str(tdate)) 
-            self.autoIncrement(layer,fdate,tdate)
-        else:
-            '''do requested date range'''
-            ldslog.info("Selected Replicate on "+str(layer)+" : "+str(fdate)+" to "+str(tdate))
-            self.definedIncrement(layer,fdate,tdate)
+                
+        #build a list of layers with corresponding lastmodified/incremental flags
+        fd = LDSUtilities.checkDateFormat(self.fromdate)#if date format wrong treated as None
+        td = LDSUtilities.checkDateFormat(self.todate)
+        today = self.dst.getCurrent()
+        first = DataStore.EARLIEST_INIT_DATE
+
+        for final_layer in self.lnl:
+            lm = self.dst.getLayerConf().readLayerProperty(final_layer,'lastmodified')
+            pk = self.dst.getLayerConf().readLayerProperty(final_layer,'pkey')
+            filt = self.dst.getLayerConf().readLayerProperty(final_layer,'cql')
+            srs = self.dst.getLayerConf().readLayerProperty(final_layer,'epsg')
+            
+            #Set (cql) filters in URI call using layer picking the one with highest precedence            
+            self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),filt))
+        
+            #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy
+            self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),srs))
+            
+            #Destination URI won't change because of incremental so set it here
+            self.dst.setURI(self.dst.destinationURI(final_layer))
+                
+            if all(i is None for i in [lm, fd, td]):#if there are no date values in this list its not incr
+                self.src.setURI(self.src.sourceURI(final_layer))
+                self.dst.clearIncremental()
+                self.replicateLayer(final_layer, pk)
+            else:
+                final_fd = (first if lm is None else lm) if fd is None else fd
+                final_td = today if td is None else td
+
+                self.src.setURI(self.src.sourceURI_incrd(final_layer,final_fd,final_td))
+                self.dst.setIncremental()            
+                if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
+                    self.replicateLayer(final_layer, pk)
+                else:
+                    ldslog.warning("No update required for layer "+final_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
+                
 
         self.dst.closeDS()
-        #missing case is; if one date provided and other sg ? caught by elif (consider using the valid date?)
     
-    #----------------------------------------------------------------------------------------------
-    def fullClean(self,layer):
-        if layer is 'ALL':
-            for layer_i in self.lnl:
-                self.fullCleanLayer(layer_i)
-        '''once all layers are cleaned don't need to continue so quit'''
-        return
+#--------------------------------------------------------------------------------------------------
     
-    def fullCleanLayer(self,layer_i):
+    def replicateLayer(self,layer_i,pkey):
+        '''Replicate the requested layer non-incrementally, ie Init a new layer overwriting any previous iteration of that layer'''
+
+        #We dont try and create (=false) a DS on a LDS WFS connection since its RO
+        self.src.read(self.src.getURI(),False)
+        
+        if self.src.ds is None:
+            raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
+        
+        self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(layer_i))
+
+        self.dst.setLastModified(layer_i,self.dst.getCurrent())
+        
+#--------------------------------------------------------------------------------------------------
+    
+#    def setupPartitions(self,layer_i,pkey):
+#        if layer_i in self.partitionlayers:
+#            if pkey is None:
+#                raise PrimaryKeyUnavailableException('Cannot partition layer '+str(layer_i)+'without a valid primary key')
+#            self.src.setPrimaryKey(pkey)
+#            self.src.setPartitionStart(0)
+#            self.src.setPartitionSize(self.partitionsize)#redundant, set earlier
+#            '''
+#            self.setupPartitions(layer_i, pkey)
+#            while 1:
+#                maxkey = self.dst.write(...)                                )
+#                if maxkey is not None:
+#                    self.src.setPartitionStart(maxkey)
+#                else:
+#                    break
+#            '''
+            
+    def cleanLayer(self,layer_i):
         '''clean a selected layer (once the layer conf file has been established)'''
         if self.dst._cleanLayerByRef(self.dst.ds,layer_i):
             self.dst.clearLastModified(layer_i)
-    
-    def fullReplicate(self,layer):
-        '''Replicate across the whole date range'''
-        if layer is 'ALL':
-            #TODO consider driver reported layer list
-            for layer_i in self.lnl:
-                try:
-                    self.fullReplicateLayer(str(layer_i))
-                except (ASpatialFailureException, PrimaryKeyUnavailableException) as ee:
-                    '''if we're processing a layer list, don't stop on an aspatial-only fault, other spatial layers might just work'''
-                    ldslog.error(str(ee))
-        elif layer in self.lnl:
-            self.fullReplicateLayer(layer)
-        else:
-            ldslog.warn('Invalid layer selected, '+str(layer))
+            
+#--------------------------------------------------------------------------------------------------
 
-
-    def fullReplicateLayer(self,layer_i):
-        '''Replicate the requested layer non-incrementally'''
-        
-        #Set filters in URI call using layer            
-        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.getLayerConf().readLayerProperty(layer_i,'cql')))
-        #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy
-        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.getLayerConf().readLayerProperty(layer_i,'epsg')))
-
-        #while (True):
-        self.src.setURI(self.src.sourceURI(layer_i))
-        self.dst.setURI(self.dst.destinationURI(layer_i))
-                
-        #We dont try and create (=false) a DS on a LDS WFS connection since its RO
-        self.src.read(self.src.getURI(),False)
-        if self.src.ds is None:
-            raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
-        self.dst.write(self.src,
-                       self.dst.getURI(),
-                       self.getIncremental() and self.hasPrimaryKey(layer_i),
-                       self.getFBF(),
-                       self.getSixtyFour(layer_i),
-                       self.temptable,
-                       self.doSRSConvert()
-                    )
-                  
-        '''repeated calls to getcurrent is kinda inefficient but depending on processing time may vary by layer
-        Retained since dates may change between successive calls depending on the start time of the process'''
-        self.dst.setLastModified(layer_i,self.dst.getCurrent())
-        
-    
-    def autoIncrement(self,layer,fdate,tdate):
-        if layer is 'ALL':
-            for layer_i in self.lnl:
-                try:
-                    self.autoIncrementLayer(str(layer_i),fdate,tdate)
-                except ASpatialFailureException as afe:
-                    '''if we're processing a layer list, don't stop on an aspatial-only fault'''
-                    ldslog.error(str(afe))
-        elif layer in self.lnl:
-            self.autoIncrementLayer(layer,fdate,tdate)
-        else:
-            ldslog.warn('Invalid layer selected, '+str(layer))
-            
-    def autoIncrementLayer(self,layer_i,fdate,tdate):
-        '''For a specified layer read provided date ranges and call incremental'''
-        if fdate is None or fdate == '':    
-            fdate = self.dst.getLayerConf().readLayerProperty(layer_i,'lastmodified')
-            if fdate is None or fdate == '':
-                fdate = DataStore.EARLIEST_INIT_DATE
-                
-        if tdate is None or tdate == '':         
-            tdate = self.dst.getCurrent()
-        
-        self.definedIncrementLayer(layer_i,fdate,tdate)
-
-    def definedIncrement(self,layer,fdate,tdate):
-        '''Final check on layer validity with provided dates'''
-        if layer is 'ALL':
-            for layer_i in self.lnl:
-                try:
-                    self.definedIncrementLayer(str(layer_i),fdate,tdate)
-                except (ASpatialFailureException, PrimaryKeyUnavailableException) as ee:
-                    '''if we're processing a layer list, don-t stop on an aspatial-only fault'''
-                    ldslog.error(str(ee))
-        elif layer in self.lnl:
-            self.definedIncrementLayer(layer,fdate,tdate)
-        else:
-            ldslog.warn('Invalid layer selected, '+str(layer))
-    
-        
-    def definedIncrementLayer(self,layer_i,fdate,tdate):
-        '''Making sure the date ranges are sequential, read/write and set last modified'''
-        #Once an individual layer has been defined...
-        #croplayer = LDSUtilities.cropChangeset(layer_i)
-        #Filters are set on the SRC since they're built into the URL, they are however specified per DST    
-        self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),self.dst.getLayerConf().readLayerProperty(layer_i,'cql')))
-        #SRS are set in the DST since the conversion takes place during the write process.
-        self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),self.dst.getLayerConf().readLayerProperty(layer_i,'epsg')))
-        
-        td = datetime.strptime(tdate,'%Y-%m-%dT%H:%M:%S')
-        fd = datetime.strptime(fdate,'%Y-%m-%dT%H:%M:%S')
-        if (td-fd).days>0:
-            
-            #TODO optimise
-            haspk = self.hasPrimaryKey(layer_i)
-            
-            #using the partition layers list forces manual paging even if the WFS paging is switched on... might need to make this clearer
-            if layer_i in self.partitionlayers:
-                if not haspk:
-                    raise PrimaryKeyUnavailableException('Cannot partition layer '+str(layer_i)+'without a valid primary key')
-                self.src.setPrimaryKey(self.dst.getLayerConf().readLayerProperty(layer_i,'pkey'))
-                self.src.setPartitionStart(0)
-                self.src.setPartitionSize(self.partitionsize)#redundant, set earlier
-                self.setFBF()
-                
-            while 1:
-                #set up URI
-                self.src.setURI(self.src.sourceURI_incrd(layer_i,fdate,tdate) if haspk else self.src.sourceURI(layer_i))
-                self.dst.setURI(self.dst.destinationURI(layer_i))
-            
-                #source read from URI
-                self.src.read(self.src.getURI(),False)
-                #destination write the SRC to the dest URI
-                maxkey = self.dst.write(self.src,
-                                        self.dst.getURI(),
-                                        self.getIncremental() and haspk,
-                                        self.getFBF(),
-                                        self.getSixtyFour(layer_i),
-                                        self.temptable,
-                                        self.doSRSConvert()
-                                    )
-                if maxkey is not None:
-                    self.src.setPartitionStart(maxkey)
-                else:
-                    break
-                
-            self.dst.setLastModified(layer_i,tdate)
-            
-        else:
-            ldslog.info("No update required for layer "+layer_i+" since [start:"+fd.isoformat()+" >= finish:"+td.isoformat()+"] by at least 1 day")
-        return
-    
     @classmethod
     def getNewLayerConf(cls,dst):
         '''Decide whether to use internal or external layer config and return the appropriate instantiation'''
@@ -540,5 +388,4 @@ class TransferProcessor(object):
         file_json = 'json' if dst.getConfInternal()==DataStore.CONF_INT else 'file'
         res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json)
         dst.getLayerConf().buildConfigLayer(str(res))
-        
         

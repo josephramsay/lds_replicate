@@ -22,6 +22,7 @@ import gdal
 import logging
 
 from lxml import etree
+from lxml.etree import XMLSyntaxError
 
 from WFSDataStore import WFSDataStore
 from urllib2 import urlopen
@@ -256,8 +257,12 @@ class LDSDataStore(WFSDataStore):
         ttxp = "./{0}Title".format(cls.NS['wfs'])
         kyxp = "./{0}Keywords/{0}Keyword".format(cls.NS['ows'])
         
+        try:
+            tree = etree.parse(url)
+        except XMLSyntaxError as xe:
+            ldslog.error('Error parsing URL, '+str(url)+str(xe))
+            return
         
-        tree = etree.parse(url)
         for ft in tree.findall(ftxp):
             name = ft.find(nmxp).text
             title = ft.find(ttxp).text
@@ -274,6 +279,11 @@ class LDSDataStore(WFSDataStore):
 #        self.ds = self.driver.Open(dsn)
         
     #write uses WFS write exception message
+    
+    def versionCheck(self):
+        '''Nothing to check?'''
+        #TODO maybe check gdal/wfs/gml etc
+        return super(LDSDataStore,self).versioncheck()
         
 
         

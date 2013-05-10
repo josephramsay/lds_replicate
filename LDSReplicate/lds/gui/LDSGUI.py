@@ -28,7 +28,7 @@ import re
 import sys
 
 from lds.TransferProcessor import TransferProcessor
-from lds.ReadConfig import GUIPrefsReader
+from lds.ReadConfig import GUIPrefsReader, MainFileReader
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 
@@ -58,12 +58,12 @@ class LDSRepl(QMainWindow):
         openAction.setStatusTip('Open Prefs Editor')
         openAction.triggered.connect(self.launchEditor)
         
-        initUCAction = QAction(QIcon('uc.png'), '&UserWizard', self)   
+        initUCAction = QAction(QIcon('uc.png'), '&User Wizard', self)   
         initUCAction.setShortcut('Ctrl+U')
         initUCAction.setStatusTip('Open User Config Wizard')
         initUCAction.triggered.connect(self.runWizardAction)
         
-        initLCAction = QAction(QIcon('lc.png'), '&LayerConfig', self)   
+        initLCAction = QAction(QIcon('lc.png'), '&Layer Config', self)   
         initLCAction.setShortcut('Ctrl+L')
         initLCAction.setStatusTip('Open Layer Config Editor')
         initLCAction.triggered.connect(self.runLayerConfigAction)
@@ -92,10 +92,14 @@ class LDSRepl(QMainWindow):
         
     def runWizardAction(self):
         from lds.gui.MainConfigWizard import LDSConfigWizard
-        uc_3rd = self.controls.readParameters()
+        #rather than readparams
+        uconf = self.controls.confEdit.text()
+        secname = self.controls.destMenu.itemText(self.controls.destMenu.currentIndex())
+        
         self.statusbar.showMessage('Initialising User Config File')
-        ldscw = LDSConfigWizard(LDSUtilities.standardiseUserConfigName(uc_3rd[2]))
+        ldscw = LDSConfigWizard(uconf,secname)
         ldscw.exec_()
+        
         
     def runLayerConfigAction(self):
         from lds.gui.LayerConfigSelector import LayerConfigSelector
@@ -110,7 +114,7 @@ class LDSRepl(QMainWindow):
                                None if td is None else td,
                                None, None, None, 
                                None if uconf is None else uconf, 
-                               internal, None)
+                               internal)
         
         ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
         ldsc.show()
@@ -159,9 +163,13 @@ class LDSControls(QFrame):
 
         #edit boxes
         self.layerEdit = QLineEdit(rlist[1])
-        self.layerEdit.setToolTip('Enter the layer you want to replicate using either v:x format or layer name')   
+        self.layerEdit.setToolTip('Enter the layer you want to replicate using either v:x format or layer name')  
+        self.layerEdit.textEdited.connect(self.doGroupDisable)  
+        
         self.groupEdit = QLineEdit(rlist[3])
-        self.groupEdit.setToolTip('Enter a layer keyword or use your own custom keyword to select a group of layers')   
+        self.groupEdit.setToolTip('Enter a layer keyword or use your own custom keyword to select a group of layers')  
+        self.groupEdit.textEdited.connect(self.doLayerDisable) 
+        
         #self.epsgEdit = QLineEdit(rlist[4])
         #self.epsgEdit.setToolTip('Setting an EPSG number here determines the output SR of the layer')  
         self.confEdit = QLineEdit(rlist[2])
@@ -229,12 +237,16 @@ class LDSControls(QFrame):
         initButton.setToolTip('Initialise the Layer Configuration')
         initButton.clicked.connect(self.doInitClickAction)
         
-        okButton = QPushButton("OK")
-        okButton.setToolTip('Execute selected replication')
-        okButton.clicked.connect(self.doOkClickAction)
+        cleanButton = QPushButton("Clean")
+        cleanButton.setToolTip('Clean the selected layer/group from local storage')
+        cleanButton.clicked.connect(self.doCleanClickAction)
         
-        cancelButton = QPushButton("Cancel")
-        cancelButton.setToolTip('Cancel LDS Replicate')       
+        replicateButton = QPushButton("Replicate")
+        replicateButton.setToolTip('Execute selected replication')
+        replicateButton.clicked.connect(self.doReplicateClickAction)
+        
+        cancelButton = QPushButton("Close")
+        cancelButton.setToolTip('Close the LDS Replicate application')       
         cancelButton.clicked.connect(QCoreApplication.instance().quit) 
 
         #grid
@@ -277,7 +289,7 @@ class LDSControls(QFrame):
         grid.addWidget(self.toDateEnable, 7, 1)
         grid.addWidget(self.toDateEdit, 7, 2)
 
-        vbox1 = QVBoxLayout()
+        vbox1 = QHBoxLayout()
         vbox1.addStretch(1)
         vbox1.addWidget(internalLabel)
         vbox1.addWidget(self.internalTrigger)
@@ -287,21 +299,22 @@ class LDSControls(QFrame):
         #vbox2.addWidget(initLabel)
         #vbox2.addWidget(self.initTrigger)
         
-        vbox3 = QVBoxLayout()
-        vbox3.addStretch(1)
-        vbox3.addWidget(cleanLabel)
-        vbox3.addWidget(self.cleanTrigger)
+        #vbox3 = QVBoxLayout()
+        #vbox3.addStretch(1)
+        #vbox3.addWidget(cleanLabel)
+        #vbox3.addWidget(self.cleanTrigger)
         
         hbox3 = QHBoxLayout()
         hbox3.addStretch(1)
         hbox3.addLayout(vbox1)
         #hbox3.addLayout(vbox2)
-        hbox3.addLayout(vbox3)
+        #hbox3.addLayout(vbox3)
         
         hbox4 = QHBoxLayout()
         hbox4.addWidget(initButton)
         hbox4.addStretch(1)
-        hbox4.addWidget(okButton)
+        hbox4.addWidget(replicateButton)
+        hbox4.addWidget(cleanButton)
         hbox4.addWidget(cancelButton)
         
 
@@ -335,6 +348,12 @@ class LDSControls(QFrame):
         else:
             event.ignore()       
         
+    def doLayerDisable(self):
+        self.layerEdit.setText('')
+        
+    def doGroupDisable(self):
+        self.groupEdit.setText('')
+        
     def doFromDateEnable(self):
         self.fromDateEdit.setEnabled(self.fromDateEnable.isChecked())
           
@@ -360,24 +379,40 @@ class LDSControls(QFrame):
     def doInitClickAction(self):
         '''Initialise the LC on LC-button-click, action'''
         self.parent.runLayerConfigAction()
+        
+    def doCleanClickAction(self):
+        '''Read the provided parameters inserting true for the clean param'''
+        params = self.readParameters()[:11]+(True,)
+        self.runReplicationScript(params,'Clean')
+        
+    def doReplicateClickAction(self):
+        '''Read the provided parameters inserting false for the clean param'''
+        params = self.readParameters()[:11]+(False,)
+        self.runReplicationScript(params,'Replicate')
 
-    def doOkClickAction(self):
-        destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.readParameters()
+    def runReplicationScript(self,params,message='Replicate'):
+        '''Run the layer/group repliction script'''
+        destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = params
 
         uconf = LDSUtilities.standardiseUserConfigName(uconf)
+        destination_path = LDSUtilities.standardiseLayerConfigName(destination)
+        destination_driver = LDSUtilities.standardiseDriverNames(destination)
+        
         if not os.path.exists(uconf):
             self.userConfMessage(uconf)
             return
+        elif not MainFileReader(uconf).hasSection(destination_driver):
+            self.userConfMessage(uconf,destination_driver)
+            return
         
-        destination_path = LDSUtilities.standardiseLayerConfigName(destination)
-        destination_driver = LDSUtilities.standardiseDriverNames(destination)
+
         if not os.path.exists(destination_path):
             self.layerConfMessage(destination_path)
             return
   
         #-----------------------------------------------------
                                 
-        self.parent.statusbar.showMessage('Replicating '+layer)
+        self.parent.statusbar.showMessage('Running '+message+' '+layer)
 
         #'dest','layer','uconf','group','epsg','fd','td','int'
         self.gpr.write((destination_driver,layer,uconf,group,epsg,fd,td,internal))        
@@ -392,7 +427,7 @@ class LDSControls(QFrame):
                                None if td is None else td,
                                None, None, None, 
                                None if uconf is None else uconf, 
-                               internal, None)
+                               internal)
         
         #NB init and clean are funcs because they appear as args, not opts in the CL
         if init:
@@ -403,12 +438,13 @@ class LDSControls(QFrame):
             tp.setCleanConfig()
             
         tp.processLDS(tp.initDestination(destination_driver))
-        l_g = group if group is not None else (layer if layer is not None else 'layers')
-        self.parent.statusbar.showMessage('Replication of '+l_g+' complete')
+
+        l_g = group if LDSUtilities.mightAsWellBeNone(group) is not None else (layer if LDSUtilities.mightAsWellBeNone(layer) is not None else 'layers')
+        self.parent.statusbar.showMessage('{0} of {1} complete'.format(message,l_g))
         
-    def userConfMessage(self,uconf):
-        ucans = QMessageBox.warning(self, 'User Config Missing', 
-                                'Specified User-Config file, '+str(uconf)+' does not exist', 
+    def userConfMessage(self,uconf,secname=None):
+        ucans = QMessageBox.warning(self, 'User Config Missing/Incomplete', 
+                                'Specified User-Config file, '+str(uconf)+' does not exist' if secname is None else 'User-Config file does not contain '+str(secname)+' section', 
                                 'Retry','Initialise')
         if not ucans:
             #Retry
