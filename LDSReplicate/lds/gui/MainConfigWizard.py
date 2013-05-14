@@ -133,13 +133,6 @@ class LDSConfigPage(QWizardPage):
             self.destSelect.addItem(itemdata, itemindex)
             if itemdata == self.parent.sechint:
                 self.destSelect.setCurrentIndex(itemindex)
-                
-             
-#        self.destSelect.addItem(self.parent.plist.get('pg')[1], self.parent.plist.get('pg')[0])
-#        self.destSelect.addItem(self.parent.plist.get('ms')[1], self.parent.plist.get('ms')[0])
-#        self.destSelect.addItem(self.parent.plist.get('fg')[1], self.parent.plist.get('fg')[0])
-#        self.destSelect.addItem(self.parent.plist.get('sl')[1], self.parent.plist.get('sl')[0])
-        
         
         self.keyEdit.setValidator(QRegExpValidator(QRegExp("[a-fA-F0-9]{32}", re.IGNORECASE), self))
         

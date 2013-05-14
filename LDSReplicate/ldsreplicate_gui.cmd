@@ -12,8 +12,9 @@ set PYTHONHOME=%PWD%apps\python27
 set PYTHONPATH=%PWD%apps\python27;%PWD%apps\python27\DLLs;%PWD%apps\python27\lib;%PWD%apps\python27\lib\lib-tk;%PWD%apps\python27\lib\site-packages;%PWD%apps\python27\lib\site-packages\osgeo
 set PROJ_LIB=%PWD%bin\GDAL\projlib
 
-REM Execute LDS Replicate GUI
+set PSTR=import sys,os;sys.path.append(os.path.join('%PWD:~0,-1%','apps','ldsreplicate'));
 
+REM Execute LDS Replicate GUI
 
 IF '%1'=='W' GOTO WIZZ
 IF '%1'=='L' GOTO LWIZZ
@@ -22,24 +23,22 @@ REM ----------------------------------------------------------------------------
 :GUI
 echo Starting LDS Replicate GUI
 
-cd %PWD%\apps\ldsreplicate
-python -c "from ldsreplicate_gui import main; main()"
+"%PWD%apps\python27\python.exe" -c "%PSTR%from ldsreplicate_gui import main; main()"
 
 GOTO END
 
 REM ----------------------------------------------------------------------------
 :WIZZ
 echo Starting Configuration Wizard
-cd %PWD%\apps\ldsreplicate
-python -c "from ldsreplicate_gui import conf; conf()"
+"%PWD%apps\python27\python.exe" -c "%PSTR%from ldsreplicate_gui import conf; conf()"
 
 GOTO END
 
 REM ----------------------------------------------------------------------------
 :LWIZZ
 echo Starting Layer Configuration Selector
-cd %PWD%\apps\ldsreplicate
-python -c "from ldsreplicate_gui import lconf; lconf()"
+REM cd %PWD%\apps\ldsreplicate
+"%PWD%apps\python27\python.exe" -c "%PSTR%from ldsreplicate_gui import lconf; lconf()"
 
 GOTO END
 

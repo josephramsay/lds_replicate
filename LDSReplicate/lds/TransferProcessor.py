@@ -66,7 +66,7 @@ class TransferProcessor(object):
     
     LP_SUFFIX = ".layer.properties"
     
-    def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None,fbf=None):
+    def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None):
 
         self.CLEANCONF = None
         self.INITCONF = None
@@ -258,7 +258,7 @@ class TransferProcessor(object):
             for lid in lds_valid:
                 cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
                 if cats is not None and set(cats.split(',')).intersection(lg):
-                    lds_group += (lid,)
+                    lds_group.update((lid,))
         else:
             lds_group = lds_valid
                      
@@ -273,7 +273,7 @@ class TransferProcessor(object):
             raise InputMisconfigurationException('Layer'+str(layer)+' invalid or not part of requested group')
                             
         # ***HACK*** big layer bypass (address this with partitions)
-        #self.lnl = filter(lambda final_layer: final_layer not in self.partitionlayers, self.lnl)
+        #self.lnl = filter(lambda each_layer: each_layer not in self.partitionlayers, self.lnl)
         
         #override config file dates with command line dates if provided
         ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}, SelectedLayers={}".format(len(lds_full),len(lds_read),len(lds_group),len(self.lnl)))
@@ -291,13 +291,13 @@ class TransferProcessor(object):
         fd = LDSUtilities.checkDateFormat(self.fromdate)#if date format wrong treated as None
         td = LDSUtilities.checkDateFormat(self.todate)
         today = self.dst.getCurrent()
-        first = DataStore.EARLIEST_INIT_DATE
+        early = DataStore.EARLIEST_INIT_DATE
 
-        for final_layer in self.lnl:
-            lm = self.dst.getLayerConf().readLayerProperty(final_layer,'lastmodified')
-            pk = self.dst.getLayerConf().readLayerProperty(final_layer,'pkey')
-            filt = self.dst.getLayerConf().readLayerProperty(final_layer,'cql')
-            srs = self.dst.getLayerConf().readLayerProperty(final_layer,'epsg')
+        for each_layer in self.lnl:
+            lm = LDSUtilities.checkDateFormat(self.dst.getLayerConf().readLayerProperty(each_layer,'lastmodified'))
+            pk = self.dst.getLayerConf().readLayerProperty(each_layer,'pkey')
+            filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
+            srs = self.dst.getLayerConf().readLayerProperty(each_layer,'epsg')
             
             #Set (cql) filters in URI call using layer picking the one with highest precedence            
             self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),filt))
@@ -306,22 +306,24 @@ class TransferProcessor(object):
             self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),srs))
             
             #Destination URI won't change because of incremental so set it here
-            self.dst.setURI(self.dst.destinationURI(final_layer))
+            self.dst.setURI(self.dst.destinationURI(each_layer))
                 
             if all(i is None for i in [lm, fd, td]):#if there are no date values in this list its not incr
-                self.src.setURI(self.src.sourceURI(final_layer))
+                self.src.setURI(self.src.sourceURI(each_layer))
                 self.dst.clearIncremental()
-                self.replicateLayer(final_layer, pk)
+                self.replicateLayer(each_layer, pk)
+                self.dst.setLastModified(each_layer)
             else:
-                final_fd = (first if lm is None else lm) if fd is None else fd
+                final_fd = (early if lm is None else lm) if fd is None else fd
                 final_td = today if td is None else td
 
-                self.src.setURI(self.src.sourceURI_incrd(final_layer,final_fd,final_td))
+                self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
                 self.dst.setIncremental()            
                 if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
-                    self.replicateLayer(final_layer, pk)
+                    self.replicateLayer(each_layer, pk)        
+                    self.dst.setLastModified(each_layer,final_td)
                 else:
-                    ldslog.warning("No update required for layer "+final_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
+                    ldslog.warning("No update required for layer "+each_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
                 
 
         self.dst.closeDS()
@@ -339,7 +341,6 @@ class TransferProcessor(object):
         
         self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(layer_i))
 
-        self.dst.setLastModified(layer_i,self.dst.getCurrent())
         
 #--------------------------------------------------------------------------------------------------
     

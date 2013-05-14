@@ -103,12 +103,16 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\TransferProcessor.py
     File F:\git\LDS\LDSReplicate\lds\VersionUtilities.py
     File F:\git\LDS\LDSReplicate\lds\WFSDataStore.py
+    SetOutPath $INSTDIR\apps\ldsreplicate\lds\gui
+    File F:\git\LDS\LDSReplicate\lds\gui\__init__.py
+    File F:\git\LDS\LDSReplicate\lds\gui\LayerConfigSelector.py
+    File F:\git\LDS\LDSReplicate\lds\gui\LDSGUI.py
+    File F:\git\LDS\LDSReplicate\lds\gui\MainConfigWizard.py
     SetOutPath $INSTDIR\apps\ldsreplicate\lds\test
     File F:\git\LDS\LDSReplicate\lds\test\__init__.py
     File F:\git\LDS\LDSReplicate\lds\test\SuiteRunAllTests.py
     File F:\git\LDS\LDSReplicate\lds\test\TestDemo1.py
     File F:\git\LDS\LDSReplicate\lds\test\TestDemo2.py
-    File F:\git\LDS\LDSReplicate\lds\test\TestSpeed.py
     File F:\git\LDS\LDSReplicate\lds\test\TestSize.py
     File F:\git\LDS\LDSReplicate\lds\test\TestUI.py
     File F:\git\LDS\LDSReplicate\lds\test\TestURL.py
@@ -259,7 +263,7 @@ Function EnvReqCreate
     
     ${NSD_CreateLabel} 0 0 100% 12u "Permanently Install LDSReplicate Environment Variables?"
     Pop $Label1
-    ${NSD_CreateLabel} 0 20 100% 24u "(Not required if using the supplied batch (.bat) scripts$\n or when components and their paths are already installed)"
+    ${NSD_CreateLabel} 0 20 100% 24u "(NOT required if using the supplied batch (.cmd) startup scripts$\n or when components and their paths are already installed)"
     Pop $Label2
     
     ${NSD_CreateCheckbox} 0 50u 100% 10u "&System PATH"
@@ -334,9 +338,9 @@ Function ConfigWizzCreate
     ${EndIf}
     
     
-    ${NSD_CreateLabel} 0 0 100% 12u "Run the User Configuration Setup Wizard?"
+    ${NSD_CreateLabel} 0 0 100% 12u "Run the Application when setup completes?"
     Pop $Label3
-    ${NSD_CreateLabel} 0 20 100% 24u "(Alternatively you may copy and edit the template config file, ldsincr.conf)"
+    ${NSD_CreateLabel} 0 20 100% 24u "(You will be prompted to complete the config setup on first run)"
     Pop $Label4
     
     ${NSD_CreateCheckbox} 0 95u 100% 10u "&Run Configuration Setup Wizard"
@@ -352,7 +356,7 @@ Function ConfigWizzLeave
 
     ${NSD_GetState} $CheckBox4 $CheckBox4_State
     ${If} $CheckBox4_State == ${BST_CHECKED}
-        ExecWait '"$INSTDIR\ldsreplicate_gui.cmd " W'
+        Exec '"$INSTDIR\ldsreplicate_gui.cmd"'
     ${EndIf}
 
 FunctionEnd

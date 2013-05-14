@@ -10,4 +10,4 @@ set PROJ_LIB=%~dp0bin\GDAL\projlib
 
 REM Execute LDS Replicate
 
-python apps\ldsreplicate\ldsreplicate.py %*    
+%~dp0apps\python27\python.exe %~dp0apps\ldsreplicate\ldsreplicate.py %*    

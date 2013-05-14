@@ -100,13 +100,9 @@ class LDSRepl(QMainWindow):
         ldscw = LDSConfigWizard(uconf,secname)
         ldscw.exec_()
         
-        
-    def runLayerConfigAction(self):
-        from lds.gui.LayerConfigSelector import LayerConfigSelector
+    def getTPParams(self):
+        '''Init a new TP and return selected controls'''
         destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.controls.readParameters()
-        
-        self.statusbar.showMessage('Editing Layer Config')
-                  
         tp = TransferProcessor(layer, 
                                None if group is None else group, 
                                None if epsg is None else epsg, 
@@ -116,15 +112,27 @@ class LDSRepl(QMainWindow):
                                None if uconf is None else uconf, 
                                internal)
         
+        return tp,uconf,group,destination
+    
+    #def getLayerConf(self):
+    #    tp,uconf,group,destination = self.getTPParams()
+    #    dst = tp.initDestination(destination)
+    #    lc = tp.getNewLayerConf(dst)
+        
+    def runLayerConfigAction(self):
+        '''Open a new Layer dialog'''
+        from lds.gui.LayerConfigSelector import LayerConfigSelector
+        self.statusbar.showMessage('Editing Layer Config')                  
+        tp,uconf,group,destination = self.getTPParams()
+        
         ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
         ldsc.show()
         
         
 class LDSControls(QFrame):
     
-    #GD_PATH = open(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data/gds.csv'),'r')
-    GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
-    
+    GD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data'))
+    #GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
     def __init__(self,parent):
         super(LDSControls, self).__init__()
         self.parent = parent
@@ -193,19 +201,27 @@ class LDSControls(QFrame):
         self.destMenu.setToolTip('Choose the desired output type')   
         self.destMenu.addItems(self.destmenulist)
         self.destMenu.setCurrentIndex(destindex)
+        #does it really make sense to do this since (for internal) we need a connection before connection parameters have been set up
+        #self.destmenu.currentIndexChanged.connect(self.doDestMenuChanged)
         
        
         
         #date selection
         self.fromDateEdit = QDateEdit()
         if LDSUtilities.mightAsWellBeNone(rlist[5]) is not None:
-            self.fromDateEdit.setDate(QDate(int(rlist[5][0:4]),int(rlist[5][5:7]),int(rlist[5][8:10]))) 
+            self.fromDateEdit.setDate(QDate(int(rlist[5][0:4]),int(rlist[5][5:7]),int(rlist[5][8:10])))
+        else:
+            early = DataStore.EARLIEST_INIT_DATE
+            self.fromDateEdit.setDate(QDate(int(early[0:4]),int(early[5:7]),int(early[8:10])))
         self.fromDateEdit.setCalendarPopup(True)
         self.fromDateEdit.setEnabled(False)
         
         self.toDateEdit = QDateEdit()
         if LDSUtilities.mightAsWellBeNone(rlist[6]) is not None:
             self.toDateEdit.setDate(QDate(int(rlist[6][0:4]),int(rlist[6][5:7]),int(rlist[6][8:10]))) 
+        else:
+            today = DataStore.getCurrent()
+            self.toDateEdit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
         self.toDateEdit.setCalendarPopup(True)
         self.toDateEdit.setEnabled(False)
         

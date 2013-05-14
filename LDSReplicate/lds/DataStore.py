@@ -71,9 +71,10 @@ class DataStore(object):
     LDS_CONFIG_TABLE = 'lds_config'
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
-    #candidates for user config
+    #Number of retry attempts before abandoning replication completely
     MAXIMUM_WFS_ATTEMPTS = 5
-    TRANSACTION_THRESHOLD_WFS_ATTEMPTS = 4
+    #Number of retry attempts before abandoning transactions (slower but more likely to succeed)
+    TRANSACTION_THRESHOLD_WFS_ATTEMPTS = 3
     
     DRIVER_NAME = '<init in subclass>'
     
@@ -529,7 +530,7 @@ class DataStore(object):
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 dst_layer.StartTransaction()
             else:
-                ldslog.warn('FBF outside transaction')
+                ldslog.warn('Attempting replicate without transactions')
 
             
             #add/copy features
@@ -855,20 +856,23 @@ class DataStore(object):
         return lmd
         #return lm.strftime(self.DATE_FORMAT)
         
-    def setLastModified(self,layer,newdate):
+    def setLastModified(self,layer,newdate=None):
         '''Sets the last modification time of a layer following a successful incremental copy operation'''
+        if newdate is None:
+            newdate=self.getCurrent()
         self.layerconf.writeLayerProperty(layer, 'lastmodified', newdate)  
         
     def clearLastModified(self,layer):
         '''Clears the last modification time of a layer following a successful clean operation'''
         self.layerconf.writeLayerProperty(layer, 'lastmodified', None)  
 
-    def getCurrent(self):
+    @classmethod
+    def getCurrent(cls):
         '''Gets the current timestamp for incremental todate calls. 
         Time format is UTC for LDS compatibility.
         NB. Because the current date is generated to build the LDS URI the lastmodified time will reflect the request time and not the layer creation time'''
         dpo = datetime.utcnow()
-        return dpo.strftime(self.DATE_FORMAT)  
+        return dpo.strftime(cls.DATE_FORMAT)  
     
     def buildIndex(self,lce,dst_layer_name):
         '''Default index string builder for new fully replicated layers'''

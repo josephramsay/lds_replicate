@@ -19,9 +19,8 @@ import os
 import logging
 import json
 import ogr
-import ConfigParser
 
-from ConfigParser import NoOptionError,NoSectionError
+from ConfigParser import ConfigParser, NoSectionError, NoOptionError, Error
 from LDSUtilities import LDSUtilities as LU
 
 
@@ -71,7 +70,7 @@ class MainFileReader(object):
     def _readConfigFile(self,fname):
         '''Reads named config file'''
         #Split off so you can override the config file on the same reader object if needed
-        self.cp = ConfigParser.ConfigParser()
+        self.cp = ConfigParser()
         self.cp.read(fname)
 
     
@@ -336,8 +335,9 @@ class MainFileReader(object):
         return self.readLDSConfig()
     
     def readLDSConfig(self):
-        '''LDs specific config file reader'''
-        
+        '''LDS specific config file reader'''
+        #***HACK *** reimport NSE aliased
+        from ConfigParser import NoSectionError as NSE
         #use_defaults determines whether we use default values. For a user config this may not be wise
         #since a user config is a custom file relying on the main config for absent values not last-resort defaults
         cql = None
@@ -356,10 +356,14 @@ class MainFileReader(object):
         
         try:
             url = self.cp.get(self.LDSN, 'url')
-        except NoOptionError as noe:
-            ldslog.warn("LDS: Default URL assumed "+str(noe))
-        except NoSectionError as nse:
-            ldslog.warn("LDS: No LDS Section... "+str(nse))
+        #for some reason we cant use NoSectionError in this function (even though its fine everywhere else) 
+        except NSE:
+            ldslog.warn("LDS: No LDS Section")
+            return (None,)*6
+        except NoOptionError:
+            ldslog.warn("LDS: Default URL assumed ")
+
+        
             
         try:   
             key = self.cp.get(self.LDSN, 'key') 
@@ -592,7 +596,7 @@ class LayerFileReader(LayerReader):
         '''
         Constructor
         '''
-        self.cp = ConfigParser.ConfigParser()
+        self.cp = ConfigParser()
         self.fname = fname
         self.filename = os.path.join(os.path.dirname(__file__), '../conf/',fname)
             
@@ -872,7 +876,7 @@ class GUIPrefsReader(object):
         
         self.plist = ('dest','layer','uconf','group','epsg','fd','td','int')
         
-        self.cp = ConfigParser.ConfigParser()
+        self.cp = ConfigParser()
         self.fn = os.path.join(thisdir,guiprefs)
         self.cp.read(self.fn)
         

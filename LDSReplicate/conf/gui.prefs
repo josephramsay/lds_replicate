@@ -1,8 +1,8 @@
 [prefs]
 dest = PostgreSQL
 layer = 
-uconf = /home/jramsay/git/LDS/LDSReplicate/conf/sample.conf
-group = SPECIAL
+uconf = /home/jramsay/git/LDS/LDSReplicate/conf/user.conf
+group = INCRMARKS
 epsg = 2193
 fd = None
 td = None

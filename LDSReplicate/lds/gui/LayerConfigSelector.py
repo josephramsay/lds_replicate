@@ -94,7 +94,7 @@ class LayerConfigSelector(QMainWindow):
         self.resize(725,480)
 
     def getComplete(self):
-        '''Reads the lconf from file/table'''
+        '''Reads a reduced lconf from file/table as a Nx3 array'''
         return self.dst.getLayerConf().getLConfAs3Array()
     
     def getReserved(self):

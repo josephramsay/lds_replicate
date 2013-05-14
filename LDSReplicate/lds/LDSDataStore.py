@@ -258,18 +258,21 @@ class LDSDataStore(WFSDataStore):
         kyxp = "./{0}Keywords/{0}Keyword".format(cls.NS['ows'])
         
         try:
-            tree = etree.parse(url)
+            content = urlopen(url)#bug in lxml doesnt close url/files using parse method
+            tree = etree.parse(content)
+            for ft in tree.findall(ftxp):
+                name = ft.find(nmxp).text
+                title = ft.find(ttxp).text
+                #keys = map(lambda x: x.text, ft.findall(kyxp))
+                keys = [x.text for x in ft.findall(kyxp)]
+                
+                res += ((name,title,keys),)
+                
         except XMLSyntaxError as xe:
-            ldslog.error('Error parsing URL, '+str(url)+str(xe))
-            return
+            ldslog.error('Error parsing URL;'+str(url)+' ERR;'+str(xe))
         
-        for ft in tree.findall(ftxp):
-            name = ft.find(nmxp).text
-            title = ft.find(ttxp).text
-            #keys = map(lambda x: x.text, ft.findall(kyxp))
-            keys = [x.text for x in ft.findall(kyxp)]
-            
-            res += ((name,title,keys),)
+        finally:
+            content.close()
             
         return res
 
