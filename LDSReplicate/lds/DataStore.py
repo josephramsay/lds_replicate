@@ -47,6 +47,7 @@ class DatasourceCopyException(LDSReaderException): pass
 class DatasourceCreateException(LDSReaderException): pass
 class DatasourceOpenException(DSReaderException): pass
 class LayerCreateException(LDSReaderException): pass
+class FeatureCopyException(LDSReaderException): pass
 class InvalidLayerException(LDSReaderException): pass
 class InvalidFeatureException(LDSReaderException): pass
 class ASpatialFailureException(LDSReaderException): pass
@@ -239,6 +240,8 @@ class DataStore(object):
     
     def initDS(self,dsn=None,create=True):
         '''Initialise the data source calling a provided DSN or self.dsn and a flag to indicate whether we should try and create a DS if none found'''
+        #Notes
+        #1. FGDB.driver will Open() a directory if its a valid FGDB dir, it will not Open() an empty directory. It will not CreateDataSource() an existing directory, valid or empty
         from WFSDataStore import WFSDataStore
         ds = None
         '''initialise a DS for writing'''
@@ -294,8 +297,8 @@ class DataStore(object):
                     self.featureCopyIncremental(self.src_link.ds,self.ds,self.src_link.CHANGE_COL)
                 else:
                     self.featureCopy(self.src_link.ds,self.ds)
-    
-            except RuntimeError as rte:
+                
+            except (FeatureCopyException, InaccessibleFeatureException, RuntimeError) as rte:
                 em = gdal.GetLastErrorMsg()
                 en = gdal.GetLastErrorNo()
                 ldslog.warn("ErrorMsg: "+str(em))
@@ -306,7 +309,9 @@ class DataStore(object):
                     or re.search('HTTP error code : 502',str(rte)) \
                     or re.search('HTTP error code : 404',str(rte)) \
                     or re.search('General Error',str(rte)) \
-                    or re.search('Empty content returned by server',str(rte))):
+                    or re.search('Empty content returned by server',str(rte)) \
+                    or re.search('Feature count mismatch',str(rte)) \
+                    or re.search('Cannot access any Features',str(rte))):
                     self.attempts += 1
                     attcount = str(self.attempts)+"/"+str(self.MAXIMUM_WFS_ATTEMPTS)
                     ldslog.warn("Failed LDS fetch attempt "+attcount+". "+str(rte))
@@ -327,63 +332,6 @@ class DataStore(object):
         ldslog.info("Sync DS and Close")
         self.ds.SyncToDisk()
         self.ds.Destroy()  
-              
-#    def driverCopy(self,src_ds,dst_ds,temptable):
-#        '''Copy from source to destination using the driver copy and without manipulating data'''       
-#        from TemporaryDataStore import TemporaryDataStore
-#        
-#        ldslog.info("Using driverCopy. Non-Incremental driver copy")
-#        for li in range(0,src_ds.GetLayerCount()):
-#            src_layer = src_ds.GetLayer(li)
-#            src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
-#            
-#            #ref_name = self.layerconf.readConvertedLayerName(src_layer_name)
-#            #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
-#            layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
-#            
-#            dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
-#            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if all(i in string.whitespace for i in layerconfentry.disc) else [])
-#            
-#            try:
-#                #TODO test on MSSQL since schemas sometimes needed ie non dbo
-#                dst_ds.DeleteLayer(dst_info.layer_id)          
-#            except ValueError as ve:
-#                ldslog.warn("Cannot delete layer "+dst_info.layer_id+". It probably doesn't exist. "+str(ve))
-#                
-#
-#            try:
-#                if temptable == 'DIRECT':                    
-#                    layer = dst_ds.CopyLayer(src_layer,dst_info.layer_id,self.getLayerOptions(src_info.layer_id))
-#                    self.deleteOptionalColumns(layer)
-#                elif temptable in TemporaryDataStore.TEMP_MAP.keys():
-#                    tds = TemporaryDataStore.getInstance(temptable)()
-#                    tds_ds = tds.initDS()
-#                    tds_layer = tds_ds.CopyLayer(src_layer,dst_info.layer_id,[])
-#                    tds.deleteOptionalColumns(tds_layer)
-#                    layer = dst_ds.CopyLayer(tds_layer,dst_info.layer_id,self.getLayerOptions(src_info.layer_id))
-#                    #tds_ds.SyncToDisk()
-#                    tds_ds.Destroy()  
-#                else:
-#                    ldslog.error('Cannot match DS type "'+str(temptable)+'" with known types '+str(TemporaryDataStore.TEMP_MAP.keys()))
-#                    raise UnknownTemporaryDSType('Cannot match DS type "'+str(temptable)+'" with known types '+str(TemporaryDataStore.TEMP_MAP.keys()))
-#            except RuntimeError as rte:
-#                if 'General function failure' in str(rte):
-#                    #GFF usually indicates a driver copy error (FGDB)
-#                    ldslog.error('GFF on driver copy. Recommend upgrade to GDAL > 1.9.2')
-#                else:
-#                    raise
-#
-#            #if the copy succeeded we now need to build an index and delete unwanted columns so get the new layer     
-#            #layer = dst_ds.GetLayer(dst_layer_name)
-#            if layer is None:
-#                # **HACK** the only way to get around driver copy failures seems to be by doing a feature-by-feature featureCopyIncremental and changing the sref 
-#                ldslog.error('Layer not created, attempting feature-by-feature copy')
-#                return self.featureCopyIncremental(src_ds,dst_ds,None)
-#
-#            if layerconfentry.index is not None:
-#                self.buildIndex(layerconfentry,dst_info.layer_name)
-#            
-#        return
     
         
     def deleteOptionalColumns(self,dst_layer):
@@ -439,7 +387,7 @@ class DataStore(object):
             #transforms from SRC to DST sref if user requests a different EPSG, otherwise SRC returned unchanged
             dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
             
-            (dst_layer,new_layer) = self.buildNewDataLayer(dst_info,src_info,dst_ds)
+            (dst_layer,new_layer) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
                 
 
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
@@ -449,17 +397,29 @@ class DataStore(object):
                 
             #add/copy features
             #src_layer.ResetReading()
+            dst_change_count = 0
+            src_feat_count = src_layer.GetFeatureCount()
+            ldslog.info('Features available = '+str(src_feat_count))
             src_feat = src_layer.GetNextFeature()
 
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
             if src_feat is not None:
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
+            elif src_feat_count>0:
+                raise InaccessibleFeatureException('Cannot access any Features of '+str(src_feat_count)+' available')
                 
             while src_feat is not None:
+                dst_change_count += 1
                 #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
                 self.insertFeature(dst_layer,src_feat,new_feat_def)
                 
                 src_feat = src_layer.GetNextFeature()
+            
+            if src_feat_count != dst_change_count:
+                if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+                    dst_layer.RollbackTransaction()
+                raise FeatureCopyException('Feature count mismatch. Source count['+str(src_feat_count)+'] <> Change count['+str(dst_change_count)+']')
+            
             
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
@@ -507,16 +467,19 @@ class DataStore(object):
                     #if the layer conf had a lastmodified don't overwrite
                     dst_layer = dst_ds.GetLayer(dst_info.layer_id)
                 else:
+                    #with no lastmodified can assume the layer doesnt exist
                     src_info.spatial_ref = src_layer.GetSpatialRef()
                     src_info.geometry = src_layer.GetGeomType()
                     src_info.layer_defn = src_layer.GetLayerDefn()
-                    (dst_layer,_) = self.buildNewDataLayer(dst_info, src_info, dst_ds)
+                    dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
+                    (dst_layer,new_layer) = self.buildNewDestinationLayer(dst_info, src_info, dst_ds)
             except RuntimeError as rer:
-                '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created'''
+                '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
                 ldslog.warning("Runtime Error fetching layer. "+str(rer))
                 dst_layer = None
                 
             if dst_layer is None:
+                #with or without a lmod its still possible the layer doesn't exist or cannot be read
                 ldslog.warning(dst_info.layer_id+" does not exist. Creating new layer")
                 '''create a new layer if a similarly named existing layer can't be found on the dst'''
                 src_info.spatial_ref = src_layer.GetSpatialRef()
@@ -524,7 +487,11 @@ class DataStore(object):
                 src_info.layer_defn = src_layer.GetLayerDefn()
                 dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
                 
-                (dst_layer,new_layer) = self.buildNewDataLayer(dst_info,src_info,dst_ds)
+                (dst_layer,new_layer) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
+                
+                if dst_layer is None:
+                    #if its still none, bail (and don't bother with re-attempt)
+                    raise LayerCreateException('Unable to initialise a new Layer on destination')
                 
             #dont bother with transactions if they're failing > N times
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
@@ -534,10 +501,14 @@ class DataStore(object):
 
             
             #add/copy features
+            dst_change_count = 0
+            src_feat_count = src_layer.GetFeatureCount()
+            ldslog.info('Features available = '+str(src_feat_count))
             src_feat = src_layer.GetNextFeature()
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
             if src_feat is not None:
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
+                dst_change_count = 1
                 e = 0
                 while 1:
                     '''identify the change in the WFS doc (INS,UPD,DEL)'''
@@ -574,12 +545,17 @@ class DataStore(object):
                     if next_feat is None:
                         if hasattr(self.src_link, 'pkey'):
                             #this of course assumes the layer is correctly sorted in pkey
-                            max_index = src_feat.GetField(layerconfentry.pkey)
+                            src_feat.GetField(layerconfentry.pkey)
                         break
                     else:
                         src_feat = next_feat
+                        dst_change_count += 1
                     
-
+            if src_feat_count != dst_change_count:
+                if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+                    dst_layer.RollbackTransaction()
+                raise FeatureCopyException('Feature count mismatch. Source count['+str(src_feat_count)+'] <> Change count['+str(dst_change_count)+']')
+                
             #self._showLayerData(dst_layer)
             
             '''Builds an index on a newly created layer if; 
@@ -687,7 +663,7 @@ class DataStore(object):
         return fvlist
  
                       
-    def buildNewDataLayer(self,dst_info,src_info,dst_ds):
+    def buildNewDestinationLayer(self,dst_info,src_info,dst_ds):
         '''Constructs a new layer using another source layer as a template. This does not populate that layer'''
         #read defns of each field
         fdef_list = []
@@ -705,13 +681,14 @@ class DataStore(object):
         except RuntimeError as rer:
             ldslog.error("Cannot create layer. "+str(rer))
             if 'already exists' in str(rer):
-                '''indicates the table has been created previously but was not returned with the getlayer command, SL does this with null geom tables'''
+                '''indicates the table has been created previously but may not have been returned with the getlayer command, SL does this with null geom tables'''
                 #raise ASpatialFailureException('SpatiaLite driver cannot be used to update ASpatial layers')
                 #NB. DeleteLayer also wont work since the layer can't be found.
                 #dst_ds.DeleteLayer(dst_layer_name)
                 #dst_layer = dst_ds.CreateLayer(dst_layer_name,dst_sref,src_layer_geom,opts)
                 #Option 2. Deleting the layer with SQL
                 self.executeSQL('drop table '+dst_info.layer_name)
+                #TODO check this works on non DB DS
                 dst_layer = dst_ds.CreateLayer(dst_info.layer_name,dst_info.spatial_ref,src_info.geometry,opts)
             elif 'General function failure' in str(rer):
                 ldslog.error('Possible SR problem, continuing. '+str(rer))

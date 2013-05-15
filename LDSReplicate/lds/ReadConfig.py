@@ -893,7 +893,16 @@ class GUIPrefsReader(object):
                 ldslog.warn('Error getting GUI pref, '+p+' :: '+noe)
         return rlist
     
-    
+    def writeline(self,field,value):
+        try:            
+            self.cp.set('prefs',field,value)
+            with open(self.fn, 'w') as configfile:
+                self.cp.write(configfile)
+            ldslog.debug(str(field)+'='+str(value))                                                                                        
+        except Exception as e:
+            ldslog.warn('Problem writing GUI prefs. '+str(e))
+            
+            
     def write(self,rlist):
         for pr in zip(self.plist,rlist):
             try:            

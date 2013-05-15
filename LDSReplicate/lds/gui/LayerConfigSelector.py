@@ -35,7 +35,7 @@ from lds.LDSDataStore import LDSDataStore
 from lds.DataStore import DataStore
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
-
+from lds.ReadConfig import GUIPrefsReader
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -67,6 +67,8 @@ class LayerConfigSelector(QMainWindow):
         self.uconf = uconf
         self.group = group
         self.dest = dest
+        
+        self.gpr = GUIPrefsReader()
 
         self.src,self.dst = self.initSrcAndDst()
         
@@ -184,8 +186,10 @@ class LayerConfigSelector(QMainWindow):
             self.selection_model.layoutAboutToBeChanged.emit()
         elif prepost=='POST':
             self.available_model.layoutChanged.emit()
-            self.selection_model.layoutChanged.emit() 
-        
+            self.selection_model.layoutChanged.emit()
+             
+    def writeGUIGroupPref(self,gval):
+        self.gpr.writeline('group', gval)
     
 class LayerTableModel(QAbstractTableModel):
     #NB. There dont need to be any row/col inserts but will need to add keyword (selecting a layer  = adding user-custom tag)
@@ -336,6 +340,7 @@ class LayerSelectionPage(QFrame):
         
         finishbutton = QPushButton('Finish')
         finishbutton.setToolTip('Finish and Close layer selection dialog')
+        #finishbutton.clicked.connect(self.doFinishAction) 
         finishbutton.clicked.connect(self.parent.close) 
         
         resetbutton = QPushButton('Reset')
@@ -414,17 +419,6 @@ class LayerSelectionPage(QFrame):
         
         
         #layout  
-        #gbox0 = QGroupBox('Keyword Selection')
-        #gbox0.setFlat(True)
-        
-        #gbox1 = QGroupBox('Layer Config Controls')
-        #gbox1.setFlat(True)
-
-        #line0 = QFrame()
-        #line0.setGeometry(QRect())#320, 150, 118, 3))
-        #line0.setFrameShape(QFrame.HLine)
-        #line0.setFrameShadow(QFrame.Sunken)
-
         vbox00 = QVBoxLayout()
         vbox00.addWidget(availablelabel)
         vbox00.addWidget(self.available)
@@ -570,6 +564,9 @@ class LayerSelectionPage(QFrame):
         ldslog.warn('Reset Layer Config')
         self.parent.resetLayers()
 
+    def doFinishAction(self):
+        self.parent.writeGUIGroupPref(self.keywordcombo.lineEdit().text())
+        self.parent.close
             
 
 class LDSSortFilterProxyModel(QSortFilterProxyModel):

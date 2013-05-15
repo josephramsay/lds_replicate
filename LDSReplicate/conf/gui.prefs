@@ -1,8 +1,8 @@
 [prefs]
-dest = PostgreSQL
-layer = 
+dest = SQLite
+layer = v:x785
 uconf = /home/jramsay/git/LDS/LDSReplicate/conf/user.conf
-group = INCRMARKS
+group = 
 epsg = 2193
 fd = None
 td = None

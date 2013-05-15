@@ -453,6 +453,7 @@ class FileGDBConfigPage(QWizardPage):
         
         #labels
         fileLabel = QLabel('FileGDB DB directory')
+        descLabel = QLabel('Enter the path to an existing FileGDB directory\nor type in the name of a new directory to create.\n(Do NOT create a new empty directory)')
         
         #edit boxes
         self.fileEdit = QLineEdit(fgfname)#dir selection dialog? Can't prefilter file selection for directories
@@ -464,7 +465,7 @@ class FileGDBConfigPage(QWizardPage):
         
         #buttons
         fileButton = QPushButton("...")
-        fileButton.setToolTip('Select FileGDB File')
+        fileButton.setToolTip('Select FileGDB Directory')
         fileButton.clicked.connect(self.selectFileGDBFile)
         
         
@@ -476,12 +477,13 @@ class FileGDBConfigPage(QWizardPage):
         grid.addWidget(fileLabel,1,0)
         grid.addWidget(self.fileEdit,2,0)
         grid.addWidget(fileButton,2,3)
+        grid.addWidget(descLabel,3,0)
  
         
         self.setLayout(grid)  
 
     def selectFileGDBFile(self):
-        fdtext = QFileDialog.getExistingDirectory(self,'Select FileGDB Directory','~')
+        fdtext = QFileDialog.getExistingDirectory(self,'Select FileGDB Directory','~',QFileDialog.ShowDirsOnly)
         if re.match(self.filter,fdtext):
             self.fileEdit.setText(fdtext)
             self.proceed = True
@@ -545,7 +547,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         self.setLayout(vbox)  
 
     def selectSpatiaLiteFile(self):
-        fdtext = QFileDialog.getOpenFileName(self,'Select SpatiaLite File','~','SQlite (*.db *.sqlite *.sqlite3)')
+        fdtext = QFileDialog.getSaveFileName(self,'Select SpatiaLite File','~','SQlite (*.db *.sqlite *.sqlite3)')
         if re.match(self.filter,fdtext):
             self.fileEdit.setText(fdtext)
             self.proceed = True
