@@ -443,7 +443,6 @@ class FileGDBConfigPage(QWizardPage):
         (fgfname,fgconfig,fgepsg,fgcql) = self.parent.mfr.readFileGDBConfig()
         
         self.filter = ".*\.gdb$"
-        self.proceed = False
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter your FileGDB directory name. (This must carry a .gdb suffix)')
@@ -453,11 +452,11 @@ class FileGDBConfigPage(QWizardPage):
         
         #labels
         fileLabel = QLabel('FileGDB DB directory')
-        descLabel = QLabel('Enter the path to an existing FileGDB directory\nor type in the name of a new directory to create.\n(Do NOT create a new empty directory)')
+        descLabel = QLabel('Enter the path to an existing FileGDB directory OR type in the name\nof a new FileGDB to create.\n(Do NOT create a new empty directory)')
         
         #edit boxes
         self.fileEdit = QLineEdit(fgfname)#dir selection dialog? Can't prefilter file selection for directories
-        self.fileEdit.setToolTip('Enter FileGDB directory (must have .gdb suffix)')
+        self.fileEdit.setToolTip('Browse to existing FileGDB OR Enter name for new FileGDB (must have .gdb suffix)')
         
         self.fileEdit.setValidator(QRegExpValidator(QRegExp(self.filter, re.IGNORECASE), self))
         
@@ -486,12 +485,11 @@ class FileGDBConfigPage(QWizardPage):
         fdtext = QFileDialog.getExistingDirectory(self,'Select FileGDB Directory','~',QFileDialog.ShowDirsOnly)
         if re.match(self.filter,fdtext):
             self.fileEdit.setText(fdtext)
-            self.proceed = True
         else:
             self.fileEdit.setText('')
         
     def nextId(self):
-        if self.proceed:
+        if re.match(self.filter,str(self.fileEdit.text())):
             return self.parent.plist.get('final')[0]
         return self.parent.plist.get('fg')[0]
         
@@ -505,11 +503,10 @@ class SpatiaLiteConfigPage(QWizardPage):
         
         (slfname,slconfig,slepsg,slcql) = self.parent.mfr.readSpatiaLiteConfig()
         
-        self.proceed = False
         self.filter = ".*\.db$|.*\.sqlite\d*$"
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
-        self.setSubTitle('Enter your SpatiaLite data file name. (This should carry a .db or .sqlite suffix)')
+        self.setSubTitle('Browse to existing SpatiaLite DB OR enter new SpatiaLite DB file name. (This should carry a .db or .sqlite suffix)')
 
         
         QToolTip.setFont(QFont('SansSerif', 10))
@@ -550,12 +547,11 @@ class SpatiaLiteConfigPage(QWizardPage):
         fdtext = QFileDialog.getSaveFileName(self,'Select SpatiaLite File','~','SQlite (*.db *.sqlite *.sqlite3)')
         if re.match(self.filter,fdtext):
             self.fileEdit.setText(fdtext)
-            self.proceed = True
         else:
             self.fileEdit.setText('')
         
     def nextId(self):
-        if self.proceed:
+        if re.match(self.filter,str(self.fileEdit.text())):
             return self.parent.plist.get('final')[0]
         return self.parent.plist.get('sl')[0]
 

@@ -77,7 +77,7 @@ Section "LDS Replicate" SEC0001
     AccessControl::GrantOnFile "$INSTDIR\apps\ldsreplicate\conf" "(S-1-5-32-545)" "FullAccess"
     File F:\git\LDS\LDSReplicate\conf\getcapabilities.file.xsl
     File F:\git\LDS\LDSReplicate\conf\getcapabilities.json.xsl
-    File F:\git\LDS\LDSReplicate\conf\gui.prefs
+    File /a /oname=gui.prefs F:\git\LDS\LDSReplicate\conf\empty.gui.prefs
     File F:\git\LDS\LDSReplicate\conf\ldsincr.conf
     File F:\git\LDS\LDSReplicate\conf\ldspk.csv
     File F:\git\LDS\LDSReplicate\conf\sufiselector.xsl
@@ -148,6 +148,7 @@ Section -post SEC0005
     WriteRegStr HKLM "${REGKEY}" Path $INSTDIR
     WriteRegStr HKLM "${REGKEY}" StartMenuGroup $StartMenuGroup
     SetOutPath $INSTDIR
+    createShortcut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\ldsreplicate_gui.cmd" "" "F:\git\LDS\LDSReplicate\doc\LINZsmall.ico"
     WriteUninstaller $INSTDIR\uninstall.exe
     !insertmacro CREATE_SMGROUP_SHORTCUT "Uninstall ${APPNAME}" $INSTDIR\uninstall.exe
     WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" DisplayName "${APPNAME}"
@@ -206,6 +207,7 @@ Section -un.post UNSEC0004
     Call un.EnvReqUninstall
     DeleteRegKey HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
     !insertmacro DELETE_SMGROUP_SHORTCUT "Uninstall ${APPNAME}"
+    delete "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk"
     Delete /REBOOTOK $INSTDIR\uninstall.exe
     DeleteRegValue HKLM "${REGKEY}" StartMenuGroup
     DeleteRegValue HKLM "${REGKEY}" Path
@@ -284,9 +286,13 @@ Function EnvReqCreate
 FunctionEnd
 
 Function EnvReqLeave
+	Var /GLOBAL evChanged
+	StrCpy $evChanged "FALSE"
+	
     ;system path
     ${NSD_GetState} $CheckBox1 $CheckBox1_State
     ${If} $CheckBox1_State == ${BST_CHECKED}
+    	StrCpy $evChanged "TRUE"
         ${EnvVarUpdate} $0 "PATH" "P" "HKLM" "$INSTDIR"
         ${EnvVarUpdate} $0 "PATH" "P" "HKLM" "$INSTDIR\bin\gdal"
         ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\apps\python27"
@@ -299,6 +305,7 @@ Function EnvReqLeave
     ;pythonpath
     ${NSD_GetState} $CheckBox2 $CheckBox2_State
     ${If} $CheckBox2_State == ${BST_CHECKED}
+       StrCpy $evChanged "TRUE"
        ${EnvVarUpdate} $0 "PYTHONHOME" "A" "HKLM" "$INSTDIR\python27"
        ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\python27"
        ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\DLLs"
@@ -311,12 +318,15 @@ Function EnvReqLeave
     ;gdal
     ${NSD_GetState} $CheckBox3 $CheckBox3_State
     ${If} $CheckBox3_State == ${BST_CHECKED}
+       StrCpy $evChanged "TRUE"
        ${EnvVarUpdate} $0 "GDAL_DATA" "A" "HKLM" "$INSTDIR\bin\gdal\gdal-data"
        ${EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "A" "HKLM" "$INSTDIR\bin\gdal\gdalplugins"
        ${EnvVarUpdate} $0 "PROJ_LIB" "A" "HKLM" "$INSTDIR\bin\gdal\projlib"
     ${EndIf}
     
-    SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+    ${If} $evChanged == "TRUE"
+    	SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+    ${EndIf}
 
 FunctionEnd
 

@@ -150,7 +150,7 @@ class LDSControls(QFrame):
         
         # 0      1       2       3       4      5    6    7
         #'dest','layer','uconf','group','epsg','fd','td','int'
-        defaults = ('','','','','','','','True')
+        defaults = ('','','','','','','','False')
         rlist = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.read(),defaults)
         
         
@@ -196,7 +196,8 @@ class LDSControls(QFrame):
         
         #menus
         self.destmenulist = ['',]+DataStore.DRIVER_NAMES.values()
-        destindex = self.destmenulist.index(LDSUtilities.standardiseDriverNames(rlist[0]))
+        selecteddest = LDSUtilities.standardiseDriverNames(rlist[0])
+        destindex = self.destmenulist.index('' if selecteddest is None else selecteddest)
         self.destMenu = QComboBox(self)
         self.destMenu.setToolTip('Choose the desired output type')   
         self.destMenu.addItems(self.destmenulist)
@@ -461,7 +462,7 @@ class LDSControls(QFrame):
     def userConfMessage(self,uconf,secname=None):
         ucans = QMessageBox.warning(self, 'User Config Missing/Incomplete', 
                                 'Specified User-Config file, '+str(uconf)+' does not exist' if secname is None else 'User-Config file does not contain '+str(secname)+' section', 
-                                'Retry','Initialise')
+                                'Back','Initialise User Config')
         if not ucans:
             #Retry
             ldslog.warn('Retry specifying UC')
@@ -475,7 +476,7 @@ class LDSControls(QFrame):
     def layerConfMessage(self,dest):
         lcans = QMessageBox.warning(self, 'Layer Config Missing', 
                                 'Required Layer-Config file, '+str(dest)+' does not exist', 
-                                'Retry','Run Wizard')
+                                'Back','Run Layer Select')
         if not lcans:
             #Retry
             ldslog.warn('Retry specifying LC')

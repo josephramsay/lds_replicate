@@ -282,7 +282,7 @@ class LDSUtilities(object):
         return LayerConfEntry(pkey,name,group,gcol,index,epsg,lmod,disc,cql)
     
     @staticmethod
-    def standardiseDriverNames(dname):
+    def standardiseDriverNames(dname=''):
         '''Returns standard identifier (defined by DRIVER_NAME) for different dests'''
         dname = dname.lower()
         from DataStore import DataStore

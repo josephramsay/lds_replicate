@@ -465,7 +465,7 @@ class DataStore(object):
             try:
                 if layerconfentry.lmod:
                     #if the layer conf had a lastmodified don't overwrite
-                    dst_layer = dst_ds.GetLayer(dst_info.layer_id)
+                    dst_layer = dst_ds.GetLayer(dst_info.layer_name)
                 else:
                     #with no lastmodified can assume the layer doesnt exist
                     src_info.spatial_ref = src_layer.GetSpatialRef()
@@ -505,7 +505,7 @@ class DataStore(object):
             src_feat_count = src_layer.GetFeatureCount()
             ldslog.info('Features available = '+str(src_feat_count))
             src_feat = src_layer.GetNextFeature()
-            '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
+            #since the characteristics of each feature wont change between layers we only need to define a new feature definition once
             if src_feat is not None:
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
                 dst_change_count = 1
@@ -1023,6 +1023,7 @@ class DataStore(object):
     def _findMatchingFeature(self,search_layer,ref_pkey,key_val):
         '''Find the Feature matching a primary key value'''
         qry = ref_pkey+" = '"+str(key_val)+"'"
+        print "SET ATTR FLT : "+qry
         search_layer.SetAttributeFilter(qry)
         #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error"  
         search_layer.ResetReading()

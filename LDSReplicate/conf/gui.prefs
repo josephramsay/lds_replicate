@@ -1,7 +1,7 @@
 [prefs]
-dest = SQLite
-layer = v:x785
-uconf = /home/jramsay/git/LDS/LDSReplicate/conf/user.conf
+dest = PostgreSQL
+layer = v:x787
+uconf = /home/jramsay/git/LDS/LDSReplicate/conf/default.conf
 group = 
 epsg = 2193
 fd = None
