@@ -1,5 +1,5 @@
 [prefs]
-dest = PostgreSQL
+dest = FileGDB
 layer = v:x787
 uconf = /home/jramsay/git/LDS/LDSReplicate/conf/default.conf
 group = 

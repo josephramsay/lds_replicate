@@ -356,7 +356,7 @@ class MainFileReader(object):
         
         try:
             url = self.cp.get(self.LDSN, 'url')
-        #for some reason we cant use NoSectionError in this function (even though its fine everywhere else) 
+        #for some reason we cant use global NoSectionError in this function (even though its fine everywhere else) 
         except NSE:
             ldslog.warn("LDS: No LDS Section")
             return (None,)*6

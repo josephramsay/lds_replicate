@@ -98,7 +98,6 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\ProjectionReference.py
     File F:\git\LDS\LDSReplicate\lds\ReadConfig.py
     File F:\git\LDS\LDSReplicate\lds\SpatiaLiteDataStore.py
-    File F:\git\LDS\LDSReplicate\lds\TemporaryDataStore.py
     File F:\git\LDS\LDSReplicate\lds\TransferProcessor.py
     File F:\git\LDS\LDSReplicate\lds\VersionUtilities.py
     File F:\git\LDS\LDSReplicate\lds\WFSDataStore.py

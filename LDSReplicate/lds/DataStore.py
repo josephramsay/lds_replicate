@@ -430,9 +430,13 @@ class DataStore(object):
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 try:
                     dst_layer.CommitTransaction()
-                except RuntimeError:
-                    dst_layer.RollbackTransaction()
-                    raise
+                except RuntimeError as rte:
+                    #HACK
+                    if re.search('General Error',str(rte)):
+                        ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+'] Ignoring!')
+                    else:
+                        raise
+
             
             src_layer.ResetReading()
             dst_layer.ResetReading()    
@@ -501,6 +505,7 @@ class DataStore(object):
 
             
             #add/copy features
+            insert_count, delete_count, update_count = 0,0,0
             dst_change_count = 0
             src_feat_count = src_layer.GetFeatureCount()
             ldslog.info('Features available = '+str(src_feat_count))
@@ -519,10 +524,13 @@ class DataStore(object):
                     try:
                         if change == 'insert': 
                             e = self.insertFeature(dst_layer,src_feat,new_feat_def)
+                            insert_count += 1
                         elif change == 'delete': 
                             e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
+                            delete_count += 1
                         elif change == 'update': 
                             e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                            update_count += 1
                         else:
                             ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
                         #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
@@ -539,7 +547,7 @@ class DataStore(object):
                             if e1+e2 != 0:
                                 raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
                     
-                    
+
                     next_feat = src_layer.GetNextFeature()
                     #On no-new-features grab the last primary key index and break
                     if next_feat is None:
@@ -567,10 +575,15 @@ class DataStore(object):
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 try:
                     dst_layer.CommitTransaction()
-                except RuntimeError as rer:
-                    dst_layer.RollbackTransaction()
-                    raise
-
+                except RuntimeError as rte:
+                    #HACK
+                    if re.search('General Error',str(rte)):
+                        ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+'] Ignoring!')
+                    else:
+                        raise
+                
+            ldslog.info('Inserts={0}, Deletes={1}, Updates={2}'.format(insert_count,delete_count,update_count))
+            
             src_layer.ResetReading()
             dst_layer.ResetReading()
             
@@ -1020,14 +1033,20 @@ class DataStore(object):
         search_layer.ResetReading()
         return search_layer.GetNextFeature()
            
+    def formatWhereClause(self,ref_pkey,key_val):
+        return "{0} = '{1}'".format(ref_pkey,key_val)
+    
     def _findMatchingFeature(self,search_layer,ref_pkey,key_val):
         '''Find the Feature matching a primary key value'''
-        qry = ref_pkey+" = '"+str(key_val)+"'"
-        print "SET ATTR FLT : "+qry
-        search_layer.SetAttributeFilter(qry)
-        #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error"  
+        search_layer.SetAttributeFilter(self.formatWhereClause(ref_pkey, key_val))
+        #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error". 
+        #NB. Since we're resetting the DST layer it has no affect on the SRC read order, just starts the FID search from the beginning  
         search_layer.ResetReading()
-        return search_layer.GetNextFeature()
+        matching_feature = search_layer.GetNextFeature()
+        #Once you have a matching feature clear the attribute filter or postgres gets upset
+        search_layer.SetAttributeFilter(None)
+        return matching_feature
+        
             
             
             

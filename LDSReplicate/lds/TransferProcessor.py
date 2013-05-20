@@ -20,7 +20,7 @@ import logging
 from datetime import datetime 
 
 from DataStore import DataStore
-from DataStore import ASpatialFailureException
+from DataStore import DatasourceOpenException
 
 from LDSDataStore import LDSDataStore
 from LDSUtilities import LDSUtilities, ConfigInitialiser
@@ -295,7 +295,7 @@ class TransferProcessor(object):
 
         for each_layer in self.lnl:
             lm = LDSUtilities.checkDateFormat(self.dst.getLayerConf().readLayerProperty(each_layer,'lastmodified'))
-            pk = self.dst.getLayerConf().readLayerProperty(each_layer,'pkey')
+            pk = LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(each_layer,'pkey'))
             filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
             srs = self.dst.getLayerConf().readLayerProperty(each_layer,'epsg')
             
@@ -308,10 +308,13 @@ class TransferProcessor(object):
             #Destination URI won't change because of incremental so set it here
             self.dst.setURI(self.dst.destinationURI(each_layer))
                 
-            if all(i is None for i in [lm, fd, td]):#if there are no date values in this list its not incr
+            #if PK is none can't lookup matching FIDs for updates/deletes
+            #if no dates available, LM or user supplied we cant set incr bounds
+            if pk is None or all(i is None for i in [lm, fd, td]):
                 self.src.setURI(self.src.sourceURI(each_layer))
                 self.dst.clearIncremental()
-                self.replicateLayer(each_layer, pk)
+                self.cleanLayer(each_layer)#careful here
+                self.replicateLayer(each_layer)
                 self.dst.setLastModified(each_layer)
             else:
                 final_fd = (early if lm is None else lm) if fd is None else fd
@@ -320,7 +323,7 @@ class TransferProcessor(object):
                 self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
                 self.dst.setIncremental()            
                 if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
-                    self.replicateLayer(each_layer, pk)        
+                    self.replicateLayer(each_layer)        
                     self.dst.setLastModified(each_layer,final_td)
                 else:
                     ldslog.warning("No update required for layer "+each_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
@@ -330,9 +333,8 @@ class TransferProcessor(object):
     
 #--------------------------------------------------------------------------------------------------
     
-    def replicateLayer(self,layer_i,pkey):
+    def replicateLayer(self,layer_i):
         '''Replicate the requested layer non-incrementally, ie Init a new layer overwriting any previous iteration of that layer'''
-
         #We dont try and create (=false) a DS on a LDS WFS connection since its RO
         self.src.read(self.src.getURI(),False)
         
@@ -344,27 +346,16 @@ class TransferProcessor(object):
         
 #--------------------------------------------------------------------------------------------------
     
-#    def setupPartitions(self,layer_i,pkey):
-#        if layer_i in self.partitionlayers:
-#            if pkey is None:
-#                raise PrimaryKeyUnavailableException('Cannot partition layer '+str(layer_i)+'without a valid primary key')
-#            self.src.setPrimaryKey(pkey)
-#            self.src.setPartitionStart(0)
-#            self.src.setPartitionSize(self.partitionsize)#redundant, set earlier
-#            '''
-#            self.setupPartitions(layer_i, pkey)
-#            while 1:
-#                maxkey = self.dst.write(...)                                )
-#                if maxkey is not None:
-#                    self.src.setPartitionStart(maxkey)
-#                else:
-#                    break
-#            '''
             
     def cleanLayer(self,layer_i):
         '''clean a selected layer (once the layer conf file has been established)'''
-        if self.dst._cleanLayerByRef(self.dst.ds,layer_i):
-            self.dst.clearLastModified(layer_i)
+        try:
+            if self.dst._cleanLayerByRef(self.dst.ds,layer_i):
+                self.dst.clearLastModified(layer_i)
+        except DatasourceOpenException as dse:
+            #if we can't clean it probably doesn't exist so continue with any replication jobs
+            ldslog.warn('Attempt to clean a non-existent layer. '+str(dse))
+            
             
 #--------------------------------------------------------------------------------------------------
 

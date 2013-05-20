@@ -452,7 +452,7 @@ class FileGDBConfigPage(QWizardPage):
         
         #labels
         fileLabel = QLabel('FileGDB DB directory')
-        descLabel = QLabel('Enter the path to an existing FileGDB directory OR type in the name\nof a new FileGDB to create.\n(Do NOT create a new empty directory)')
+        descLabel = QLabel('Enter the path to an existing FileGDB directory OR type in the name\nof a new FileGDB to create.\n\n(Do NOT create a new empty directory)')
         
         #edit boxes
         self.fileEdit = QLineEdit(fgfname)#dir selection dialog? Can't prefilter file selection for directories
@@ -483,6 +483,7 @@ class FileGDBConfigPage(QWizardPage):
 
     def selectFileGDBFile(self):
         fdtext = QFileDialog.getExistingDirectory(self,'Select FileGDB Directory','~',QFileDialog.ShowDirsOnly)
+        #fdtext = QFileDialog.getSaveFileName(self,'Select FileGDB Directory OR Set New','~')
         if re.match(self.filter,fdtext):
             self.fileEdit.setText(fdtext)
         else:

@@ -98,27 +98,10 @@ class FileGDBDataStore(ESRIDataStore):
         '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 
         self.executeSQL('alter table '+table+' alter '+column+' type varchar')
     
-#This was the case for versions of gdal<9.1, uncomment if youre having problems with nonetypes when looking up feature fields with fgdb 
-#    def _findMatchingFeature(self,search_layer,ref_pkey,key):
-#        '''Find the Feature matching a primary key value. FileGDB version doesnt use string quotes'''
-#        qry = ref_pkey+" = "+str(key)
-#        search_layer.SetAttributeFilter(qry)
-#        return search_layer.GetNextFeature()
 
-#No way to retrieve the version of a FileGDB database. Nice consistency ESRI 
-#    def versionCheck(self):
-#        '''FileGDB version checker'''
-#        from VersionUtilities import VersionChecker,UnsupportedVersionException
-#
-#        fgv_cmd = 'file '+str(self._commonURI(None)+'/gdb')
-#        
-#        fgv_res = re.search('FileGDB (\d.\d) database',os.system(fgv_cmd))
-#        
-#        if not VersionChecker.compareVersions(VersionChecker.FileGDB_MIN, fgv_res.group(1) if fgv_res is not None else VersionChecker.FileGDB_MIN):
-#            raise UnsupportedVersionException('FileGDB version '+str(fgv_res.group(1))+' does not meet required minumum '+str(VersionChecker.FileGDB_MIN))
-#        
-#
-#        return True
+    def formatWhereClause(self,ref_pkey,key_val):
+        '''FGDB where clause doesn't use single quotes in int matching string'''
+        return "{0} = {1}".format(ref_pkey,key_val)
 
     def versionCheck(self):
         '''Nothing to check?'''
