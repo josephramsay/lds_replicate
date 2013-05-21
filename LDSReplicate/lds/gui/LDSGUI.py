@@ -137,15 +137,19 @@ class LDSControls(QFrame):
         super(LDSControls, self).__init__()
         self.parent = parent
         self.gpr = GUIPrefsReader()
-        #read GDAL EPSG files, splitting by NZ and RestOfTheWorld
+        self.initEPSG()
+        self.initUI()
+        
+    def initEPSG(self):
+        '''Read GDAL EPSG files, splitting by NZ(RSR) and RestOfTheWorld'''
         gcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'gcs.csv'))
         pcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'pcs.csv'))
         self.nzlsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]] \
                    + [e[0]+' - '+e[1] for e in pcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]]
         self.rowsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]] \
                    + [e[0]+' - '+e[1] for e in pcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]]
-        self.initUI()
-        
+                   
+                   
     def initUI(self):
         
         # 0      1       2       3       4      5    6    7
@@ -266,6 +270,21 @@ class LDSControls(QFrame):
         cancelButton.setToolTip('Close the LDS Replicate application')       
         cancelButton.clicked.connect(QCoreApplication.instance().quit) 
 
+#        from PyQt4.QtGui import QMovie, QSizePolicy 
+#        from PyQt4.QtCore import Qt, QByteArray
+#        loc = os.path.join(os.path.dirname(__file__),'../img/clock.gif')
+#        self.anim = QMovie(loc, QByteArray(), self) 
+#        self.anim.setCacheMode(QMovie.CacheAll)
+#        self.anim.setSpeed(2)
+#        
+#        self.view = QLabel() 
+#        self.view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+#        self.view.setAlignment(Qt.AlignCenter)
+#        self.view.setMovie(self.anim)
+#        
+#        self.anim.start()
+
+        
         #grid
         grid = QGridLayout()
         grid.setSpacing(10)
@@ -307,6 +326,8 @@ class LDSControls(QFrame):
         grid.addWidget(self.toDateEdit, 7, 2)
 
         vbox1 = QHBoxLayout()
+        #vbox1.addWidget(QLabel('Clock anim'))
+        #vbox1.addWidget(self.view)
         vbox1.addStretch(1)
         vbox1.addWidget(internalLabel)
         vbox1.addWidget(self.internalTrigger)

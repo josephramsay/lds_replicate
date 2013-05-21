@@ -294,8 +294,10 @@ class DataStore(object):
                 #if incr&haspk then fCi
                 if self.getIncremental():
                     # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
+                    gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
                     self.featureCopyIncremental(self.src_link.ds,self.ds,self.src_link.CHANGE_COL)
                 else:
+                    gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF') 
                     self.featureCopy(self.src_link.ds,self.ds)
                 
             except (FeatureCopyException, InaccessibleFeatureException, RuntimeError) as rte:
@@ -365,7 +367,8 @@ class DataStore(object):
         for li in range(0,src_ds.GetLayerCount()):
             new_layer = False
             src_layer = src_ds.GetLayer(li)
-
+            src_feat_count = None
+            
             src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
             
             '''retrieve per-layer settings from props'''
@@ -415,7 +418,7 @@ class DataStore(object):
                 
                 src_feat = src_layer.GetNextFeature()
             
-            if src_feat_count != dst_change_count:
+            if src_feat_count is not None and src_feat_count != dst_change_count:
                 if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                     dst_layer.RollbackTransaction()
                 raise FeatureCopyException('Feature count mismatch. Source count['+str(src_feat_count)+'] <> Change count['+str(dst_change_count)+']')

@@ -83,7 +83,8 @@ class LDSDataStore(WFSDataStore):
         #CPL_CURL_VERBOSE for those ogrerror/generalerror
         #OGR_WFS_PAGING_ALLOWED, OGR_WFS_PAGE_SIZE, OGR_WFS_BASE_START_INDEX
         local_opts = ['GDAL_HTTP_USERAGENT=LDSReplicate/'+str(AppVersion.getVersion())]
-        local_opts += ['OGR_WFS_PAGING_ALLOWED=ON','OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
+        #local_opts += ['OGR_WFS_PAGING_ALLOWED=ON']
+        local_opts += ['OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
         local_opts += ['OGR_WFS_USE_STREAMING=NO']
         return super(LDSDataStore,self).getConfigOptions() + local_opts    
     
@@ -109,12 +110,7 @@ class LDSDataStore(WFSDataStore):
         
     def getCapabilities(self):
         '''GetCapabilities endpoint constructor'''
-        ###this was a bug, trying to build a GC url from the user conn str
-        ###if hasattr(self,'conn_str') and self.conn_str is not None:
-        ###    return self.conn_str
-        #uri = self.url+self.key+"/wfs?service=WFS"+"&version="+self.ver+"&request=GetCapabilities"
-        #keyword specifier different between 1.0.0 (<ows:Keywords><ows:Keyword>) and 1.1.0 (<Keywords>) We enforce 1.1.0 to return per keyword version and more accurately parse layer groups
-        '''validate the key by checking that the key can be extracted from the conn_str'''
+        #validate the key by checking that the key can be extracted from the conn_str
         if not self.validateAPIKey(self.key):
             self.key = self.extractAPIKey(self.conn_str,True)
         #capabilities doc is fetched using urlopen, not wfs, so escaping isnt needed
@@ -232,22 +228,6 @@ class LDSDataStore(WFSDataStore):
         return maxfeat+"&cql_filter="+';'.join(cql) if len(cql)>0 else ""
     
     
-#    @staticmethod
-#    def fetchLayerNames(url):
-#        '''Non-GDAL static method for fetching LDS layer ID's using standard URLopen library.
-#        TODO. Investigate implementing this using the WFS driver and the relative expense for each'''
-#        res = []
-#        mm = re.compile('<Name>('+LDSUtilities.LDS_TN_PREFIX+'\d+)<\/Name>')
-#        tt = re.compile('<Title>(.+)<\/Title>')
-#        lds = urlopen(url)
-#        for line in lds:    
-#            res1 = re.findall(mm,line)
-#            res2 = re.findall(tt,line)
-#            if len(res1)>0:
-#                res += ((res1[0],res2[0]),)
-#        lds.close()
-#        return res
-#    
     @classmethod
     def fetchLayerInfo(cls,url):
         '''Non-GDAL static method for fetching LDS layer ID's using etree parser.'''
@@ -276,12 +256,6 @@ class LDSDataStore(WFSDataStore):
             
         return res
 
-#    def read(self,dsn):
-#        '''Simple Read method for LDS data store'''
-#        ldslog.info("LDS read "+dsn)
-#        self.ds = self.driver.Open(dsn)
-        
-    #write uses WFS write exception message
     
     def versionCheck(self):
         '''Nothing to check?'''
