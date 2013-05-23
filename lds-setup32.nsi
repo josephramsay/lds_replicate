@@ -85,6 +85,10 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\doc\demo2_commands.txt
     File F:\git\LDS\LDSReplicate\doc\INSTALL_WIN.txt
     File F:\git\LDS\LDSReplicate\doc\README
+    SetOutPath $INSTDIR\apps\ldsreplicate\img
+    File F:\git\LDS\LDSReplicate\img\linz.gif
+    File F:\git\LDS\LDSReplicate\img\busy.gif
+    File F:\git\LDS\LDSReplicate\img\clean.gif
     SetOutPath $INSTDIR\apps\ldsreplicate\lds
     File F:\git\LDS\LDSReplicate\lds\__init__.py
     File F:\git\LDS\LDSReplicate\lds\ConfigWrapper.py

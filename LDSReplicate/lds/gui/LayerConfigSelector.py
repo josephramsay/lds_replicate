@@ -368,7 +368,7 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.setEditable(True)
 
         keywordedit = self.keywordcombo.lineEdit()
-        keywordedit.setText(self.parent.group)
+        keywordedit.setText('' if self.parent.group is None else self.parent.group)
         
         
         #notes.      

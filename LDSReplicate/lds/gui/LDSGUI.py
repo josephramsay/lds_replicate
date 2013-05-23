@@ -347,11 +347,12 @@ class LDSControls(QFrame):
         
     def setAnimation(self,status):
         if status is self.STATUS.BUSY:
-            loc = os.path.join(os.path.dirname(__file__),'../../img/busy.gif')
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/busy.gif'))
         elif status is self.STATUS.CLEAN:
-            loc = os.path.join(os.path.dirname(__file__),'../../img/clean.gif')
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/clean.gif'))
         else:
-            loc = os.path.join(os.path.dirname(__file__),'../../img/linz.gif')
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/linz.gif'))
+
         anim = QMovie(loc, QByteArray(), self) 
         anim.setCacheMode(QMovie.CacheAll)
         anim.setSpeed(100)

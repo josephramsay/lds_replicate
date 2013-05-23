@@ -303,7 +303,7 @@ class PostgreSQLConfigPage(QWizardPage):
         #edit boxes
         self.hostEdit = QLineEdit(pghost)
         self.hostEdit.setToolTip('Enter the name of your PostgreSQL host/IP-address')
-        self.portEdit = QLineEdit(pgport)
+        self.portEdit = QLineEdit('5432' if LDSUtilities.mightAsWellBeNone(pgport) is None else pgport)
         self.portEdit.setToolTip('Enter the PostgreSQL listen port')
         self.dbnameEdit = QLineEdit(pgdbname)
         self.dbnameEdit.setToolTip('Enter the name of the PostgreSQL DB to connect with')
