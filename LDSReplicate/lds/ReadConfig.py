@@ -874,7 +874,7 @@ class GUIPrefsReader(object):
         thisdir = os.path.dirname(__file__)
         guiprefs = '../conf/gui.prefs'
         
-        self.plist = ('dest','layer','uconf','group','epsg','fd','td','int')
+        self.plist = ('dest','lgselect','layer','uconf','group','epsg','fd','td','int')
         
         self.cp = ConfigParser()
         self.fn = os.path.join(thisdir,guiprefs)

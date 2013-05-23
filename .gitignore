@@ -5,3 +5,4 @@ ldsincr.external.conf
 ldsincr.windows.external.conf
 ldsincr.windows.internal.conf
 /license
+/remove.sh

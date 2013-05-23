@@ -16,12 +16,12 @@ Created on 13/02/2013
 '''
 
 from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
-                         QVBoxLayout, QHBoxLayout, QGridLayout,
+                         QVBoxLayout, QHBoxLayout, QGridLayout, QMovie, QSizePolicy, 
                          QRegExpValidator, QCheckBox, QMessageBox, 
                          QMainWindow, QAction, QIcon, qApp, QFrame,
                          QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
-from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir)
+from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, QTimer)
 
 import os
 import re
@@ -102,7 +102,7 @@ class LDSRepl(QMainWindow):
         
     def getTPParams(self):
         '''Init a new TP and return selected controls'''
-        destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = self.controls.readParameters()
+        destination,lgopt,layer,uconf,group,epsg,fe,te,fd,td,internal = self.controls.readParameters()
         tp = TransferProcessor(layer, 
                                None if group is None else group, 
                                None if epsg is None else epsg, 
@@ -132,6 +132,8 @@ class LDSRepl(QMainWindow):
 class LDSControls(QFrame):
     
     GD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data'))
+    STATUS = LDSUtilities.enum('IDLE','BUSY','CLEAN')
+    LGOPTS = ('Layer','Group')
     #GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
     def __init__(self,parent):
         super(LDSControls, self).__init__()
@@ -152,40 +154,41 @@ class LDSControls(QFrame):
                    
     def initUI(self):
         
-        # 0      1       2       3       4      5    6    7
-        #'dest','layer','uconf','group','epsg','fd','td','int'
-        defaults = ('','','','','','','','False')
-        rlist = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.read(),defaults)
-        
-        
+        # 0      1          2       3       4       5      6    7    8
+        #'dest','lgselect','layer','uconf','group','epsg','fd','td','int'
+        defaults = ('','Layer','','','','','','','False')
+        readlist = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.read(),defaults)
+        rdest,rlgselect,self.rlayer,ruconf,self.rgroup,repsg,rfd,rtd,rint = readlist 
         
         QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
         destLabel = QLabel('Destination')
-        layerLabel = QLabel('Layer')
-        groupLabel = QLabel('Group')
         epsgLabel = QLabel('EPSG')
         fromDateLabel = QLabel('From Date')
         toDateLabel = QLabel('To Date')
-        
-        cleanLabel = QLabel('Clean')
         internalLabel = QLabel('Internal')
         confLabel = QLabel('User Config')
+        
+        self.view = QLabel() 
+        self.view.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.view.setAlignment(Qt.AlignCenter)
 
         #edit boxes
-        self.layerEdit = QLineEdit(rlist[1])
-        self.layerEdit.setToolTip('Enter the layer you want to replicate using either v:x format or layer name')  
-        self.layerEdit.textEdited.connect(self.doGroupDisable)  
-        
-        self.groupEdit = QLineEdit(rlist[3])
-        self.groupEdit.setToolTip('Enter a layer keyword or use your own custom keyword to select a group of layers')  
-        self.groupEdit.textEdited.connect(self.doLayerDisable) 
-        
-        #self.epsgEdit = QLineEdit(rlist[4])
-        #self.epsgEdit.setToolTip('Setting an EPSG number here determines the output SR of the layer')  
-        self.confEdit = QLineEdit(rlist[2])
+        self.confEdit = QLineEdit(ruconf)
         self.confEdit.setToolTip('Enter your user config file here')   
+        
+        
+        lgindex = self.LGOPTS.index(rlgselect)
+        self.lgcombo = QComboBox()
+        self.lgcombo.setToolTip('Select either Layer or Group entry')  
+        self.lgcombo.addItems(self.LGOPTS)
+        self.lgcombo.setCurrentIndex(lgindex)
+        self.lgcombo.setEditable(False)
+        self.lgcombo.currentIndexChanged.connect(self.doLGEditUpdate)
+        
+        self.lgEdit = QLineEdit()
+        self.doLGEditUpdate()
         
         self.epsgcombo = QComboBox()
         self.epsgcombo.setToolTip('Setting an EPSG number here determines the output SR of the layer')  
@@ -194,13 +197,13 @@ class LDSControls(QFrame):
         self.epsgcombo.addItems(self.rowsr)
         self.epsgcombo.setEditable(True)
         
-        if LDSUtilities.mightAsWellBeNone(rlist[4])!=None:
+        if LDSUtilities.mightAsWellBeNone(repsg)!=None:
             epsgedit = self.epsgcombo.lineEdit()
-            epsgedit.setText([e for e in self.nzlsr+self.rowsr if re.match('^\s*(\d+).*',e).group(1)==rlist[4]][0])
+            epsgedit.setText([e for e in self.nzlsr+self.rowsr if re.match('^\s*(\d+).*',e).group(1)==repsg][0])
         
         #menus
         self.destmenulist = ['',]+DataStore.DRIVER_NAMES.values()
-        selecteddest = LDSUtilities.standardiseDriverNames(rlist[0])
+        selecteddest = LDSUtilities.standardiseDriverNames(rdest)
         destindex = self.destmenulist.index('' if selecteddest is None else selecteddest)
         self.destMenu = QComboBox(self)
         self.destMenu.setToolTip('Choose the desired output type')   
@@ -213,8 +216,8 @@ class LDSControls(QFrame):
         
         #date selection
         self.fromDateEdit = QDateEdit()
-        if LDSUtilities.mightAsWellBeNone(rlist[5]) is not None:
-            self.fromDateEdit.setDate(QDate(int(rlist[5][0:4]),int(rlist[5][5:7]),int(rlist[5][8:10])))
+        if LDSUtilities.mightAsWellBeNone(rfd) is not None:
+            self.fromDateEdit.setDate(QDate(int(rfd[0:4]),int(rfd[5:7]),int(rfd[8:10])))
         else:
             early = DataStore.EARLIEST_INIT_DATE
             self.fromDateEdit.setDate(QDate(int(early[0:4]),int(early[5:7]),int(early[8:10])))
@@ -222,8 +225,8 @@ class LDSControls(QFrame):
         self.fromDateEdit.setEnabled(False)
         
         self.toDateEdit = QDateEdit()
-        if LDSUtilities.mightAsWellBeNone(rlist[6]) is not None:
-            self.toDateEdit.setDate(QDate(int(rlist[6][0:4]),int(rlist[6][5:7]),int(rlist[6][8:10]))) 
+        if LDSUtilities.mightAsWellBeNone(rtd) is not None:
+            self.toDateEdit.setDate(QDate(int(rtd[0:4]),int(rtd[5:7]),int(rtd[8:10]))) 
         else:
             today = DataStore.getCurrent()
             self.toDateEdit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
@@ -242,7 +245,7 @@ class LDSControls(QFrame):
         
         self.internalTrigger = QCheckBox()
         self.internalTrigger.setToolTip('Sets where layer config settings are stored, external/internal')   
-        self.internalTrigger.setCheckState(rlist[7]=='True')
+        self.internalTrigger.setCheckState(rint.lower()=='internal')
         
         self.initTrigger = QCheckBox()
         self.initTrigger.setToolTip('Re writes the layer config settings (you need to do this on first run)')   
@@ -270,20 +273,7 @@ class LDSControls(QFrame):
         cancelButton.setToolTip('Close the LDS Replicate application')       
         cancelButton.clicked.connect(QCoreApplication.instance().quit) 
 
-#        from PyQt4.QtGui import QMovie, QSizePolicy 
-#        from PyQt4.QtCore import Qt, QByteArray
-#        loc = os.path.join(os.path.dirname(__file__),'../img/clock.gif')
-#        self.anim = QMovie(loc, QByteArray(), self) 
-#        self.anim.setCacheMode(QMovie.CacheAll)
-#        self.anim.setSpeed(2)
-#        
-#        self.view = QLabel() 
-#        self.view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-#        self.view.setAlignment(Qt.AlignCenter)
-#        self.view.setMovie(self.anim)
-#        
-#        self.anim.start()
-
+        self.setAnimation(self.STATUS.IDLE)
         
         #grid
         grid = QGridLayout()
@@ -305,14 +295,15 @@ class LDSControls(QFrame):
         grid.addWidget(destLabel, 1, 0)
         grid.addWidget(self.destMenu, 1, 2)
 
-        grid.addWidget(layerLabel, 2, 0)
-        grid.addWidget(self.layerEdit, 2, 2)
+        #grid.addWidget(layerLabel, 2, 0)
+        grid.addWidget(self.lgcombo, 2, 0)
+        grid.addWidget(self.lgEdit, 2, 2)
         
         grid.addWidget(confLabel, 3, 0)
         grid.addWidget(self.confEdit, 3, 2)
         
-        grid.addWidget(groupLabel, 4, 0)
-        grid.addWidget(self.groupEdit, 4, 2)
+        #grid.addWidget(groupLabel, 4, 0)
+        #grid.addWidget(self.groupEdit, 4, 2)
         
         grid.addWidget(epsgLabel, 5, 0)
         grid.addWidget(self.epsgcombo, 5, 2)
@@ -324,27 +315,12 @@ class LDSControls(QFrame):
         grid.addWidget(toDateLabel, 7, 0)
         grid.addWidget(self.toDateEnable, 7, 1)
         grid.addWidget(self.toDateEdit, 7, 2)
-
-        vbox1 = QHBoxLayout()
-        #vbox1.addWidget(QLabel('Clock anim'))
-        #vbox1.addWidget(self.view)
-        vbox1.addStretch(1)
-        vbox1.addWidget(internalLabel)
-        vbox1.addWidget(self.internalTrigger)
-        
-        #vbox2 = QVBoxLayout()
-        #vbox2.addStretch(1)
-        #vbox2.addWidget(initLabel)
-        #vbox2.addWidget(self.initTrigger)
-        
-        #vbox3 = QVBoxLayout()
-        #vbox3.addStretch(1)
-        #vbox3.addWidget(cleanLabel)
-        #vbox3.addWidget(self.cleanTrigger)
         
         hbox3 = QHBoxLayout()
+        hbox3.addWidget(self.view)
         hbox3.addStretch(1)
-        hbox3.addLayout(vbox1)
+        hbox3.addWidget(internalLabel)
+        hbox3.addWidget(self.internalTrigger)
         #hbox3.addLayout(vbox2)
         #hbox3.addLayout(vbox3)
         
@@ -369,6 +345,23 @@ class LDSControls(QFrame):
         #self.setWindowTitle('LDS Replicate')
        
         
+    def setAnimation(self,status):
+        if status is self.STATUS.BUSY:
+            loc = os.path.join(os.path.dirname(__file__),'../../img/busy.gif')
+        elif status is self.STATUS.CLEAN:
+            loc = os.path.join(os.path.dirname(__file__),'../../img/clean.gif')
+        else:
+            loc = os.path.join(os.path.dirname(__file__),'../../img/linz.gif')
+        anim = QMovie(loc, QByteArray(), self) 
+        anim.setCacheMode(QMovie.CacheAll)
+        anim.setSpeed(100)
+        self.view.clear()
+        self.view.setMovie(anim)
+
+
+        self.view.repaint()
+        anim.start()
+
         
     def centre(self):
         
@@ -386,11 +379,21 @@ class LDSControls(QFrame):
         else:
             event.ignore()       
         
-    def doLayerDisable(self):
-        self.layerEdit.setText('')
-        
-    def doGroupDisable(self):
-        self.groupEdit.setText('')
+    def doLGEditUpdate(self):
+        lgopt = self.lgcombo.currentText()
+        if lgopt == 'Layer':
+            self.lgEdit.setText(self.rlayer)
+            self.lgEdit.setToolTip('Enter the Layer you want to replicate using either v:x### format or a valid layer name') 
+        elif lgopt == 'Group':
+            self.lgEdit.setText(self.rgroup)
+            self.lgEdit.setToolTip('Enter an LDS keyword or use your own custom keyword to select a group of layers')  
+#        
+    
+#    def doLayerDisable(self):
+#        self.layerEdit.setText('')
+#        
+#    def doGroupDisable(self):
+#        self.groupEdit.setText('')
         
     def doFromDateEnable(self):
         self.fromDateEdit.setEnabled(self.fromDateEnable.isChecked())
@@ -400,37 +403,44 @@ class LDSControls(QFrame):
           
     def readParameters(self):
         destination = str(self.destmenulist[self.destMenu.currentIndex()])
-        layer = str(self.layerEdit.text())
+        lgopt = self.lgcombo.currentText()
+        #FIXME this only needs to be one param not two (or is it more efficient to split them here?)
+        if lgopt == 'Layer':
+            layer = str(self.lgEdit.text())
+            group = None
+        elif lgopt == 'Group':
+            layer = None
+            group = str(self.lgEdit.text())
+            
         uconf = str(self.confEdit.text())
-        group = str(self.groupEdit.text())
         epsg = re.match('^\s*(\d+).*',str(self.epsgcombo.lineEdit().text())).group(1)
         fe = self.fromDateEnable.isChecked()
         te = self.toDateEnable.isChecked()
         fd = None if fe is False else str(self.fromDateEdit.date().toString('yyyy-MM-dd'))
         td = None if te is False else str(self.toDateEdit.date().toString('yyyy-MM-dd'))
         internal = 'internal' if self.internalTrigger.isChecked() else 'external'
-        init = self.initTrigger.isChecked()
-        clean = self.cleanTrigger.isChecked()
         
-        return destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean
+        return destination,lgopt,layer,uconf,group,epsg,fe,te,fd,td,internal
     
     def doInitClickAction(self):
         '''Initialise the LC on LC-button-click, action'''
         self.parent.runLayerConfigAction()
         
     def doCleanClickAction(self):
-        '''Read the provided parameters inserting true for the clean param'''
-        params = self.readParameters()[:11]+(True,)
-        self.runReplicationScript(params,'Clean')
+        '''Set clean anim and run clean'''
+        self.setAnimation(self.STATUS.CLEAN)
+        self.runReplicationScript(True)
+        self.setAnimation(self.STATUS.IDLE)
         
     def doReplicateClickAction(self):
-        '''Read the provided parameters inserting false for the clean param'''
-        params = self.readParameters()[:11]+(False,)
-        self.runReplicationScript(params,'Replicate')
+        '''Set busy anim and run repl'''
+        self.setAnimation(self.STATUS.BUSY)
+        self.runReplicationScript(False)
+        self.setAnimation(self.STATUS.IDLE)
 
-    def runReplicationScript(self,params,message='Replicate'):
+    def runReplicationScript(self,clean=False):
         '''Run the layer/group repliction script'''
-        destination,layer,uconf,group,epsg,fe,te,fd,td,internal,init,clean = params
+        destination,lgopt,layer,uconf,group,epsg,fe,te,fd,td,internal = self.readParameters()
 
         uconf = LDSUtilities.standardiseUserConfigName(uconf)
         destination_path = LDSUtilities.standardiseLayerConfigName(destination)
@@ -449,14 +459,14 @@ class LDSControls(QFrame):
             return
   
         #-----------------------------------------------------
-                                
-        self.parent.statusbar.showMessage('Running '+message+' '+layer)
+        message = 'Clean' if clean else 'Replicate'
+        self.parent.statusbar.showMessage('Running '+message+' '+lgopt)
 
         #'dest','layer','uconf','group','epsg','fd','td','int'
-        self.gpr.write((destination_driver,layer,uconf,group,epsg,fd,td,internal))        
-        ldslog.info('dest='+destination_driver+', layer'+layer+', conf='+uconf+', group='+group+', epsg='+epsg)
-        ldslog.info('fd='+str(fd)+', td='+str(td)+', fe='+str(fe)+', te='+str(te))
-        ldslog.info('int='+str(internal)+', init='+str(init)+', clean='+str(clean))
+     
+        self.gpr.write((destination_driver,lgopt,layer,uconf,group,epsg,fd,td,internal))        
+        ldslog.info('dest={0}, lg={1}, layer={2}, conf={3}, group{4}, epsg={5}'.format(destination_driver,lgopt,str(layer),uconf,str(group),epsg))
+        ldslog.info('fd={0}, td={1}, fe={2}, te={3}, int={4}'.format(str(fd),str(td),str(fe),str(te),str(internal)))
 
         tp = TransferProcessor(layer, 
                                None if group is None else group, 
@@ -466,19 +476,14 @@ class LDSControls(QFrame):
                                None, None, None, 
                                None if uconf is None else uconf, 
                                internal)
-        
-        #NB init and clean are funcs because they appear as args, not opts in the CL
-        if init:
-            tp.setInitConfig()
-            #if you are initialising probably want to do a layer select?
-            #self.openLayerConfigSelector_THISSHOULDTHROWANERROR(tp,uconf,group,destination)
+
         if clean:
             tp.setCleanConfig()
             
         tp.processLDS(tp.initDestination(destination_driver))
 
-        l_g = group if LDSUtilities.mightAsWellBeNone(group) is not None else (layer if LDSUtilities.mightAsWellBeNone(layer) is not None else 'layers')
-        self.parent.statusbar.showMessage('{0} of {1} complete'.format(message,l_g))
+        #l_g = group if LDSUtilities.mightAsWellBeNone(group) is not None else (layer if LDSUtilities.mightAsWellBeNone(layer) is not None else 'layers')
+        self.parent.statusbar.showMessage('{0} of {1} complete'.format(message,lgopt))
         
     def userConfMessage(self,uconf,secname=None):
         ucans = QMessageBox.warning(self, 'User Config Missing/Incomplete', 
