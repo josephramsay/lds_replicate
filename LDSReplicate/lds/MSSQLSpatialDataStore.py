@@ -71,7 +71,13 @@ class MSSQLSpatialDataStore(DataStore):
             raise MalformedConnectionString('\'database\' parameter required in MSSQL config string')
         return cs
 
-        
+    @staticmethod
+    def buildConnStr(server,dbname,schema,trust,usr,pwd):
+        cs = "MSSQL:server={0};database={1};schema={2}".format(server,dbname,schema)
+        if trust=='yes':
+            return cs + ";trusted_connection={0}'".format(trust)
+        return cs + ";UID={0};PWD={1}".format(usr,pwd)
+    
     def _commonURI(self,layer):
         '''Refers to common connection instance for example in a DB where it doesn't matter whether your reading or writing'''
         if hasattr(self,'conn_str') and self.conn_str is not None:

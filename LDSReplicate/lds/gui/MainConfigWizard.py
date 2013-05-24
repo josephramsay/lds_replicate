@@ -23,11 +23,10 @@ from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
 from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir)
 
-import os
 import re
 import sys
-import logging
 
+from lds.DataStore import DSReaderException,DatasourcePrivilegeException
 from lds.TransferProcessor import TransferProcessor
 from lds.LDSDataStore import LDSDataStore
 from lds.WFSDataStore import WFSDataStore
@@ -317,6 +316,7 @@ class PostgreSQLConfigPage(QWizardPage):
         
         self.portEdit.setValidator(QRegExpValidator(QRegExp("\d{1,5}"), self))
         
+        
         self.registerField(self.key+"host",self.hostEdit)
         self.registerField(self.key+"port",self.portEdit)
         self.registerField(self.key+"dbname",self.dbnameEdit)
@@ -351,9 +351,30 @@ class PostgreSQLConfigPage(QWizardPage):
         #layout                
         self.setLayout(grid)  
         
-
+    
     def nextId(self):
-        return self.parent.plist.get('final')[0]
+        if self.testConnection():
+            return self.parent.plist.get('final')[0]
+        return self.parent.plist.get('pg')[0]
+
+    
+    def testConnection(self):
+        if not all(f for f in (self.hostEdit.isModified(),self.portEdit.isModified(),self.dbnameEdit.isModified())):
+            return False
+        cs = PG.buildConnStr(self.hostEdit.text(),self.portEdit.text(),self.dbnameEdit.text(),
+                            self.schemaEdit.text(),self.usrEdit.text(),self.pwdEdit.text())
+        pg = PG(cs)
+        pg.applyConfigOptions()
+        try:
+            pg.ds = pg.initDS(pg.destinationURI(None),False)
+            pg.checkGeoPrivileges(self.schemaEdit.text(),self.usrEdit.text())
+        except DatasourcePrivilegeException as dpe:
+            QMessageBox.warning(self, 'Connection Error', 'Cannot access Geo tables: '+str(dpe), 'OK')
+            return False
+        except DSReaderException as dse:
+            QMessageBox.warning(self, 'Connection Error', 'Cannot connect to PG data base using parameters provided: '+str(dse), 'OK')
+            return False
+        return True
         
 
 class MSSQLSpatialConfigPage(QWizardPage):
@@ -397,7 +418,7 @@ class MSSQLSpatialConfigPage(QWizardPage):
 
         #self.trustEdit.setValidator(QRegExpValidator(QRegExp("yes|no", re.IGNORECASE), self))
         
-        self.registerField("msserver",self.serverEdit)
+        self.registerField(self.key+"server",self.serverEdit)
         self.registerField(self.key+"dbname",self.dbnameEdit)
         self.registerField(self.key+"schema",self.schemaEdit)
         self.registerField(self.key+"trust",self.trustCheckBox)
@@ -429,8 +450,27 @@ class MSSQLSpatialConfigPage(QWizardPage):
 
         self.setLayout(grid)
           
+    
     def nextId(self):
-        return self.parent.plist.get('final')[0]
+        if self.testConnection():
+            return self.parent.plist.get('final')[0]
+        return self.parent.plist.get('ms')[0]
+
+    
+    def testConnection(self):
+        if not all(f for f in (self.serverEdit.isModified(),self.dbnameEdit.isModified())):
+            return False
+        cs = MS.buildConnStr(self.serverEdit.text(),self.dbnameEdit.text(),self.schemaEdit.text(),
+                            'yes' if self.trustCheckBox.isChecked() else 'no',self.usrEdit.text(),self.pwdEdit.text())
+        ms = MS(cs)
+        ms.applyConfigOptions()
+        try:
+            ms.initDS(ms.destinationURI(None),False)
+            #ms.checkGeoPrivileges(self.usrEdit.text())
+        except DSReaderException as dse:
+            QMessageBox.warning(self, 'Connection Error', 'Cannot connect to MS data base using parameters provided: '+str(dse), 'OK')
+            return False
+        return True
         
 class FileGDBConfigPage(QWizardPage):
     

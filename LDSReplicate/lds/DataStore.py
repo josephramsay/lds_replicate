@@ -55,6 +55,7 @@ class UnknownTemporaryDSType(LDSReaderException): pass
 class MalformedConnectionString(DSReaderException): pass
 class InaccessibleLayerException(DSReaderException): pass
 class InaccessibleFeatureException(DSReaderException): pass
+class DatasourcePrivilegeException(DSReaderException): pass
 
 
 
@@ -238,6 +239,10 @@ class DataStore(object):
         '''Abstract method to check user supplied connection strings. Raises NotImplementedError if accessed directly'''
         raise NotImplementedError("Abstract method destinationURI not implemented")
     
+    def testConnection(self):
+        '''Test connection to a (typically database) source'''
+        return True
+    
     def initDS(self,dsn=None,create=True):
         '''Initialise the data source calling a provided DSN or self.dsn and a flag to indicate whether we should try and create a DS if none found'''
         #Notes
@@ -250,7 +255,7 @@ class DataStore(object):
             ogr.DontUseExceptions()
             ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)       
             if ds is None:
-                raise DSReaderException("Error opening DS "+str(dsn)+(', attempting DS create.' if create else ', quitting.'))
+                raise DSReaderException("Error opening DS "+str(dsn)+(', attempting DS create.' if create else '.'))
         except (RuntimeError,DSReaderException) as dsre1:
             #print "DSReaderException",dsre1 
             ldslog.error(dsre1,exc_info=1)
@@ -258,7 +263,7 @@ class DataStore(object):
                 try:
                     ds = self.driver.CreateDataSource(dsn)
                     if ds is None:
-                        raise DSReaderException("Error creating DS "+str(dsn)+", quitting")
+                        raise DSReaderException("Error opening/creating DS "+str(dsn))
                 except DSReaderException as dsre2:
                     #print "DSReaderException, Cannot create DS.",dsre2
                     ldslog.error(dsre2,exc_info=1)
@@ -933,7 +938,7 @@ class DataStore(object):
             #match 'select'
             if re.match('select\s+(?:\w+|\*)\s+from',line):
                 continue
-            if re.match('select\s+(version|postgis_full_version|@@version)',line):
+            if re.match('select\s+(has_table_privilege|version|postgis_full_version|@@version)',line):
                 continue
             #match 'insert'
             if re.match('(?:update|insert)\s+(?:\w+|\*)\s+',line):

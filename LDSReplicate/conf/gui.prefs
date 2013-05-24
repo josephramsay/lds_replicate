@@ -1,7 +1,7 @@
 [prefs]
 dest = PostgreSQL
-lgselect = Group
-layer = None
+lgselect = 
+layer = /home/jramsay/git/LDS/LDSReplicate/conf/dsds.conf
 uconf = F:\git\LDS\LDSReplicate\conf\default.conf
 group = TESTBBB
 epsg = 2193

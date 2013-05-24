@@ -20,7 +20,7 @@ import re
 import string
 
 from DataStore import DataStore
-from DataStore import MalformedConnectionString
+from DataStore import MalformedConnectionString, DatasourcePrivilegeException
 from LDSUtilities import LDSUtilities, Encrypt
 
 ldslog = logging.getLogger('LDS')
@@ -81,8 +81,12 @@ class PostgreSQLDataStore(DataStore):
         #HACK. active schema, unlike the other PG parameters, cannot have single quotes! this silently removes them if they've been mistakenly added
         return re.sub(r"active_schema='(\S+)'",r"active_schema=\1",cs)
 
-        
-        
+    @staticmethod
+    def buildConnStr(host,port,dbname,schema,usr,pwd):
+        cs = "PG:dbname='{2}' host='{0}' port='{1}' user='{3}' password='{4}'".format(host,port,dbname,usr,pwd)
+        return cs if schema is None else cs+" active_schema="+str(schema)
+            
+
     def _commonURI(self,layer):
         '''Refers to common connection instance for reading or writing'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
@@ -151,6 +155,23 @@ class PostgreSQLDataStore(DataStore):
                 raise
         
         
+    def checkGeoPrivileges(self,schema,user):
+        #cmd1 = "select * from information_schema.role_table_grants where grantee='{}' and table_name='spatial_ref_sys".format(user)
+
+        cmd1 = "SELECT has_table_privilege('{}','public.spatial_ref_sys', 'select')".format(user)
+        cmd2 = "SELECT has_table_privilege('{}','public.geometry_columns', 'select')".format(user)
+        cmd3 = "SELECT has_schema_privilege('{1}','{0}', 'create')".format(schema,user)
+        try:
+            #1=True, 0=False
+            rv1 = self.executeSQL(cmd1).GetFeature(1).GetField(0)
+            rv2 = self.executeSQL(cmd2).GetFeature(1).GetField(0)
+            if rv1!=1 or rv2!=1:
+                raise DatasourcePrivilegeException('User '+str(user)+'doesn\'t have SELECT access to Geometry tables')
+            rv3 = self.executeSQL(cmd3).GetFeature(1).GetField(0)
+            if rv3!=1:
+                raise DatasourcePrivilegeException('User '+str(user)+'doesn\'t have CREATE access to Schema '+str(schema))
+        except RuntimeError as rte:
+            raise
         
     def versionCheck(self):
         '''Postgres/Postgis version checker'''
