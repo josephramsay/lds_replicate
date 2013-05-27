@@ -148,7 +148,6 @@ class TransferProcessor(object):
     def __str__(self):
         return 'Layer:{layer}, Group:{group}, CQL:{cql}, '.format(layer=self.layer,group=self.group,cql=self.cql)
     
-    
     #Internal/External flag to override config set option
     def setConfInternal(self,confinternal):
         self.confinternal = confinternal
@@ -284,7 +283,7 @@ class TransferProcessor(object):
         #Before we go any further, if this is a cleaning job, no point doing anymore setup. Start deleting
         if self.getCleanConfig():
             for cleanlayer in self.lnl:
-                self.cleanLayer(cleanlayer)
+                self.cleanLayer(cleanlayer,truncate=False)
             return
                 
         #build a list of layers with corresponding lastmodified/incremental flags
@@ -313,7 +312,7 @@ class TransferProcessor(object):
             if pk is None or all(i is None for i in [lm, fd, td]):
                 self.src.setURI(self.src.sourceURI(each_layer))
                 self.dst.clearIncremental()
-                self.cleanLayer(each_layer)#careful here
+                self.cleanLayer(each_layer,truncate=True)
                 self.replicateLayer(each_layer)
                 self.dst.setLastModified(each_layer)
             else:
@@ -347,15 +346,14 @@ class TransferProcessor(object):
 #--------------------------------------------------------------------------------------------------
     
             
-    def cleanLayer(self,layer_i):
+    def cleanLayer(self,layer_i,truncate=False):
         '''clean a selected layer (once the layer conf file has been established)'''
         try:
-            if self.dst._cleanLayerByRef(self.dst.ds,layer_i):
+            if self.dst._cleanLayerByRef(self.dst.ds,layer_i,truncate):
                 self.dst.clearLastModified(layer_i)
         except DatasourceOpenException as dse:
             #if we can't clean it probably doesn't exist so continue with any replication jobs
-            ldslog.warn('Attempt to clean a non-existent layer. '+str(dse))
-            
+            ldslog.warn('Attempt to clean a non-existent layer. '+str(dse))                
             
 #--------------------------------------------------------------------------------------------------
 

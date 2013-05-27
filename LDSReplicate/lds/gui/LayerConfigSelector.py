@@ -72,9 +72,9 @@ class LayerConfigSelector(QMainWindow):
 
         self.src,self.dst = self.initSrcAndDst()
         
-        self.complete = self.getComplete()
-        self.reserved = self.getReserved()#this should never change
-        self.assigned = self.getAssigned()
+        self.complete = self.getComplete()#from LC
+        self.reserved = self.getReserved()#seldom changes, from GC
+        self.assigned = self.getAssigned()#diff of the above 2
            
         #read the translated primary keys file to determine incremental-able layers
         self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
@@ -142,6 +142,9 @@ class LayerConfigSelector(QMainWindow):
     def refreshLayers(self,customkey=None):
         '''Refreshes lconf from a reread of the lconf object'''
         self.complete = self.getComplete()
+        #self.reserved = self.getReserved()
+        #self.assigned = self.getAssigned()
+        
         av_sl = self.splitData(customkey,self.complete)
         self.signalModels('PRE')
         self.available_model.initData(av_sl[0],self.inclayers)
@@ -304,6 +307,7 @@ class LayerSelectionPage(QFrame):
         availablelabel = QLabel('Available Layers')
         selectionlabel = QLabel('Layer Selections')
         keywordlabel = QLabel('Keyword')
+        explainlabel = QLabel("Edit Group assignments using this dialog or to simply initialise the Layer-Config just click 'Finish'")
         
         #selection buttons
         chooseallbutton = QPushButton('>>')
@@ -462,6 +466,7 @@ class LayerSelectionPage(QFrame):
         hbox2 = QHBoxLayout()
         hbox2.addWidget(resetbutton)
         hbox2.addStretch(1)
+        hbox2.addWidget(explainlabel)
         hbox2.addWidget(finishbutton)
         #gbox1.setLayout(hbox2)
         
@@ -485,9 +490,10 @@ class LayerSelectionPage(QFrame):
             QMessageBox.about(self, "Reserved Keyword","'{0}' is a reserved keyword, please select again".format(ktext))
             return
         self.parent.addKeyToLayers(ktext)
-        if ktext not in self.parent.assigned:
-            self.keywordcombo.addItem(ktext)
-            self.parent.assigned.update([ktext])
+        self.parent.assigned = self.parent.getAssigned()
+
+        self.keywordcombo.addItem(ktext)
+
 
         
     def doDelClickAction(self):
@@ -498,9 +504,9 @@ class LayerSelectionPage(QFrame):
             return
         self.parent.delKeyFromLayers(ktext)
         self.parent.assigned = self.parent.getAssigned()
-        if ktext not in self.parent.assigned:
-            self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
-            self.keywordcombo.clearEditText()
+        
+        self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
+        self.keywordcombo.clearEditText()
             
     def doChooseAllClickAction(self):
         self.parent.signalModels('PRE')
@@ -563,6 +569,7 @@ class LayerSelectionPage(QFrame):
         #Continue
         ldslog.warn('Reset Layer Config')
         self.parent.resetLayers()
+        self.keywordcombo.clear()
 
     def doFinishAction(self):
         self.parent.writeGUIGroupPref(self.keywordcombo.lineEdit().text())
@@ -668,29 +675,3 @@ def main():
     
 if __name__ == '__main__':
     main()
-    
-##active = [self.parent.selection_model.mdata[self.available_sfpm.mapToSource(pi).row()] for pi in select.selectedRows()]
-##active = []
-#tlist = []
-#for proxyindex in select.selectedRows():
-#    transfer = self.selection_sfpm.getData(proxyindex)
-#    tlist.append((proxyindex,transfer),)
-#
-#self.available_sfpm.addData([t[1] for t in tlist])
-#self.selection_sfpm.delData([t[0] for t in tlist])
-#    
-#    
-#    ##sourceindex = self.selection_sfpm.mapToSource(proxyindex)
-#    ##sourcedata = self.parent.selection_model.mdata[sourceindex.row()]
-#    
-#    ##self.parent.available_model.addDataRow(sourceindex,sourcedata)
-#    ##self.parent.selection_model.delDataRow(sourceindex,sourcedata)
-#    
-#    #active.append(sourcedata)
-#    
-##self.parent.available_model.addData(sourceindex,active)
-##self.parent.available_model.layoutChanged.emit()
-##self.selection_sfpm.layoutChanged.emit()
-##self.parent.selection_model.delData(sourceindex,active)
-##self.parent.selection_model.layoutChanged.emit()
-##self.available_sfpm.layoutChanged.emit()

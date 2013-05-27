@@ -44,7 +44,6 @@ ldslog = LDSUtilities.setupLogging()
 
 __version__ = AppVersion.getVersion()
 
-
 #Notes:
 #MS and PG settings entered in these dialogs are saved to config only
 #When a new FGDB directory is set in the file dialog using the NewFolder button a new directory is created and a reference added to the user config
@@ -72,7 +71,6 @@ class LDSConfigWizard(QWizard):
             page = self.plist.get(key)[2]
             self.setPage(index, page(self,key))
 
-
         self.setWindowTitle("LDS Configuration Setup Wizard")
         self.resize(640,480)
         
@@ -97,7 +95,6 @@ class LDSConfigPage(QWizardPage):
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Here you can enter a name for your custom configuration file, your LDS API key and required output. Also select whether you want to configure a proxy or enable password encryption')
 
-
         QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
@@ -113,15 +110,12 @@ class LDSConfigPage(QWizardPage):
         keyLinkLabel = QLabel('<a href="http://data.linz.govt.nz/my/api/">LDS API Key</a>')
         keyLinkLabel.setOpenExternalLinks(True);
 
-        
         #edit boxes
         self.fileEdit = QLineEdit(self.parent.uchint)
         self.fileEdit.setToolTip('Name of user config file (without .conf suffix)')
         self.keyEdit = QLineEdit(ldskey)
         self.keyEdit.setToolTip('This is your LDS API key. If you have an account you can copy your key from here <a href="http://data.linz.govt.nz/my/api/">http://data.linz.govt.nz/my/api/</a>')
-        
-        
-        
+               
         #dropdown
         self.destSelect = QComboBox()
         self.destSelect.setToolTip('Choose from one of four possible output destinations')
@@ -147,13 +141,6 @@ class LDSConfigPage(QWizardPage):
         self.registerField(self.key+"dest",self.destSelect,"currentIndex")
         self.registerField(self.key+"proxy",self.proxyEnable)
         self.registerField(self.key+"encryption",self.encryptionEnable)
-        
-        #buttons
-        #cfileButton = QPushButton("...")
-        #cfileButton.setToolTip('Select Config File')
-        #cfileButton.setBaseSize(100, 100)
-        #cfileButton.clicked.connect(self.selectConfFile)
-
 
         #grid
         grid = QGridLayout()
@@ -263,8 +250,7 @@ class ProxyConfigPage(QWizardPage):
         
         grid.addWidget(pwdLabel, 5, 0)
         grid.addWidget(self.pwdEdit, 5, 2)
-        
-        
+             
         #layout                
         self.setLayout(grid)  
         
@@ -286,11 +272,9 @@ class PostgreSQLConfigPage(QWizardPage):
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the hostname/ip-address, port number, name and schema of your PostgreSQL server instance.')
-
-        
+     
         QToolTip.setFont(QFont('SansSerif', 10))
-        
-        
+              
         #labels
         hostLabel = QLabel('PostgreSQL Host')
         portLabel = QLabel('PostgreSQL Port')
@@ -346,8 +330,7 @@ class PostgreSQLConfigPage(QWizardPage):
         
         grid.addWidget(pwdLabel, 6, 0)
         grid.addWidget(self.pwdEdit, 6, 2)
-        
-        
+              
         #layout                
         self.setLayout(grid)  
         
@@ -359,7 +342,7 @@ class PostgreSQLConfigPage(QWizardPage):
 
     
     def testConnection(self):
-        if not all(f for f in (self.hostEdit.isModified(),self.portEdit.isModified(),self.dbnameEdit.isModified())):
+        if not any(f for f in (self.hostEdit.isModified(),self.portEdit.isModified(),self.dbnameEdit.isModified())):
             return False
         cs = PG.buildConnStr(self.hostEdit.text(),self.portEdit.text(),self.dbnameEdit.text(),
                             self.schemaEdit.text(),self.usrEdit.text(),self.pwdEdit.text())
@@ -372,7 +355,10 @@ class PostgreSQLConfigPage(QWizardPage):
             QMessageBox.warning(self, 'Connection Error', 'Cannot access Geo tables: '+str(dpe), 'OK')
             return False
         except DSReaderException as dse:
-            QMessageBox.warning(self, 'Connection Error', 'Cannot connect to PG data base using parameters provided: '+str(dse), 'OK')
+            QMessageBox.warning(self, 'Connection Error', 'Cannot connect to database using parameters provided: '+str(dse), 'OK')
+            return False
+        except RuntimeError as rte:
+            QMessageBox.warning(self, 'RuntimeError', 'Error connecting to database: '+str(rte), 'OK')
             return False
         return True
         
@@ -388,8 +374,7 @@ class MSSQLSpatialConfigPage(QWizardPage):
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the server string (host\instance) name and schema of your MSSQL server. Select "Trust" if using trusted authentication')
-
-        
+       
         QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
@@ -506,8 +491,7 @@ class FileGDBConfigPage(QWizardPage):
         fileButton = QPushButton("...")
         fileButton.setToolTip('Select FileGDB Directory')
         fileButton.clicked.connect(self.selectFileGDBFile)
-        
-        
+           
         #grid
         grid = QGridLayout()
         grid.setSpacing(10)
@@ -548,8 +532,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Browse to existing SpatiaLite DB OR enter new SpatiaLite DB file name. (This should carry a .db or .sqlite suffix)')
-
-        
+    
         QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
@@ -568,7 +551,6 @@ class SpatiaLiteConfigPage(QWizardPage):
         fileButton.setToolTip('Select SpatiaLite File')
         fileButton.clicked.connect(self.selectSpatiaLiteFile)
         
-
         #grid
         grid = QGridLayout()
         grid.setSpacing(10)
@@ -684,18 +666,7 @@ class ConfirmationPage(QWizardPage):
                 hbox.addWidget(name)     
                 hbox.addWidget(value)   
                 
-                vbox.addLayout(hbox)   
-               
-#        startcheckbox = QCheckBox()
-#        
-#        hbox7 = QHBoxLayout()
-#        hbox7.addWidget(QLabel('Launch LDS Application?'))     
-#        hbox7.addWidget(startcheckbox)
-#        
-#        self.registerField("startimmediate",startcheckbox)
-#        
-#        vbox.addLayout(hbox7)
-        
+                vbox.addLayout(hbox)           
            
         self.setLayout(vbox)
         
@@ -769,8 +740,8 @@ class ConfirmationPage(QWizardPage):
         ConfigWrapper.writeUserConfigData(self.parent.getMFR(), buildarray)
         #save userconf and dest to gui prefs
         gpr = GUIPrefsReader()
-        #zips with (dest,layer,uconf...
-        gpr.write(( section,'',ucfile))
+        #zips with (dest,lgsel,layer,uconf...
+        gpr.write(( section,'','',ucfile))
         
         return rv
    

@@ -47,12 +47,12 @@ class LDSRepl(QMainWindow):
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
         
-        self.controls = LDSControls(self)
-        self.setCentralWidget(self.controls)
-        
         self.statusbar = self.statusBar()
         self.statusbar.showMessage('Ready')
         
+        self.controls = LDSControls(self)
+        self.setCentralWidget(self.controls)
+
         openAction = QAction(QIcon('open.png'), '&Open', self)        
         openAction.setShortcut('Ctrl+O')
         openAction.setStatusTip('Open Prefs Editor')
@@ -96,7 +96,7 @@ class LDSRepl(QMainWindow):
         uconf = self.controls.confEdit.text()
         secname = self.controls.destMenu.itemText(self.controls.destMenu.currentIndex())
         
-        self.statusbar.showMessage('Initialising User Config File')
+        self.statusbar.showMessage('Edition User-Config')
         ldscw = LDSConfigWizard(uconf,secname)
         ldscw.exec_()
         
@@ -273,7 +273,7 @@ class LDSControls(QFrame):
         cancelButton.setToolTip('Close the LDS Replicate application')       
         cancelButton.clicked.connect(QCoreApplication.instance().quit) 
 
-        self.setAnimation(self.STATUS.IDLE)
+        self.setStatus(self.STATUS.IDLE)
         
         #grid
         grid = QGridLayout()
@@ -345,7 +345,9 @@ class LDSControls(QFrame):
         #self.setWindowTitle('LDS Replicate')
        
         
-    def setAnimation(self,status):
+    def setStatus(self,status,message=''):
+        self.parent.statusbar.showMessage(message)
+        
         if status is self.STATUS.BUSY:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/busy.gif'))
         elif status is self.STATUS.CLEAN:
@@ -353,15 +355,27 @@ class LDSControls(QFrame):
         else:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/linz.gif'))
 
-        anim = QMovie(loc, QByteArray(), self) 
+        anim = QMovie(loc, QByteArray(), self)
         anim.setCacheMode(QMovie.CacheAll)
-        anim.setSpeed(100)
+        anim.setSpeed(50)
         self.view.clear()
         self.view.setMovie(anim)
-
-
-        self.view.repaint()
         anim.start()
+        self.view.repaint()
+        
+        #nothing below strictly needed
+        print "dev={},fc={},val={},fmt={},st={}".format(str(anim.device().fileName()),str(anim.frameCount()),str(anim.isValid()),str(QMovie.supportedFormats()),str(anim.state()))
+        print 'Running' if anim.state() == QMovie.Running else ('Paused' if anim.state() == QMovie.Paused else 'NotRunning')
+        while anim.state()<QMovie.Running:
+            anim.start()
+            print anim.state()
+
+        
+        
+        self.view.repaint()
+        print anim.state()
+        self.view.repaint()
+        print anim.state()
 
         
     def centre(self):
@@ -404,7 +418,7 @@ class LDSControls(QFrame):
           
     def readParameters(self):
         destination = str(self.destmenulist[self.destMenu.currentIndex()])
-        lgopt = self.lgcombo.currentText()
+        lgopt = str(self.lgcombo.currentText())
         #FIXME this only needs to be one param not two (or is it more efficient to split them here?)
         if lgopt == 'Layer':
             layer = str(self.lgEdit.text())
@@ -425,19 +439,23 @@ class LDSControls(QFrame):
     
     def doInitClickAction(self):
         '''Initialise the LC on LC-button-click, action'''
+        self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')
         self.parent.runLayerConfigAction()
+        self.setStatus(self.STATUS.IDLE,'Editing Layer-Config')
         
     def doCleanClickAction(self):
         '''Set clean anim and run clean'''
-        self.setAnimation(self.STATUS.CLEAN)
+        lgo = str(self.lgcombo.currentText())
+        self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
         self.runReplicationScript(True)
-        self.setAnimation(self.STATUS.IDLE)
+        self.setStatus(self.STATUS.IDLE,'Clean '+lgo+' Complete')
         
     def doReplicateClickAction(self):
         '''Set busy anim and run repl'''
-        self.setAnimation(self.STATUS.BUSY)
+        lgo = str(self.lgcombo.currentText())
+        self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
         self.runReplicationScript(False)
-        self.setAnimation(self.STATUS.IDLE)
+        self.setStatus(self.STATUS.IDLE,'Replicate '+lgo+' Complete')
 
     def runReplicationScript(self,clean=False):
         '''Run the layer/group repliction script'''
@@ -460,13 +478,11 @@ class LDSControls(QFrame):
             return
   
         #-----------------------------------------------------
-        message = 'Clean' if clean else 'Replicate'
-        self.parent.statusbar.showMessage('Running '+message+' '+lgopt)
 
         #'dest','layer','uconf','group','epsg','fd','td','int'
      
         self.gpr.write((destination_driver,lgopt,layer,uconf,group,epsg,fd,td,internal))        
-        ldslog.info('dest={0}, lg={1}, layer={2}, conf={3}, group{4}, epsg={5}'.format(destination_driver,lgopt,str(layer),uconf,str(group),epsg))
+        ldslog.info('dest={0}, lg={1}, layer={2}, conf={3}, group={4}, epsg={5}'.format(destination_driver,lgopt,str(layer),uconf,str(group),epsg))
         ldslog.info('fd={0}, td={1}, fe={2}, te={3}, int={4}'.format(str(fd),str(td),str(fe),str(te),str(internal)))
 
         tp = TransferProcessor(layer, 
@@ -482,9 +498,6 @@ class LDSControls(QFrame):
             tp.setCleanConfig()
             
         tp.processLDS(tp.initDestination(destination_driver))
-
-        #l_g = group if LDSUtilities.mightAsWellBeNone(group) is not None else (layer if LDSUtilities.mightAsWellBeNone(layer) is not None else 'layers')
-        self.parent.statusbar.showMessage('{0} of {1} complete'.format(message,lgopt))
         
     def userConfMessage(self,uconf,secname=None):
         ucans = QMessageBox.warning(self, 'User Config Missing/Incomplete', 

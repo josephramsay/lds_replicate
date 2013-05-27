@@ -50,6 +50,7 @@ class LayerCreateException(LDSReaderException): pass
 class FeatureCopyException(LDSReaderException): pass
 class InvalidLayerException(LDSReaderException): pass
 class InvalidFeatureException(LDSReaderException): pass
+class InvalidSQLException(LDSReaderException): pass
 class ASpatialFailureException(LDSReaderException): pass
 class UnknownTemporaryDSType(LDSReaderException): pass
 class MalformedConnectionString(DSReaderException): pass
@@ -576,7 +577,7 @@ class DataStore(object):
             
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
-            #May need to be pushed out to subclasses depending on syntax differences
+            #Ordinarily pushed out to subclasses depending on syntax differences
             if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None and src_feat is not None:
                 self.buildIndex(layerconfentry,dst_info.layer_name)
                 
@@ -876,13 +877,16 @@ class DataStore(object):
         '''Default index string builder for new fully replicated layers'''
         ref_index = DataStore.parseStringList(lce.index)
         if ref_index.intersection(set(('spatial','s'))) and lce.gcol is not None:
-            cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.gcol,dst_layer_name,lce.gcol)
+            #cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.gcol,dst_layer_name,lce.gcol)
+            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.gcol)
         elif ref_index.intersection(set(('primary','pkey','p'))):
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
+            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
+            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.pkey)
         elif ref_index is not None:
             #maybe the user wants a non pk/spatial index? Try to filter the string
             clst = ','.join(ref_index)
-            cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
+            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
+            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,clst)
         else:
             return
         ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
@@ -915,6 +919,9 @@ class DataStore(object):
                 #this can be a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
                 #but also indicate no problem, e.g. deleting a layer already deleted
                 raise
+            except InvalidSQLException as ise:
+                #Caused by query not matching valid entry
+                ldslog.error("Error executing SQL Command. "+str(ise))
             except Exception as ex:
                 ldslog.error("Exception. Unable to execute SQL:"+sql+". Exception: "+str(ex),exc_info=1)
                 #raise#often misreported, halting may be unnecessary
@@ -938,7 +945,7 @@ class DataStore(object):
             #match 'select'
             if re.match('select\s+(?:\w+|\*)\s+from',line):
                 continue
-            if re.match('select\s+(has_table_privilege|version|postgis_full_version|@@version)',line):
+            if re.match('select\s+(has_table_privilege|has_schema_privilege|version|postgis_full_version|@@version)',line):
                 continue
             #match 'insert'
             if re.match('(?:update|insert)\s+(?:\w+|\*)\s+',line):
@@ -953,7 +960,7 @@ class DataStore(object):
                 continue
             
             ldslog.error("Line in SQL failed to validate. "+line)
-            return False
+            raise InvalidSQLException('SQL '+str(sql)+' failed to validate')
         
         return True
         
@@ -968,9 +975,9 @@ class DataStore(object):
             return False
         return True
     
-    def _cleanLayerByRef(self,ds,layer):
+    def _cleanLayerByRef(self,ds,layer,truncate):
         '''Deletes a layer from the DS using the layer reference ie. v:x###'''
-
+        msg = 'truncate' if truncate else 'clean'
         #when the DS is created it uses (PG) the active_schema which is the same as the layername schema.
         #since getlayerX returns all layers in all schemas we ignore the ones with schema prepended since they wont be 'active'
         name = self.generateLayerName(self.layerconf.readLayerProperty(layer,'name')).split('.')[-1]
@@ -979,8 +986,12 @@ class DataStore(object):
                 lref = ds.GetLayerByIndex(li)
                 lname= lref.GetName()
                 if lname == name:
-                    ds.DeleteLayer(li)
-                    ldslog.info("DS clean "+str(lname))
+                    if truncate:
+                        for fi in range(1,lref.GetFeatureCount()+1):
+                            lref.DeleteFeature(fi)
+                    else:
+                        ds.DeleteLayer(li)
+                    ldslog.info("DS {} {}".format(msg,str(lname)))
                     #since we only want to alter lastmodified on success return flag=True
                     #we return here too since we assume user only wants to delete one layer, re-indexing issues occur for more than one deletion
                     return True
@@ -988,15 +999,15 @@ class DataStore(object):
             try:
                 self._baseDeleteLayer(name)
             except:
-                raise DatasourceOpenException('Unable to clean layer, '+str(layer))
+                raise DatasourceOpenException('Unable to {} layer, {}'.format(msg,str(layer)))
             return True
                 
                     
         except ValueError as ve:
-            ldslog.error('Error deleting layer '+str(layer)+'. '+str(ve))
+            ldslog.error('Value Error doing {} on layer {}. {}'.format(msg,str(layer),str(ve)))
             raise
         except Exception as e:
-            ldslog.error("Generic error in layer "+str(layer)+' delete. '+str(e))
+            ldslog.error("Generic error in layer "+str(layer)+'. '+str(e))
             raise
         return False
     

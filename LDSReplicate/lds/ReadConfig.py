@@ -905,11 +905,12 @@ class GUIPrefsReader(object):
             
     def write(self,rlist):
         for pr in zip(self.plist,rlist):
-            try:            
-                self.cp.set('prefs',pr[0],pr[1])
-                with open(self.fn, 'w') as configfile:
-                    self.cp.write(configfile)
-                ldslog.debug(str(pr[0])+'='+str(pr[1]))                                                                                        
+            try:
+                if LU.mightAsWellBeNone(pr[1]) is not None:            
+                    self.cp.set('prefs',pr[0],pr[1])
+                    with open(self.fn, 'w') as configfile:
+                        self.cp.write(configfile)
+                    ldslog.debug(str(pr[0])+'='+str(pr[1]))                                                                                        
             except Exception as e:
                 ldslog.warn('Problem writing GUI prefs. '+str(e))
 
