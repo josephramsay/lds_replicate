@@ -156,7 +156,7 @@ class DataStore(object):
      
     def applyConfigOptions(self):
         for opt in self.getConfigOptions():
-            ldslog.info('Applying '+self.DRIVER_NAME+' option; '+opt)
+            ldslog.info('Applying '+self.DRIVER_NAME+' option '+opt)
             k,v = str(opt).split('=')
             gdal.SetConfigOption(k.strip(),v.strip())
              
@@ -210,11 +210,15 @@ class DataStore(object):
         self.layerconf = layerconf
     
     def getConfigOptions(self):
-        '''Returns common options, overridden in subclasses for source specifc options'''
+        '''Returns common gdal operating options, overridden in subclasses for source specifc options'''
+        return []  
+    
+    def getDBOptions(self):
+        '''Returns database creation options (used by spatialite)'''
         return []    
     
     def getLayerOptions(self,layer_id):
-        '''Returns common options, overridden in subclasses for source specifc options'''
+        '''Returns common layer options, overridden in subclasses for source specifc options'''
         #layer_id used in some subclasses
         return ['OVERWRITE='+self.getOverwrite()]#,'OGR_ENABLE_PARTIAL_REPROJECTION=True']
     
@@ -262,7 +266,7 @@ class DataStore(object):
             ldslog.error(dsre1,exc_info=1)
             if create:
                 try:
-                    ds = self.driver.CreateDataSource(dsn)
+                    ds = self.driver.CreateDataSource(dsn, self.getDBOptions())
                     if ds is None:
                         raise DSReaderException("Error opening/creating DS "+str(dsn))
                 except DSReaderException as dsre2:
@@ -431,9 +435,9 @@ class DataStore(object):
             
             
             '''Builds an index on a newly created layer if; 
-            1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
+            1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has replicated at least 1 feat'''
             #May need to be pushed out to subclasses depending on syntax differences
-            if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None and src_feat is not None:
+            if new_layer and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
                 self.buildIndex(layerconfentry,dst_info.layer_name)
                 
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
@@ -578,7 +582,7 @@ class DataStore(object):
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
             #Ordinarily pushed out to subclasses depending on syntax differences
-            if new_layer and layerconfentry.index is not None and layerconfentry.pkey is not None and src_feat is not None:
+            if new_layer and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
                 self.buildIndex(layerconfentry,dst_info.layer_name)
                 
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
@@ -689,6 +693,7 @@ class DataStore(object):
         '''Constructs a new layer using another source layer as a template. This does not populate that layer'''
         #read defns of each field
         fdef_list = []
+        dst_layer = None
         for fi in range(0,src_info.layer_defn.GetFieldCount()):
             fdef_list.append(src_info.layer_defn.GetFieldDefn(fi))
         
@@ -941,6 +946,9 @@ class DataStore(object):
                 continue
             #match 'create/drop index/table'
             if re.match('(?:create|drop)\s+(?:index|table)',line):
+                continue
+            #SL index function'
+            if re.match('select\s+createspatialindex',line):
                 continue
             #match 'select'
             if re.match('select\s+(?:\w+|\*)\s+from',line):

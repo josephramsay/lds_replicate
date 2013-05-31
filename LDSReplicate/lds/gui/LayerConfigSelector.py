@@ -63,6 +63,7 @@ class LayerConfigSelector(QMainWindow):
         '''Main entry point for the Layer selection dialog'''
         super(LayerConfigSelector, self).__init__(parent)
         
+        self.parent = parent
         self.tp = tp
         self.uconf = uconf
         self.group = group
@@ -188,11 +189,22 @@ class LayerConfigSelector(QMainWindow):
             self.available_model.layoutAboutToBeChanged.emit()
             self.selection_model.layoutAboutToBeChanged.emit()
         elif prepost=='POST':
-            self.available_model.layoutChanged.emit()
+            self.available_model.layoutChanged.emit()    
             self.selection_model.layoutChanged.emit()
+
              
     def writeGUIGroupPref(self,gval):
         self.gpr.writeline('group', gval)
+        
+    def closeEvent(self,event):
+        '''Intercept close event to signal parent to update status'''
+        self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'Done')
+        #return last group selection
+        lastgroup = self.page.keywordcombo.lineEdit().text()
+        #self.parent.controls.gpr.writeline('group',lastgroup)
+        self.parent.controls.lgcombo.setCurrentIndex(self.parent.controls.LGOPTS.index('Group'))
+        self.parent.controls.lgEdit.setText(lastgroup)
+        self.close()
     
 class LayerTableModel(QAbstractTableModel):
     #NB. There dont need to be any row/col inserts but will need to add keyword (selecting a layer  = adding user-custom tag)
@@ -344,7 +356,6 @@ class LayerSelectionPage(QFrame):
         
         finishbutton = QPushButton('Finish')
         finishbutton.setToolTip('Finish and Close layer selection dialog')
-        #finishbutton.clicked.connect(self.doFinishAction) 
         finishbutton.clicked.connect(self.parent.close) 
         
         resetbutton = QPushButton('Reset')
@@ -571,9 +582,6 @@ class LayerSelectionPage(QFrame):
         self.parent.resetLayers()
         self.keywordcombo.clear()
 
-    def doFinishAction(self):
-        self.parent.writeGUIGroupPref(self.keywordcombo.lineEdit().text())
-        self.parent.close
             
 
 class LDSSortFilterProxyModel(QSortFilterProxyModel):

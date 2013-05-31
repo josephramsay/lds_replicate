@@ -126,36 +126,29 @@ class MSSQLSpatialDataStore(DataStore):
 
     def buildIndex(self,lce,dst_layer_name):
         '''Builds an index creation string for a new full replicate'''
-        ref_index = DataStore.parseStringList(lce.index)
-        if ref_index.intersection(set(('spatial','s'))):
-#            bb = Geometry.getBoundingBox()
-#            cmd1 = 'CREATE SPATIAL INDEX {}_SK ON {}({}) '.format(dst_layer_name.split('.')[-1]+"_"+ref_gcol,dst_layer_name,ref_gcol)
-#            cmd2 = 'USING GEOMETRY_GRID WITH ( BOUNDING_BOX = (XMIN = {}, YMIN = {}, XMAX = {}, YMAX = {}),' \
-#                    'GRIDS = (LEVEL_1 = MEDIUM, LEVEL_2 = MEDIUM, LEVEL_3 = MEDIUM, LEVEL_4 = MEDIUM),' \
-#                    'CELLS_PER_OBJECT = 256)'.format(str(bb[0]),str(bb[1]),str(bb[2]),str(bb[3]))
-#            cmd = cmd1+cmd2
-            
-            #magic command...
-            cmd = 'CREATE SPATIAL INDEX ON '+dst_layer_name.split('.')[-1]
-        elif ref_index.intersection(set(('primary','pkey','p'))):
-            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
-            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.pkey)
-        elif ref_index is not None:
-            #maybe the user wants a non pk/spatial index? Try to filter the string
-            clst = ','.join(ref_index)
-            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
-            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,clst)
-        else:
-            return
-        ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
+        tableonly = dst_layer_name.split('.')[-1]
         
-        try:
-            self.executeSQL(cmd)
-        except RuntimeError as rte:
-            if re.search('already exists', str(rte)): 
-                ldslog.warn(rte)
-            else:
-                raise
+        if LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
+            cmd = 'ALTER TABLE {0} ADD CONSTRAINT {1}_{2}_PK UNIQUE({2})'.format(dst_layer_name,tableonly,lce.pkey)
+            try:
+                self.executeSQL(cmd)
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.pkey,cmd))
+            except RuntimeError as rte:
+                if re.search('already exists', str(rte)): 
+                    ldslog.warn(rte)
+                else:
+                    raise        
+                
+        if LDSUtilities.mightAsWellBeNone(lce.gcol) is not None:
+            cmd = 'CREATE INDEX {1}_{2}_GK ON {0} USING GIST({2})'.format(dst_layer_name,tableonly,lce.gcol)
+            try:
+                self.executeSQL(cmd)
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.gcol,cmd))
+            except RuntimeError as rte:
+                if re.search('already exists', str(rte)): 
+                    ldslog.warn(rte)
+                else:
+                    raise
                 
 
     def getConfigOptions(self):

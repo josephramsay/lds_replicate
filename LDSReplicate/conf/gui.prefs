@@ -1,9 +1,9 @@
 [prefs]
-dest = PostgreSQL
-lgselect = Layer
+dest = SQLite
+lgselect = Group
 layer = v:x233
-uconf = /home/jramsay/git/LDS/LDSReplicate/conf/default.conf
-group = TESTBBB
+uconf = /home/jramsay/git/LDS/LDSReplicate/conf/sq3.conf
+group = BRAAA
 epsg = 2193
 fd = None
 td = None

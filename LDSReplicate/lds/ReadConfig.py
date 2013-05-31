@@ -584,8 +584,8 @@ class LayerReader(object):
         lca = []
         for layer in self.getLayerNames():
             lce = self.readLayerParameters(layer)
-            #pkey,name,group,gcol,index,epsg,lmod,disc,cql
-            lca.append((layer,lce.pkey,lce.name,lce.group.split(','),lce.gcol,lce.index,lce.epsg,lce.lmod,lce.disc,lce.cql),)
+            #pkey,name,group,gcol,epsg,lmod,disc,cql
+            lca.append((layer,lce.pkey,lce.name,lce.group.split(','),lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
         return lca
     
 #--------------------------------------------------------------------------------------------------
@@ -695,12 +695,13 @@ class LayerFileReader(LayerReader):
         except NoOptionError:
             ldslog.warn("LayerSchema: No Geo Column defined, default to 'SHAPE'")
             gcol = 'SHAPE'
-            
-        try:
-            index = self.cp.get(layer, 'index')
-        except NoOptionError:
-            ldslog.warn("LayerSchema: No Index Column/Specification defined, default to None")
-            index = None
+        
+        #i dont think we need this anymore using the new logic, if gcol->spatial, if pkey->unique    
+#        try:
+#            index = self.cp.get(layer, 'index')
+#        except NoOptionError:
+#            ldslog.warn("LayerSchema: No Index Column/Specification defined, default to None")
+#            index = None
             
         try:
             epsg = self.cp.get(layer, 'epsg')
@@ -724,7 +725,7 @@ class LayerFileReader(LayerReader):
         except NoOptionError:
             cql = None
             
-        return LayerConfEntry(pkey,name,group,gcol,index,epsg,lmod,disc,cql)
+        return LayerConfEntry(pkey,name,group,gcol,epsg,lmod,disc,cql)
         
 #--------------------------------------------------------------------------------------------------            
             
@@ -860,8 +861,10 @@ class LayerDSReader(LayerReader):
             ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
         except Exception as e:
             ldslog.error(e)
-            
-            
+         
+#------------------------------------------------------------------------------
+        
+                    
 class GUIPrefsReader(object):
     '''
     Reader for GUI prefs. To save re inputting every time 

@@ -23,6 +23,7 @@ import re
 
 from DataStore import DataStore
 from DataStore import MalformedConnectionString
+from LDSUtilities import LDSUtilities
 
 ldslog = logging.getLogger('LDS')
 
@@ -34,6 +35,8 @@ class SpatiaLiteDataStore(DataStore):
     DRIVER_NAME = DataStore.DRIVER_NAMES['sl']#"SQLite"
     
     SQLITE_LIST_ALL_TABLES = 'YES'
+    
+    DEFAULT_GCOL = 'GEOMETRY'
       
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -81,50 +84,65 @@ class SpatiaLiteDataStore(DataStore):
         
         return super(SpatiaLiteDataStore,self).getConfigOptions() + local_opts
     
+    def getDBOptions(self):
+        '''Need to set DB options for SL to initialise geo_cols correctly'''
+        local_opts = ['SPATIALITE=yes']
+        return super(SpatiaLiteDataStore,self).getDBOptions() + local_opts
+    
     def getLayerOptions(self,layer_id):
         '''SL layer'''
         #FORMAT=WKB/WKT/SPATIALITE, LAUNDER, SPATIAL_INDEX, COMPRESS_GEOM, SRID, COMPRESS_COLUMNS
         
-        local_opts = []
-
-        gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
+        self.sl_local_opts = []
+       
+        #TODO Figure out how to set geom_name for SL... this wont do it. GEOMETRY is default
+        #gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
+        #if gname is not None:
+        #    local_opts += ['GEOMETRY_NAME='+gname]
         
-        #TODO Figure out how to set geom_name for SL... this wont do it
-        if gname is not None:
-            local_opts += ['GEOMETRY_NAME='+gname]
+        #NB. We could directly edit the geometry_columns table... something like?
+        #"update table geometry_columns set f_geometry_column to '<geocolumn>' where f_table_name like <layername>"
             
         #Not really needed since default is YES
-        #if index == 'spatial or index == 's' or re.match(index,gname.lower()):
-        #    local_opts += ['SPATIAL_INDEX=YES']
+        #if index == 'spatial' or index == 's' or re.match(index,gname.lower()):
+        #   local_opts += ['SPATIAL_INDEX=yes']
         
-        return super(SpatiaLiteDataStore,self).getLayerOptions(layer_id) + local_opts
+        #no reason to turn spatial index off since it doesnt affect Aspatial table creation
+        #if self.layerconf.readLayerProperty(layer_id,'geocolumn') is None:
+        #    local_opts += ['SPATIAL_INDEX=no']
+        
+        return super(SpatiaLiteDataStore,self).getLayerOptions(layer_id) + self.sl_local_opts
         
 
     def buildIndex(self,lce,dst_layer_name):
-        '''Default index string builder for new fully replicated layers'''
-        ref_index = DataStore.parseStringList(lce.index)
-        if ref_index.intersection(set(('spatial','s'))):
-            ldslog.warn('Spatial indexing is only supported at layer creation and is enabled by default')
-            return
-        elif ref_index.intersection(set(('primary','pkey','p'))):
-            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
-            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.pkey)
-        elif ref_index is not None:
-            #maybe the user wants a non pk/spatial index? Try to filter the string
-            clst = ','.join(ref_index)
-            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
-            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,clst)
-        else:
-            return
-        ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
+        '''Builds an index creation string for a new full replicate in PG format'''
+        tableonly = dst_layer_name.split('.')[-1]
+        ALLOWS_CONSTRAINT_CREATION=False
+        #SpatiaLite doesnt have a unique constraint but since we're using a pk might a well declare it as such
+        if ALLOWS_CONSTRAINT_CREATION and LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
+            #spatialite won't do post create constraint additions (could to a re-create?)
+            cmd = 'ALTER TABLE {0} ADD PRIMARY KEY {1}_{2}_PK ({2})'.format(dst_layer_name,tableonly,lce.pkey)
+            try:
+                self.executeSQL(cmd)
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.pkey,cmd))
+            except RuntimeError as rte:
+                if re.search('already exists', str(rte)): 
+                    ldslog.warn(rte)
+                else:
+                    raise        
         
-        try:
-            self.executeSQL(cmd)
-        except RuntimeError as rte:
-            if re.search('already exists', str(rte)): 
-                ldslog.warn(rte)
-            else:
-                raise
+        #Unless we select SPATIAL_INDEX=no as a Layer option this should never be needed
+        #because gcol is also used to determine whether a layer is spatial still do this check   
+        if LDSUtilities.mightAsWellBeNone(lce.gcol) is not None and 'SPATIAL_INDEX=NO' in [opt.replace(' ','').upper() for opt in self.sl_local_opts]:
+            cmd = "SELECT CreateSpatialIndex('{}','{}')".format(dst_layer_name,self.DEFAULT_GCOL)
+            try:
+                self.executeSQL(cmd)
+                ldslog.info("Index = {}({}). Execute = {}. NB Cannot override Geo-Column Name.".format(tableonly,self.DEFAULT_GCOL,cmd))
+            except RuntimeError as rte:
+                if re.search('already exists', str(rte)): 
+                    ldslog.warn(rte)
+                else:
+                    raise
 
 
     def changeColumnIntToString(self,table,column):
@@ -180,33 +198,11 @@ class SpatiaLiteDataStore(DataStore):
         sql_str = "alter table "+table+" drop column "+column
         return self.executeSQL(sql_str)
         
-#    '''
-#    returned by ogr.GetFieldTypeName(i)
-#    0 Integer
-#    1 IntegerList
-#    2 Real
-#    3 RealList
-#    4 String
-#    5 StringList
-#    6 (unknown)
-#    7 (unknown)
-#    8 Binary
-#    9 Date
-#    10 Time
-#    11 DateTime
-#    12 (unknown) ...
-#    '''
-#    def convertToDestinationType(self,key):
-#        return {0: 'integer', 1: 'integer',
-#                2: 'double precision', 3: 'double precision',
-#                4: 'character varying', 5: 'character varying',
-#                8: 'byte',
-#                9: 'date', 10: 'time', 11: 'timestamp'
-#         }.get(key,'character varying') 
 
     '''Spatialite has datatypes INT, INTEGER, SMALLINT, TINYINT, DEC, DECIMAL, LONGCHAR, LONGVARCHAR, DATETIME, SMALLDATETIME which are only
     remaned INTEGER, REAL, TEXT, BLOB and NULL. This converts and aggregates from gdal to these'''
     def convertToDestinationType(self,key):
+        #NB not really needed anymore
         return {0: 'integer', 1: 'integer',
                 2: 'real', 3: 'real',
                 4: 'text', 5: 'text',

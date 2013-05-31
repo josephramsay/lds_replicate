@@ -21,7 +21,7 @@ from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
                          QMainWindow, QAction, QIcon, qApp, QFrame,
                          QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
-from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, QTimer)
+from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, QTimer, QEventLoop)
 
 import os
 import re
@@ -127,6 +127,18 @@ class LDSRepl(QMainWindow):
         
         ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
         ldsc.show()
+
+        
+    def setControlStatus(self,status,message):
+        self.control.setStatus(status,message)
+        
+    def closeEvent(self, event):
+        reply = QMessageBox.question(self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()     
         
         
 class LDSControls(QFrame):
@@ -209,7 +221,7 @@ class LDSControls(QFrame):
         self.destMenu.setToolTip('Choose the desired output type')   
         self.destMenu.addItems(self.destmenulist)
         self.destMenu.setCurrentIndex(destindex)
-        #does it really make sense to do this since (for internal) we need a connection before connection parameters have been set up
+        #does it really make sense to do this since (esp for internal) we need a connection before connection parameters have been set up
         #self.destmenu.currentIndexChanged.connect(self.doDestMenuChanged)
         
        
@@ -247,13 +259,13 @@ class LDSControls(QFrame):
         self.internalTrigger.setToolTip('Sets where layer config settings are stored, external/internal')   
         self.internalTrigger.setCheckState(rint.lower()=='internal')
         
-        self.initTrigger = QCheckBox()
-        self.initTrigger.setToolTip('Re writes the layer config settings (you need to do this on first run)')   
-        self.initTrigger.setCheckState(False)
-        
-        self.cleanTrigger = QCheckBox()
-        self.cleanTrigger.setToolTip('Instead of replicating, this deletes the layer chosen above')   
-        self.cleanTrigger.setCheckState(False)
+#        self.initTrigger = QCheckBox()
+#        self.initTrigger.setToolTip('Re writes the layer config settings (you need to do this on first run)')   
+#        self.initTrigger.setCheckState(False)
+#        
+#        self.cleanTrigger = QCheckBox()
+#        self.cleanTrigger.setToolTip('Instead of replicating, this deletes the layer chosen above')   
+#        self.cleanTrigger.setCheckState(False)
         
         
         #buttons
@@ -271,7 +283,7 @@ class LDSControls(QFrame):
         
         cancelButton = QPushButton("Close")
         cancelButton.setToolTip('Close the LDS Replicate application')       
-        cancelButton.clicked.connect(QCoreApplication.instance().quit) 
+        cancelButton.clicked.connect(self.parent.close)
 
         self.setStatus(self.STATUS.IDLE)
         
@@ -340,42 +352,30 @@ class LDSControls(QFrame):
         
         
         self.setLayout(vbox)  
-        
-        #self.setGeometry(300, 300, 350, 250)
-        #self.setWindowTitle('LDS Replicate')
        
         
     def setStatus(self,status,message=''):
         self.parent.statusbar.showMessage(message)
         
         if status is self.STATUS.BUSY:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/busy.gif'))
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/busy_static.png'))
         elif status is self.STATUS.CLEAN:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/clean.gif'))
-        else:
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/clean_static.png'))
+        elif status is self.STATUS.IDLE:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/linz.gif'))
-
+        else:
+            ldslog.warn('Unknown Status')
+            return
+        
         anim = QMovie(loc, QByteArray(), self)
         anim.setCacheMode(QMovie.CacheAll)
         anim.setSpeed(50)
         self.view.clear()
         self.view.setMovie(anim)
         anim.start()
-        self.view.repaint()
-        
-        #nothing below strictly needed
-        print "dev={},fc={},val={},fmt={},st={}".format(str(anim.device().fileName()),str(anim.frameCount()),str(anim.isValid()),str(QMovie.supportedFormats()),str(anim.state()))
-        print 'Running' if anim.state() == QMovie.Running else ('Paused' if anim.state() == QMovie.Paused else 'NotRunning')
-        while anim.state()<QMovie.Running:
-            anim.start()
-            print anim.state()
 
-        
-        
         self.view.repaint()
-        print anim.state()
-        self.view.repaint()
-        print anim.state()
+        QApplication.processEvents(QEventLoop.AllEvents)
 
         
     def centre(self):
@@ -385,14 +385,7 @@ class LDSControls(QFrame):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
         
-    def closeEvent(self, event):
-        
-        reply = QMessageBox.question(self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-
-        if reply == QMessageBox.Yes:
-            event.accept()
-        else:
-            event.ignore()       
+  
         
     def doLGEditUpdate(self):
         lgopt = self.lgcombo.currentText()
@@ -402,7 +395,6 @@ class LDSControls(QFrame):
         elif lgopt == 'Group':
             self.lgEdit.setText(self.rgroup)
             self.lgEdit.setToolTip('Enter an LDS keyword or use your own custom keyword to select a group of layers')  
-#        
     
 #    def doLayerDisable(self):
 #        self.layerEdit.setText('')
@@ -441,21 +433,23 @@ class LDSControls(QFrame):
         '''Initialise the LC on LC-button-click, action'''
         self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')
         self.parent.runLayerConfigAction()
-        self.setStatus(self.STATUS.IDLE,'Editing Layer-Config')
+        #self.setStatus(self.STATUS.IDLE,'Editing Layer-Config')
         
     def doCleanClickAction(self):
         '''Set clean anim and run clean'''
         lgo = str(self.lgcombo.currentText())
         self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
         self.runReplicationScript(True)
-        self.setStatus(self.STATUS.IDLE,'Clean '+lgo+' Complete')
+        
+        #self.setStatus(self.STATUS.IDLE,'Clean '+lgo+' Complete')
         
     def doReplicateClickAction(self):
         '''Set busy anim and run repl'''
         lgo = str(self.lgcombo.currentText())
         self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
         self.runReplicationScript(False)
-        self.setStatus(self.STATUS.IDLE,'Replicate '+lgo+' Complete')
+        
+        #self.setStatus(self.STATUS.IDLE,'Replicate '+lgo+' Complete')
 
     def runReplicationScript(self,clean=False):
         '''Run the layer/group repliction script'''
@@ -498,6 +492,9 @@ class LDSControls(QFrame):
             tp.setCleanConfig()
             
         tp.processLDS(tp.initDestination(destination_driver))
+        
+        self.setStatus(self.STATUS.IDLE,('Clean' if clean else 'Replicate')+' Complete')
+
         
     def userConfMessage(self,uconf,secname=None):
         ucans = QMessageBox.warning(self, 'User Config Missing/Incomplete', 

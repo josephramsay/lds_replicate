@@ -279,7 +279,7 @@ class LDSUtilities(object):
             cql = None
             
         
-        return LayerConfEntry(pkey,name,group,gcol,index,epsg,lmod,disc,cql)
+        return LayerConfEntry(pkey,name,group,gcol,epsg,lmod,disc,cql)
     
     @staticmethod
     def standardiseDriverNames(dname=''):
@@ -494,15 +494,14 @@ class Encrypt(object):
         return padtext[:len(padtext)-int(pn,16)-1]
         
 
-        
+#this is the only class that emits LCE objects and a a utility module we don't want to be adding dependencies so LCE belongs here        
 class LayerConfEntry(object):
     '''Storage class for layer config info'''
-    def __init__(self,pkey,name,group,gcol,index,epsg,lmod,disc,cql):
+    def __init__(self,pkey,name,group,gcol,epsg,lmod,disc,cql):
         self.pkey = pkey
         self.name = name
         self.group = group
         self.gcol = gcol
-        self.index = index
         self.epsg = epsg
         self.lmod = lmod
         self.disc = disc

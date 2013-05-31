@@ -46,11 +46,9 @@
 		<xsl:choose>
 			<xsl:when test="starts-with(wfs:Title,'ASP')">		
 				<xsl:text>geocolumn = &#xa;</xsl:text>
-				<xsl:text>index = primary&#xa;</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>
 				<xsl:text>geocolumn = shape&#xa;</xsl:text>
-				<xsl:text>index = spatial&#xa;</xsl:text>
 			</xsl:otherwise>
 		</xsl:choose>
 		<xsl:text>epsg = &#xa;</xsl:text>
