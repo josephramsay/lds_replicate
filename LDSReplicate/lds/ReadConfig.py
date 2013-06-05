@@ -870,6 +870,8 @@ class GUIPrefsReader(object):
     Reader for GUI prefs. To save re inputting every time 
     '''
 
+    PREFS_SEC = 'prefs'
+    
     def __init__(self):
         '''
         Constructor
@@ -877,43 +879,102 @@ class GUIPrefsReader(object):
         thisdir = os.path.dirname(__file__)
         guiprefs = '../conf/gui.prefs'
         
-        self.plist = ('dest','lgselect','layer','uconf','group','epsg','fd','td','int')
+        
+        self.dvalue = None
+        
+        self.dselect = 'dest'
+        self.plist = ('lgselect','layer','uconf','group','epsg','fd','td','int')
         
         self.cp = ConfigParser()
         self.fn = os.path.join(thisdir,guiprefs)
         self.cp.read(self.fn)
         
     def read(self):
-        #options likely to be stored, does not include clean and init since these are destructive
-        #and mean't to be one time use only
+        '''Read stored DS value and return this and its matching params'''
+        try:
+            self.dvalue = self.cp.get(self.PREFS_SEC, self.dselect) 
+            if LU.mightAsWellBeNone(self.dvalue) is None:
+                return (None,)*(len(self.plist)+1)
+        except NoSectionError as nse:
+            #if no sec init sec and opt and ret nones
+            ldslog.warn('Error getting GUI prefs section :: '+str(nse))
+            if not self._initSection(self.PREFS_SEC):
+                raise
+            self._initOption(self.PREFS_SEC,self.dselect)
+            return (None,)*(len(self.plist)+1)
+        except NoOptionError as noe:
+            #if no opt init opt and ret nones
+            ldslog.warn('Error getting GUI prefs :: '+str(noe))
+            if not self._initOption(self.PREFS_SEC,self.dselect):
+                raise
+            return (None,)*(len(self.plist)+1)
+        #if dval is okay ret it and res of a read of that sec
+        return (self.dvalue,)+self.readsec(self.dvalue)
+
         
+    def readsec(self,section):        
+        #options per DS type
         rlist = ()
         
         for p in self.plist:
             try:
-                rlist += (self.cp.get('prefs', p),)
+                rlist += (self.cp.get(section, p),)
+            except NoSectionError as nse:
+                #if not ds sec init sec then init opt
+                ldslog.warn('Error getting GUI '+section+' :: '+str(nse))
+                if not self._initSection(section):
+                    raise
+                self._initOption(section, p)
+                rlist += (None,)
             except NoOptionError as noe:
-                ldslog.warn('Error getting GUI pref, '+p+' :: '+noe)
+                #if no opt init the opt
+                ldslog.warn('Error getting GUI '+section+' pref, '+p+' :: '+str(noe))
+                if not self._initOption(section,p):
+                    raise
+                rlist += (None,)
         return rlist
     
     def writeline(self,field,value):
+        #not the best solution since depends on a current gpr and a recent read/write. 
+        if self.dvalue is not None:
+            self.writesecline(self.dvalue,field,value)
+        
+    def writesecline(self,section,field,value):
         try:            
-            self.cp.set('prefs',field,value)
+            self.cp.set(section,field,value)
             with open(self.fn, 'w') as configfile:
                 self.cp.write(configfile)
-            ldslog.debug(str(field)+'='+str(value))                                                                                        
+            ldslog.debug(str(section)+':'+str(field)+'='+str(value))                                                                                        
         except Exception as e:
             ldslog.warn('Problem writing GUI prefs. '+str(e))
             
             
     def write(self,rlist):
-        for pr in zip(self.plist,rlist):
+        self.dvalue = rlist[0]
+        for pr in zip(self.plist,rlist[1:]):
             try:
                 if LU.mightAsWellBeNone(pr[1]) is not None:            
-                    self.cp.set('prefs',pr[0],pr[1])
+                    self.cp.set(self.dvalue,pr[0],pr[1])
                     with open(self.fn, 'w') as configfile:
                         self.cp.write(configfile)
-                    ldslog.debug(str(pr[0])+'='+str(pr[1]))                                                                                        
+                    ldslog.debug(str(self.dvalue)+':'+str(pr[0])+'='+str(pr[1]))                                                                                        
             except Exception as e:
                 ldslog.warn('Problem writing GUI prefs. '+str(e))
+                      
+    
+    def _initSection(self,section):
+        checksec = LU.standardiseDriverNames(section)
+        if checksec is not None:
+            self.cp.add_section(checksec)
+            return True
+        elif section == self.PREFS_SEC:
+            self.cp.add_section(section)
+            return True
+        return False
+            
+    def _initOption(self,section,option):
+        if option in self.plist+(self.dselect,):
+            self.writesecline(section,option,None)
+            return True
+        return False
 

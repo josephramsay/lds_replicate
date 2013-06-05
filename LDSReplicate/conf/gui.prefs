@@ -1,9 +1,21 @@
 [prefs]
-dest = SQLite
+dest = None
+
+[FileGDB]
+lgselect = Layer
+layer = v:x111
+uconf = /home/jramsay/git/LDS/LDSReplicate/conf/fg.conf
+group = None
+epsg = 4167
+fd = None
+td = None
+int = external
+
+[PostgreSQL]
 lgselect = Group
-layer = v:x233
-uconf = /home/jramsay/git/LDS/LDSReplicate/conf/sq3.conf
-group = BRAAA
+layer = v:x111
+uconf = /home/jramsay/git/LDS/LDSReplicate/conf/pg.conf
+group = ASP1
 epsg = 2193
 fd = None
 td = None

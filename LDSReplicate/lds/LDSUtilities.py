@@ -307,7 +307,8 @@ class LDSUtilities(object):
     
     @staticmethod
     def mightAsWellBeNone(nstr):
-        if nstr == None or nstr=='None' or all(i in string.whitespace for i in nstr):
+        '''Doesn't cover all possibilities but accounts for read-from-file problems'''
+        if nstr is None or (isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in string.whitespace for i in nstr))):
             return None
         return nstr
     

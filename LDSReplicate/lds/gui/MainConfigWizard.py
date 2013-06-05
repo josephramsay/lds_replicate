@@ -53,6 +53,7 @@ class LDSConfigWizard(QWizard):
     
     def __init__(self, uchint=None, sechint=None, parent=None):
         super(LDSConfigWizard, self).__init__(parent)
+        self.parent = parent
         self.uchint = uchint
         self.sechint = sechint
 

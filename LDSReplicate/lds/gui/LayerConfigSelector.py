@@ -49,6 +49,7 @@ HCOLS = 2
 #When a new SLITE file is created by entering its name in the SL file dialog, it isnt created but a reference to it is put in the user config file
        
 class LayerConfigSelector(QMainWindow):
+    STEP = LDSUtilities.enum('PRE','POST')
     
     testdata = [('v:x845', '12 Mile Territorial Sea Limit Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries','TESTSELECT']), 
                 ('v:x846', '12 Mile Territorial Sea Outer Limit', ['New Zealand', 'Hydrographic &  Maritime', 'Maritime Boundaries']), 
@@ -147,10 +148,10 @@ class LayerConfigSelector(QMainWindow):
         #self.assigned = self.getAssigned()
         
         av_sl = self.splitData(customkey,self.complete)
-        self.signalModels('PRE')
+        self.signalModels(self.STEP.PRE)
         self.available_model.initData(av_sl[0],self.inclayers)
         self.selection_model.initData(av_sl[1],self.inclayers)
-        self.signalModels('POST')
+        self.signalModels(self.STEP.POST)
         
     
     def addKeyToLayers(self, customkey='CUSTOM'):
@@ -185,16 +186,16 @@ class LayerConfigSelector(QMainWindow):
     
     def signalModels(self,prepost):
         '''Convenience method to call the Layout Change signals when models are modified'''
-        if prepost=='PRE':        
+        if prepost==self.STEP.PRE:        
             self.available_model.layoutAboutToBeChanged.emit()
             self.selection_model.layoutAboutToBeChanged.emit()
-        elif prepost=='POST':
+        elif prepost==self.STEP.POST:
             self.available_model.layoutChanged.emit()    
             self.selection_model.layoutChanged.emit()
 
              
     def writeGUIGroupPref(self,gval):
-        self.gpr.writeline('group', gval)
+        self.gpr.writesecline(self.dest,'group', gval)
         
     def closeEvent(self,event):
         '''Intercept close event to signal parent to update status'''
@@ -202,8 +203,9 @@ class LayerConfigSelector(QMainWindow):
         #return last group selection
         lastgroup = self.page.keywordcombo.lineEdit().text()
         #self.parent.controls.gpr.writeline('group',lastgroup)
-        self.parent.controls.lgcombo.setCurrentIndex(self.parent.controls.LGOPTS.index('Group'))
-        self.parent.controls.lgEdit.setText(lastgroup)
+        if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
+            self.parent.controls.lgcombo.setCurrentIndex(self.parent.controls.LGOPTS.index('Group'))
+            self.parent.controls.lgEdit.setText(lastgroup)
         self.close()
     
 class LayerTableModel(QAbstractTableModel):
@@ -520,11 +522,11 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.clearEditText()
             
     def doChooseAllClickAction(self):
-        self.parent.signalModels('PRE')
+        self.parent.signalModels(self.parent.STEP.PRE)
         #self.parent.selection_model.mdata += self.parent.available_model.mdata
         self.parent.selection_model.initData(self.parent.complete)
         self.parent.available_model.initData([])
-        self.parent.signalModels('POST')
+        self.parent.signalModels(self.parent.STEP.POST)
     
     def doChooseClickAction(self):
         '''Takes available selected and moves to selection'''
@@ -554,20 +556,20 @@ class LayerSelectionPage(QFrame):
         self.selection.clearSelection()
                 
     def doRejectAllClickAction(self):
-        self.parent.signalModels('PRE')
+        self.parent.signalModels(self.parent.STEP.PRE)
         #self.parent.available_model.mdata += self.parent.selection_model.mdata
         self.parent.available_model.initData(self.parent.complete)
         self.parent.selection_model.initData([])
-        self.parent.signalModels('POST')
+        self.parent.signalModels(self.parent.STEP.POST)
         
     def doReadClickAction(self):
         '''Reset the available pane and if there is anything in the keyword box use this to init the selection pane'''
         ktext = str(self.keywordcombo.lineEdit().text())
         av_sl = self.parent.splitData(ktext,self.parent.complete)
-        self.parent.signalModels('PRE')
+        self.parent.signalModels(self.parent.STEP.PRE)
         self.parent.available_model.initData(av_sl[0])
         self.parent.selection_model.initData(av_sl[1])
-        self.parent.signalModels('POST')
+        self.parent.signalModels(self.parent.STEP.POST)
     
     def doResetClickAction(self):
         '''Main selection action, takes selection and adds to conf layer (via tp)'''

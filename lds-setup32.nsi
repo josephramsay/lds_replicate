@@ -7,6 +7,7 @@ Name "LDS Replicate"
 !define APPNAME $(^Name)
 !define REGKEY "SOFTWARE\${APPNAME}"
 !define VERSION 0.0.5
+!define PLATFORM x86
 !define COMPANY "Land Information New Zealand"
 !define URL https://www.linz.govt.nz/
 
@@ -32,7 +33,7 @@ Page custom EnvReqCreate EnvReqLeave
 Page custom ConfigWizzCreate ConfigWizzLeave
 
 # Installer attributes
-OutFile C:\data\lds-setup32.exe
+OutFile C:\data\lds-setup-a32r${VERSION}.exe
 InstallDir "$PROGRAMFILES\LDS Replicate"
 CRCCheck on
 XPStyle on
@@ -87,6 +88,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\doc\README
     SetOutPath $INSTDIR\apps\ldsreplicate\img
     File F:\git\LDS\LDSReplicate\img\linz.gif
+    File F:\git\LDS\LDSReplicate\img\linz_static.png
     File F:\git\LDS\LDSReplicate\img\busy.gif
     File F:\git\LDS\LDSReplicate\img\busy_static.png
     File F:\git\LDS\LDSReplicate\img\clean.gif

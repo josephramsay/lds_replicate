@@ -26,6 +26,7 @@ from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray
 import os
 import re
 import sys
+import subprocess
 
 from lds.TransferProcessor import TransferProcessor
 from lds.ReadConfig import GUIPrefsReader, MainFileReader
@@ -73,6 +74,11 @@ class LDSRepl(QMainWindow):
         exitAction.setStatusTip('Exit Application')
         exitAction.triggered.connect(qApp.quit)
         
+        helpAction = QAction(QIcon('help.png'), '&Help', self)        
+        helpAction.setShortcut('Ctrl+H')
+        helpAction.setStatusTip('Open Help Document')
+        helpAction.triggered.connect(self.launchHelpFile)
+        
         menubar = self.menuBar()
 
         fileMenu = menubar.addMenu('&File')
@@ -84,20 +90,31 @@ class LDSRepl(QMainWindow):
         fileMenu.addAction(exitAction)
 
         helpMenu = menubar.addMenu('&Help')
+        helpMenu.addAction(helpAction)
 
     def launchEditor(self, checked=None):
-        prefs = LDSPrefsEditor()
+        prefs = LDSPrefsEditor(self)
         prefs.setWindowTitle('LDS Preferences Editor')
         prefs.show()
+        
+    def launchHelpFile(self):
+        helpfile = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
+        if os.name == 'nt':
+            #windows
+            os.startfile(helpfile)
+        elif os.name == 'posix':
+            #posix
+            subprocess.Popen(['xdg-open', helpfile])
+
         
     def runWizardAction(self):
         from lds.gui.MainConfigWizard import LDSConfigWizard
         #rather than readparams
         uconf = self.controls.confEdit.text()
-        secname = self.controls.destMenu.itemText(self.controls.destMenu.currentIndex())
+        secname = self.controls.destmenu.itemText(self.controls.destmenu.currentIndex())
         
-        self.statusbar.showMessage('Edition User-Config')
-        ldscw = LDSConfigWizard(uconf,secname)
+        self.statusbar.showMessage('Editing User-Config')
+        ldscw = LDSConfigWizard(uconf,secname,self)
         ldscw.exec_()
         
     def getTPParams(self):
@@ -124,13 +141,13 @@ class LDSRepl(QMainWindow):
         from lds.gui.LayerConfigSelector import LayerConfigSelector
         self.statusbar.showMessage('Editing Layer Config')                  
         tp,uconf,group,destination = self.getTPParams()
-        
-        ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
-        ldsc.show()
+        #nedd a valid dest (to write <dest>.layer.properties) and uconf
+        if LDSUtilities.mightAsWellBeNone(destination) is not None: # Also need? and LDSUtilities.mightAsWellBeNone(uconf) is not None?
+            ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
+            ldsc.show()
+        else:
+            self.controls.setStatus(self.controls.STATUS.IDLE,'Cannot open Layer-Config without defined Destination')
 
-        
-    def setControlStatus(self,status,message):
-        self.control.setStatus(status,message)
         
     def closeEvent(self, event):
         reply = QMessageBox.question(self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -142,10 +159,16 @@ class LDSRepl(QMainWindow):
         
         
 class LDSControls(QFrame):
+        
+    STATIC_IMG = ('linz_static.png','clean_static.png','busy_static.png')
+    ANIM_IMG = ('linz.gif','clean.gif','busy.gif')
+    IMG = STATIC_IMG
     
     GD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data'))
     STATUS = LDSUtilities.enum('IDLE','BUSY','CLEAN')
     LGOPTS = ('Layer','Group')
+    
+    DEF_RVALS = ('','Layer','','','','2193','','','False')
     #GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
     def __init__(self,parent):
         super(LDSControls, self).__init__()
@@ -168,9 +191,8 @@ class LDSControls(QFrame):
         
         # 0      1          2       3       4       5      6    7    8
         #'dest','lgselect','layer','uconf','group','epsg','fd','td','int'
-        defaults = ('','Layer','','','','','','','False')
-        readlist = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.read(),defaults)
-        rdest,rlgselect,self.rlayer,ruconf,self.rgroup,repsg,rfd,rtd,rint = readlist 
+        
+        #self.rdest,rlgselect,self.rlayer,ruconf,self.rgroup,repsg,rfd,rtd,rint = readlist 
         
         QToolTip.setFont(QFont('SansSerif', 10))
         
@@ -187,20 +209,16 @@ class LDSControls(QFrame):
         self.view.setAlignment(Qt.AlignCenter)
 
         #edit boxes
-        self.confEdit = QLineEdit(ruconf)
+        self.confEdit = QLineEdit()
         self.confEdit.setToolTip('Enter your user config file here')   
         
-        
-        lgindex = self.LGOPTS.index(rlgselect)
         self.lgcombo = QComboBox()
         self.lgcombo.setToolTip('Select either Layer or Group entry')  
         self.lgcombo.addItems(self.LGOPTS)
-        self.lgcombo.setCurrentIndex(lgindex)
         self.lgcombo.setEditable(False)
         self.lgcombo.currentIndexChanged.connect(self.doLGEditUpdate)
         
         self.lgEdit = QLineEdit()
-        self.doLGEditUpdate()
         
         self.epsgcombo = QComboBox()
         self.epsgcombo.setToolTip('Setting an EPSG number here determines the output SR of the layer')  
@@ -209,39 +227,18 @@ class LDSControls(QFrame):
         self.epsgcombo.addItems(self.rowsr)
         self.epsgcombo.setEditable(True)
         
-        if LDSUtilities.mightAsWellBeNone(repsg)!=None:
-            epsgedit = self.epsgcombo.lineEdit()
-            epsgedit.setText([e for e in self.nzlsr+self.rowsr if re.match('^\s*(\d+).*',e).group(1)==repsg][0])
-        
         #menus
         self.destmenulist = ['',]+DataStore.DRIVER_NAMES.values()
-        selecteddest = LDSUtilities.standardiseDriverNames(rdest)
-        destindex = self.destmenulist.index('' if selecteddest is None else selecteddest)
-        self.destMenu = QComboBox(self)
-        self.destMenu.setToolTip('Choose the desired output type')   
-        self.destMenu.addItems(self.destmenulist)
-        self.destMenu.setCurrentIndex(destindex)
-        #does it really make sense to do this since (esp for internal) we need a connection before connection parameters have been set up
-        #self.destmenu.currentIndexChanged.connect(self.doDestMenuChanged)
-        
-       
-        
+        self.destmenu = QComboBox(self)
+        self.destmenu.setToolTip('Choose the desired output type')   
+        self.destmenu.addItems(self.destmenulist)
+
         #date selection
         self.fromDateEdit = QDateEdit()
-        if LDSUtilities.mightAsWellBeNone(rfd) is not None:
-            self.fromDateEdit.setDate(QDate(int(rfd[0:4]),int(rfd[5:7]),int(rfd[8:10])))
-        else:
-            early = DataStore.EARLIEST_INIT_DATE
-            self.fromDateEdit.setDate(QDate(int(early[0:4]),int(early[5:7]),int(early[8:10])))
         self.fromDateEdit.setCalendarPopup(True)
         self.fromDateEdit.setEnabled(False)
         
         self.toDateEdit = QDateEdit()
-        if LDSUtilities.mightAsWellBeNone(rtd) is not None:
-            self.toDateEdit.setDate(QDate(int(rtd[0:4]),int(rtd[5:7]),int(rtd[8:10]))) 
-        else:
-            today = DataStore.getCurrent()
-            self.toDateEdit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
         self.toDateEdit.setCalendarPopup(True)
         self.toDateEdit.setEnabled(False)
         
@@ -257,15 +254,6 @@ class LDSControls(QFrame):
         
         self.internalTrigger = QCheckBox()
         self.internalTrigger.setToolTip('Sets where layer config settings are stored, external/internal')   
-        self.internalTrigger.setCheckState(rint.lower()=='internal')
-        
-#        self.initTrigger = QCheckBox()
-#        self.initTrigger.setToolTip('Re writes the layer config settings (you need to do this on first run)')   
-#        self.initTrigger.setCheckState(False)
-#        
-#        self.cleanTrigger = QCheckBox()
-#        self.cleanTrigger.setToolTip('Instead of replicating, this deletes the layer chosen above')   
-#        self.cleanTrigger.setCheckState(False)
         
         
         #buttons
@@ -284,6 +272,13 @@ class LDSControls(QFrame):
         cancelButton = QPushButton("Close")
         cancelButton.setToolTip('Close the LDS Replicate application')       
         cancelButton.clicked.connect(self.parent.close)
+
+
+        #set dialog values
+        readlist = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.read(),self.DEF_RVALS)
+        self.updateGUIValues(readlist)
+        #set onchange here otherwise we get circular initialisation
+        self.destmenu.currentIndexChanged.connect(self.doDestChanged)
 
         self.setStatus(self.STATUS.IDLE)
         
@@ -305,7 +300,7 @@ class LDSControls(QFrame):
         #---------------------+--------
 
         grid.addWidget(destLabel, 1, 0)
-        grid.addWidget(self.destMenu, 1, 2)
+        grid.addWidget(self.destmenu, 1, 2)
 
         #grid.addWidget(layerLabel, 2, 0)
         grid.addWidget(self.lgcombo, 2, 0)
@@ -358,11 +353,11 @@ class LDSControls(QFrame):
         self.parent.statusbar.showMessage(message)
         
         if status is self.STATUS.BUSY:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/busy_static.png'))
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[2]))
         elif status is self.STATUS.CLEAN:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/clean_static.png'))
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[1]))
         elif status is self.STATUS.IDLE:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/linz.gif'))
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[0]))
         else:
             ldslog.warn('Unknown Status')
             return
@@ -386,6 +381,51 @@ class LDSControls(QFrame):
         self.move(qr.topLeft())
         
   
+    def doDestChanged(self):
+        '''Read the dest parameter and fill dialog with matching GPR values'''
+        rdest = str(self.destmenulist[self.destmenu.currentIndex()])
+        rvals = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.readsec(rdest),self.DEF_RVALS[1:])
+        self.updateGUIValues([rdest]+rvals)
+        
+    def updateGUIValues(self,readlist):
+        '''Fill dialog values from provided list'''
+        #Note. rlayer and rgroup must be object vars since they're used in doaction function
+        rdest,rlgselect,self.rlayer,ruconf,self.rgroup,repsg,rfd,rtd,rint = readlist 
+        
+        #Destination Meun
+        selecteddest = LDSUtilities.standardiseDriverNames(rdest)
+        destindex = self.destmenulist.index('' if selecteddest is None else selecteddest)
+        self.destmenu.setCurrentIndex(destindex)
+        
+        #Config File
+        self.confEdit.setText(ruconf)
+        
+        #Layer/Group Selection
+        lgindex = self.LGOPTS.index(rlgselect)
+        self.lgcombo.setCurrentIndex(lgindex)
+        self.doLGEditUpdate()
+        
+        #EPSG
+        if LDSUtilities.mightAsWellBeNone(repsg)!=None:
+            epsgedit = self.epsgcombo.lineEdit()
+            epsgedit.setText([e for e in self.nzlsr+self.rowsr if re.match('^\s*(\d+).*',e).group(1)==repsg][0])
+        
+        #To/From Dates
+        if LDSUtilities.mightAsWellBeNone(rfd) is not None:
+            self.fromDateEdit.setDate(QDate(int(rfd[0:4]),int(rfd[5:7]),int(rfd[8:10])))
+        else:
+            early = DataStore.EARLIEST_INIT_DATE
+            self.fromDateEdit.setDate(QDate(int(early[0:4]),int(early[5:7]),int(early[8:10])))
+            
+        if LDSUtilities.mightAsWellBeNone(rtd) is not None:
+            self.toDateEdit.setDate(QDate(int(rtd[0:4]),int(rtd[5:7]),int(rtd[8:10]))) 
+        else:
+            today = DataStore.getCurrent()
+            self.toDateEdit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
+            
+        #Internal/External CheckBox
+        self.internalTrigger.setCheckState(rint.lower()=='internal')
+        
         
     def doLGEditUpdate(self):
         lgopt = self.lgcombo.currentText()
@@ -409,7 +449,7 @@ class LDSControls(QFrame):
         self.toDateEdit.setEnabled(self.toDateEnable.isChecked())  
           
     def readParameters(self):
-        destination = str(self.destmenulist[self.destMenu.currentIndex()])
+        destination = str(self.destmenulist[self.destmenu.currentIndex()])
         lgopt = str(self.lgcombo.currentText())
         #FIXME this only needs to be one param not two (or is it more efficient to split them here?)
         if lgopt == 'Layer':
@@ -517,7 +557,7 @@ class LDSControls(QFrame):
         if not lcans:
             #Retry
             ldslog.warn('Retry specifying LC')
-            self.destMenu.setCurrentIndex(0)
+            self.destmenu.setCurrentIndex(0)
             return
         #Init
         ldslog.warn('Reset Layer Config')
@@ -528,9 +568,10 @@ class LDSControls(QFrame):
 
 class LDSPrefsEditor(QMainWindow):
     
-    def __init__(self):
+    def __init__(self,parent):
         super(LDSPrefsEditor, self).__init__()
         
+        self.parent = parent
         self.setWindowTitle('LDS Preferences Editor')
         
         self.editor = LDSPrefsFrame(self)
