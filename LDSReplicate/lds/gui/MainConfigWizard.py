@@ -82,6 +82,11 @@ class LDSConfigWizard(QWizard):
     
     def getMFR(self):
         return self.mfr
+    
+    def done(self,event):
+        '''Override of done to reset parent's status. Note, this gets called before validate page'''
+        self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'UC Done') 
+        super(LDSConfigWizard,self).done(event) 
         
         
 class LDSConfigPage(QWizardPage):
@@ -343,7 +348,8 @@ class PostgreSQLConfigPage(QWizardPage):
 
     
     def testConnection(self):
-        if not any(f for f in (self.hostEdit.isModified(),self.portEdit.isModified(),self.dbnameEdit.isModified())):
+        if not any(f for f in (self.hostEdit.isModified(),self.portEdit.isModified(),self.dbnameEdit.isModified(),
+                               self.schemaEdit.isModified(),self.usrEdit.isModified(),self.pwdEdit.isModified())):
             return False
         cs = PG.buildConnStr(self.hostEdit.text(),self.portEdit.text(),self.dbnameEdit.text(),
                             self.schemaEdit.text(),self.usrEdit.text(),self.pwdEdit.text())
@@ -580,6 +586,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         return self.parent.plist.get('sl')[0]
 
 class ConfirmationPage(QWizardPage):
+        
     def __init__(self,parent=None,key=None):
         super(ConfirmationPage, self).__init__(parent)
         self.parent = parent
@@ -744,6 +751,10 @@ class ConfirmationPage(QWizardPage):
         #zips with (dest,lgsel,layer,uconf...
         gpr.write(( section,'','',ucfile))
         
+        #pass back name of UC file for GUI dialog
+        if self.ldsfile is not None:
+            self.parent.parent.controls.confEdit.setText(self.ldsfile)
+            
         return rv
    
         

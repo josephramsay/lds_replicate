@@ -130,6 +130,12 @@ class LDSUtilities(object):
         url = re.sub(',','%2C',url)
         url = re.sub(' ','%20',url)
         return url
+    
+    @staticmethod
+    def containsOnlyAlphaNumeric(anstr):
+        '''Checks for non alphnumeric characters in a string, for schema/table name testing'''
+        #also allows underscore
+        return re.search('[^a-zA-Z0-9_]',anstr) is None
 
     @staticmethod
     def checkCQL(cql):

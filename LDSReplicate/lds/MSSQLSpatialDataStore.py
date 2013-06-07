@@ -140,7 +140,8 @@ class MSSQLSpatialDataStore(DataStore):
                     raise        
                 
         if LDSUtilities.mightAsWellBeNone(lce.gcol) is not None:
-            cmd = 'CREATE INDEX {1}_{2}_GK ON {0} USING GIST({2})'.format(dst_layer_name,tableonly,lce.gcol)
+            #cmd = 'CREATE SPATIAL INDEX {1}_{2}_GK ON {0}({2})'.format(dst_layer_name,tableonly,lce.gcol)
+            cmd = 'CREATE SPATIAL INDEX ON {}'.format(tableonly)
             try:
                 self.executeSQL(cmd)
                 ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.gcol,cmd))
@@ -168,7 +169,7 @@ class MSSQLSpatialDataStore(DataStore):
         schema = self.mainconf.readDSProperty(self.DRIVER_NAME,'schema')
         if schema is None:
             schema = self.schema
-        if LDSUtilities.mightAsWellBeNone(schema) is not None:
+        if LDSUtilities.mightAsWellBeNone(schema) is not None and LDSUtilities.containsOnlyAlphaNumeric(schema):
             local_opts += ['SCHEMA='+schema]
             
         srid = self.layerconf.readLayerProperty(layer_id,'epsg')

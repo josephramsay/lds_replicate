@@ -150,6 +150,8 @@ class LDSDataStore(WFSDataStore):
 
         return cs,ulayer
         
+    def buildIndex(self,lce,dst_layer_name):
+        pass
         
     def sourceURI(self,layername):
         '''Basic Endpoint constructor'''

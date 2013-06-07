@@ -109,6 +109,7 @@ class LDSRepl(QMainWindow):
         
     def runWizardAction(self):
         from lds.gui.MainConfigWizard import LDSConfigWizard
+        self.controls.setStatus(self.controls.STATUS.BUSY,'Opening User-Config Wizard')  
         #rather than readparams
         uconf = self.controls.confEdit.text()
         secname = self.controls.destmenu.itemText(self.controls.destmenu.currentIndex())
@@ -139,7 +140,7 @@ class LDSRepl(QMainWindow):
     def runLayerConfigAction(self):
         '''Open a new Layer dialog'''
         from lds.gui.LayerConfigSelector import LayerConfigSelector
-        self.statusbar.showMessage('Editing Layer Config')                  
+        self.controls.setStatus(self.controls.STATUS.BUSY,'Opening Layer-Config Editor')                
         tp,uconf,group,destination = self.getTPParams()
         #nedd a valid dest (to write <dest>.layer.properties) and uconf
         if LDSUtilities.mightAsWellBeNone(destination) is not None: # Also need? and LDSUtilities.mightAsWellBeNone(uconf) is not None?
@@ -398,10 +399,13 @@ class LDSControls(QFrame):
         self.destmenu.setCurrentIndex(destindex)
         
         #Config File
-        self.confEdit.setText(ruconf)
+        self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
         
         #Layer/Group Selection
-        lgindex = self.LGOPTS.index(rlgselect)
+        if LDSUtilities.mightAsWellBeNone(rlgselect) is None:
+            lgindex = 0
+        else:
+            lgindex = self.LGOPTS.index(rlgselect)
         self.lgcombo.setCurrentIndex(lgindex)
         self.doLGEditUpdate()
         
@@ -424,7 +428,10 @@ class LDSControls(QFrame):
             self.toDateEdit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
             
         #Internal/External CheckBox
-        self.internalTrigger.setCheckState(rint.lower()=='internal')
+        if LDSUtilities.mightAsWellBeNone(rint) is not None:
+            self.internalTrigger.setCheckState(rint.lower()==DataStore.CONF_INT)
+        else:
+            self.internalTrigger.setCheckState(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
         
         
     def doLGEditUpdate(self):
@@ -471,7 +478,7 @@ class LDSControls(QFrame):
     
     def doInitClickAction(self):
         '''Initialise the LC on LC-button-click, action'''
-        self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')
+        #self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')
         self.parent.runLayerConfigAction()
         #self.setStatus(self.STATUS.IDLE,'Editing Layer-Config')
         

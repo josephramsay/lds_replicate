@@ -3,11 +3,13 @@
 
 Name "LDS Replicate"
 
+#lds-replicate-setup-win32-1.0.0.exe
+
 # General Symbol Definitions
 !define APPNAME $(^Name)
 !define REGKEY "SOFTWARE\${APPNAME}"
-!define VERSION 0.0.5
-!define PLATFORM x86
+!define VERSION 0.0.6
+!define PLATFORM "win32"
 !define COMPANY "Land Information New Zealand"
 !define URL https://www.linz.govt.nz/
 
@@ -33,7 +35,7 @@ Page custom EnvReqCreate EnvReqLeave
 Page custom ConfigWizzCreate ConfigWizzLeave
 
 # Installer attributes
-OutFile C:\data\lds-setup-a32r${VERSION}.exe
+OutFile C:\data\lds-replicate-setup-${PLATFORM}-r${VERSION}.exe
 InstallDir "$PROGRAMFILES\LDS Replicate"
 CRCCheck on
 XPStyle on
@@ -362,6 +364,7 @@ Function ConfigWizzCreate
         ${NSD_Check} $CheckBox4
     ${EndIf}
 
+    ${NSD_SetState} $CheckBox4_State ${BST_CHECKED}
     nsDialogs::Show
 FunctionEnd
 

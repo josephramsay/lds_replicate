@@ -95,6 +95,7 @@ class DataStore(object):
     
     CONF_INT = 'internal'
     CONF_EXT = 'external'
+    DEFAULT_CONF = CONF_EXT #Definitive default declaration
     
     ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
     
@@ -734,8 +735,11 @@ class DataStore(object):
             raise LayerCreateException(dst_info.layer_name+" cannot be created")
     
         
-        '''if the dst_layer isn't empty it's probably not a new layer and we shouldn't be adding stuff to it'''
-        if len(dst_layer.schema)>0:
+        #Some drivers return an existing layer on CreateLayer even though GetLayer returned nothing. 
+        #If the dst_layer isn't empty it's probably not a new layer and we shouldn't be adding stuff to it
+        #if len(dst_layer.schema)>0:
+        #Because layer.schema can throw an exception on SQLServer use GetFeatureCount?
+        if dst_layer.GetFeatureCount()>0:
             return (dst_layer,False)
         
         '''setup layer headers for new layer etc'''
@@ -878,31 +882,34 @@ class DataStore(object):
         dpo = datetime.utcnow()
         return dpo.strftime(cls.DATE_FORMAT)  
     
+    @abstractmethod
     def buildIndex(self,lce,dst_layer_name):
         '''Default index string builder for new fully replicated layers'''
-        ref_index = DataStore.parseStringList(lce.index)
-        if ref_index.intersection(set(('spatial','s'))) and lce.gcol is not None:
-            #cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.gcol,dst_layer_name,lce.gcol)
-            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.gcol)
-        elif ref_index.intersection(set(('primary','pkey','p'))):
-            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
-            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.pkey)
-        elif ref_index is not None:
-            #maybe the user wants a non pk/spatial index? Try to filter the string
-            clst = ','.join(ref_index)
-            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
-            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,clst)
-        else:
-            return
-        ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
-        
-        try:
-            self.executeSQL(cmd)
-        except RuntimeError as rte:
-            if re.search('already exists', str(rte)): 
-                ldslog.warn(rte)
-            else:
-                raise
+        raise NotImplementedError("Abstract method buildIndex not implemented")
+#        #TODO. This isn't meant to be run, subclasses only. 
+#        ref_index = DataStore.parseStringList(lce.index)
+#        if ref_index.intersection(set(('spatial','s'))) and lce.gcol is not None:
+#            #cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.gcol,dst_layer_name,lce.gcol)
+#            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.gcol)
+#        elif ref_index.intersection(set(('primary','pkey','p'))):
+#            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
+#            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.pkey)
+#        elif ref_index is not None:
+#            #maybe the user wants a non pk/spatial index? Try to filter the string
+#            clst = ','.join(ref_index)
+#            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
+#            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,clst)
+#        else:
+#            return
+#        ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
+#        
+#        try:
+#            self.executeSQL(cmd)
+#        except RuntimeError as rte:
+#            if re.search('already exists', str(rte)): 
+#                ldslog.warn(rte)
+#            else:
+#                raise
 
     
     # private methods

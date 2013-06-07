@@ -12,12 +12,22 @@ td = None
 int = external
 
 [PostgreSQL]
-lgselect = Group
-layer = v:x111
+lgselect = Layer
+layer = v:x785
 uconf = /home/jramsay/git/LDS/LDSReplicate/conf/pg.conf
 group = ASP1
 epsg = 2193
 fd = None
-td = None
+td = 2011-05-12
 int = external
+
+[MSSQLSpatial]
+lgselect = None
+layer = None
+uconf = None
+group = None
+epsg = None
+fd = None
+td = None
+int = None
 

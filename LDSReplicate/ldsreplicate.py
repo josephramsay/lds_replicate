@@ -198,7 +198,7 @@ def main():
     #aggregation point for LDS errors
     mm = '*** Complete *** '
     try:
-        tp.processLDS(pn)
+        tp.processLDS(tp.initDestination(pn))
     except HTTPError as he:
         ldslog.error('Error connecting to LDS. '+str(he))
         mm = '*** Failed 1 *** '
