@@ -86,7 +86,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\conf\sufiselector.xsl
     SetOutPath $INSTDIR\apps\ldsreplicate\doc
     File F:\git\LDS\LDSReplicate\doc\demo2_commands.txt
-    File F:\git\LDS\LDSReplicate\doc\INSTALL_WIN.txt
+    File F:\git\LDS\LDSReplicate\doc\LDSReplicate_instructions.pdf
     File F:\git\LDS\LDSReplicate\doc\README
     SetOutPath $INSTDIR\apps\ldsreplicate\img
     File F:\git\LDS\LDSReplicate\img\linz.gif

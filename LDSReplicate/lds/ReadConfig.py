@@ -525,7 +525,7 @@ class LayerReader(object):
     __metaclass__ = ABCMeta
     '''abstract super class for holding common functionality'''
     def __init__(self,fname):
-        pass
+        self.fname = fname
     
     @abstractmethod
     def readLayerProperty(self,layer,key):
@@ -596,15 +596,19 @@ class LayerFileReader(LayerReader):
         '''
         Constructor
         '''
+        super(LayerFileReader,self).__init__(fname)
+        
         self.cp = ConfigParser()
-        self.fname = fname
-        self.filename = os.path.join(os.path.dirname(__file__), '../conf/',fname)
+        self.filename = os.path.abspath(os.path.join(os.path.dirname(__file__), '../conf/',self.fname))
             
         self._readConfigFile(self.filename)
         
     def exists(self):
         '''TF test to decide whether to init'''
-        return len(self.cp.sections())>0
+        return self._fileexists() and len(self.cp.sections())>0
+    
+    def _fileexists(self):
+        return os.path.exists(self.filename)
     
     def buildConfigLayer(self,res):
         '''Just write a file in conf with the name <driver>.layer.properties'''
@@ -736,20 +740,21 @@ class LayerDSReader(LayerReader):
     # Ported from DS location so some optimisation needed
 
 
-    def __init__(self,dso):
+    def __init__(self,fname):
         
         '''
         Constructor
         '''
-        self.dso = dso
-        self.ds = self.dso.ds
+        #in the DS context fname refers to a DS object
+        super(LayerDSReader,self).__init__(fname)
+        self.ds = self.fname.ds
         self.namelist = ()
             
 
     def exists(self):
         '''Test for DS table'''
         if self.ds is not None:
-            if self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE) is not None:
+            if self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE) is not None:
                 return True
         return False
         
@@ -761,14 +766,14 @@ class LayerDSReader(LayerReader):
 
         #First, try to delete any previous config
         try:
-            self.ds.DeleteLayer(self.dso.LDS_CONFIG_TABLE)
+            self.ds.DeleteLayer(self.fname.LDS_CONFIG_TABLE)
         except Exception as e:
             ldslog.warn("Exception deleting config layer: "+str(e))
         
-        config_layer = self.ds.CreateLayer(self.dso.LDS_CONFIG_TABLE, None, self.getConfigGeometry(), ['OVERWRITE=YES'])
+        config_layer = self.ds.CreateLayer(self.fname.LDS_CONFIG_TABLE, None, self.getConfigGeometry(), ['OVERWRITE=YES'])
         
         feat_def = ogr.FeatureDefn()
-        for name in self.dso.CONFIG_COLUMNS:
+        for name in self.fname.CONFIG_COLUMNS:
             #create new field defn with name=name and type OFTString
             fld_def = ogr.FieldDefn(name,ogr.OFTString)
             #in the feature defn, define a new field
@@ -781,16 +786,16 @@ class LayerDSReader(LayerReader):
             #HACK
             #if self.DRIVER_NAME == 'MSSQLSpatial':
             #    do something hack-y
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[0],str(row[0]))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[1],str(row[1]))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[2],str(row[2]))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[3],str(','.join(row[3])))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[4],str(row[4]))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[5],str(row[5]))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[6],str(row[6]))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[7],str(row[7]))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[8],None if row[8] is None else str(','.join(row[8])))
-            config_feat.SetField(self.dso.CONFIG_COLUMNS[9],str(row[9]))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[0],str(row[0]))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[1],str(row[1]))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[2],str(row[2]))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[3],str(','.join(row[3])))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[4],str(row[4]))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[5],str(row[5]))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[6],str(row[6]))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[7],str(row[7]))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[8],None if row[8] is None else str(','.join(row[8])))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[9],str(row[9]))
             
             config_layer.CreateFeature(config_feat)
             
@@ -804,7 +809,7 @@ class LayerDSReader(LayerReader):
     @override(LayerReader)
     def findLayerIdByName(self,lname):
         '''Reverse lookup of section by associated name, finds first occurance only'''
-        layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+        layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
         feat = layer.GetNextFeature() 
         while feat is not None:
@@ -817,7 +822,7 @@ class LayerDSReader(LayerReader):
     def getLayerNames(self):
         '''Returns configured layers for respective layer properties file'''
         if not self.namelist:
-            layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+            layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
             layer.ResetReading()
             feat = layer.GetNextFeature() 
             while feat is not None:
@@ -831,9 +836,9 @@ class LayerDSReader(LayerReader):
         '''Full Layer config reader'''
         from DataStore import InaccessibleFeatureException
 
-        layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+        layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
-        feat = self.dso._findMatchingFeature(layer, 'id', pkey)
+        feat = self.fname._findMatchingFeature(layer, 'id', pkey)
         if feat is None:
             InaccessibleFeatureException('Cannot access feature with id='+str(pkey)+' in layer '+str(layer.GetName()))
         return LU.extractFields(feat)
@@ -841,9 +846,9 @@ class LayerDSReader(LayerReader):
     @override(LayerReader)     
     def readLayerProperty(self,pkey,field):
         '''Single property reader'''
-        layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
+        layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
-        feat = self.dso._findMatchingFeature(layer, 'id', pkey)
+        feat = self.fname._findMatchingFeature(layer, 'id', pkey)
         if feat is None:
             return None
         prop = feat.GetField(field)
@@ -854,8 +859,8 @@ class LayerDSReader(LayerReader):
         '''Write changes to layer config table. Keyword changes are written as a comma-seperated value '''
         #ogr.UseExceptions()
         try:
-            layer = self.ds.GetLayer(self.dso.LDS_CONFIG_TABLE)
-            feat = self.dso._findMatchingFeature(layer, 'id', pkey)
+            layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+            feat = self.fname._findMatchingFeature(layer, 'id', pkey)
             feat.SetField(field,value)
             layer.SetFeature(feat)
             ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
@@ -912,7 +917,7 @@ class GUIPrefsReader(object):
         return (self.dvalue,)+self.readsec(self.dvalue)
 
         
-    def readsec(self,section):        
+    def readsec(self,section):
         #options per DS type
         rlist = ()
         
@@ -951,6 +956,7 @@ class GUIPrefsReader(object):
             
     def write(self,rlist):
         self.dvalue = rlist[0]
+        self.cp.set(self.PREFS_SEC,self.dselect,self.dvalue)
         for pr in zip(self.plist,rlist[1:]):
             try:
                 if LU.mightAsWellBeNone(pr[1]) is not None:            

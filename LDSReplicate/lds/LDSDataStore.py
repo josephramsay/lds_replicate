@@ -83,7 +83,7 @@ class LDSDataStore(WFSDataStore):
         #CPL_CURL_VERBOSE for those ogrerror/generalerror
         #OGR_WFS_PAGING_ALLOWED, OGR_WFS_PAGE_SIZE, OGR_WFS_BASE_START_INDEX
         local_opts = ['GDAL_HTTP_USERAGENT=LDSReplicate/'+str(AppVersion.getVersion())]
-        #local_opts += ['OGR_WFS_PAGING_ALLOWED=ON']
+        local_opts += ['OGR_WFS_PAGING_ALLOWED=ON']
         local_opts += ['OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
         local_opts += ['OGR_WFS_USE_STREAMING=NO']
         return super(LDSDataStore,self).getConfigOptions() + local_opts    

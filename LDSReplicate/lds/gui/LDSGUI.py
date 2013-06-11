@@ -29,9 +29,10 @@ import sys
 import subprocess
 
 from lds.TransferProcessor import TransferProcessor
-from lds.ReadConfig import GUIPrefsReader, MainFileReader
+from lds.ReadConfig import GUIPrefsReader, MainFileReader, LayerFileReader,LayerDSReader
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
+from lds.gui.LayerConfigSelector import LayerConfigSelector
 
 from lds.DataStore import DataStore
 
@@ -41,7 +42,9 @@ __version__ = AppVersion.getVersion()
 
 class LDSRepl(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
-  
+    
+    HELPFILE = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
+    
     def __init__(self):
         super(LDSRepl, self).__init__()
         
@@ -98,13 +101,12 @@ class LDSRepl(QMainWindow):
         prefs.show()
         
     def launchHelpFile(self):
-        helpfile = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
         if os.name == 'nt':
             #windows
-            os.startfile(helpfile)
+            os.startfile(self.HELPFILE)
         elif os.name == 'posix':
             #posix
-            subprocess.Popen(['xdg-open', helpfile])
+            subprocess.Popen(['xdg-open', self.HELPFILE])
 
         
     def runWizardAction(self):
@@ -139,7 +141,6 @@ class LDSRepl(QMainWindow):
         
     def runLayerConfigAction(self):
         '''Open a new Layer dialog'''
-        from lds.gui.LayerConfigSelector import LayerConfigSelector
         self.controls.setStatus(self.controls.STATUS.BUSY,'Opening Layer-Config Editor')                
         tp,uconf,group,destination = self.getTPParams()
         #nedd a valid dest (to write <dest>.layer.properties) and uconf
@@ -169,7 +170,7 @@ class LDSControls(QFrame):
     STATUS = LDSUtilities.enum('IDLE','BUSY','CLEAN')
     LGOPTS = ('Layer','Group')
     
-    DEF_RVALS = ('','Layer','','','','2193','','','False')
+    DEF_RVALS = ('','Layer','','','','2193','','','external')
     #GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
     def __init__(self,parent):
         super(LDSControls, self).__init__()
@@ -247,7 +248,6 @@ class LDSControls(QFrame):
         self.fromDateEnable = QCheckBox()
         self.fromDateEnable.setCheckState(False)
         self.fromDateEnable.clicked.connect(self.doFromDateEnable)
-
         
         self.toDateEnable = QCheckBox()
         self.toDateEnable.setCheckState(False) 
@@ -255,12 +255,13 @@ class LDSControls(QFrame):
         
         self.internalTrigger = QCheckBox()
         self.internalTrigger.setToolTip('Sets where layer config settings are stored, external/internal')   
+        self.internalTrigger.clicked.connect(self.doInternalChanged)
         
         
-        #buttons
-        initButton = QPushButton("Initialise")
-        initButton.setToolTip('Initialise the Layer Configuration')
-        initButton.clicked.connect(self.doInitClickAction)
+        #buttons        
+        self.initButton = QPushButton("waiting")
+        self.initButton.setToolTip('Initialise the Layer Configuration')
+        self.initButton.clicked.connect(self.doInitClickAction)
         
         cleanButton = QPushButton("Clean")
         cleanButton.setToolTip('Clean the selected layer/group from local storage')
@@ -333,7 +334,7 @@ class LDSControls(QFrame):
         #hbox3.addLayout(vbox3)
         
         hbox4 = QHBoxLayout()
-        hbox4.addWidget(initButton)
+        hbox4.addWidget(self.initButton)
         hbox4.addStretch(1)
         hbox4.addWidget(replicateButton)
         hbox4.addWidget(cleanButton)
@@ -382,21 +383,40 @@ class LDSControls(QFrame):
         self.move(qr.topLeft())
         
   
+    def getInitLabel(self,rdest):
+        '''Returns a name for the init/layer button.'''
+        #for internal DS too much overhead intialising a new data connection so we default to "init"
+        if not self.internalTrigger.isChecked() and LDSUtilities.mightAsWellBeNone(rdest) and LayerFileReader(rdest.lower()+TransferProcessor.LP_SUFFIX).exists():
+                    return 'Layer Select'
+        return 'Initalise'
+    
     def doDestChanged(self):
         '''Read the dest parameter and fill dialog with matching GPR values'''
         rdest = str(self.destmenulist[self.destmenu.currentIndex()])
         rvals = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.readsec(rdest),self.DEF_RVALS[1:])
         self.updateGUIValues([rdest]+rvals)
         
+    def doInternalChanged(self):
+        '''Read the dest parameter and fill dialog with matching GPR values'''
+        rdest = str(self.destmenulist[self.destmenu.currentIndex()])
+        rint = 'internal' if self.internalTrigger.isChecked() else 'external'
+        rvals = map(lambda x,y: y if x is None or len(x)==0 else x,self.gpr.readsec(rdest),self.DEF_RVALS[1:])
+        self.updateGUIValues([rdest]+rvals[:-1]+[rint])
+        
     def updateGUIValues(self,readlist):
         '''Fill dialog values from provided list'''
         #Note. rlayer and rgroup must be object vars since they're used in doaction function
-        rdest,rlgselect,self.rlayer,ruconf,self.rgroup,repsg,rfd,rtd,rint = readlist 
+        rdest,rlgselect,self.rlayer,ruconf,self.rgroup,repsg,rfd,rtd,rint = readlist
         
-        #Destination Meun
+        
+        #Destination Menu
         selecteddest = LDSUtilities.standardiseDriverNames(rdest)
         destindex = self.destmenulist.index('' if selecteddest is None else selecteddest)
         self.destmenu.setCurrentIndex(destindex)
+        
+        #InitButton
+        ilabel = self.getInitLabel(selecteddest)
+        self.initButton.setText(ilabel)
         
         #Config File
         self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
@@ -429,9 +449,9 @@ class LDSControls(QFrame):
             
         #Internal/External CheckBox
         if LDSUtilities.mightAsWellBeNone(rint) is not None:
-            self.internalTrigger.setCheckState(rint.lower()==DataStore.CONF_INT)
+            self.internalTrigger.setChecked(rint.lower()==DataStore.CONF_INT)
         else:
-            self.internalTrigger.setCheckState(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
+            self.internalTrigger.setChecked(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
         
         
     def doLGEditUpdate(self):

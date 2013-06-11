@@ -1,11 +1,11 @@
 [prefs]
-dest = None
+dest = PostgreSQL
 
 [FileGDB]
-lgselect = Layer
+lgselect = Group
 layer = v:x111
 uconf = /home/jramsay/git/LDS/LDSReplicate/conf/fg.conf
-group = None
+group = MIXUP
 epsg = 4167
 fd = None
 td = None
@@ -13,7 +13,7 @@ int = external
 
 [PostgreSQL]
 lgselect = Layer
-layer = v:x785
+layer = v:x772
 uconf = /home/jramsay/git/LDS/LDSReplicate/conf/pg.conf
 group = ASP1
 epsg = 2193
@@ -22,6 +22,16 @@ td = 2011-05-12
 int = external
 
 [MSSQLSpatial]
+lgselect = None
+layer = None
+uconf = None
+group = None
+epsg = None
+fd = None
+td = None
+int = None
+
+[SQLite]
 lgselect = None
 layer = None
 uconf = None

@@ -99,10 +99,12 @@ class LayerConfigSelector(QMainWindow):
 
     def getComplete(self):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
+        #these are all the keywords in the local file
         return self.dst.getLayerConf().getLConfAs3Array()
     
     def getReserved(self):
         '''Read the capabilities doc (as json) for reserved words'''
+        #these are all the keywords LDS currently knows about
         reserved = set()
         for i in [l[3] for l in json.loads(self.tp.parseCapabilitiesDoc(self.src.getCapabilities(),'json'))]:
             reserved.update(set(i))
@@ -110,13 +112,18 @@ class LayerConfigSelector(QMainWindow):
             
     def getAssigned(self):
         '''Read the complete config doc for all keywords and diff out reserved. Requires init of complete and reserved'''   
+        #these are the difference between saved and LDS-known keywords therefore, the ones the user has saved or LDS has forgotten about 
         assigned = set() 
         for i in [x[2] for x in self.complete]:
             assigned.update(set(i))
         assigned.difference_update(self.reserved)
         
-        return assigned
+        return self.deleteForgotten(assigned)
         
+    def deleteForgotten(self,alist,flt='v_\w{8}_wxs_\w{4}'):
+        '''Removes keywords with the format v_########_wxs_#### since these are probably not user generated but may be forgotten by LDS'''
+        #HACK
+        return set([a for a in alist if not re.search(flt,a)])
         
     def initSrcAndDst(self):
         '''Initialises src and dst objects'''

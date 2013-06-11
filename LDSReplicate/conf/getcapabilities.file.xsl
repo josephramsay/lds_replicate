@@ -17,7 +17,10 @@
 	<xsl:for-each select="wfs:FeatureType">
 		<xsl:sort select="wfs:Name"/>
 		<xsl:variable name="keyword" select="ows:Keywords/ows:Keyword"/>
+		<xsl:variable name="title" select="wfs:Title"/>
+		<!-- flags if layer kword is hydro or topo or the title contains zonemap -->
 		<xsl:variable name="kflag">
+			<xsl:if test="contains(normalize-space($title),'ZoneMap')">true</xsl:if>
 			<xsl:for-each select="$keyword">
 				<xsl:if test="contains(normalize-space(.),'Topographic') or contains(normalize-space(.),'Hydrographic')">true</xsl:if>
 			</xsl:for-each>

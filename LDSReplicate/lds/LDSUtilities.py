@@ -92,16 +92,16 @@ class LDSUtilities(object):
         
     @staticmethod
     def checkHasChangesetIdentifier(url):
-        '''Parse a selected date string from a user supplied URL. Can return none as that would indicate non incremental'''
+        '''Check whether URL contains changeset id'''
         #yeah thats right, F or T
         c1 = re.search(LDSUtilities.LDS_TN_VXPATH+'\d+-changeset',url,flags=re.IGNORECASE)
         c2 = re.search('typeName='+LDSUtilities.LDS_TN_PREFIX+'\d+-changeset',url,flags=re.IGNORECASE)
-        return c1 is not None and c2 is not None
+        return True if c1 and c2 else False#return c1 is not None and c2 is not None
     
     @staticmethod
     def getDateStringFromURL(fort,url):
         '''Parse a selected date string from a user supplied URL. Can return none as that would indicate non incremental'''
-        #yeah thats right, F or T
+        #yeah thats right, ForT = F(rom) or T(o)
         udate = re.search(fort+':(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})*)',url)
         return udate
 
@@ -312,6 +312,16 @@ class LDSUtilities(object):
         return data
     
     @staticmethod
+    def convertBool(sbool):
+        '''Returns the bool representation of a T/F string or failing that whatever bool func thinks'''
+        if isinstance(sbool,str) or isinstance(sbool,unicode):
+            if sbool.lower() in ['true','t','yes','y']:
+                return True
+            elif sbool.lower() in ['false','f','no','n']:
+                return False
+        return bool(sbool)
+    
+    @staticmethod
     def mightAsWellBeNone(nstr):
         '''Doesn't cover all possibilities but accounts for read-from-file problems'''
         if nstr is None or (isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in string.whitespace for i in nstr))):
@@ -383,6 +393,7 @@ class ConfigInitialiser(object):
         transform = etree.XSLT(xslt)
         doc = etree.parse(StringIO(xml))
         res = transform(doc)
+        ldslog.info(res)
         hackpk = {'file':ConfigInitialiser._hackPrimaryKeyFieldCP,'json':ConfigInitialiser._hackPrimaryKeyFieldJSON}.get(fileid)
         return hackpk(str(res))
     
