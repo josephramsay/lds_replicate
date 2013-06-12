@@ -21,11 +21,12 @@ import gdal
 
 import logging
 
+from contextlib import closing
 from lxml import etree
 from lxml.etree import XMLSyntaxError
 
 from WFSDataStore import WFSDataStore
-from urllib2 import urlopen
+from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
 from LDSUtilities import LDSUtilities
 from DataStore import MalformedConnectionString
 from VersionUtilities import AppVersion
@@ -231,7 +232,7 @@ class LDSDataStore(WFSDataStore):
     
     
     @classmethod
-    def fetchLayerInfo(cls,url):
+    def fetchLayerInfo(cls,url,proxy=None):
         '''Non-GDAL static method for fetching LDS layer ID's using etree parser.'''
         res = []
         content = None
@@ -241,15 +242,17 @@ class LDSDataStore(WFSDataStore):
         kyxp = "./{0}Keywords/{0}Keyword".format(cls.NS['ows'])
         
         try:
-            content = urlopen(url)#bug in lxml doesnt close url/files using parse method
-            tree = etree.parse(content)
-            for ft in tree.findall(ftxp):
-                name = ft.find(nmxp).text
-                title = ft.find(ttxp).text
-                #keys = map(lambda x: x.text, ft.findall(kyxp))
-                keys = [x.text for x in ft.findall(kyxp)]
-                
-                res += ((name,title,keys),)
+            if proxy: install_opener(build_opener(ProxyHandler(proxy)))
+            #content = urlopen(url)#bug in lxml doesnt close url/files using parse method
+            with closing(urlopen(url)) as content:
+                tree = etree.parse(content)
+                for ft in tree.findall(ftxp):
+                    name = ft.find(nmxp).text
+                    title = ft.find(ttxp).text
+                    #keys = map(lambda x: x.text, ft.findall(kyxp))
+                    keys = [x.text for x in ft.findall(kyxp)]
+                    
+                    res += ((name,title,keys),)
                 
         except XMLSyntaxError as xe:
             ldslog.error('Error parsing URL;'+str(url)+' ERR;'+str(xe))

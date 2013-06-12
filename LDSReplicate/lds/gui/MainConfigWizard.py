@@ -16,8 +16,8 @@ Created on 13/02/2013
 '''
 
 from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
-                         QVBoxLayout, QHBoxLayout, QGridLayout,
-                         QRegExpValidator, QCheckBox, QMessageBox, 
+                         QVBoxLayout, QHBoxLayout, QGridLayout, QRadioButton,
+                         QRegExpValidator, QCheckBox, QMessageBox, QGroupBox,
                          QMainWindow, QAction, QIcon, qApp, QFrame,
                          QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
@@ -25,6 +25,7 @@ from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir)
 
 import re
 import sys
+import os
 
 from lds.DataStore import DSReaderException,DatasourcePrivilegeException
 from lds.TransferProcessor import TransferProcessor
@@ -85,8 +86,12 @@ class LDSConfigWizard(QWizard):
     
     def done(self,event):
         '''Override of done to reset parent's status. Note, this gets called before validate page'''
-        self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'UC Done') 
-        super(LDSConfigWizard,self).done(event) 
+        #Assumes being called from main dialog. If not just quit...
+        try:
+            self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'UC Done') 
+            super(LDSConfigWizard,self).done(event)
+        except:
+            sys.exit(1)
         
         
 class LDSConfigPage(QWizardPage):
@@ -107,7 +112,7 @@ class LDSConfigPage(QWizardPage):
         fileLabel = QLabel('User Config File')
         keyLabel = QLabel('LDS API Key')
         destLabel = QLabel('Output Type')
-        proxyLabel = QLabel('Configure Proxy')
+        internalLabel = QLabel('Internalise Layer Config')
         encryptionLabel = QLabel('Enable Password Protection')
         
         
@@ -136,8 +141,9 @@ class LDSConfigPage(QWizardPage):
         self.keyEdit.setValidator(QRegExpValidator(QRegExp("[a-fA-F0-9]{32}", re.IGNORECASE), self))
         
         #checkbox
-        self.proxyEnable = QCheckBox()
-        self.proxyEnable.setToolTip('Enable proxy selection dialog')
+        self.internalEnable = QCheckBox()
+        self.internalEnable.setToolTip('Enable saving layer-config (per layer config and progress settings) internally')
+        
         self.encryptionEnable = QCheckBox()
         self.encryptionEnable.setToolTip('Encrypt any passwords saved to user config file')
 
@@ -145,7 +151,7 @@ class LDSConfigPage(QWizardPage):
         self.registerField(self.key+"file",self.fileEdit)
         self.registerField(self.key+"apikey",self.keyEdit)
         self.registerField(self.key+"dest",self.destSelect,"currentIndex")
-        self.registerField(self.key+"proxy",self.proxyEnable)
+        self.registerField(self.key+"internal",self.internalEnable)
         self.registerField(self.key+"encryption",self.encryptionEnable)
 
         #grid
@@ -162,8 +168,8 @@ class LDSConfigPage(QWizardPage):
         grid.addWidget(destLabel, 3, 0)
         grid.addWidget(self.destSelect, 3, 2)
         
-        grid.addWidget(proxyLabel, 4, 0)
-        grid.addWidget(self.proxyEnable, 4, 2)
+        grid.addWidget(internalLabel, 4, 0)
+        grid.addWidget(self.internalEnable, 4, 2)
         
         grid.addWidget(encryptionLabel, 5, 0)
         grid.addWidget(self.encryptionEnable, 5, 2)
@@ -181,9 +187,9 @@ class LDSConfigPage(QWizardPage):
     #    self.fileEdit.setText(QFileDialog.getOpenFileName())
 
     def nextId(self):
-        if self.field(self.key+"proxy").toBool():
-            return self.parent.plist.get('proxy')[0]
-        return int(self.field(self.key+"dest").toString())
+        #if self.field(self.key+"proxy").toBool():
+        return self.parent.plist.get('proxy')[0]
+        #return int(self.field(self.key+"dest").toString())
         
 class ProxyConfigPage(QWizardPage):
     def __init__(self, parent=None,key=None):
@@ -200,11 +206,22 @@ class ProxyConfigPage(QWizardPage):
         QToolTip.setFont(QFont('SansSerif', 10))
         
         #labels
+        directlabel = QLabel('Direct Connection')
+        systemlabel = QLabel('Use System Proxy settings')
+        proxylabel = QLabel('Configure Proxy')
+        
         hostLabel = QLabel('Proxy Host')
         portLabel = QLabel('Proxy Port')
         authLabel = QLabel('Authentication')
         usrLabel = QLabel('Username')
         pwdLabel = QLabel('Password')
+        
+        
+        #radio buttons
+        self.directradio = QRadioButton()
+        self.systemradio = QRadioButton()
+        self.proxyradio = QRadioButton()
+        
         
         #edit boxes
         self.hostEdit = QLineEdit(pxyhost)
@@ -236,29 +253,59 @@ class ProxyConfigPage(QWizardPage):
         self.registerField(self.key+"auth",self.authSelect,"currentIndex")
         self.registerField(self.key+"usr",self.usrEdit)
         self.registerField(self.key+"pwd",self.pwdEdit)
+        
+        self.registerField(self.key+"direct",self.directradio)
+        self.registerField(self.key+"system",self.systemradio)
+        self.registerField(self.key+"proxy",self.proxyradio)
 
         #grid
-        grid = QGridLayout()
-        grid.setSpacing(10)
+        grid1 = QGridLayout()
+        grid1.setSpacing(10)
+        
+        grid2 = QGridLayout()
+        grid2.setSpacing(10)
         
         #layout
-        grid.addWidget(hostLabel, 1, 0)
-        grid.addWidget(self.hostEdit, 1, 2)
+        hbox = QHBoxLayout()
+        grid1.addWidget(self.directradio,1,0)
+        grid1.addWidget(directlabel,1,1)
+        grid1.addWidget(self.systemradio,2,0)
+        grid1.addWidget(systemlabel,2,1)
+        grid1.addWidget(self.proxyradio,3,0)
+        grid1.addWidget(proxylabel,3,1)
+        hbox.addLayout(grid1)
+        hbox.addStretch(1)
         
-        grid.addWidget(portLabel, 2, 0)
-        grid.addWidget(self.portEdit, 2, 2)
         
-        grid.addWidget(authLabel, 3, 0)
-        grid.addWidget(self.authSelect, 3, 2)
+        gbox = QGroupBox('Proxy Configuration')
+        gbox.setEnabled(False)
+        self.directradio.setChecked(True)
+        self.directradio.clicked.connect(gbox.setDisabled)
+        self.systemradio.clicked.connect(gbox.setDisabled)
+        self.proxyradio.clicked.connect(gbox.setEnabled)
         
-        grid.addWidget(usrLabel, 4, 0)
-        grid.addWidget(self.usrEdit, 4, 2)
+        grid2.addWidget(hostLabel, 1, 0)
+        grid2.addWidget(self.hostEdit, 1, 2)
         
-        grid.addWidget(pwdLabel, 5, 0)
-        grid.addWidget(self.pwdEdit, 5, 2)
+        grid2.addWidget(portLabel, 2, 0)
+        grid2.addWidget(self.portEdit, 2, 2)
+        
+        grid2.addWidget(authLabel, 3, 0)
+        grid2.addWidget(self.authSelect, 3, 2)
+        
+        grid2.addWidget(usrLabel, 4, 0)
+        grid2.addWidget(self.usrEdit, 4, 2)
+        
+        grid2.addWidget(pwdLabel, 5, 0)
+        grid2.addWidget(self.pwdEdit, 5, 2)
              
-        #layout                
-        self.setLayout(grid)  
+        gbox.setLayout(grid2)
+        
+        #layout    
+        vbox = QVBoxLayout()
+        vbox.addLayout(hbox)
+        vbox.insertWidget(1,gbox)
+        self.setLayout(vbox)  
         
     def selectConfFile(self):
         self.fileEdit.setText(QFileDialog.getOpenFileName())
@@ -515,10 +562,18 @@ class FileGDBConfigPage(QWizardPage):
     def selectFileGDBFile(self):
         fdtext = QFileDialog.getExistingDirectory(self,'Select FileGDB Directory','~',QFileDialog.ShowDirsOnly)
         #fdtext = QFileDialog.getSaveFileName(self,'Select FileGDB Directory OR Set New','~')
+        
         if re.match(self.filter,fdtext):
+            self.deleteEmptyDir(fdtext)
             self.fileEdit.setText(fdtext)
         else:
             self.fileEdit.setText('')
+        
+    def deleteEmptyDir(self,fdtext):
+        '''If the user creates an empty directory we delete it but retain the name so fgdb can init properly'''
+        if os.path.exists(fdtext) and len(os.listdir(fdtext))==0:
+            os.rmdir(fdtext)
+        
         
     def nextId(self):
         if re.match(self.filter,str(self.fileEdit.text())):
@@ -629,11 +684,11 @@ class ConfirmationPage(QWizardPage):
         
         vbox.addLayout(hbox2)
     
-        if self.field("ldsproxy").toBool():
-            sec2 = QLabel('Proxy')
-            sec2.setFont(hfont)
-            vbox.addWidget(sec2)
-            
+        sec2 = QLabel('Proxy')
+        sec2.setFont(hfont)
+        vbox.addWidget(sec2)
+        
+        if self.field("proxyproxy").toBool():
             hbox3 = QHBoxLayout()
             hbox3.addWidget(QLabel('Proxy Server'))     
             hbox3.addWidget(QLabel(self.field("proxyhost").toString()))   
@@ -657,6 +712,20 @@ class ConfirmationPage(QWizardPage):
             hbox6.addWidget(QLabel(self.field("proxyusr").toString()))   
         
             vbox.addLayout(hbox6)
+        elif self.field("proxysystem").toBool():
+            hbox3 = QHBoxLayout()
+            hbox3.addWidget(QLabel('Proxy'))     
+            hbox3.addWidget(QLabel('System Proxy')) 
+            vbox.addLayout(hbox3)
+              
+        elif self.field("proxydirect").toBool():
+            hbox3 = QHBoxLayout()
+            hbox3.addWidget(QLabel('Proxy'))     
+            hbox3.addWidget(QLabel('Direct Connect'))  
+            vbox.addLayout(hbox3)
+        else:
+            ldslog.error('No Proxy defined') 
+            
             
         #select dest from index of destmenu
         self.selected = self.destlist.get(int(self.field("ldsdest").toString()))
@@ -722,7 +791,7 @@ class ConfirmationPage(QWizardPage):
         
         buildarray += ((MFR.LDSN,'key',str(self.field("ldsapikey").toString())),)
 
-        if self.field("ldsproxy").toBool():
+        if self.field("proxyproxy").toBool():
             
             buildarray += ((MFR.PROXY,'host',str(self.field("proxyhost").toString())),)
             buildarray += ((MFR.PROXY,'port',str(self.field("proxyport").toString())),)
@@ -732,7 +801,14 @@ class ConfirmationPage(QWizardPage):
             if encrypt:
                 pwd = Encrypt.ENC_PREFIX+Encrypt.secure(pwd)
             buildarray += ((MFR.PROXY,'pass',pwd),)
-
+            
+        elif self.field("proxysystem").toBool():
+            #windows
+            from lds.WinUtilities import Registry as WR
+            (enable,host,port) = WR.readProxyValues()
+            buildarray += ((MFR.PROXY,'host',host),)
+            buildarray += ((MFR.PROXY,'port',port),)
+            
 
         section = self.selected[0]
         for sf in self.selectedfields:
@@ -756,8 +832,7 @@ class ConfirmationPage(QWizardPage):
             self.parent.parent.controls.confEdit.setText(self.ldsfile)
             
         return rv
-   
-        
+
         
 def main():
     #func to call config wizz
