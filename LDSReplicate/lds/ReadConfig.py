@@ -399,6 +399,7 @@ class MainFileReader(object):
         
         #use_defaults determines whether we use default values. For a user config this may not be wise
         #since a user config is a custom file relying on the main config for absent values not last-resort defaults
+        
         host = None
         port = None
         usr = None
@@ -406,15 +407,26 @@ class MainFileReader(object):
         
         if self.use_defaults:
             auth = 'NTLM'
+            #an NTLM default is still valid if type returns not DIRECT
+            type = 'DIRECT'
         else:
             auth = None
+            type = None
 
+        try:
+            type = self.cp.get(self.PROXY, 'type')
+        except NoSectionError:
+            ldslog.warn("No Proxy section")
+            return (type,)+(None,)*5
+        except NoOptionError:
+            ldslog.warn("Proxy: Type not defined, Direct assumed ")
+            
             
         try:
             host = self.cp.get(self.PROXY, 'host')
         except NoSectionError:
             ldslog.warn("No Proxy section")
-            return (None,)*5
+            return (None,)*6
         except NoOptionError:
             ldslog.warn("Proxy: Host not defined, no-Proxy assumed ")
             
@@ -439,7 +451,7 @@ class MainFileReader(object):
             ldslog.warn("Proxy: No pass defined") 
             
 
-        return (host,port,auth,usr,pwd)
+        return (type,host,port,auth,usr,pwd)
     
     def readMiscConfig(self):
         

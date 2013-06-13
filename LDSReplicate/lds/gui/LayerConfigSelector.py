@@ -106,7 +106,7 @@ class LayerConfigSelector(QMainWindow):
         '''Read the capabilities doc (as json) for reserved words'''
         #these are all the keywords LDS currently knows about
         reserved = set()
-        for i in [l[3] for l in json.loads(self.tp.parseCapabilitiesDoc(self.src.getCapabilities(),'json'))]:
+        for i in [l[3] for l in json.loads(self.tp.parseCapabilitiesDoc(self.src.getCapabilities(),'json',self.src.pxy))]:
             reserved.update(set(i))
         return reserved
             
@@ -138,13 +138,13 @@ class LayerConfigSelector(QMainWindow):
         dst.setLayerConf(self.tp.getNewLayerConf(dst))
         ##if a lconf has not been created build a new one
         if not dst.getLayerConf().exists():
-            self.tp.initLayerConfig(src.getCapabilities(),dst)
+            self.tp.initLayerConfig(src.getCapabilities(),dst,self.src.pxy)
             
         return src,dst
     
     def resetLayers(self):
         '''Rebuilds lconf from scratch'''
-        self.tp.initLayerConfig(self.src.getCapabilities(),self.dst)
+        self.tp.initLayerConfig(self.src.getCapabilities(),self.dst,self.src.pxy)
         self.refreshLayers()
 
         

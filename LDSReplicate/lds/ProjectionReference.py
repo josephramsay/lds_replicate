@@ -19,7 +19,7 @@ Created on 17/08/2012
 import osr
 import logging
 
-from urllib2 import urlopen
+from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
 from contextlib import closing
 
 ldslog =  logging.getLogger('LDS')
@@ -80,15 +80,17 @@ class Projection(object):
             sref.ImportFromWkt(geogcs)
         return sref
         
-    @staticmethod
-    def downloadESRISpatialReference(srid):
-        '''down load a working esri WKT from spatialrefrence.org. Looks like this is just the same as MorphTo0ESRI'''
-        url = 'http://spatialreference.org/ref/epsg/'+str(srid)+'/esriwkt/'
-        with closing(urlopen(url)) as esriref:
-            wkt = esriref.read()
-        srs = osr.SpatialReference()
-        srs.ImportFromWkt(wkt)
-        return srs
+#    @staticmethod
+#    def downloadESRISpatialReference(srid,proxy=None):
+#        '''down load a working esri WKT from spatialrefrence.org. Looks like this is just the same as MorphTo0ESRI'''
+#        #NOT USED since morph works just as well
+#        url = 'http://spatialreference.org/ref/epsg/'+str(srid)+'/esriwkt/'
+#        if proxy: install_opener(build_opener(ProxyHandler(proxy)))
+#        with closing(urlopen(url)) as esriref:
+#            wkt = esriref.read()
+#        srs = osr.SpatialReference()
+#        srs.ImportFromWkt(wkt)
+#        return srs
     
     
     

@@ -228,8 +228,7 @@ class LDSDataStore(WFSDataStore):
         if self.getFilter() is not None:
             cql += (LDSUtilities.checkCQL(self.getFilter()),)
 
-        return maxfeat+"&cql_filter="+';'.join(cql) if len(cql)>0 else ""
-    
+        return maxfeat+"&cql_filter="+';'.join(cql) if len(cql)>0 else ""    
     
     @classmethod
     def fetchLayerInfo(cls,url,proxy=None):
@@ -241,7 +240,7 @@ class LDSDataStore(WFSDataStore):
         ttxp = "./{0}Title".format(cls.NS['wfs'])
         kyxp = "./{0}Keywords/{0}Keyword".format(cls.NS['ows'])
         
-        try:
+        try:            
             if proxy: install_opener(build_opener(ProxyHandler(proxy)))
             #content = urlopen(url)#bug in lxml doesnt close url/files using parse method
             with closing(urlopen(url)) as content:

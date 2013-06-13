@@ -15,6 +15,7 @@ Created on 13/02/2013
 @author: jramsay
 '''
 
+
 from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
                          QVBoxLayout, QHBoxLayout, QGridLayout, QRadioButton,
                          QRegExpValidator, QCheckBox, QMessageBox, QGroupBox,
@@ -198,7 +199,7 @@ class ProxyConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key
         
-        (pxyhost,pxyport,pxyauth,pxyusr,pxypwd) = self.parent.mfr.readProxyConfig()
+        (pxytype,pxyhost,pxyport,pxyauth,pxyusr,pxypwd) = self.parent.mfr.readProxyConfig()
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the hostname/ip-address, port number and authentication details of your HTTP proxy')
@@ -254,9 +255,9 @@ class ProxyConfigPage(QWizardPage):
         self.registerField(self.key+"usr",self.usrEdit)
         self.registerField(self.key+"pwd",self.pwdEdit)
         
-        self.registerField(self.key+"direct",self.directradio)
-        self.registerField(self.key+"system",self.systemradio)
-        self.registerField(self.key+"proxy",self.proxyradio)
+        self.registerField(self.key+WFSDataStore.PROXY_TYPE[0],self.directradio)
+        self.registerField(self.key+WFSDataStore.PROXY_TYPE[1],self.systemradio)
+        self.registerField(self.key+WFSDataStore.PROXY_TYPE[2],self.proxyradio)
 
         #grid
         grid1 = QGridLayout()
@@ -279,7 +280,16 @@ class ProxyConfigPage(QWizardPage):
         
         gbox = QGroupBox('Proxy Configuration')
         gbox.setEnabled(False)
-        self.directradio.setChecked(True)
+        
+        #dsu
+        if pxytype == WFSDataStore.PROXY_TYPE[1]:
+            self.systemradio.setChecked(True)
+        elif pxytype == WFSDataStore.PROXY_TYPE[2]:
+            self.proxyradio.setChecked(True)
+        else:
+            #direct by default
+            self.directradio.setChecked(True)
+            
         self.directradio.clicked.connect(gbox.setDisabled)
         self.systemradio.clicked.connect(gbox.setDisabled)
         self.proxyradio.clicked.connect(gbox.setEnabled)
@@ -688,7 +698,12 @@ class ConfirmationPage(QWizardPage):
         sec2.setFont(hfont)
         vbox.addWidget(sec2)
         
-        if self.field("proxyproxy").toBool():
+        if self.field("proxy"+WFSDataStore.PROXY_TYPE[2]).toBool():
+        #if self.field("proxyproxy").toBool():
+            hboxp = QHBoxLayout()
+            hboxp.addWidget(QLabel('Proxy Type'))     
+            hboxp.addWidget(QLabel(WFSDataStore.PROXY_TYPE[2]))   
+            
             hbox3 = QHBoxLayout()
             hbox3.addWidget(QLabel('Proxy Server'))     
             hbox3.addWidget(QLabel(self.field("proxyhost").toString()))   
@@ -712,16 +727,16 @@ class ConfirmationPage(QWizardPage):
             hbox6.addWidget(QLabel(self.field("proxyusr").toString()))   
         
             vbox.addLayout(hbox6)
-        elif self.field("proxysystem").toBool():
+        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[1]).toBool():
             hbox3 = QHBoxLayout()
-            hbox3.addWidget(QLabel('Proxy'))     
-            hbox3.addWidget(QLabel('System Proxy')) 
+            hbox3.addWidget(QLabel('Proxy Type'))     
+            hbox3.addWidget(QLabel(WFSDataStore.PROXY_TYPE[1])) 
             vbox.addLayout(hbox3)
               
-        elif self.field("proxydirect").toBool():
+        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[0]).toBool():
             hbox3 = QHBoxLayout()
-            hbox3.addWidget(QLabel('Proxy'))     
-            hbox3.addWidget(QLabel('Direct Connect'))  
+            hbox3.addWidget(QLabel('Proxy Type'))     
+            hbox3.addWidget(QLabel(WFSDataStore.PROXY_TYPE[0]))  
             vbox.addLayout(hbox3)
         else:
             ldslog.error('No Proxy defined') 
@@ -775,8 +790,7 @@ class ConfirmationPage(QWizardPage):
     def getSLFields(self):
         flist = []
         flist += (('file','SpatiaLite File Name',str(self.field('slfile').toString())),)
-        return flist
-    
+        return flist    
        
     def validatePage(self):
         from lds.ReadConfig import MainFileReader as MFR
@@ -784,15 +798,14 @@ class ConfirmationPage(QWizardPage):
         from lds.LDSUtilities import Encrypt
         rv = super(ConfirmationPage, self).validatePage()
         
-        
         encrypt = self.field("ldsencryption").toBool()
         
         buildarray = ()
         
         buildarray += ((MFR.LDSN,'key',str(self.field("ldsapikey").toString())),)
 
-        if self.field("proxyproxy").toBool():
-            
+        if self.field("proxy"+WFSDataStore.PROXY_TYPE[2]).toBool():
+            buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[2]),)
             buildarray += ((MFR.PROXY,'host',str(self.field("proxyhost").toString())),)
             buildarray += ((MFR.PROXY,'port',str(self.field("proxyport").toString())),)
             buildarray += ((MFR.PROXY,'auth',WFSDataStore.PROXY_AUTH[int(self.field("proxyauth").toString())]),)
@@ -802,13 +815,23 @@ class ConfirmationPage(QWizardPage):
                 pwd = Encrypt.ENC_PREFIX+Encrypt.secure(pwd)
             buildarray += ((MFR.PROXY,'pass',pwd),)
             
-        elif self.field("proxysystem").toBool():
-            #windows
-            from lds.WinUtilities import Registry as WR
-            (enable,host,port) = WR.readProxyValues()
-            buildarray += ((MFR.PROXY,'host',host),)
-            buildarray += ((MFR.PROXY,'port',port),)
+        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[1]).toBool():
+            buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[1]),)
+#            if os.name == 'nt':
+#                #windows
+#                from lds.WinUtilities import Registry as WR
+#                (_,host,port) = WR.readProxyValues()
+#                buildarray += ((MFR.PROXY,'host',host),)
+#                buildarray += ((MFR.PROXY,'port',port),)
+#            else:
+#                #unix etc
+#                hp = os.environ('http_proxy')
+#                rm = re.search('http://([a-zA-Z0-9_\.\-]+):(\d+)',hp)
+#                buildarray += ((MFR.PROXY,'host',rm.group(1)),)
+#                buildarray += ((MFR.PROXY,'port',rm.group(2)),)               
             
+        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[0]).toBool():
+            buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[0]),)
 
         section = self.selected[0]
         for sf in self.selectedfields:

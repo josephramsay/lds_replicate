@@ -15,6 +15,9 @@ Created on 23/07/2012
 @author: jramsay
 '''
 
+import os 
+import re
+
 from DataStore import DataStore
 from LDSUtilities import LDSUtilities, Encrypt
 
@@ -25,40 +28,64 @@ class WFSDataStore(DataStore):
 
     DRIVER_NAME = "WFS"
     PROXY_AUTH = ('BASIC','NTLM','DIGEST','ANY')    
+    PROXY_TYPE = ('DIRECT','SYSTEM','USER_DEFINED')
     #PROXY_AUTH = ('BASIC','NTLM','GSSNEGOTIATE','ANY')    
     def __init__(self,conn_str=None,user_config=None):
         '''
-        Init driver and read config
+        Init driver, read config and set up proxy data. 
+        Notes on Proxies: 
+        DIRECT implies no proxy but urllib2 requests may bypass this and read proxy data from the reg/env
+        SYSTEM explicitly reads reg/env proxy settings and uses them in a ProxyHandler
         '''
         
         super(WFSDataStore,self).__init__(conn_str,user_config)
         
         #We set the proxy options here as this is the collection point for all WFS/network requests
-        self.proxyparams = self.mainconf.readDSParameters('Proxy')
+        self.PP = LDSUtilities.interceptSystemProxyInfo(self.mainconf.readDSParameters('Proxy'),self.PROXY_TYPE[1])
+        #convenience proxy map (for urlopen proxyhandler)
+        self.pxy = {'http':self.PP['HOST']+":"+self.PP['PORT']}
         
         #(self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
         
     def getConfigOptions(self):
         '''Pass up getConfigOptions call'''
+        
+        #system, read from env/reg
+
         proxyconfigoptions = []
-        (host, port, auth, usr, pwd) = self.proxyparams
-        if LDSUtilities.mightAsWellBeNone(host) is not None:
-            hp = 'GDAL_HTTP_PROXY='+str(host)
-            if LDSUtilities.mightAsWellBeNone(port) is not None:
-                hp += ':'+str(port)
-            proxyconfigoptions += hp 
-        if LDSUtilities.mightAsWellBeNone(usr) is not None:
-            up = 'GDAL_HTTP_PROXYUSERPWD='+str(usr)
-            if LDSUtilities.mightAsWellBeNone(pwd) is not None:
-                if pwd.startswith(Encrypt.ENC_PREFIX):
-                    up += ":"+str(Encrypt.unSecure(pwd))
-                else:
-                    up += ":"+str(pwd)
-            proxyconfigoptions += up
-            #NB do we also need to set GDAL_HTTP_USERPWD?
-        if LDSUtilities.mightAsWellBeNone(auth) is not None:
-            proxyconfigoptions += ['GDAL_PROXY_AUTH='+str(usr)]
-            #NB do we also need to set GDAL_HTTP_AUTH?
+        (type, host, port, auth, usr, pwd) = self.PP
+        
+        type2 = LDSUtilities.mightAsWellBeNone(self.PP['TYPE'])
+        if type2 == self.PROXY_TYPE[1]:
+            if LDSUtilities.mightAsWellBeNone(self.PP['HOST']):
+                hp = 'GDAL_HTTP_PROXY='+str(self.PP['HOST'])
+                if LDSUtilities.mightAsWellBeNone(self.PP['PORT']):
+                    hp += ':'+str(self.PP['PORT'])
+                proxyconfigoptions += [hp] 
+                #if no h/p no point doing u/p
+                proxyconfigoptions += ['GDAL_HTTP_PROXYUSERPWD= : '] 
+                
+        
+        if type2 == self.PROXY_TYPE[2]:
+            #user difined, expect all fields filled
+            if LDSUtilities.mightAsWellBeNone(self.PP['HOST']):
+                hp = 'GDAL_HTTP_PROXY='+str(self.PP['HOST'])
+                if LDSUtilities.mightAsWellBeNone(self.PP['PORT']):
+                    hp += ':'+str(self.PP['PORT'])
+                proxyconfigoptions += [hp] 
+            if LDSUtilities.mightAsWellBeNone(self.PP['USR']):
+                up = 'GDAL_HTTP_PROXYUSERPWD='+str(self.PP['USR'])
+                if LDSUtilities.mightAsWellBeNone(self.PP['PWD']):
+                    if pwd.startswith(Encrypt.ENC_PREFIX):
+                        up += ":"+str(Encrypt.unSecure(self.PP['PWD']))
+                    else:
+                        up += ":"+str(self.PP['PWD'])
+                proxyconfigoptions += [up]
+                #NB do we also need to set GDAL_HTTP_USERPWD?
+            if LDSUtilities.mightAsWellBeNone(self.PP['AUTH']):
+                proxyconfigoptions += ['GDAL_PROXY_AUTH='+str(self.PP['AUTH'])]
+                #NB do we also need to set GDAL_HTTP_AUTH?   
+            
         return super(WFSDataStore,self).getConfigOptions()+proxyconfigoptions
     
     def getLayerOptions(self,layer_id):

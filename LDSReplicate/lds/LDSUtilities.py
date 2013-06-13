@@ -24,7 +24,7 @@ import logging
 import ast
 import string
 
-from urllib2 import urlopen
+from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
 from contextlib import closing
 from StringIO import StringIO
 from lxml import etree
@@ -75,6 +75,29 @@ class LDSUtilities(object):
                 return lconf.findLayerIdByName(lname)
         return None
          
+    
+    
+    
+    @staticmethod
+    def interceptSystemProxyInfo(proxyinfo,sys_ref):
+        
+        (type, host, port, auth, usr, pwd) = proxyinfo
+        
+        if LDSUtilities.mightAsWellBeNone(type) == sys_ref:
+            #system, read from env/reg
+            if os.name == 'nt':
+                #windows
+                from lds.WinUtilities import Registry as WR
+                (_,host,port) = WR.readProxyValues()
+            else:
+                #unix etc
+                hp = os.environ['http_proxy']
+                rm = re.search('http://([a-zA-Z0-9_\.\-]+):(\d+)',hp)
+                host = rm.group(1)
+                port = rm.group(2)
+                
+        return {'TYPE':type, 'HOST':host, 'PORT':port, 'AUTH':auth, 'USR':usr, 'PWD':pwd}
+
     
     @staticmethod
     def getLayerNameFromURL(url):
@@ -304,9 +327,10 @@ class LDSUtilities(object):
     
     
     @staticmethod
-    def readDocument(url):
+    def readDocument(url,proxy=None):
         '''Non-Driver method for fetching LDS DS as a document'''
         ldslog.debug("LDS URL "+url)
+        if proxy: install_opener(build_opener(ProxyHandler(proxy)))
         with closing(urlopen(url)) as lds:
             data = lds.read()
         return data

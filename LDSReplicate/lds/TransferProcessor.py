@@ -232,7 +232,7 @@ class TransferProcessor(object):
         self.dst.setLayerConf(TransferProcessor.getNewLayerConf(self.dst))        
         
         if self.getInitConfig():
-            TransferProcessor.initLayerConfig(capabilities,self.dst) 
+            TransferProcessor.initLayerConfig(capabilities,self.dst,self.src.pxy) 
         
         if self.dst.getLayerConf() is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(dst.getConfInternal()))
@@ -241,7 +241,7 @@ class TransferProcessor(object):
         #------------------------------------------------------------------------------------------
         
         #Full LDS layer name listv:x (from LDS WFS)
-        lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities))[0]
+        lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities,self.src.pxy))[0]
         #List of configured layers (from layer-config file/table)
         lds_read = self.dst.getLayerConf().getLayerNames()
         
@@ -366,16 +366,16 @@ class TransferProcessor(object):
             
             
     @classmethod
-    def parseCapabilitiesDoc(cls,capabilitiesurl,file_json):
+    def parseCapabilitiesDoc(cls,capabilitiesurl,file_json,pxy):
         '''Class method returning the capabilities doc as requested, in either JSON or CP format'''
-        xml = LDSUtilities.readDocument(capabilitiesurl)
+        xml = LDSUtilities.readDocument(capabilitiesurl,pxy)
         return ConfigInitialiser.buildConfiguration(xml,file_json)
   
         
     @classmethod
-    def initLayerConfig(cls,capabilitiesurl,dst):
+    def initLayerConfig(cls,capabilitiesurl,dst,pxy):
         '''Class method initialising a layer config using the capabilities document'''
         file_json = 'json' if dst.getConfInternal()==DataStore.CONF_INT else 'file'
-        res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json)
+        res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json,pxy)
         dst.getLayerConf().buildConfigLayer(str(res))
         

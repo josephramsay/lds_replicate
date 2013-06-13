@@ -103,7 +103,8 @@ class LDSRepl(QMainWindow):
     def launchHelpFile(self):
         if os.name == 'nt':
             #windows
-            os.startfile(self.HELPFILE)
+            from lds.WinUtilities import WinUtilities
+            WinUtilities.callStartFile(self.HELPFILE)
         elif os.name == 'posix':
             #posix
             subprocess.Popen(['xdg-open', self.HELPFILE])
