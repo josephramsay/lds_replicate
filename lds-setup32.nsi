@@ -42,7 +42,7 @@ XPStyle on
 Icon F:\git\LDS\LDSReplicate\doc\LINZsmall.ico
 ShowInstDetails show
 AutoCloseWindow false
-LicenseData "F:\git\LDS\license\LDS\LINZ LDS - Creative Commons - Attribution 3.0 New Zealand - CC BY 3.0 NZ.txt"
+LicenseData "F:\git\LDS\license\LDS\linz-license.txt"
 VIProductVersion 0.0.5.0
 VIAddVersionKey ProductName "LDS Replicate"
 VIAddVersionKey ProductVersion "${VERSION}"

@@ -900,7 +900,8 @@ class GUIPrefsReader(object):
         self.dvalue = None
         
         self.dselect = 'dest'
-        self.plist = ('lgselect','layer','uconf','group','epsg','fd','td','int')
+        #v:x111|MYGROUP, myconf.conf, 2193, 2013-01-01, 2013-01-02, external
+        self.plist = ('lgvalue','uconf','epsg','fd','td','int')
         
         self.cp = ConfigParser()
         self.fn = os.path.join(thisdir,guiprefs)

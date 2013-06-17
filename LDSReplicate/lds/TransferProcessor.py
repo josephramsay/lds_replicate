@@ -65,8 +65,11 @@ class TransferProcessor(object):
     #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
     
     LP_SUFFIX = ".layer.properties"
+    LG_PREFIX = {'l':'LAYER','g':'GROUP'}
     
-    def __init__(self,ly=None,gp=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None):
+    #TODO pass lg and (enum(L|G),lgval) otherwise how will we be able to distinguish between v:x, GROUPNAME, nz_layer_name
+    
+    def __init__(self,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None):
 
         self.CLEANCONF = None
         self.INITCONF = None
@@ -82,10 +85,6 @@ class TransferProcessor(object):
         #only do a config file rebuild if requested
         self.clearInitConfig()
         self.clearCleanConfig()
-        
-        self.group = None
-        if gp != None:
-            self.group = gp
             
         self.epsg = None
         if ep != None:
@@ -97,11 +96,14 @@ class TransferProcessor(object):
         
         self.todate = None
         if td != None:
-            self.todate = td     
-        
-        self.layer = None
-        if ly != None:
-            self.layer = ly
+            self.todate = td
+                 
+        ###TODO - LG change test
+        ###combining layer and group now
+        self.lgval = None
+        if lg != None:
+            self.lgopt = lg[0]
+            self.lgval = lg[1]
             
         self.source_str = None
         if sc != None:
@@ -143,10 +145,12 @@ class TransferProcessor(object):
         if ie in [DataStore.CONF_EXT,DataStore.CONF_INT]:
             self.setConfInternal(ie)
 
+        #initialise the data source
+        self.src = self.initSource()
 
         
     def __str__(self):
-        return 'Layer:{layer}, Group:{group}, CQL:{cql}, '.format(layer=self.layer,group=self.group,cql=self.cql)
+        return 'Layer/Group:{lgval}, CQL:{cql}, '.format(lgval=self.lgval,cql=self.cql)
     
     #Internal/External flag to override config set option
     def setConfInternal(self,confinternal):
@@ -222,7 +226,6 @@ class TransferProcessor(object):
         
         (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.temptable) = self.dst.mainconf.readDSParameters('Misc')
         
-        self.src = self.initSource()
         
         capabilities = self.src.getCapabilities()
         
@@ -232,7 +235,7 @@ class TransferProcessor(object):
         self.dst.setLayerConf(TransferProcessor.getNewLayerConf(self.dst))        
         
         if self.getInitConfig():
-            TransferProcessor.initLayerConfig(capabilities,self.dst,self.src.pxy) 
+            TransferProcessor.initLayerConfig(capabilities,self.dst,self.src.pxy)
         
         if self.dst.getLayerConf() is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(dst.getConfInternal()))
@@ -240,13 +243,8 @@ class TransferProcessor(object):
 
         #------------------------------------------------------------------------------------------
         
-        #Full LDS layer name listv:x (from LDS WFS)
-        lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities,self.src.pxy))[0]
-        #List of configured layers (from layer-config file/table)
-        lds_read = self.dst.getLayerConf().getLayerNames()
-        
         #Valid layers are those that exist in LDS and are also configured in the LC
-        lds_valid = set(lds_full).intersection(set(lds_read))
+        lds_valid = TransferProcessor.assembleLayerList(capabilities,self.src,self.dst)
         
         #Filter by group designation
 
@@ -329,6 +327,16 @@ class TransferProcessor(object):
                 
 
         self.dst.closeDS()
+        
+    @staticmethod
+    def assembleLayerList(capabilities,src,dst):
+        #Full LDS layer name listv:x (from LDS WFS)
+        lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities,src.pxy))[0]
+        #List of configured layers (from layer-config file/table)
+        lds_read = dst.getLayerConf().getLayerNames()
+        
+        #Valid layers are those that exist in LDS and are also configured in the LC
+        return set(lds_full).intersection(set(lds_read))
     
 #--------------------------------------------------------------------------------------------------
     

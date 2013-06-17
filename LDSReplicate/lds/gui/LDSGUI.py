@@ -32,7 +32,7 @@ from lds.TransferProcessor import TransferProcessor
 from lds.ReadConfig import GUIPrefsReader, MainFileReader, LayerFileReader,LayerDSReader
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
-from lds.gui.LayerConfigSelector import LayerConfigSelector
+from lds.gui.LayerConfigSelector import LayerConfigSelector, LayerConfigReader
 
 from lds.DataStore import DataStore
 
@@ -44,9 +44,13 @@ class LDSRepl(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
     
     HELPFILE = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
+    MENU_DIV = ' - '
     
     def __init__(self):
         super(LDSRepl, self).__init__()
+        
+        self.layers = None
+        self.groups = None
         
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
@@ -56,6 +60,11 @@ class LDSRepl(QMainWindow):
         
         self.controls = LDSControls(self)
         self.setCentralWidget(self.controls)
+        
+        
+        self.lcreader = LayerConfigReader(*self.getConnectionParameters())
+        self.controls.setLGValues(groups=self.lcreader.assigned,layers=self.lcreader.getValidLayers())
+        
 
         openAction = QAction(QIcon('open.png'), '&Open', self)        
         openAction.setShortcut('Ctrl+O')
@@ -111,6 +120,7 @@ class LDSRepl(QMainWindow):
 
         
     def runWizardAction(self):
+        '''Run the User Config setup wizz'''
         from lds.gui.MainConfigWizard import LDSConfigWizard
         self.controls.setStatus(self.controls.STATUS.BUSY,'Opening User-Config Wizard')  
         #rather than readparams
@@ -121,36 +131,32 @@ class LDSRepl(QMainWindow):
         ldscw = LDSConfigWizard(uconf,secname,self)
         ldscw.exec_()
         
-    def getTPParams(self):
-        '''Init a new TP and return selected controls'''
-        destination,lgopt,layer,uconf,group,epsg,fe,te,fd,td,internal = self.controls.readParameters()
-        tp = TransferProcessor(layer, 
-                               None if group is None else group, 
-                               None if epsg is None else epsg, 
-                               None if fd is None else fd, 
-                               None if td is None else td,
-                               None, None, None, 
-                               None if uconf is None else uconf, 
-                               internal)
-        
-        return tp,uconf,group,destination
     
-    #def getLayerConf(self):
-    #    tp,uconf,group,destination = self.getTPParams()
-    #    dst = tp.initDestination(destination)
-    #    lc = tp.getNewLayerConf(dst)
-        
+    def getConnectionParameters(self):
+        '''Init a new TP and return selected controls'''
+        destination,lgval,uconf,epsg,fe,te,fd,td,internal = self.controls.readParameters()
+        if lgval:
+            lorg,lgval = lgval.split(self.MENU_DIV)
+            lgvt = ([k for k, v in TransferProcessor.LG_PREFIX.iteritems() if v == lorg][0],lgval)
+        else:
+            lgvt = ('','')
+        return uconf,lgvt,destination,internal
+    
     def runLayerConfigAction(self):
         '''Open a new Layer dialog'''
-        self.controls.setStatus(self.controls.STATUS.BUSY,'Opening Layer-Config Editor')                
-        tp,uconf,group,destination = self.getTPParams()
-        #nedd a valid dest (to write <dest>.layer.properties) and uconf
-        if LDSUtilities.mightAsWellBeNone(destination) is not None: # Also need? and LDSUtilities.mightAsWellBeNone(uconf) is not None?
-            ldsc = LayerConfigSelector(tp,uconf,group,destination,self)
-            ldsc.show()
-        else:
+        self.controls.setStatus(self.controls.STATUS.BUSY,'Opening Layer-Config Editor')  
+        
+        uconf,lgvt,dest,internal = self.getConnectionParameters()
+        if not LDSUtilities.mightAsWellBeNone(dest):
             self.controls.setStatus(self.controls.STATUS.IDLE,'Cannot open Layer-Config without defined Destination')
-
+            return
+            
+        if self.lcreader is None or ((uconf,lgvt,dest,internal)!=(self.lcreader.uconf,self.lcreader.lgvt,self.lcreader.dest,self.lcreader.internal)):
+            #if any parameters have changed, re-initialise
+            self.lcreader = LayerConfigReader(uconf,lgvt,dest,internal)
+            
+        ldscs = LayerConfigSelector(self.lcreader,self)
+        ldscs.show()
         
     def closeEvent(self, event):
         reply = QMessageBox.question(self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -158,8 +164,20 @@ class LDSRepl(QMainWindow):
         if reply == QMessageBox.Yes:
             event.accept()
         else:
-            event.ignore()     
-        
+            event.ignore()    
+            
+    def getUserGroups(self):
+        '''Return groups or call the LC to init some'''
+        if self.groups is None:
+            self.runLayerConfigAction() 
+        return self.groups
+    
+    def getLayers(self):
+        '''Return all layers or call the LC to init some'''
+        if self.layers is None:
+            self.runLayerConfigAction() 
+        return self.layers
+
         
 class LDSControls(QFrame):
         
@@ -169,9 +187,8 @@ class LDSControls(QFrame):
     
     GD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data'))
     STATUS = LDSUtilities.enum('IDLE','BUSY','CLEAN')
-    LGOPTS = ('Layer','Group')
     
-    DEF_RVALS = ('','Layer','','','','2193','','','external')
+    DEF_RVALS = ('','','2193','','','external')
     #GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
     def __init__(self,parent):
         super(LDSControls, self).__init__()
@@ -201,6 +218,7 @@ class LDSControls(QFrame):
         
         #labels
         destLabel = QLabel('Destination')
+        lgLabel = QLabel('Group/Layer')
         epsgLabel = QLabel('EPSG')
         fromDateLabel = QLabel('From Date')
         toDateLabel = QLabel('To Date')
@@ -216,8 +234,7 @@ class LDSControls(QFrame):
         self.confEdit.setToolTip('Enter your user config file here')   
         
         self.lgcombo = QComboBox()
-        self.lgcombo.setToolTip('Select either Layer or Group entry')  
-        self.lgcombo.addItems(self.LGOPTS)
+        self.lgcombo.setToolTip('Select either Layer or Group entry')
         self.lgcombo.setEditable(False)
         self.lgcombo.currentIndexChanged.connect(self.doLGEditUpdate)
         
@@ -246,6 +263,10 @@ class LDSControls(QFrame):
         self.toDateEdit.setEnabled(False)
         
         #check boxes
+        self.epsgEnable = QCheckBox()
+        self.epsgEnable.setCheckState(False)
+        self.epsgEnable.clicked.connect(self.doEPSGEnable)       
+        
         self.fromDateEnable = QCheckBox()
         self.fromDateEnable.setCheckState(False)
         self.fromDateEnable.clicked.connect(self.doFromDateEnable)
@@ -292,22 +313,22 @@ class LDSControls(QFrame):
         
         #placement section ------------------------------------
         
-        #-------------+----------------
-        #   dst label |   dst dropdown
-        # layer label | layer dropdown
+        #-------------+-----------------
+        #   dst label |    dst dropdown
+        # layer label |  layer dropdown
         # ...
-        #-------------+--+------+------
-        #           opt1 | opt2 | opt3
-        #----------------+----+-+------
-        #                  ok | cancel
-        #---------------------+--------
+        #-------------+--+------+-------
+        #           opt1 | opt2 | opt...
+        #----------------+-----+-+------
+        #                   ok | cancel
+        #----------------------+--------
 
         grid.addWidget(destLabel, 1, 0)
         grid.addWidget(self.destmenu, 1, 2)
 
         #grid.addWidget(layerLabel, 2, 0)
-        grid.addWidget(self.lgcombo, 2, 0)
-        grid.addWidget(self.lgEdit, 2, 2)
+        grid.addWidget(lgLabel, 2, 0)
+        grid.addWidget(self.lgcombo, 2, 2)
         
         grid.addWidget(confLabel, 3, 0)
         grid.addWidget(self.confEdit, 3, 2)
@@ -316,6 +337,7 @@ class LDSControls(QFrame):
         #grid.addWidget(self.groupEdit, 4, 2)
         
         grid.addWidget(epsgLabel, 5, 0)
+        grid.addWidget(self.epsgEnable, 5, 1)
         grid.addWidget(self.epsgcombo, 5, 2)
 
         grid.addWidget(fromDateLabel, 6, 0)
@@ -375,6 +397,10 @@ class LDSControls(QFrame):
         self.view.repaint()
         QApplication.processEvents(QEventLoop.AllEvents)
 
+    def setLGValues(self,groups,layers):
+        self.lgcombo.addItems(sorted([TransferProcessor.LG_PREFIX['g']+self.parent.MENU_DIV+g for g in groups]))
+        self.lgcombo.insertSeparator(len(groups))
+        self.lgcombo.addItems(sorted([TransferProcessor.LG_PREFIX['l']+self.parent.MENU_DIV+l for l in layers]))
         
     def centre(self):
         
@@ -406,8 +432,8 @@ class LDSControls(QFrame):
         
     def updateGUIValues(self,readlist):
         '''Fill dialog values from provided list'''
-        #Note. rlayer and rgroup must be object vars since they're used in doaction function
-        rdest,rlgselect,self.rlayer,ruconf,self.rgroup,repsg,rfd,rtd,rint = readlist
+        #Note. rlgval must be an object var since its used in doaction function
+        rdest,self.rlgval,ruconf,repsg,rfd,rtd,rint = readlist
         
         
         #Destination Menu
@@ -423,11 +449,11 @@ class LDSControls(QFrame):
         self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
         
         #Layer/Group Selection
-        if LDSUtilities.mightAsWellBeNone(rlgselect) is None:
-            lgindex = 0
-        else:
-            lgindex = self.LGOPTS.index(rlgselect)
-        self.lgcombo.setCurrentIndex(lgindex)
+        #if LDSUtilities.mightAsWellBeNone(rlgselect) is None:
+        #    lgindex = 0
+        #else:
+        #    lgindex = self.LGOPTS.index(rlgselect)
+        #self.lgcombo.setCurrentIndex(lgindex)
         self.doLGEditUpdate()
         
         #EPSG
@@ -451,6 +477,7 @@ class LDSControls(QFrame):
         #Internal/External CheckBox
         if LDSUtilities.mightAsWellBeNone(rint) is not None:
             self.internalTrigger.setChecked(rint.lower()==DataStore.CONF_INT)
+            
         else:
             self.internalTrigger.setChecked(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
         
@@ -470,6 +497,9 @@ class LDSControls(QFrame):
 #    def doGroupDisable(self):
 #        self.groupEdit.setText('')
         
+    def doEPSGEnable(self):
+        self.epsgcombo.setEnabled(self.epsgEnable.isChecked())
+        
     def doFromDateEnable(self):
         self.fromDateEdit.setEnabled(self.fromDateEnable.isChecked())
           
@@ -478,15 +508,7 @@ class LDSControls(QFrame):
           
     def readParameters(self):
         destination = str(self.destmenulist[self.destmenu.currentIndex()])
-        lgopt = str(self.lgcombo.currentText())
-        #FIXME this only needs to be one param not two (or is it more efficient to split them here?)
-        if lgopt == 'Layer':
-            layer = str(self.lgEdit.text())
-            group = None
-        elif lgopt == 'Group':
-            layer = None
-            group = str(self.lgEdit.text())
-            
+        lgval = str(self.lgcombo.currentText())            
         uconf = str(self.confEdit.text())
         epsg = re.match('^\s*(\d+).*',str(self.epsgcombo.lineEdit().text())).group(1)
         fe = self.fromDateEnable.isChecked()
@@ -495,7 +517,7 @@ class LDSControls(QFrame):
         td = None if te is False else str(self.toDateEdit.date().toString('yyyy-MM-dd'))
         internal = 'internal' if self.internalTrigger.isChecked() else 'external'
         
-        return destination,lgopt,layer,uconf,group,epsg,fe,te,fd,td,internal
+        return destination,lgval,uconf,epsg,fe,te,fd,td,internal
     
     def doInitClickAction(self):
         '''Initialise the LC on LC-button-click, action'''
@@ -521,7 +543,7 @@ class LDSControls(QFrame):
 
     def runReplicationScript(self,clean=False):
         '''Run the layer/group repliction script'''
-        destination,lgopt,layer,uconf,group,epsg,fe,te,fd,td,internal = self.readParameters()
+        destination,lgval,uconf,epsg,fe,te,fd,td,internal = self.readParameters()
 
         uconf = LDSUtilities.standardiseUserConfigName(uconf)
         destination_path = LDSUtilities.standardiseLayerConfigName(destination)
@@ -543,18 +565,13 @@ class LDSControls(QFrame):
 
         #'dest','layer','uconf','group','epsg','fd','td','int'
      
-        self.gpr.write((destination_driver,lgopt,layer,uconf,group,epsg,fd,td,internal))        
-        ldslog.info('dest={0}, lg={1}, layer={2}, conf={3}, group={4}, epsg={5}'.format(destination_driver,lgopt,str(layer),uconf,str(group),epsg))
+        self.gpr.write((destination_driver,lgval,uconf,epsg,fd,td,internal))        
+        ldslog.info('dest={0}, lg={1}, conf={2}, epsg={3}'.format(destination_driver,lgval,uconf,epsg))
         ldslog.info('fd={0}, td={1}, fe={2}, te={3}, int={4}'.format(str(fd),str(td),str(fe),str(te),str(internal)))
 
-        tp = TransferProcessor(layer, 
-                               None if group is None else group, 
-                               None if epsg is None else epsg, 
-                               None if fd is None else fd, 
-                               None if td is None else td,
+        tp = TransferProcessor(lgval, epsg, fd, td,
                                None, None, None, 
-                               None if uconf is None else uconf, 
-                               internal)
+                               uconf, internal)
 
         if clean:
             tp.setCleanConfig()
