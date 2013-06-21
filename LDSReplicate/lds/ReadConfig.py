@@ -596,8 +596,9 @@ class LayerReader(object):
         lca = []
         for layer in self.getLayerNames():
             lce = self.readLayerParameters(layer)
-            #pkey,name,group,gcol,epsg,lmod,disc,cql
-            lca.append((layer,lce.pkey,lce.name,lce.group.split(','),lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
+            #pkey,name,group,gcol,epsg,lmod,disc,cq
+            groups = [g.strip() for g in lce.group.split(',')]
+            lca.append((layer,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
         return lca
     
 #--------------------------------------------------------------------------------------------------
@@ -611,7 +612,7 @@ class LayerFileReader(LayerReader):
         super(LayerFileReader,self).__init__(fname)
         
         self.cp = ConfigParser()
-        self.filename = os.path.abspath(os.path.join(os.path.dirname(__file__), '../conf/',self.fname))
+        self.filename = LU.standardiseLayerConfigName(self.fname)
             
         self._readConfigFile(self.filename)
         
@@ -660,6 +661,7 @@ class LayerFileReader(LayerReader):
     @override(LayerReader)
     def writeLayerProperty(self,layer,field,value):
         '''Write changes to layer config table'''
+        if value: value = value.strip()
         try:            
             self.cp.set(layer,field,value if value is not None else '')
             with open(self.filename, 'w') as configfile:
@@ -870,6 +872,7 @@ class LayerDSReader(LayerReader):
     def writeLayerProperty(self,pkey,field,value):
         '''Write changes to layer config table. Keyword changes are written as a comma-seperated value '''
         #ogr.UseExceptions()
+        value = value.strip()
         try:
             layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
             feat = self.fname._findMatchingFeature(layer, 'id', pkey)

@@ -1,24 +1,7 @@
 [prefs]
-dest = PostgreSQL
-
-[FileGDB]
-lgvalue = v:x111
-uconf = /home/jramsay/git/LDS/LDSReplicate/conf/fg.conf
-epsg = 4167
-fd = None
-td = None
-int = external
+dest = None
 
 [PostgreSQL]
-lgvalue = GROUP -  MYLAYERS
-uconf = /home/jramsay/git/LDS/LDSReplicate/conf/pg.conf
-group = ONE111
-epsg = 2193
-fd = None
-td = 2011-05-12
-int = external
-
-[MSSQLSpatial]
 lgvalue = None
 uconf = None
 epsg = None
@@ -27,6 +10,22 @@ td = None
 int = None
 
 [SQLite]
+lgvalue = None
+uconf = None
+epsg = None
+fd = None
+td = None
+int = None
+
+[FileGDB]
+lgvalue = None
+uconf = None
+epsg = None
+fd = None
+td = None
+int = None
+
+[MSSQLSpatial]
 lgvalue = None
 uconf = None
 epsg = None

@@ -31,12 +31,13 @@ import sys
 import copy
 import json
 
-from lds.TransferProcessor import TransferProcessor
+from lds.TransferProcessor import TransferProcessor, LORG
 from lds.LDSDataStore import LDSDataStore
 from lds.DataStore import DataStore
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 from lds.ReadConfig import GUIPrefsReader
+
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -49,74 +50,7 @@ HCOLS = 2
 #When a new FGDB directory is set in the file dialog using the NewFolder button a new directory is created and a reference added to the user config
 #When a new SLITE file is created by entering its name in the SL file dialog, it isnt created but a reference to it is put in the user config file
        
-class LayerConfigReader(object):
-    
-    def __init__(self,uconf,lgvt,dest,internal):
-        self.gpr = GUIPrefsReader()
-        self.tp = TransferProcessor(lgvt, None, None, None, None, None, None, uconf, internal)
-        self.uconf = uconf
-        self.lgvt = lgvt
-        self.dest = dest
-        self.internal = internal
-        self.src,self.dst = self.initSrcDst()
-        self.initKeywords()        
-        self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
-        
-    def initSrcDst(self):
-        '''Initialises src and dst objects'''
-        #initialise layer data using existing source otherwise use the capabilities doc
-        #get SRC here since we need it later for the reserved words anyway
-        src = self.tp.initSource()
-        dst = self.tp.initDestination(self.dest)
-        #if internal lconf need to init the DB
-        if self.tp.getConfInternal()==DataStore.CONF_INT:
-            dst.transferIETernal(self.tp.getConfInternal())
-            dst.ds = dst.initDS(dst.destinationURI(None))
-        dst.setLayerConf(self.tp.getNewLayerConf(dst))
-        ##if a lconf has not been created build a new one
-        if not dst.getLayerConf().exists():
-            self.tp.initLayerConfig(src.getCapabilities(),dst,self.src.pxy)
-            
-        return src,dst
-    
-    def initKeywords(self):
-        self.complete = self.getComplete()#from LC
-        self.reserved = self.getReserved()#seldom changes, from GC
-        self.assigned = self.getAssigned()#diff of the above 2
-        
-    def getComplete(self):
-        '''Reads a reduced lconf from file/table as a Nx3 array'''
-        #these are all the keywords in the local file
-        return self.dst.getLayerConf().getLConfAs3Array()
-    
-    def getReserved(self):
-        '''Read the capabilities doc (as json) for reserved words'''
-        #these are all the keywords LDS currently knows about
-        reserved = set()
-        for i in [l[3] for l in json.loads(self.tp.parseCapabilitiesDoc(self.src.getCapabilities(),'json',self.src.pxy))]:
-            reserved.update(set(i))
-        return reserved
-            
-    def getAssigned(self):
-        '''Read the complete config doc for all keywords and diff out reserved. Requires init of complete and reserved'''   
-        #these are the difference between saved and LDS-known keywords therefore, the ones the user has saved or LDS has forgotten about 
-        assigned = set() 
-        for i in [x[2] for x in self.complete]:
-            assigned.update(set(i))
-        assigned.difference_update(self.reserved)
-        
-        return self.deleteForgotten(assigned)
-        
-    def deleteForgotten(self,alist,flt='v_\w{8}_wxs_\w{4}'):
-        '''Removes keywords with the format v_########_wxs_#### since these are probably not user generated and 
-        because they're used as temporary keys, will eventually be forgotten by LDS'''
-        #HACK
-        return set([a for a in alist if not re.search(flt,a)])
-    
-    def getValidLayers(self):
-        capabilities = self.src.getCapabilities()
-        return self.tp.assembleLayerList(capabilities,self.src,self.dst)
-    
+
 class LayerConfigSelector(QMainWindow):
     STEP = LDSUtilities.enum('PRE','POST')
     
@@ -130,36 +64,20 @@ class LayerConfigSelector(QMainWindow):
                 ('v:x1202', 'ASP:  MED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','TESTSELECT'])] 
 
     #def __init__(self,tp,uconf,group,dest='PostgreSQL',parent=None):
-    def __init__(self,ldscr,parent=None):
+    def __init__(self,parent=None):
         '''Main entry point for the Layer selection dialog'''
         super(LayerConfigSelector, self).__init__(parent)
         
-        self.reader = ldscr
         self.parent = parent
-        #self.tp = tp
-        #self.uconf = uconf
-        #self.dest = dest
-        
-        #self.gpr = GUIPrefsReader()
-
-        #self.src,self.dst = self.initSrcDst()
-        #self.initKeywords()
-        
-        #self.complete = self.getComplete()#from LC
-        #self.reserved = self.getReserved()#seldom changes, from GC
-        #self.assigned = self.getAssigned()#diff of the above 2
-           
-        #read the translated primary keys file to determine incremental-able layers
-        #self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
         
         #Build models splitting by keyword if necessary 
-        av_sl = self.splitData(str(self.reader.lgvt[1]),self.reader.complete)
+        av_sl = self.splitData(str(self.parent.confconn.lgval),self.parent.confconn.complete)
         
         self.available_model = LayerTableModel('L::available',self)
-        self.available_model.initData(av_sl[0],self.reader.inclayers)
+        self.available_model.initData(av_sl[0],self.parent.confconn.inclayers)
         
         self.selection_model = LayerTableModel('R::selection',self)
-        self.selection_model.initData(av_sl[1],self.reader.inclayers)
+        self.selection_model.initData(av_sl[1],self.parent.confconn.inclayers)
         
         self.page = LayerSelectionPage(self)
         self.setCentralWidget(self.page)
@@ -176,28 +94,29 @@ class LayerConfigSelector(QMainWindow):
         
     def refreshLayers(self,customkey=None):
         '''Refreshes lconf from a reread of the lconf object'''
-        self.reader.complete = self.reader.getComplete()
+        self.parent.confconn.complete = self.parent.confconn.getComplete()
         
-        av_sl = self.splitData(customkey,self.reader.complete)
+        av_sl = self.splitData(customkey,self.parent.confconn.complete)
         self.signalModels(self.STEP.PRE)
-        self.available_model.initData(av_sl[0],self.reader.inclayers)
-        self.selection_model.initData(av_sl[1],self.reader.inclayers)
+        self.available_model.initData(av_sl[0],self.parent.confconn.inclayers)
+        self.selection_model.initData(av_sl[1],self.parent.confconn.inclayers)
         self.signalModels(self.STEP.POST)
         
     def addKeyToLayers(self, customkey='CUSTOM'):
         '''Add custom key to the selection_model list of layers'''
         #using customkey=CUSTOM so some kind of selection is made even if the user doesn't select a specific keyword 
         for layer in [ll[0] for ll in self.selection_model.mdata]:
-            v1 = self.reader.dst.getLayerConf().readLayerProperty(layer, 'category')
+            v1 = self.parent.confconn.dst.getLayerConf().readLayerProperty(layer, 'category')
             v2 = v1 if re.search(customkey,v1) else v1+","+str(customkey)
-            self.reader.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
+            self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
+        self.parent.confconn.buildLGList(self.parent.confconn.assigned, self.parent.confconn.getValidLayers())
         self.refreshLayers(customkey)
             
     def delKeyFromSelection(self,layerlist,customkey='CUSTOM'):
         for layer in layerlist:
-            v1 = self.reader.dst.getLayerConf().readLayerProperty(layer, 'category')
+            v1 = self.parent.confconn.dst.getLayerConf().readLayerProperty(layer, 'category')
             v2 = re.sub(',+',',',''.join(v1.split(str(customkey))).strip(','))
-            self.reader.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
+            self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
         self.refreshLayers(customkey)
         return self.selection_model.rowCount()
     
@@ -226,10 +145,6 @@ class LayerConfigSelector(QMainWindow):
         elif prepost==self.STEP.POST:
             self.available_model.layoutChanged.emit()    
             self.selection_model.layoutChanged.emit()
-
-             
-    def writeGUIGroupPref(self,gval):
-        self.gpr.writesecline(self.dest,'group', gval)
         
     def closeEvent(self,event):
         '''Intercept close event to signal parent to update status'''
@@ -238,9 +153,9 @@ class LayerConfigSelector(QMainWindow):
         lastgroup = self.page.keywordcombo.lineEdit().text()
         #self.parent.controls.gpr.writeline('group',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
-            #self.parent.controls.lgcombo.setCurrentIndex(self.parent.controls.LGOPTS.index('Group'))
-            self.parent.controls.lgEdit.setText(lastgroup)
-        self.parent.groups = ['f1','f2']
+            lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
+            self.parent.controls.doDestChanged()
+            self.parent.controls.lgcombo.setCurrentIndex(lgindex)
         self.close()
     
 class LayerTableModel(QAbstractTableModel):
@@ -259,6 +174,9 @@ class LayerTableModel(QAbstractTableModel):
         self.ilist = []
         self.ifont = QFont()
         self.ifont.setBold(True)
+        
+        #convenience link
+        #self.confconn_link = self.parent.parent.confconn
         
         
     #abstract subclass funcs
@@ -348,6 +266,9 @@ class LayerSelectionPage(QFrame):
     def __init__(self, parent=None):
         super(LayerSelectionPage, self).__init__(parent)
         self.parent = parent
+        
+        #convenience link
+        self.confconn_link = self.parent.parent.confconn
 
         QToolTip.setFont(QFont('SansSerif', 10))
         
@@ -375,22 +296,7 @@ class LayerSelectionPage(QFrame):
         rejectallbutton.setFixedWidth(self.XFER_BW)
         rejectallbutton.clicked.connect(self.doRejectAllClickAction)
         
-        #operation buttons
-#        addbutton = QPushButton('+')
-#        addbutton.setFixedWidth(self.XFER_BW)
-#        addbutton.setToolTip('Assign Keyword to layers in the Layer-Selection pane')
-#        addbutton.clicked.connect(self.doAddClickAction)        
-        
-#        delbutton = QPushButton('-')
-#        delbutton.setFixedWidth(self.XFER_BW)
-#        delbutton.setToolTip('Remove Keyword assignment from layers in the Layer-Selection pane')
-#        delbutton.clicked.connect(self.doDelClickAction)
-                
-#        inspbutton = QPushButton('?')
-#        inspbutton.setFixedWidth(self.XFER_BW)
-#        inspbutton.setToolTip('Re-read all layers, displaying layers assigned the named Keyword (below) in the Layer-Selection pane')       
-#        inspbutton.clicked.connect(self.doReadClickAction)
-        
+        #operation buttons        
         finishbutton = QPushButton('Finish')
         finishbutton.setToolTip('Finish and Close layer selection dialog')
         finishbutton.clicked.connect(self.parent.close) 
@@ -411,23 +317,17 @@ class LayerSelectionPage(QFrame):
         filteredit.setToolTip('Filter Available-Layers pane (filter operates across Name and Title fields and accepts Regex expressions)')       
         filteredit.textChanged.connect(self.available_sfpm.setActiveFilter)
         
-        #self.keywordedit = QTextBrowser()#QLineEdit(self.parent.group)
-        #self.keywordedit.setToolTip('Select unique identifier to be saved in layer config (keyword)')
-        #>>>#keywordedit.textChanged.connect(self.selection_sfpm.setActiveFilter)
         self.keywordcombo = QComboBox()
         self.keywordcombo.setToolTip('Select or Add a unique identifier to be saved in layer config (keyword)')
-        self.keywordcombo.addItems(list(self.parent.reader.assigned))
+        self.keywordcombo.addItems(list(self.confconn_link.assigned))
         self.keywordcombo.setEditable(True)
         self.keywordcombo.currentIndexChanged.connect(self.doReadClickAction)
-
+        
+        lgindex = self.confconn_link.getLGIndex(self.confconn_link.lgval,col=1)
+        lgentry = self.confconn_link.lglist[lgindex] if lgindex else None
         keywordedit = self.keywordcombo.lineEdit()
-        keywordedit.setText('' if self.parent.reader.lgvt[1] is None else self.parent.reader.lgvt[1])#TODO. group only
-        
-        
-        #notes.      
-        #1. use selection filter to select stored keywords or to save new keywords
-        #keywordedit.textChanged.connect(self.selection_sfpm.setActiveFilter);  
-
+        #if no entry or layer indicated then blank 
+        keywordedit.setText('' if lgentry is None or lgentry[0]==LORG.LAYER else lgentry[1])#self.confconn_link.lgval)#TODO. group only
         
         #header
         headmodel = QStandardItemModel()
@@ -566,7 +466,7 @@ class LayerSelectionPage(QFrame):
         #------------------------------
         self.parent.signalModels(self.parent.STEP.PRE)
         #self.parent.selection_model.mdata += self.parent.available_model.mdata
-        self.parent.selection_model.initData(self.parent.reader.complete)
+        self.parent.selection_model.initData(self.confconn_link.complete)
         self.parent.available_model.initData([])
         self.parent.signalModels(self.parent.STEP.POST)
         #------------------------------
@@ -585,7 +485,7 @@ class LayerSelectionPage(QFrame):
             self.transferSelectedRows(select.selectedRows(),self.available_sfpm,self.selection_sfpm)
             #------------------------------
             self.parent.addKeyToLayers(ktext)
-            self.parent.reader.assigned = self.parent.reader.getAssigned()
+            self.confconn_link.assigned = self.confconn_link.getAssigned()
             self.keywordcombo.addItem(ktext)
         else:
             ldslog.warn('L2R > Transfer action without selection')
@@ -597,7 +497,7 @@ class LayerSelectionPage(QFrame):
         if LDSUtilities.mightAsWellBeNone(ktext) is None:
             QMessageBox.about(self, "Keyword Required","Please enter a Keyword to assign Layer(s) to")
             return False
-        if ktext in self.parent.reader.reserved:
+        if ktext in self.confconn_link.reserved:
             QMessageBox.about(self, "Reserved Keyword","'{}' is a reserved keyword, please select again".format(ktext))
             return False
         return True
@@ -622,7 +522,7 @@ class LayerSelectionPage(QFrame):
             tlist = self.transferSelectedRows(select.selectedRows(),self.selection_sfpm,self.available_sfpm)
             #------------------------------
             if self.parent.delKeyFromSelection([ll[1][0] for ll in tlist],ktext)==0:
-                self.parent.reader.assigned = self.parent.reader.getAssigned()
+                self.confconn_link.assigned = self.confconn_link.getAssigned()
                 self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
                 self.keywordcombo.clearEditText()
         else:
@@ -632,14 +532,14 @@ class LayerSelectionPage(QFrame):
     def doRejectAllClickAction(self):
         self.parent.signalModels(self.parent.STEP.PRE)
         #self.parent.available_model.mdata += self.parent.selection_model.mdata
-        self.parent.available_model.initData(self.parent.reader.complete)
+        self.parent.available_model.initData(self.confconn_link.complete)
         self.parent.selection_model.initData([])
         self.parent.signalModels(self.parent.STEP.POST)
         
     def doReadClickAction(self):
         '''Reset the available pane and if there is anything in the keyword box use this to init the selection pane'''
         ktext = str(self.keywordcombo.lineEdit().text())
-        av_sl = self.parent.splitData(ktext,self.parent.reader.complete)
+        av_sl = self.parent.splitData(ktext,self.confconn_link.complete)
         self.parent.signalModels(self.parent.STEP.PRE)
         self.parent.available_model.initData(av_sl[0])
         self.parent.selection_model.initData(av_sl[1])

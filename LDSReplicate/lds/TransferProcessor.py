@@ -16,6 +16,7 @@ Created on 26/07/2012
 '''
 
 import logging
+import types
 
 from datetime import datetime 
 
@@ -47,6 +48,7 @@ class PrimaryKeyUnavailableException(Exception): pass
 class LayerConfigurationException(Exception): pass
 class DatasourceInitialisationException(Exception): pass
 
+LORG = LDSUtilities.enum('LAYER','GROUP')
 
 class TransferProcessor(object):
     '''Primary class controlling data transfer objects and the parameters for these'''
@@ -65,7 +67,7 @@ class TransferProcessor(object):
     #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
     
     LP_SUFFIX = ".layer.properties"
-    LG_PREFIX = {'l':'LAYER','g':'GROUP'}
+    LORG = LDSUtilities.enum('LAYER','GROUP')
     
     #TODO pass lg and (enum(L|G),lgval) otherwise how will we be able to distinguish between v:x, GROUPNAME, nz_layer_name
     
@@ -86,27 +88,21 @@ class TransferProcessor(object):
         self.clearInitConfig()
         self.clearCleanConfig()
             
-        self.epsg = None
-        if ep != None:
-            self.epsg = ep
-            
-        self.fromdate = None
-        if fd != None:
-            self.fromdate = fd
-        
-        self.todate = None
-        if td != None:
-            self.todate = td
+        self.epsg = LDSUtilities.mightAsWellBeNone(ep)
+        self.fromdate = LDSUtilities.mightAsWellBeNone(fd)
+        self.todate = LDSUtilities.mightAsWellBeNone(td)
+
                  
         ###TODO - LG change test
         ###combining layer and group now
         self.lgval = None
-        if lg != None:
+        self.lgopt = None
+        if LDSUtilities.mightAsWellBeNone(lg) and (isinstance(lg, types.ListType) or isinstance(lg, types.TupleType)):
             self.lgopt = lg[0]
             self.lgval = lg[1]
             
         self.source_str = None
-        if sc != None:
+        if LDSUtilities.mightAsWellBeNone(sc):
             self.source_str = sc
             #check for dates to set incr  
             ufd = LDSUtilities.getDateStringFromURL('from',sc)
@@ -129,17 +125,10 @@ class TransferProcessor(object):
             ldslog.warn('Using layer selection from supplied URL '+str(self.layer))  
             
             
-        self.destination_str = None
-        if dc != None:
-            self.destination_str = dc   
-            
-        self.cql = None
-        if cql != None:
-            self.cql = cql     
-            
-        self.user_config = None
-        if uc != None:
-            self.user_config = uc   
+        self.destination_str = LDSUtilities.mightAsWellBeNone(dc)
+        self.cql = LDSUtilities.mightAsWellBeNone(cql)  
+        self.user_config = LDSUtilities.mightAsWellBeNone(uc)
+
             
         self.confinternal = None
         if ie in [DataStore.CONF_EXT,DataStore.CONF_INT]:
@@ -244,36 +233,56 @@ class TransferProcessor(object):
         #------------------------------------------------------------------------------------------
         
         #Valid layers are those that exist in LDS and are also configured in the LC
-        lds_valid = TransferProcessor.assembleLayerList(capabilities,self.src,self.dst)
+        lds_valid = [i[0] for i in TransferProcessor.assembleLayerList(capabilities,self.src,self.dst)]
         
-        #Filter by group designation
-
-        if LDSUtilities.mightAsWellBeNone(self.group) is not None:
-            #A group is provided. It could be an empty group in which case no layers are selected
-            lds_group = set()
-            lg = set(self.group.split(','))
+        
+        #if layer provided, check that layer is in valid list
+        #else if group then intersect valid and group members
+        if self.lgopt == TransferProcessor.LORG.LAYER:
+            layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.lgval) 
+            if layer in lds_valid:
+                self.lnl = (layer,)
+            else:
+                raise InputMisconfigurationException('Layer '+str(layer)+' invalid')
+        elif self.lgopt==TransferProcessor.LORG.GROUP:
+            self.lnl = set()
+            group = set(self.lgval.split(','))
             for lid in lds_valid:
                 cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
-                if cats is not None and set(cats.split(',')).intersection(lg):
-                    lds_group.update((lid,))
+                if cats is not None and set(cats.split(',')).intersection(group):
+                    self.lnl.update((lid,))
         else:
-            lds_group = lds_valid
-                     
-        #finally we check for a requested layer. NB Logic change 9/5/13. Layer decl depends on group decl
-        layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.layer)
-        if layer is None:
-            #We shouldnt need to check layer name validity taken from a group since they're automatically 'valid' 
-            self.lnl = lds_group
-        elif layer in lds_group:
-            self.lnl = (layer,)
-        else:
-            raise InputMisconfigurationException('Layer'+str(layer)+' invalid or not part of requested group')
-                            
+            raise InputMisconfigurationException('Did not find a valid Group/Layer designation '+str(self.lgopt))
+            
+            
+#--------------------------------------------------------------------              
+#        if LDSUtilities.mightAsWellBeNone(self.group) is not None:
+#            #A group is provided. It could be an empty group in which case no layers are selected
+#            lds_group = set()
+#            lg = set(self.group.split(','))
+#            for lid in lds_valid:
+#                cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
+#                if cats is not None and set(cats.split(',')).intersection(lg):
+#                    lds_group.update((lid,))
+#        else:
+#            lds_group = lds_valid
+#                     
+#        #finally we check for a requested layer. NB Logic change 9/5/13. Layer decl depends on group decl
+#        layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.layer)
+#        if layer is None:
+#            #We shouldnt need to check layer name validity taken from a group since they're automatically 'valid' 
+#            self.lnl = lds_group
+#        elif layer in lds_group:
+#            self.lnl = (layer,)
+#        else:
+#            raise InputMisconfigurationException('Layer'+str(layer)+' invalid or not part of requested group')
+#--------------------------------------------------------------------
+
         # ***HACK*** big layer bypass (address this with partitions)
         #self.lnl = filter(lambda each_layer: each_layer not in self.partitionlayers, self.lnl)
         
         #override config file dates with command line dates if provided
-        ldslog.debug("AllLayer={}, ConfLayers={}, GroupLayers={}, SelectedLayers={}".format(len(lds_full),len(lds_read),len(lds_group),len(self.lnl)))
+        ldslog.debug("SelectedLayers={}".format(len(self.lnl)))
         #ldslog.debug("Layer List:"+str(self.lnl))
         
         #------------------------------------------------------------------------------------------  
@@ -329,14 +338,22 @@ class TransferProcessor(object):
         self.dst.closeDS()
         
     @staticmethod
-    def assembleLayerList(capabilities,src,dst):
+    def assembleLayerList(capabilities,src,dst,intersect=True):
         #Full LDS layer name listv:x (from LDS WFS)
-        lds_full = zip(*LDSDataStore.fetchLayerInfo(capabilities,src.pxy))[0]
+        lds_full = LDSDataStore.fetchLayerInfo(capabilities,src.pxy)
         #List of configured layers (from layer-config file/table)
-        lds_read = dst.getLayerConf().getLayerNames()
+        if dst:
+            lds_read = dst.getLayerConf().getLayerNames()
+        else:
+            lds_read = []
         
         #Valid layers are those that exist in LDS and are also configured in the LC
-        return set(lds_full).intersection(set(lds_read))
+        #set(lds_full).intersection(set(lds_read))
+        if intersect:
+            return [i for i in lds_full if i[0] in lds_read]
+        else: #union
+            return lds_full+[i for i in lds_read if i[0] not in lds_full]
+
     
 #--------------------------------------------------------------------------------------------------
     
@@ -352,8 +369,7 @@ class TransferProcessor(object):
 
         
 #--------------------------------------------------------------------------------------------------
-    
-            
+        
     def cleanLayer(self,layer_i,truncate=False):
         '''clean a selected layer (once the layer conf file has been established)'''
         try:

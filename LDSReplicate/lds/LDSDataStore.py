@@ -241,7 +241,7 @@ class LDSDataStore(WFSDataStore):
         kyxp = "./{0}Keywords/{0}Keyword".format(cls.NS['ows'])
         
         try:            
-            if proxy: install_opener(build_opener(ProxyHandler(proxy)))
+            if not LDSUtilities.mightAsWellBeNone(proxy): install_opener(build_opener(ProxyHandler(proxy)))
             #content = urlopen(url)#bug in lxml doesnt close url/files using parse method
             with closing(urlopen(url)) as content:
                 tree = etree.parse(content)

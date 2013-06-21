@@ -44,7 +44,7 @@ import logging
 from datetime import datetime
 from urllib2 import HTTPError
 
-from lds.TransferProcessor import TransferProcessor
+from lds.TransferProcessor import TransferProcessor, LORG
 from lds.TransferProcessor import InputMisconfigurationException
 from lds.VersionUtilities import AppVersion, VersionChecker, UnsupportedVersionException
 from lds.DataStore import DSReaderException
@@ -170,7 +170,8 @@ def main():
     m1 = '*** Begin    *** '+str(st.isoformat())
     print m1
     ldslog.info(m1)
-    tp = TransferProcessor(ly,gp,ep,fd,td,sc,dc,cq,uc,ie)
+    #layer overrides group, whether layer is IN group is not considered
+    tp = TransferProcessor((LORG.LAYER,ly) if ly else (LORG.GROUP,gp),ep,fd,td,sc,dc,cq,uc,ie)
 
     #output format
     if len(args)==0:
@@ -195,7 +196,7 @@ def main():
             raise InputMisconfigurationException("Unrecognised command; output type (pg,ms,slite,fgdb) declaration required")
             
 
-    #aggregation point for LDS errors
+    #aggregation point for common LDS errors
     mm = '*** Complete *** '
     try:
         tp.processLDS(tp.initDestination(pn))

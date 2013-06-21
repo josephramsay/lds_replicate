@@ -124,10 +124,7 @@ class ConfigWrapper(object):
     def writeUserConfigData(cls,ucfile,uctriples):
         '''Write config data to config file'''
         for sfv in uctriples:
-            section = sfv[0]
-            field = sfv[1]
-            value = sfv[2]
-            ucfile.writeMainProperty(section, field, value)
+            ucfile.writeMainProperty(sfv[0],sfv[1],sfv[2])
         
         
         

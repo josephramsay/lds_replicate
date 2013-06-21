@@ -81,9 +81,9 @@ class LDSUtilities(object):
     @staticmethod
     def interceptSystemProxyInfo(proxyinfo,sys_ref):
         
-        (type, host, port, auth, usr, pwd) = proxyinfo
+        (ptype, host, port, auth, usr, pwd) = proxyinfo
         
-        if LDSUtilities.mightAsWellBeNone(type) == sys_ref:
+        if LDSUtilities.mightAsWellBeNone(ptype) == sys_ref:
             #system, read from env/reg
             if os.name == 'nt':
                 #windows
@@ -96,7 +96,7 @@ class LDSUtilities(object):
                 host = rm.group(1)
                 port = rm.group(2)
                 
-        return {'TYPE':type, 'HOST':host, 'PORT':port, 'AUTH':auth, 'USR':usr, 'PWD':pwd}
+        return {'TYPE':ptype, 'HOST':host, 'PORT':port, 'AUTH':auth, 'USR':usr, 'PWD':pwd}
 
     
     @staticmethod
@@ -330,7 +330,7 @@ class LDSUtilities(object):
     def readDocument(url,proxy=None):
         '''Non-Driver method for fetching LDS DS as a document'''
         ldslog.debug("LDS URL "+url)
-        if proxy: install_opener(build_opener(ProxyHandler(proxy)))
+        if not LDSUtilities.mightAsWellBeNone(proxy): install_opener(build_opener(ProxyHandler(proxy)))
         with closing(urlopen(url)) as lds:
             data = lds.read()
         return data
@@ -348,6 +348,19 @@ class LDSUtilities(object):
     @staticmethod
     def mightAsWellBeNone(nstr):
         '''Doesn't cover all possibilities but accounts for read-from-file problems'''
+        if not nstr:
+            return None
+        if isinstance(nstr,basestring):
+            return LDSUtilities.mightAsWellBeNoneSingle(nstr)
+        else:
+            for i in nstr:
+                #OR NONE. If any element is none return none
+                if not LDSUtilities.mightAsWellBeNoneSingle(i):
+                    return None
+        return nstr
+    
+    @staticmethod
+    def mightAsWellBeNoneSingle(nstr):
         if nstr is None or (isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in string.whitespace for i in nstr))):
             return None
         return nstr
@@ -474,7 +487,10 @@ class ConfigInitialiser(object):
                 res.append(line)
         return res
         
-
+    @staticmethod
+    def getConfFiles(confdir=os.path.join(os.path.dirname(__file__),'../conf/')):
+        return sorted([f.split('.')[0] for f in os.listdir(confdir) if re.search('.+\.conf$',f)]) 
+        
         
     
 class SUFIExtractor(object):

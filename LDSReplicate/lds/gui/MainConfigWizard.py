@@ -232,13 +232,9 @@ class ProxyConfigPage(QWizardPage):
         
         #dropdown
         self.authSelect = QComboBox()
-        
-        index = 1
         self.authSelect.addItem('')
         self.authSelect.setToolTip('Select appropriate proxy authentication mechanism')
-        for method in WFSDataStore.PROXY_AUTH:
-            self.authSelect.addItem(method,index)
-            index += 1
+        self.authSelect.addItems(WFSDataStore.PROXY_AUTH)
         self.authSelect.setCurrentIndex(0 if LDSUtilities.mightAsWellBeNone(pxyauth) is None else WFSDataStore.PROXY_AUTH.index(pxyauth))
         
         self.usrEdit = QLineEdit(pxyusr)
@@ -282,6 +278,7 @@ class ProxyConfigPage(QWizardPage):
         gbox.setEnabled(False)
         
         #dsu
+        subs = False
         if pxytype == WFSDataStore.PROXY_TYPE[1]:
             self.systemradio.setChecked(True)
         elif pxytype == WFSDataStore.PROXY_TYPE[2]:
@@ -289,6 +286,13 @@ class ProxyConfigPage(QWizardPage):
         else:
             #direct by default
             self.directradio.setChecked(True)
+            subs = True
+            
+        self.hostEdit.setEnabled(subs)
+        self.portEdit.setEnabled(subs)
+        self.authSelect.setEnabled(subs)
+        self.usrEdit.setEnabled(subs)
+        self.pwdEdit.setEnabled(subs)
             
         self.directradio.clicked.connect(gbox.setDisabled)
         self.systemradio.clicked.connect(gbox.setDisabled)
@@ -840,19 +844,21 @@ class ConfirmationPage(QWizardPage):
             if name == 'pass' and encrypt:
                 value = Encrypt.ENC_PREFIX+Encrypt.secure(value)
             buildarray += ((section,name,value),)
-            
-        ucfile = LDSUtilities.standardiseUserConfigName(str(self.field("ldsfile").toString()))
+        
+        ucfile = str(self.field("ldsfile").toString())
+        #ucfile = LDSUtilities.standardiseUserConfigName(str(self.field("ldsfile").toString()))
+        
         #save values to user config file 
         self.parent.setMFR(self.ldsfile)
         ConfigWrapper.writeUserConfigData(self.parent.getMFR(), buildarray)
         #save userconf and dest to gui prefs
         gpr = GUIPrefsReader()
         #zips with (dest,lgsel,layer,uconf...
-        gpr.write(( section,'','',ucfile))
+        gpr.write(( section,'',ucfile))
         
         #pass back name of UC file for GUI dialog
         if self.ldsfile is not None:
-            self.parent.parent.controls.confEdit.setText(self.ldsfile)
+            self.parent.parent.controls.confcombo.setEditText(self.ldsfile)
             
         return rv
 
