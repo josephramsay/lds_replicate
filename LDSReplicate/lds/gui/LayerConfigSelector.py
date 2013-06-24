@@ -17,26 +17,19 @@ Created on 13/02/2013
 
 from PyQt4.QtGui import (QApplication, QLabel, QComboBox,
                          QVBoxLayout, QHBoxLayout, QGridLayout,QAbstractItemView,
-                         QSizePolicy,QSortFilterProxyModel, QTextBrowser,
+                         QSizePolicy,QSortFilterProxyModel,
                          QMainWindow, QFrame, QStandardItemModel, 
                          QLineEdit,QToolTip, QFont, QHeaderView, 
-                         QPushButton, QTableView,QMessageBox, QGroupBox)
-from PyQt4.QtCore import (Qt, QCoreApplication, QAbstractTableModel, QVariant, QRect,SIGNAL)
+                         QPushButton, QTableView,QMessageBox)
+from PyQt4.QtCore import (Qt, QAbstractTableModel, QVariant)
 
-
-
-import os
 import re
 import sys
 import copy
-import json
 
-from lds.TransferProcessor import TransferProcessor, LORG
-from lds.LDSDataStore import LDSDataStore
-from lds.DataStore import DataStore
-from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
+from lds.TransferProcessor import LORG
+from lds.LDSUtilities import LDSUtilities
 from lds.VersionUtilities import AppVersion
-from lds.ReadConfig import GUIPrefsReader
 
 
 ldslog = LDSUtilities.setupLogging()
@@ -86,15 +79,15 @@ class LayerConfigSelector(QMainWindow):
         self.setWindowTitle("LDS Layer Selection")
         self.resize(725,480)
 
-    
+        
     def resetLayers(self):
         '''Rebuilds lconf from scratch'''
+        self.tp.initLayerConfig(self.src.getCapabilities(),self.dst,self.src.pxy)
         self.refreshLayers()
-
         
     def refreshLayers(self,customkey=None):
-        '''Refreshes lconf from a reread of the lconf object'''
-        self.parent.confconn.complete = self.parent.confconn.getComplete()
+        '''Refreshes from a reread of the lconf object'''
+        self.parent.confconn.setupComplete()
         
         av_sl = self.splitData(customkey,self.parent.confconn.complete)
         self.signalModels(self.STEP.PRE)
@@ -109,15 +102,21 @@ class LayerConfigSelector(QMainWindow):
             v1 = self.parent.confconn.dst.getLayerConf().readLayerProperty(layer, 'category')
             v2 = v1 if re.search(customkey,v1) else v1+","+str(customkey)
             self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
-        self.parent.confconn.buildLGList(self.parent.confconn.assigned, self.parent.confconn.getValidLayers())
-        self.refreshLayers(customkey)
+        #new keyword written so re-read complete (LC) and update assigned keys list
+        self.parent.confconn.setupComplete()
+        self.parent.confconn.setupAssigned()
+        self.parent.confconn.buildLGList(self.parent.confconn.assigned, self.parent.confconn.vlayers)
+        #self.refreshLayers(customkey)
             
     def delKeyFromSelection(self,layerlist,customkey='CUSTOM'):
         for layer in layerlist:
             v1 = self.parent.confconn.dst.getLayerConf().readLayerProperty(layer, 'category')
             v2 = re.sub(',+',',',''.join(v1.split(str(customkey))).strip(','))
             self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
-        self.refreshLayers(customkey)
+        self.parent.confconn.setupComplete()
+        self.parent.confconn.setupAssigned()
+        self.parent.confconn.buildLGList(self.parent.confconn.assigned, self.parent.confconn.vlayers)   
+        #self.refreshLayers(customkey)
         return self.selection_model.rowCount()
     
     def delKeyFromLayers(self, customkey='CUSTOM'):
@@ -130,6 +129,7 @@ class LayerConfigSelector(QMainWindow):
         '''Splits up the 'complete' layer list according to whether it has the selection keyword or not'''
         alist = []
         slist = []
+        assert complete
         for dp in complete:
             if keyword in dp[2]:
                 slist.append(dp)
@@ -153,8 +153,9 @@ class LayerConfigSelector(QMainWindow):
         lastgroup = self.page.keywordcombo.lineEdit().text()
         #self.parent.controls.gpr.writeline('group',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
+            self.parent.controls.setLGValues()
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
-            self.parent.controls.doDestChanged()
+            #self.parent.controls.doDestChanged()
             self.parent.controls.lgcombo.setCurrentIndex(lgindex)
         self.close()
     
@@ -453,7 +454,7 @@ class LayerSelectionPage(QFrame):
             QMessageBox.about(self, "Reserved Keyword","'{0}' is a reserved keyword, please select again".format(ktext))
             return
         self.parent.delKeyFromLayers(ktext)
-        self.parent.assigned = self.parent.getAssigned()
+        self.parent.assigned = self.parent.setupAssigned()
         
         self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
         self.keywordcombo.clearEditText()
@@ -471,7 +472,7 @@ class LayerSelectionPage(QFrame):
         self.parent.signalModels(self.parent.STEP.POST)
         #------------------------------
         self.parent.addKeyToLayers(ktext)
-        self.parent.assigned = self.parent.getAssigned()
+        self.parent.assigned = self.parent.setupAssigned()
         self.keywordcombo.addItem(ktext)
     
     def doChooseClickAction(self):
@@ -485,7 +486,7 @@ class LayerSelectionPage(QFrame):
             self.transferSelectedRows(select.selectedRows(),self.available_sfpm,self.selection_sfpm)
             #------------------------------
             self.parent.addKeyToLayers(ktext)
-            self.confconn_link.assigned = self.confconn_link.getAssigned()
+            self.confconn_link.assigned = self.confconn_link.setupAssigned()
             self.keywordcombo.addItem(ktext)
         else:
             ldslog.warn('L2R > Transfer action without selection')
@@ -522,7 +523,7 @@ class LayerSelectionPage(QFrame):
             tlist = self.transferSelectedRows(select.selectedRows(),self.selection_sfpm,self.available_sfpm)
             #------------------------------
             if self.parent.delKeyFromSelection([ll[1][0] for ll in tlist],ktext)==0:
-                self.confconn_link.assigned = self.confconn_link.getAssigned()
+                self.confconn_link.assigned = self.confconn_link.setupAssigned()
                 self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
                 self.keywordcombo.clearEditText()
         else:
@@ -555,7 +556,7 @@ class LayerSelectionPage(QFrame):
             return
         #Continue
         ldslog.warn('Reset Layer Config')
-        self.parent.resetLayers()
+        self.parent.refreshLayers()
         self.keywordcombo.clear()
 
 class LDSSortFilterProxyModel(QSortFilterProxyModel):

@@ -46,7 +46,7 @@ class LDSRepl(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
     
     HELPFILE = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
-    #dest,lgval,uc,epsg,fd,td,int
+    #destname,lgval,uc,epsg,fd,td,int
     DEF_RVALS = ('','','','2193','','','external')
     
     def __init__(self):
@@ -155,7 +155,7 @@ class LDSRepl(QMainWindow):
         
         destination,lgval,uconf,epsg,fe,te,fd,td,internal = controls.readParameters()
         if lgval:
-            lgindex = self.confconn.getLGIndex(lgval)
+            lgindex = self.confconn.getLGIndex(lgval,col=1)
             lgval = self.confconn.lglist[lgindex][1]
 
         return uconf,lgval,destination,internal
@@ -169,9 +169,11 @@ class LDSRepl(QMainWindow):
             self.controls.setStatus(self.controls.STATUS.IDLE,'Cannot open Layer-Config without defined Destination')
             return
             
-        if self.confconn is None or ((uconf,lgval,dest,internal)!=(self.confconn.uconf,self.confconn.lgval,self.confconn.dest,self.confconn.internal)):
+        if self.confconn is None:
             #if any parameters have changed, re-initialise
             self.confconn = ConfigConnector(uconf,lgval,dest,internal)
+        elif ((uconf,lgval,dest,internal)!=(self.confconn.uconf,self.confconn.lgval,self.confconn.destname,self.confconn.internal)):
+            self.confconn.initConnections(uconf,lgval,dest,internal)
             
         ldscs = LayerConfigSelector(self)
         ldscs.show()
@@ -233,7 +235,7 @@ class LDSControls(QFrame):
     def initUI(self):
         
         # 0      1          2       3       4       5      6    7    8
-        #'dest','lgselect','layer','uconf','group','epsg','fd','td','int'
+        #'destname','lgselect','layer','uconf','group','epsg','fd','td','int'
         
         #self.rdest,rlgselect,self.rlayer,ruconf,self.rgroup,repsg,rfd,rtd,rint = readlist 
         
@@ -266,6 +268,7 @@ class LDSControls(QFrame):
         self.lgcombo = QComboBox(self)
         self.lgcombo.setMaximumWidth(self.MAX_WD)
         self.lgcombo.setDuplicatesEnabled(False)
+        #self.lgcombo.setInsertPolicy(QComboBox.InsertAlphabetically)#?doesnt seem to work
         self.lgcombo.setToolTip('Select either Layer or Group entry')
         self.lgcombo.setEditable(False)
         #self.lgcombo.currentIndexChanged.connect(self.doLGEditUpdate)
@@ -433,6 +436,8 @@ class LDSControls(QFrame):
 
     def setLGValues(self):
         '''Sets the values displayed in the Layer/Group combo'''
+        #because we cant seem to sort combobox entries and want groups at the top, clear and re-add
+        self.lgcombo.clear()
         self.lgcombo.addItems([i[2] for i in self.parent.confconn.lglist if self.lgcombo.findText(i[2])<0])
         #NOTE the separator consumes an index (assumes g preceeds l)
         if self.sepindex:
@@ -455,19 +460,21 @@ class LDSControls(QFrame):
                     return 'Layer Select'
         return 'Initalise'
     
+    def gprParameters(self,rdest):
+        '''Zip default and GPR values'''
+        return [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.parent.gpr.readsec(rdest),self.parent.DEF_RVALS[1:])]
+    
     def doDestChanged(self):
-        '''Read the dest parameter and fill dialog with matching GPR values'''
+        '''Read the destname parameter and fill dialog with matching GPR values'''
         rdest = str(self.destmenulist[self.destmenu.currentIndex()])
-        #rvals = map(lambda x,y: y if x is None or len(x)==0 else x,self.parent.gpr.readsec(rdest),self.parent.DEF_RVALS[1:])
-        rvals = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.parent.gpr.readsec(rdest),self.parent.DEF_RVALS[1:])]
+        rvals = self.gprParameters(rdest)
         self.updateGUIValues([rdest]+rvals)
         
     def doInternalChanged(self):
-        '''Read the dest parameter and fill dialog with matching GPR values'''
+        '''Read the destname parameter and fill dialog with matching GPR values'''
         rdest = str(self.destmenulist[self.destmenu.currentIndex()])
         rint = 'internal' if self.internalTrigger.isChecked() else 'external'
-        #rvals = map(lambda x,y: y if x is None or len(x)==0 else x,self.parent.gpr.readsec(rdest),self.parent.DEF_RVALS[1:])
-        rvals = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.parent.gpr.readsec(rdest),self.parent.DEF_RVALS[1:])]
+        rvals = self.gprParameters(rdest)
         self.updateGUIValues([rdest]+rvals[:-1]+[rint])
         
     def updateGUIValues(self,readlist):
@@ -528,22 +535,6 @@ class LDSControls(QFrame):
         else:
             self.internalTrigger.setChecked(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
         
-        
-#    def doLGEditUpdate(self):
-#        return
-#        lgopt = self.lgcombo.currentText()
-#        if lgopt == 'Layer':
-#            self.lgEdit.setText(self.rlayer)
-#            self.lgEdit.setToolTip('Enter the Layer you want to replicate using either v:x### format or a valid layer name') 
-#        elif lgopt == 'Group':
-#            self.lgEdit.setText(self.rgroup)
-#            self.lgEdit.setToolTip('Enter an LDS keyword or use your own custom keyword to select a group of layers')  
-    
-#    def doLayerDisable(self):
-#        self.layerEdit.setText('')
-#        
-#    def doGroupDisable(self):
-#        self.groupEdit.setText('')
         
     def doEPSGEnable(self):
         self.epsgcombo.setEnabled(self.epsgEnable.isChecked())
@@ -615,7 +606,7 @@ class LDSControls(QFrame):
   
         #-----------------------------------------------------
 
-        #'dest','layer','uconf','group','epsg','fd','td','int'
+        #'destname','layer','uconf','group','epsg','fd','td','int'
      
         self.parent.gpr.write((destination_driver,lgval,uconf,epsg,fd,td,internal))        
         ldslog.info('dest={0}, lg={1}, conf={2}, epsg={3}'.format(destination_driver,lgval,uconf,epsg))

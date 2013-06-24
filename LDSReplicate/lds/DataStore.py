@@ -593,7 +593,7 @@ class DataStore(object):
                     #HACK
                     if re.search('General Error',str(rte)):
                         ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+'] Ignoring!')
-                    else:
+                    #else:
                         raise
                 
             ldslog.info('Inserts={0}, Deletes={1}, Updates={2}'.format(insert_count,delete_count,update_count))
@@ -999,7 +999,7 @@ class DataStore(object):
         try:
             for li in range(0,self.ds.GetLayerCount()):
                 lref = ds.GetLayerByIndex(li)
-                lname= lref.GetName()
+                lname = lref.GetName()
                 if lname == name:
                     if truncate:
                         for fi in range(1,lref.GetFeatureCount()+1):

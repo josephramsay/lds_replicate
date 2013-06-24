@@ -48,7 +48,8 @@ class PrimaryKeyUnavailableException(Exception): pass
 class LayerConfigurationException(Exception): pass
 class DatasourceInitialisationException(Exception): pass
 
-LORG = LDSUtilities.enum('LAYER','GROUP')
+#enum((L|G),lgval) to distinguish between v:x, GROUPNAME, nz_layer_name
+LORG = LDSUtilities.enum('GROUP','LAYER')
 
 class TransferProcessor(object):
     '''Primary class controlling data transfer objects and the parameters for these'''
@@ -67,9 +68,6 @@ class TransferProcessor(object):
     #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
     
     LP_SUFFIX = ".layer.properties"
-    LORG = LDSUtilities.enum('LAYER','GROUP')
-    
-    #TODO pass lg and (enum(L|G),lgval) otherwise how will we be able to distinguish between v:x, GROUPNAME, nz_layer_name
     
     def __init__(self,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None):
 
@@ -92,8 +90,6 @@ class TransferProcessor(object):
         self.fromdate = LDSUtilities.mightAsWellBeNone(fd)
         self.todate = LDSUtilities.mightAsWellBeNone(td)
 
-                 
-        ###TODO - LG change test
         ###combining layer and group now
         self.lgval = None
         self.lgopt = None
@@ -103,33 +99,12 @@ class TransferProcessor(object):
             
         self.source_str = None
         if LDSUtilities.mightAsWellBeNone(sc):
-            self.source_str = sc
-            #check for dates to set incr  
-            ufd = LDSUtilities.getDateStringFromURL('from',sc)
-            if ufd is not None:
-                ufds = ufd.group(1)
-                ldslog.warn("Using 'from:' date string from supplied URL "+str(ufds))
-                self.fromdate = ufds
-            utd = LDSUtilities.getDateStringFromURL('to',sc)
-            if utd is not None:
-                utds = utd.group(1)
-                ldslog.warn("Using 'to:' date string from supplied URL "+str(utds))
-                self.todate = utds
-                
-            #if doing incremental we also need to check changeset
-            if (utd is not None or ufd is not None) and not LDSUtilities.checkHasChangesetIdentifier(sc):
-                raise InputMisconfigurationException("'changeset' identifier required for incremental LDS query")
-            
-            #all going well we can now get the layer string. This isn't optional so we just set it
-            self.layer = LDSUtilities.getLayerNameFromURL(sc)
-            ldslog.warn('Using layer selection from supplied URL '+str(self.layer))  
-            
+            self.parseSourceConfig(sc)
             
         self.destination_str = LDSUtilities.mightAsWellBeNone(dc)
         self.cql = LDSUtilities.mightAsWellBeNone(cql)  
         self.user_config = LDSUtilities.mightAsWellBeNone(uc)
-
-            
+      
         self.confinternal = None
         if ie in [DataStore.CONF_EXT,DataStore.CONF_INT]:
             self.setConfInternal(ie)
@@ -139,7 +114,32 @@ class TransferProcessor(object):
 
         
     def __str__(self):
-        return 'Layer/Group:{lgval}, CQL:{cql}, '.format(lgval=self.lgval,cql=self.cql)
+        return 'Dst:{ds}, Layer/Group:{lgval}, CQL:{cql}, '.format(ds=self.destination_str,lgval=self.lgval,cql=self.cql)
+    
+    def parseSourceConfig(self,sc):
+        '''If a user supplied their own LDS connection string, parse out relevant values'''
+
+        self.source_str = sc
+        #check for dates to set incr  
+        ufd = LDSUtilities.getDateStringFromURL('from',sc)
+        if ufd is not None:
+            ufds = ufd.group(1)
+            ldslog.warn("Using 'from:' date string from supplied URL "+str(ufds))
+            self.fromdate = ufds
+        utd = LDSUtilities.getDateStringFromURL('to',sc)
+        if utd is not None:
+            utds = utd.group(1)
+            ldslog.warn("Using 'to:' date string from supplied URL "+str(utds))
+            self.todate = utds
+            
+        #if doing incremental we also need to check changeset
+        if (utd is not None or ufd is not None) and not LDSUtilities.checkHasChangesetIdentifier(sc):
+            raise InputMisconfigurationException("'changeset' identifier required for incremental LDS query")
+        
+        #all going well we can now get the layer string. This isn't optional so we just set it
+        self.layer = LDSUtilities.getLayerNameFromURL(sc)
+        ldslog.warn('Using layer selection from supplied URL '+str(self.layer))  
+            
     
     #Internal/External flag to override config set option
     def setConfInternal(self,confinternal):
@@ -233,18 +233,19 @@ class TransferProcessor(object):
         #------------------------------------------------------------------------------------------
         
         #Valid layers are those that exist in LDS and are also configured in the LC
-        lds_valid = [i[0] for i in TransferProcessor.assembleLayerList(capabilities,self.src,self.dst)]
+        self.initCapsDoc(capabilities, self.src)
+        lds_valid = [i[0] for i in self.assembleLayerList(self.dst)]
         
         
         #if layer provided, check that layer is in valid list
         #else if group then intersect valid and group members
-        if self.lgopt == TransferProcessor.LORG.LAYER:
+        if self.lgopt == LORG.LAYER:
             layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.lgval) 
             if layer in lds_valid:
                 self.lnl = (layer,)
             else:
                 raise InputMisconfigurationException('Layer '+str(layer)+' invalid')
-        elif self.lgopt==TransferProcessor.LORG.GROUP:
+        elif self.lgopt == LORG.GROUP:
             self.lnl = set()
             group = set(self.lgval.split(','))
             for lid in lds_valid:
@@ -253,30 +254,6 @@ class TransferProcessor(object):
                     self.lnl.update((lid,))
         else:
             raise InputMisconfigurationException('Did not find a valid Group/Layer designation '+str(self.lgopt))
-            
-            
-#--------------------------------------------------------------------              
-#        if LDSUtilities.mightAsWellBeNone(self.group) is not None:
-#            #A group is provided. It could be an empty group in which case no layers are selected
-#            lds_group = set()
-#            lg = set(self.group.split(','))
-#            for lid in lds_valid:
-#                cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
-#                if cats is not None and set(cats.split(',')).intersection(lg):
-#                    lds_group.update((lid,))
-#        else:
-#            lds_group = lds_valid
-#                     
-#        #finally we check for a requested layer. NB Logic change 9/5/13. Layer decl depends on group decl
-#        layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.layer)
-#        if layer is None:
-#            #We shouldnt need to check layer name validity taken from a group since they're automatically 'valid' 
-#            self.lnl = lds_group
-#        elif layer in lds_group:
-#            self.lnl = (layer,)
-#        else:
-#            raise InputMisconfigurationException('Layer'+str(layer)+' invalid or not part of requested group')
-#--------------------------------------------------------------------
 
         # ***HACK*** big layer bypass (address this with partitions)
         #self.lnl = filter(lambda each_layer: each_layer not in self.partitionlayers, self.lnl)
@@ -337,10 +314,13 @@ class TransferProcessor(object):
 
         self.dst.closeDS()
         
-    @staticmethod
-    def assembleLayerList(capabilities,src,dst,intersect=True):
-        #Full LDS layer name listv:x (from LDS WFS)
-        lds_full = LDSDataStore.fetchLayerInfo(capabilities,src.pxy)
+    def initCapsDoc(self,capabilities,src):
+        '''Fetch, format and store the capabilities document'''
+        if not hasattr(self,'lds_full'):
+            self.lds_full = LDSDataStore.fetchLayerInfo(capabilities,src.pxy)
+        
+    def assembleLayerList(self,dst,intersect=True):
+        '''Match the capabilities layer list with the configured layer list'''
         #List of configured layers (from layer-config file/table)
         if dst:
             lds_read = dst.getLayerConf().getLayerNames()
@@ -350,9 +330,9 @@ class TransferProcessor(object):
         #Valid layers are those that exist in LDS and are also configured in the LC
         #set(lds_full).intersection(set(lds_read))
         if intersect:
-            return [i for i in lds_full if i[0] in lds_read]
+            return [i for i in self.lds_full if i[0] in lds_read]
         else: #union
-            return lds_full+[i for i in lds_read if i[0] not in lds_full]
+            return self.lds_full+[i for i in lds_read if i[0] not in self.lds_full]
 
     
 #--------------------------------------------------------------------------------------------------

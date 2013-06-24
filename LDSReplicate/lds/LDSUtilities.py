@@ -354,8 +354,8 @@ class LDSUtilities(object):
             return LDSUtilities.mightAsWellBeNoneSingle(nstr)
         else:
             for i in nstr:
-                #OR NONE. If any element is none return none
-                if not LDSUtilities.mightAsWellBeNoneSingle(i):
+                #OR NONE. If any element is none return none. Since we consider '0' valid (ie LG enum) must use ==None
+                if LDSUtilities.mightAsWellBeNoneSingle(i) is None:
                     return None
         return nstr
     

@@ -1,13 +1,13 @@
 [prefs]
-dest = None
+dest = PostgreSQL
 
 [PostgreSQL]
-lgvalue = None
-uconf = None
+lgvalue = SPECIAL
+uconf = pg
 epsg = None
 fd = None
 td = None
-int = None
+int = external
 
 [SQLite]
 lgvalue = None
@@ -18,12 +18,12 @@ td = None
 int = None
 
 [FileGDB]
-lgvalue = None
-uconf = None
+lgvalue = SUPERKEY
+uconf = fg
 epsg = None
 fd = None
 td = None
-int = None
+int = external
 
 [MSSQLSpatial]
 lgvalue = None
