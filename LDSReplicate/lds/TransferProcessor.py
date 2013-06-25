@@ -90,7 +90,7 @@ class TransferProcessor(object):
         self.fromdate = LDSUtilities.mightAsWellBeNone(fd)
         self.todate = LDSUtilities.mightAsWellBeNone(td)
 
-        ###combining layer and group now
+        #splitting out group/layer and lgname
         self.lgval = None
         self.lgopt = None
         if LDSUtilities.mightAsWellBeNone(lg) and (isinstance(lg, types.ListType) or isinstance(lg, types.TupleType)):

@@ -376,7 +376,7 @@ class DataStore(object):
     def featureCopy(self,src_ds,dst_ds):
         '''Feature copy without the change column (and other incremental) overhead. Replacement for driverCopy(cloneDS).''' 
         for li in range(0,src_ds.GetLayerCount()):
-            new_layer = False
+            is_new = False
             src_layer = src_ds.GetLayer(li)
             src_feat_count = None
             
@@ -401,7 +401,7 @@ class DataStore(object):
             #transforms from SRC to DST sref if user requests a different EPSG, otherwise SRC returned unchanged
             dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
             
-            (dst_layer,new_layer) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
+            (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
                 
 
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
@@ -438,8 +438,9 @@ class DataStore(object):
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has replicated at least 1 feat'''
             #May need to be pushed out to subclasses depending on syntax differences
-            if new_layer and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
-                self.buildIndex(layerconfentry,dst_info.layer_name)
+            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
+                pass
+                #self.buildIndex(layerconfentry,dst_info.layer_name)#temporarily hide this to test whether its the index creation that borks transactions
                 
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 try:
@@ -448,7 +449,7 @@ class DataStore(object):
                     #HACK
                     if re.search('General Error',str(rte)):
                         ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+'] Ignoring!')
-                    else:
+                    #else:
                         raise
 
             
@@ -812,7 +813,7 @@ class DataStore(object):
                 if self.identify64Bit(fin_field_name) and fin_field_name not in self.sufi_list:
                     if doc is None:
                         #fetch the GC document in GML2 format for column extraction. #TODO JSON extractor
-                        doc = LDSUtilities.readDocument(re.sub('JSON|GML3','GML2',self.src_link.getURI()))
+                        doc = LDSUtilities.readDocument(re.sub('JSON|GML3','GML2',self.src_link.getURI()),self.src_link.pxy)
                     self.sufi_list[fin_field_name] = SUFIExtractor.readURI(doc,fin_field_name)
             
         '''populate non geometric fields'''
@@ -930,6 +931,9 @@ class DataStore(object):
                 ldslog.error("Runtime Error. Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
                 #this can be a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
                 #but also indicate no problem, e.g. deleting a layer already deleted
+                if re.search('does not exist',str(rex)):
+                    ldslog.error("Attempt to delete non-existant table. "+str(rex))
+                    return retval
                 raise
             except InvalidSQLException as ise:
                 #Caused by query not matching valid entry

@@ -347,22 +347,20 @@ class LDSUtilities(object):
     
     @staticmethod
     def mightAsWellBeNone(nstr):
-        '''Doesn't cover all possibilities but accounts for read-from-file problems'''
-        if not nstr:
-            return None
-        if isinstance(nstr,basestring):
-            return LDSUtilities.mightAsWellBeNoneSingle(nstr)
-        else:
+        '''Doesn't cover all possibilities but accounts for most read-from-file (string) problems. Lists treated as ANY(None)->None'''
+        #for when integers slip through and zeroes get represented as none
+        if isinstance(nstr,int):
+            ldslog.warn('Converting Integer to String for null comparison')
+            return str(nstr)
+        if isinstance(nstr,tuple) or isinstance(nstr,list):
             for i in nstr:
                 #OR NONE. If any element is none return none. Since we consider '0' valid (ie LG enum) must use ==None
-                if LDSUtilities.mightAsWellBeNoneSingle(i) is None:
+                if LDSUtilities.mightAsWellBeNone(i) is None:
                     return None
-        return nstr
-    
-    @staticmethod
-    def mightAsWellBeNoneSingle(nstr):
-        if nstr is None or (isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in string.whitespace for i in nstr))):
-            return None
+        else:
+            if isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in string.whitespace for i in nstr)):
+                return None
+        #if its already none is will return itself
         return nstr
     
     @staticmethod

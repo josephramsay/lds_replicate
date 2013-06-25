@@ -105,7 +105,7 @@ class LayerConfigSelector(QMainWindow):
         #new keyword written so re-read complete (LC) and update assigned keys list
         self.parent.confconn.setupComplete()
         self.parent.confconn.setupAssigned()
-        self.parent.confconn.buildLGList(self.parent.confconn.assigned, self.parent.confconn.vlayers)
+        self.parent.confconn.buildLGList()
         #self.refreshLayers(customkey)
             
     def delKeyFromSelection(self,layerlist,customkey='CUSTOM'):
@@ -115,7 +115,7 @@ class LayerConfigSelector(QMainWindow):
             self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
         self.parent.confconn.setupComplete()
         self.parent.confconn.setupAssigned()
-        self.parent.confconn.buildLGList(self.parent.confconn.assigned, self.parent.confconn.vlayers)   
+        self.parent.confconn.buildLGList()   
         #self.refreshLayers(customkey)
         return self.selection_model.rowCount()
     
@@ -150,10 +150,12 @@ class LayerConfigSelector(QMainWindow):
         '''Intercept close event to signal parent to update status'''
         self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'Done')
         #return last group selection
-        lastgroup = self.page.keywordcombo.lineEdit().text()
+        lastgroup = str(self.page.keywordcombo.lineEdit().text())
         #self.parent.controls.gpr.writeline('group',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
-            self.parent.controls.setLGValues()
+            self.parent.confconn.setupComplete()
+            self.parent.confconn.setupAssigned()
+            self.parent.confconn.buildLGList()
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
             #self.parent.controls.doDestChanged()
             self.parent.controls.lgcombo.setCurrentIndex(lgindex)
@@ -325,7 +327,7 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.currentIndexChanged.connect(self.doReadClickAction)
         
         lgindex = self.confconn_link.getLGIndex(self.confconn_link.lgval,col=1)
-        lgentry = self.confconn_link.lglist[lgindex] if lgindex else None
+        lgentry = self.confconn_link.lglist[lgindex] if LDSUtilities.mightAsWellBeNone(lgindex) is not None else None
         keywordedit = self.keywordcombo.lineEdit()
         #if no entry or layer indicated then blank 
         keywordedit.setText('' if lgentry is None or lgentry[0]==LORG.LAYER else lgentry[1])#self.confconn_link.lgval)#TODO. group only
@@ -433,31 +435,6 @@ class LayerSelectionPage(QFrame):
         except Exception as e:
             print e
         
-#    def doAddClickAction(self):
-#        '''Main selection action, takes selection and adds to conf layer (via tp)'''
-#        ktext = str(self.keywordcombo.lineEdit().text())
-#        if LDSUtilities.mightAsWellBeNone(ktext):
-#            QMessageBox.about(self, "Keyword Required","Please enter a keyword to assign this layer to")
-#            return
-#        if ktext in self.parent.reserved:
-#            QMessageBox.about(self, "Reserved Keyword","'{}' is a reserved keyword, please select again".format(ktext))
-#            return
-#        self.parent.addKeyToLayers(ktext)
-#        self.parent.assigned = self.parent.getAssigned()
-#
-#        self.keywordcombo.addItem(ktext)
-        
-    def doDelClickAction(self):
-        '''Main selection action, takes selection and adds to conf layer (via tp)'''
-        ktext = str(self.keywordcombo.lineEdit().text())
-        if ktext in self.parent.reserved:
-            QMessageBox.about(self, "Reserved Keyword","'{0}' is a reserved keyword, please select again".format(ktext))
-            return
-        self.parent.delKeyFromLayers(ktext)
-        self.parent.assigned = self.parent.setupAssigned()
-        
-        self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
-        self.keywordcombo.clearEditText()
             
     def doChooseAllClickAction(self):
         '''Moves the lot to Selected'''
@@ -472,7 +449,7 @@ class LayerSelectionPage(QFrame):
         self.parent.signalModels(self.parent.STEP.POST)
         #------------------------------
         self.parent.addKeyToLayers(ktext)
-        self.parent.assigned = self.parent.setupAssigned()
+        #self.confconn_link.setupAssigned()
         self.keywordcombo.addItem(ktext)
     
     def doChooseClickAction(self):
@@ -486,13 +463,12 @@ class LayerSelectionPage(QFrame):
             self.transferSelectedRows(select.selectedRows(),self.available_sfpm,self.selection_sfpm)
             #------------------------------
             self.parent.addKeyToLayers(ktext)
-            self.confconn_link.assigned = self.confconn_link.setupAssigned()
+            #self.confconn_link.assigned = self.confconn_link.setupAssigned()
             self.keywordcombo.addItem(ktext)
         else:
             ldslog.warn('L2R > Transfer action without selection')
         self.available.clearSelection()
-
-            
+          
     def checkKeyword(self,ktext):
         '''Main selection action, takes selection and adds to conf layer (via tp)'''
         if LDSUtilities.mightAsWellBeNone(ktext) is None:
@@ -513,7 +489,6 @@ class LayerSelectionPage(QFrame):
         from_model.delData([t[0] for t in tlist])
         return tlist
             
-
     def doRejectClickAction(self):
         '''Takes available selected and moves to selection'''
         ktext = str(self.keywordcombo.lineEdit().text())
@@ -523,7 +498,7 @@ class LayerSelectionPage(QFrame):
             tlist = self.transferSelectedRows(select.selectedRows(),self.selection_sfpm,self.available_sfpm)
             #------------------------------
             if self.parent.delKeyFromSelection([ll[1][0] for ll in tlist],ktext)==0:
-                self.confconn_link.assigned = self.confconn_link.setupAssigned()
+                #self.confconn_link.setupAssigned()
                 self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
                 self.keywordcombo.clearEditText()
         else:
@@ -531,11 +506,20 @@ class LayerSelectionPage(QFrame):
         self.selection.clearSelection()
                 
     def doRejectAllClickAction(self):
+        ktext = str(self.keywordcombo.lineEdit().text())
+        if not self.checkKeyword(ktext):
+            return
+        #------------------------------
         self.parent.signalModels(self.parent.STEP.PRE)
         #self.parent.available_model.mdata += self.parent.selection_model.mdata
         self.parent.available_model.initData(self.confconn_link.complete)
         self.parent.selection_model.initData([])
-        self.parent.signalModels(self.parent.STEP.POST)
+        self.parent.signalModels(self.parent.STEP.POST)        
+        #------------------------------
+        self.parent.delKeyFromLayers(ktext)
+        #self.confconn_link.setupAssigned()
+        self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
+        self.keywordcombo.clearEditText()
         
     def doReadClickAction(self):
         '''Reset the available pane and if there is anything in the keyword box use this to init the selection pane'''

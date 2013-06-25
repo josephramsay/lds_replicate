@@ -154,9 +154,10 @@ class LDSRepl(QMainWindow):
         '''Init a new TP and return selected controls'''
         
         destination,lgval,uconf,epsg,fe,te,fd,td,internal = controls.readParameters()
-        if lgval:
-            lgindex = self.confconn.getLGIndex(lgval,col=1)
-            lgval = self.confconn.lglist[lgindex][1]
+        #this bit is probably not needed now we're selecting from dropdown. leave it commented to see if any errors occur
+        #if lgval:
+        #    lgindex = self.confconn.getLGIndex(lgval,col=1)
+        #    lgval = self.confconn.lglist[lgindex][1]
 
         return uconf,lgval,destination,internal
     
@@ -164,7 +165,7 @@ class LDSRepl(QMainWindow):
         '''Open a new Layer dialog'''
         self.controls.setStatus(self.controls.STATUS.BUSY,'Opening Layer-Config Editor')  
         
-        uconf,lgval,dest,internal = self.getConnectionParameters(self.controls)
+        dest,lgval,uconf,_,_,_,_,_,internal = self.controls.readParameters()
         if not LDSUtilities.mightAsWellBeNone(dest):
             self.controls.setStatus(self.controls.STATUS.IDLE,'Cannot open Layer-Config without defined Destination')
             return
@@ -273,7 +274,7 @@ class LDSControls(QFrame):
         self.lgcombo.setEditable(False)
         #self.lgcombo.currentIndexChanged.connect(self.doLGEditUpdate)
         self.sepindex = None
-        #self.setLGValues()
+        #self.updateLGValues()
         
         self.epsgcombo = QComboBox(self)
         self.epsgcombo.setMaximumWidth(self.MAX_WD)
@@ -434,16 +435,20 @@ class LDSControls(QFrame):
         self.view.repaint()
         QApplication.processEvents(QEventLoop.AllEvents)
 
-    def setLGValues(self):
-        '''Sets the values displayed in the Layer/Group combo'''
-        #because we cant seem to sort combobox entries and want groups at the top, clear and re-add
+    def refreshLGCombo(self):
         self.lgcombo.clear()
-        self.lgcombo.addItems([i[2] for i in self.parent.confconn.lglist if self.lgcombo.findText(i[2])<0])
-        #NOTE the separator consumes an index (assumes g preceeds l)
-        if self.sepindex:
-            self.lgcombo.removeItem(self.sepindex)
+        self.lgcombo.addItems([i[2] for i in self.parent.confconn.lglist])
+        #NOTE the separator consumes an index, if not clearing the combobox selectively remove the old sepindex (assumes g preceeds l)
+        #if self.sepindex:
+        #    self.lgcombo.removeItem(self.sepindex)
         self.sepindex = [i[0] for i in self.parent.confconn.lglist].count(LORG.GROUP)
         self.lgcombo.insertSeparator(self.sepindex)
+        
+    def updateLGValues(self,uconf,lgval,destname,internal):
+        '''Sets the values displayed in the Layer/Group combo'''
+        #because we cant seem to sort combobox entries and want groups at the top, clear and re-add
+        self.parent.confconn.initConnections(uconf,lgval,destname,internal)
+        self.refreshLGCombo()
         
     def centre(self):
         
@@ -500,7 +505,7 @@ class LDSControls(QFrame):
         #self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
         
         #Layer/Group Selection
-        self.setLGValues()
+        self.updateLGValues(ruconf,self.rlgval,rdest,rint)
         if LDSUtilities.mightAsWellBeNone(self.rlgval):
             lgindex = self.parent.confconn.getLGIndex(self.rlgval,col=1)
             lgindex += 1 if lgindex>self.sepindex else 0 
@@ -549,7 +554,8 @@ class LDSControls(QFrame):
         '''Read values out of dialogs'''
         destination = LDSUtilities.mightAsWellBeNone(str(self.destmenulist[self.destmenu.currentIndex()]))
         lgindex = self.parent.confconn.getLGIndex(str(self.lgcombo.currentText()))
-        lgval = self.parent.confconn.lglist[lgindex][1] if lgindex else None       
+        #NB need to test for None explicitly since zero is a valid index
+        lgval = self.parent.confconn.lglist[lgindex][1] if LDSUtilities.mightAsWellBeNone(lgindex) is not None else None       
         #uconf = LDSUtilities.standardiseUserConfigName(str(self.confcombo.lineEdit().text()))
         uconf = str(self.confcombo.lineEdit().text())
         ee = self.epsgEnable.isChecked()

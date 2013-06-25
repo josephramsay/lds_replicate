@@ -67,9 +67,10 @@ class ConfigConnector(object):
             self.setupReserved()
         self.setupComplete()
         self.setupAssigned()
-        self.buildLGList(self.assigned, self.vlayers)
+        self.buildLGList()
         self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
     
+        
     def initSrcDst(self):
         '''Initialises src and dst objects'''
         #initialise layer data using existing source otherwise use the capabilities doc
@@ -84,7 +85,7 @@ class ConfigConnector(object):
                 dst.ds = dst.initDS(dst.destinationURI(None))
             dst.setLayerConf(self.tp.getNewLayerConf(dst))
             ##if a lconf has not been created build a new one
-            if not dst.getLayerConf():
+            if not dst.getLayerConf().exists():
                 self.tp.initLayerConfig(src.getCapabilities(),dst,src.pxy)
         else:
             dst = None
@@ -132,14 +133,14 @@ class ConfigConnector(object):
         #In the case where we are setting up unconfigured (first init) populate the layer list with default/all layers
         return vlayers if vlayers else self.tp.assembleLayerList(self.dst,intersect=False) 
     
-    def buildLGList(self,groups,layers):
+    def buildLGList(self,groups=None,layers=None):
         '''Sets the values displayed in the Layer/Group combo'''
         #self.lgcombo.addItems(('',TransferProcessor.LG_PREFIX['g']))
         self.lglist = []
         #              lorg,value,display
-        for g in sorted(groups):
+        for g in sorted(groups if groups else self.assigned):
             self.lglist += ((LORG.GROUP,g.strip(),'{} (group)'.format(g.strip())),)
-        for l in sorted(layers):
+        for l in sorted(layers if layers else self.vlayers):
             self.lglist += ((LORG.LAYER,l[0],'{} ({})'.format(l[1],l[0])),)
         
     

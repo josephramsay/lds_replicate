@@ -1,8 +1,8 @@
 [prefs]
-dest = PostgreSQL
+dest = FileGDB
 
 [PostgreSQL]
-lgvalue = SPECIAL
+lgvalue = v:x64
 uconf = pg
 epsg = None
 fd = None
@@ -18,7 +18,7 @@ td = None
 int = None
 
 [FileGDB]
-lgvalue = SUPERKEY
+lgvalue = v:x64
 uconf = fg
 epsg = None
 fd = None
