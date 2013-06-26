@@ -649,7 +649,13 @@ class LayerFileReader(LayerReader):
     @override(LayerReader)
     def readLayerProperty(self,layer,key):
         try:
-            value = self.cp.get(layer, key)
+            #HACK. Bad practise to rely on data type check
+            if isinstance(layer,tuple) or isinstance(layer,list):
+                value = () 
+                for l in layer:
+                    value += (self.cp.get(l, key),)
+            else:
+                value = self.cp.get(layer, key)
             if LU.mightAsWellBeNone(value) is None:
                 return None
         except:
@@ -661,12 +667,18 @@ class LayerFileReader(LayerReader):
     @override(LayerReader)
     def writeLayerProperty(self,layer,field,value):
         '''Write changes to layer config table'''
-        if value: value = value.strip()
-        try:            
-            self.cp.set(layer,field,value if value is not None else '')
+        #if value: value = value.strip()
+        try:    
+            if (isinstance(layer,tuple) or isinstance(layer,list)) and (isinstance(value,tuple) or isinstance(value,list)): 
+                for l,v in zip(layer,value):  
+                    if v: v = v.strip()      
+                    self.cp.set(l,field,v if v is not None else '')
+            else:
+                if value: value = value.strip()
+                self.cp.set(layer,field,value if value is not None else '')
             with open(self.filename, 'w') as configfile:
                 self.cp.write(configfile)
-            ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
+            #ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
         except Exception as e:
             ldslog.warn('Problem writing LM date to layer config file. '+str(e))
             
@@ -860,12 +872,19 @@ class LayerDSReader(LayerReader):
     @override(LayerReader)     
     def readLayerProperty(self,pkey,field):
         '''Single property reader'''
+        plist = ()
         layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
-        feat = self.fname._findMatchingFeature(layer, 'id', pkey)
-        if feat is None:
-            return None
-        prop = feat.GetField(field)
+        if isinstance(pkey,tuple) or isinstance(pkey,list):
+            for p in pkey:
+                f = self.fname._findMatchingFeature(layer, 'id', p)
+                plist += ('' if f is None else f.GetField(field),)
+            return plist
+        else:
+            feat = self.fname._findMatchingFeature(layer, 'id', pkey)
+            if feat is None:
+                return None
+            prop = feat.GetField(field)
         return None if LU.mightAsWellBeNone(prop) is None else prop
     
     @override(LayerReader)
@@ -875,12 +894,21 @@ class LayerDSReader(LayerReader):
         value = value.strip()
         try:
             layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
-            feat = self.fname._findMatchingFeature(layer, 'id', pkey)
-            feat.SetField(field,value)
-            layer.SetFeature(feat)
-            ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
+            if (isinstance(pkey,tuple) or isinstance(pkey,list)) and (isinstance(value,tuple) or isinstance(value,list)):
+                for p,v in zip(pkey,value):
+                    if v: v = v.strip()
+                    self._setFeatureValue(layer,p,field,v)
+            else:
+                if value: value = value.strip()
+                self._setFeatureValue(layer,pkey,field,value)
         except Exception as e:
             ldslog.error(e)
+            
+    def _setFeatureValue(self,layer,p,field,value):
+        feat = self.fname._findMatchingFeature(layer, 'id', p)
+        feat.SetField(field,value)
+        layer.SetFeature(feat)
+        #ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
          
 #------------------------------------------------------------------------------
         
