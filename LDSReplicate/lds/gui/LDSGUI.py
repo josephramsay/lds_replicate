@@ -46,8 +46,8 @@ class LDSRepl(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
     
     HELPFILE = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
-    #destname,lgval,uc,epsg,fd,td,int
-    DEF_RVALS = ('','','','2193','','','external')
+    #destname,lgval,uc,epsg,fd,td
+    DEF_RVALS = ('','','','2193','','')
     
     def __init__(self):
         super(LDSRepl, self).__init__()
@@ -59,7 +59,7 @@ class LDSRepl(QMainWindow):
         
         self.initial = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
         
-        self.confconn = ConfigConnector(self.initial[2],self.initial[1],self.initial[0],self.initial[6])
+        self.confconn = ConfigConnector(self.initial[2],self.initial[1],self.initial[0])
         
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
@@ -162,19 +162,17 @@ class LDSRepl(QMainWindow):
         return uconf,lgval,destination,internal
     
     def runLayerConfigAction(self):
-        '''Open a new Layer dialog'''
-        self.controls.setStatus(self.controls.STATUS.BUSY,'Opening Layer-Config Editor')  
-        
-        dest,lgval,uconf,_,_,_,_,_,internal = self.controls.readParameters()
+        '''Open a new Layer dialog'''        
+        dest,lgval,uconf,_,_,_,_,_ = self.controls.readParameters()
         if not LDSUtilities.mightAsWellBeNone(dest):
             self.controls.setStatus(self.controls.STATUS.IDLE,'Cannot open Layer-Config without defined Destination')
             return
             
         if self.confconn is None:
             #if any parameters have changed, re-initialise
-            self.confconn = ConfigConnector(uconf,lgval,dest,internal)
-        elif ((uconf,lgval,dest,internal)!=(self.confconn.uconf,self.confconn.lgval,self.confconn.destname,self.confconn.internal)):
-            self.confconn.initConnections(uconf,lgval,dest,internal)
+            self.confconn = ConfigConnector(uconf,lgval,dest)
+        elif ((uconf,lgval,dest)!=(self.confconn.uconf,self.confconn.lgval,self.confconn.destname)):
+            self.confconn.initConnections(uconf,lgval,dest)
             
         ldscs = LayerConfigSelector(self)
         ldscs.show()
@@ -202,14 +200,14 @@ class LDSRepl(QMainWindow):
         
 class LDSControls(QFrame):
         
-    STATIC_IMG = ('linz_static.png','clean_static.png','busy_static.png')
-    ANIM_IMG = ('linz.gif','clean.gif','busy.gif')
+    STATIC_IMG = ('linz_static.png','clean_static.png','busy_static2.png','error_static.png')
+    ANIM_IMG = ('linz.gif','clean.gif','busy.gif','error.gif')
     IMG = STATIC_IMG
     
     MAX_WD = 450
     
     GD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data'))
-    STATUS = LDSUtilities.enum('IDLE','BUSY','CLEAN')
+    STATUS = LDSUtilities.enum('ERROR','IDLE','BUSY','CLEAN')
     
     #GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
     def __init__(self,parent):
@@ -248,24 +246,19 @@ class LDSControls(QFrame):
         epsgLabel = QLabel('EPSG')
         fromDateLabel = QLabel('From Date')
         toDateLabel = QLabel('To Date')
-        internalLabel = QLabel('Internal')
         confLabel = QLabel('User Config')
         
         self.view = QLabel() 
         self.view.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.view.setAlignment(Qt.AlignCenter)
 
-        #edit boxes
-        #self.confEdit = QLineEdit()
-        #self.confEdit.setToolTip('Enter your user config file here')   
-        
         self.confcombo = QComboBox(self)
         self.confcombo.setToolTip('Enter your user config name (file) here')
         self.confcombo.addItems(self.cflist)
         self.confcombo.setEditable(True)
         #self.confcombo.currentIndexChanged.connect(self.doLGEditUpdate)
         
-        
+        #combos
         self.lgcombo = QComboBox(self)
         self.lgcombo.setMaximumWidth(self.MAX_WD)
         self.lgcombo.setDuplicatesEnabled(False)
@@ -285,7 +278,6 @@ class LDSControls(QFrame):
         self.epsgcombo.setEditable(True)
         self.epsgcombo.setEnabled(False)
         
-        #menus
         self.destmenulist = ['',]+DataStore.DRIVER_NAMES.values()
         self.destmenu = QComboBox(self)
         self.destmenu.setToolTip('Choose the desired output type')   
@@ -312,10 +304,6 @@ class LDSControls(QFrame):
         self.toDateEnable = QCheckBox()
         self.toDateEnable.setCheckState(False) 
         self.toDateEnable.clicked.connect(self.doToDateEnable)
-        
-        self.internalTrigger = QCheckBox()
-        self.internalTrigger.setToolTip('Sets where layer config settings are stored, external/internal')   
-        self.internalTrigger.clicked.connect(self.doInternalChanged)
         
         
         #buttons        
@@ -389,8 +377,7 @@ class LDSControls(QFrame):
         hbox3 = QHBoxLayout()
         hbox3.addWidget(self.view)
         hbox3.addStretch(1)
-        hbox3.addWidget(internalLabel)
-        hbox3.addWidget(self.internalTrigger)
+
         #hbox3.addLayout(vbox2)
         #hbox3.addLayout(vbox3)
         
@@ -412,10 +399,14 @@ class LDSControls(QFrame):
         self.setLayout(vbox)  
        
         
-    def setStatus(self,status,message=''):
+    def setStatus(self,status,message='',tooltip=None):
+        '''Sets indicator icon and statusbar message'''
         self.parent.statusbar.showMessage(message)
+        self.parent.statusbar.setToolTip(tooltip if tooltip else '')
         
-        if status is self.STATUS.BUSY:
+        if status is self.STATUS.ERROR:
+            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[3]))
+        elif status is self.STATUS.BUSY:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[2]))
         elif status is self.STATUS.CLEAN:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[1]))
@@ -444,10 +435,10 @@ class LDSControls(QFrame):
         self.sepindex = [i[0] for i in self.parent.confconn.lglist].count(LORG.GROUP)
         self.lgcombo.insertSeparator(self.sepindex)
         
-    def updateLGValues(self,uconf,lgval,destname,internal):
+    def updateLGValues(self,uconf,lgval,destname):
         '''Sets the values displayed in the Layer/Group combo'''
         #because we cant seem to sort combobox entries and want groups at the top, clear and re-add
-        self.parent.confconn.initConnections(uconf,lgval,destname,internal)
+        self.parent.confconn.initConnections(uconf,lgval,destname)
         self.refreshLGCombo()
         
     def centre(self):
@@ -461,7 +452,7 @@ class LDSControls(QFrame):
     def getInitLabel(self,rdest):
         '''Returns a name for the init/layer button.'''
         #for internal DS too much overhead intialising a new data connection so we default to "init"
-        if not self.internalTrigger.isChecked() and LDSUtilities.mightAsWellBeNone(rdest) and LayerFileReader(rdest.lower()+TransferProcessor.LP_SUFFIX).exists():
+        if LDSUtilities.mightAsWellBeNone(rdest) and LayerFileReader(rdest.lower()+TransferProcessor.LP_SUFFIX).exists():
                     return 'Layer Select'
         return 'Initalise'
     
@@ -475,17 +466,18 @@ class LDSControls(QFrame):
         rvals = self.gprParameters(rdest)
         self.updateGUIValues([rdest]+rvals)
         
-    def doInternalChanged(self):
-        '''Read the destname parameter and fill dialog with matching GPR values'''
-        rdest = str(self.destmenulist[self.destmenu.currentIndex()])
-        rint = 'internal' if self.internalTrigger.isChecked() else 'external'
-        rvals = self.gprParameters(rdest)
-        self.updateGUIValues([rdest]+rvals[:-1]+[rint])
+#internal now set in user config wizz
+#    def doInternalChanged(self):
+#        '''Read the destname parameter and fill dialog with matching GPR values'''
+#        rdest = str(self.destmenulist[self.destmenu.currentIndex()])
+#        rint = 'internal' if self.internalTrigger.isChecked() else 'external'
+#        rvals = self.gprParameters(rdest)
+#        self.updateGUIValues([rdest]+rvals[:-1]+[rint])
         
     def updateGUIValues(self,readlist):
         '''Fill dialog values from provided list'''
         #Note. rlgval must be an object var since its used in doaction function
-        rdest,self.rlgval,ruconf,repsg,rfd,rtd,rint = readlist
+        rdest,self.rlgval,ruconf,repsg,rfd,rtd = readlist
         
         
         #Destination Menu
@@ -505,9 +497,14 @@ class LDSControls(QFrame):
         #self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
         
         #Layer/Group Selection
-        self.updateLGValues(ruconf,self.rlgval,rdest,rint)
+        
+        self.updateLGValues(ruconf,self.rlgval,rdest)
+        lgindex = None
         if LDSUtilities.mightAsWellBeNone(self.rlgval):
             lgindex = self.parent.confconn.getLGIndex(self.rlgval,col=1)
+            
+        if lgindex:
+            #advance by 1 for sep
             lgindex += 1 if lgindex>self.sepindex else 0 
         else:
             #using the separator index sets the combo to blank
@@ -534,11 +531,10 @@ class LDSControls(QFrame):
             self.toDateEdit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
             
         #Internal/External CheckBox
-        if LDSUtilities.mightAsWellBeNone(rint) is not None:
-            self.internalTrigger.setChecked(rint.lower()==DataStore.CONF_INT)
-            
-        else:
-            self.internalTrigger.setChecked(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
+#        if LDSUtilities.mightAsWellBeNone(rint) is not None:
+#            self.internalTrigger.setChecked(rint.lower()==DataStore.CONF_INT)
+#        else:
+#            self.internalTrigger.setChecked(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
         
         
     def doEPSGEnable(self):
@@ -564,35 +560,52 @@ class LDSControls(QFrame):
         te = self.toDateEnable.isChecked()
         fd = None if fe is False else str(self.fromDateEdit.date().toString('yyyy-MM-dd'))
         td = None if te is False else str(self.toDateEdit.date().toString('yyyy-MM-dd'))
-        internal = 'internal' if self.internalTrigger.isChecked() else 'external'
         
-        return destination,lgval,uconf,epsg,fe,te,fd,td,internal
+        return destination,lgval,uconf,epsg,fe,te,fd,td
     
     def doInitClickAction(self):
         '''Initialise the LC on LC-button-click, action'''
         #self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')
-        self.parent.runLayerConfigAction()
+        try:
+            try:
+                self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')  
+                self.parent.runLayerConfigAction()
+            finally:
+                self.setStatus(self.STATUS.IDLE,'Ready')
+        except Exception as e:
+            self.setStatus(self.STATUS.ERROR,'Error in Layer-Config',str(e))
         #self.setStatus(self.STATUS.IDLE,'Editing Layer-Config')
         
     def doCleanClickAction(self):
         '''Set clean anim and run clean'''
         lgo = str(self.lgcombo.currentText())
-        self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
-        self.runReplicationScript(True)
-        
+        try:
+            try:
+                self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
+                self.runReplicationScript(True)
+            finally:
+                self.setStatus(self.STATUS.IDLE,'Clean of '+lgo+' complete')
+        except Exception as e:
+            self.setStatus(self.STATUS.ERROR,'Failed Clean of '+lgo,str(e))
         #self.setStatus(self.STATUS.IDLE,'Clean '+lgo+' Complete')
         
     def doReplicateClickAction(self):
         '''Set busy anim and run repl'''
         lgo = str(self.lgcombo.currentText())
-        self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
-        self.runReplicationScript(False)
+        try:
+            try:
+                self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
+                self.runReplicationScript(False)
+            finally:
+                self.setStatus(self.STATUS.IDLE,'Replication of '+lgo+' complete')
+        except Exception as e:
+            self.setStatus(self.STATUS.ERROR,'Failed Replication of '+lgo,str(e))
         
         #self.setStatus(self.STATUS.IDLE,'Replicate '+lgo+' Complete')
 
     def runReplicationScript(self,clean=False):
         '''Run the layer/group repliction script'''
-        destination,lgval,uconf,epsg,fe,te,fd,td,internal = self.readParameters()
+        destination,lgval,uconf,epsg,fe,te,fd,td = self.readParameters()
 
         uconf_path = LDSUtilities.standardiseUserConfigName(uconf)
         destination_path = LDSUtilities.standardiseLayerConfigName(destination)
@@ -614,20 +627,29 @@ class LDSControls(QFrame):
 
         #'destname','layer','uconf','group','epsg','fd','td','int'
      
-        self.parent.gpr.write((destination_driver,lgval,uconf,epsg,fd,td,internal))        
+        self.parent.gpr.write((destination_driver,lgval,uconf,epsg,fd,td))        
         ldslog.info('dest={0}, lg={1}, conf={2}, epsg={3}'.format(destination_driver,lgval,uconf,epsg))
-        ldslog.info('fd={0}, td={1}, fe={2}, te={3}, int={4}'.format(str(fd),str(td),str(fe),str(te),str(internal)))
+        ldslog.info('fd={0}, td={1}, fe={2}, te={3}'.format(str(fd),str(td),str(fe),str(te)))
 
         lgindex = self.parent.confconn.getLGIndex(lgval,col=1)
         lorg = self.parent.confconn.lglist[lgindex][0]
-        tp = TransferProcessor((lorg,lgval), epsg, fd, td,
-                               None, None, None, 
-                               uconf, internal)
-
+        
+        self.parent.confconn.tp.setLayerOrGroup(lorg)
+        self.parent.confconn.tp.setLayerGroupValue(lgval)
+        self.parent.confconn.tp.setFromDate(fd)
+        self.parent.confconn.tp.setToDate(td)
+        self.parent.confconn.tp.setUserConf(uconf)
+        
+        #because clean state persists in TP
         if clean:
-            tp.setCleanConfig()
+            self.parent.confconn.tp.setCleanConfig()
+        else:
+            self.parent.confconn.tp.clearCleanConfig()
             
-        tp.processLDS(tp.initDestination(destination_driver))
+        #initialise the data source since uconf may have changed
+        self.parent.confconn.tp.src = self.parent.confconn.tp.initSource()
+        #begin main process
+        self.parent.confconn.tp.processLDS(self.parent.confconn.tp.initDestination(destination_driver))
         
         self.setStatus(self.STATUS.IDLE,('Clean' if clean else 'Replicate')+' Complete')
 
@@ -762,7 +784,7 @@ class LDSPrefsFrame(QFrame):
 
     
 def main():
-  
+
     app = QApplication(sys.argv)
     lds = LDSRepl()
     lds.show()

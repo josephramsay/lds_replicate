@@ -82,7 +82,7 @@ class LayerConfigSelector(QMainWindow):
         
     def resetLayers(self):
         '''Rebuilds lconf from scratch'''
-        self.tp.initLayerConfig(self.src.getCapabilities(),self.dst,self.src.pxy)
+        self.parent.confconn.initLayerConfig()
         self.refreshLayers()
         
     def refreshLayers(self,customkey=None):
@@ -95,60 +95,60 @@ class LayerConfigSelector(QMainWindow):
         self.selection_model.initData(av_sl[1],self.parent.confconn.inclayers)
         self.signalModels(self.STEP.POST)
         
-    def addKeyToLayers(self, customkey):
-        '''Add custom key to the selection_model list of layers'''
-        #using customkey=CUSTOM so some kind of selection is made even if the user doesn't select a specific keyword 
-        for layer in [ll[0] for ll in self.selection_model.mdata]:
-            v1 = self.parent.confconn.dst.getLayerConf().readLayerProperty(layer, 'category')
-            v2 = v1 if re.search(customkey,v1) else v1+","+str(customkey)
-            self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
-        #new keyword written so re-read complete (LC) and update assigned keys list
-        self.parent.confconn.setupComplete()
-        self.parent.confconn.setupAssigned()
-        self.parent.confconn.buildLGList()
-        #self.refreshLayers(customkey)
+#    def addKeyToLayers(self, customkey):
+#        '''Add custom key to the selection_model list of layers'''
+#        #using customkey=CUSTOM so some kind of selection is made even if the user doesn't select a specific keyword 
+#        for layer in [ll[0] for ll in self.selection_model.mdata]:
+#            v1 = self.parent.confconn.dst.getLayerConf().readLayerProperty(layer, 'category')
+#            v2 = v1 if re.search(customkey,v1) else v1+","+str(customkey)
+#            self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
+#        #new keyword written so re-read complete (LC) and update assigned keys list
+#        self.parent.confconn.setupComplete()
+#        self.parent.confconn.setupAssigned()
+#        self.parent.confconn.buildLGList()
+#        #self.refreshLayers(customkey)
         
-    def addKeyToLayers2(self, customkey):
-        '''Add custom key to the selection_model list of layers'''
-        llist = [ll[0] for ll in self.selection_model.mdata]
-        v2list = ()
-        v1list = self.parent.confconn.dst.getLayerConf().readLayerProperty(llist, 'category')
-        for v1 in v1list:
-            v2list += (v1 if re.search(customkey,v1) else v1+","+str(customkey),)
-        self.parent.confconn.dst.getLayerConf().writeLayerProperty(llist, 'category', v2list)
+    def writeKeysToLayerConfig(self, customkey):
+        '''Add custom key to the selection_model list of layers (assumes required av->sl transfer completed) not just the transferring entry'''
+        layerlist = [ll[0] for ll in self.selection_model.mdata]
+        replacementlist = ()
+        categorylist = self.parent.confconn.dst.getLayerConf().readLayerProperty(layerlist, 'category')
+        for cat in categorylist:
+            replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
+        self.parent.confconn.dst.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
         #new keyword written so re-read complete (LC) and update assigned keys list
         self.parent.confconn.setupComplete()
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()
         #self.refreshLayers(customkey)
             
-    def delKeyFromSelection(self,layerlist,customkey):
-        for layer in layerlist:
-            v1 = self.parent.confconn.dst.getLayerConf().readLayerProperty(layer, 'category')
-            v2 = re.sub(',+',',',''.join(v1.split(str(customkey))).strip(','))
-            self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
-        self.parent.confconn.setupComplete()
-        self.parent.confconn.setupAssigned()
-        self.parent.confconn.buildLGList()   
-        #self.refreshLayers(customkey)
-        return self.selection_model.rowCount()    
+#    def delKeyFromSelection(self,layerlist,customkey):
+#        for layer in layerlist:
+#            v1 = self.parent.confconn.dst.getLayerConf().readLayerProperty(layer, 'category')
+#            v2 = re.sub(',+',',',''.join(v1.split(str(customkey))).strip(','))
+#            self.parent.confconn.dst.getLayerConf().writeLayerProperty(layer, 'category', v2)
+#        self.parent.confconn.setupComplete()
+#        self.parent.confconn.setupAssigned()
+#        self.parent.confconn.buildLGList()   
+#        #self.refreshLayers(customkey)
+#        return self.selection_model.rowCount()    
     
-    def delKeyFromSelection2(self,layerlist,customkey):
-        v2list = ()
-        v1list = self.parent.confconn.dst.getLayerConf().readLayerProperty(layerlist, 'category')
-        for v1 in v1list:
-            v2list += (re.sub(',+',',',''.join(v1.split(str(customkey))).strip(',')),)
-            
-        self.parent.confconn.dst.getLayerConf().writeLayerProperty(layerlist, 'category', v2list)
+    def deleteKeysFromLayerConfig(self,layerlist,customkey):
+        replacementlist = ()
+        categorylist = self.parent.confconn.dst.getLayerConf().readLayerProperty(layerlist, 'category')
+        for cat in categorylist:
+            replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
+        self.parent.confconn.dst.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
+        #-----------------------------------
         self.parent.confconn.setupComplete()
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()   
         #self.refreshLayers(customkey)
         return self.selection_model.rowCount()
     
-    def delKeyFromLayers(self, customkey):
-        '''Remove a custom key from the layers selected in the selection_model. Needn't delete the key from all associated layers'''
-        self.delKeyFromSelection2([ll[0] for ll in self.selection_model.mdata],customkey)
+#    def deleteKeysFromSelectionPane(self, customkey):
+#        '''Remove a custom key from the layers selected in the selection_model. Needn't delete the key from all associated layers'''
+#        self.deleteKeysFromSelection([ll[0] for ll in self.selection_model.mdata],customkey)
         
     
     @staticmethod
@@ -184,7 +184,7 @@ class LayerConfigSelector(QMainWindow):
             self.parent.confconn.setupAssigned()
             self.parent.confconn.buildLGList()
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
-            #self.parent.controls.doDestChanged()
+            self.parent.controls.refreshLGCombo()
             self.parent.controls.lgcombo.setCurrentIndex(lgindex)
         self.close()
     
@@ -354,7 +354,7 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.setToolTip('Select or Add a unique identifier to be saved in layer config (keyword)')
         self.keywordcombo.addItems(list(self.confconn_link.assigned))
         self.keywordcombo.setEditable(True)
-        self.keywordcombo.currentIndexChanged.connect(self.doReadClickAction)
+        self.keywordcombo.activated.connect(self.doReadClickAction)
         
         lgindex = self.confconn_link.getLGIndex(self.confconn_link.lgval,col=1)
         lgentry = self.confconn_link.lglist[lgindex] if LDSUtilities.mightAsWellBeNone(lgindex) is not None else None
@@ -477,7 +477,7 @@ class LayerSelectionPage(QFrame):
         self.parent.available_model.initData([])
         self.parent.signalModels(self.parent.STEP.POST)
         #------------------------------
-        self.parent.addKeyToLayers2(ktext)
+        self.parent.writeKeysToLayerConfig(ktext)
         #self.confconn_link.setupAssigned()
         if not self.keywordcombo.findText(ktext):
             self.keywordcombo.addItem(ktext)
@@ -491,7 +491,7 @@ class LayerSelectionPage(QFrame):
         if select.hasSelection():
             self.transferSelectedRows(select.selectedRows(),self.available_sfpm,self.selection_sfpm)
             #------------------------------
-            self.parent.addKeyToLayers2(ktext)
+            self.parent.writeKeysToLayerConfig(ktext)
             #self.confconn_link.assigned = self.confconn_link.setupAssigned()
             if not self.keywordcombo.findText(ktext):
                 self.keywordcombo.addItem(ktext)
@@ -519,7 +519,7 @@ class LayerSelectionPage(QFrame):
         if select.hasSelection():
             tlist = self.transferSelectedRows(select.selectedRows(),self.selection_sfpm,self.available_sfpm)
             #------------------------------
-            if self.parent.delKeyFromSelection([ll[1][0] for ll in tlist],ktext)==0:
+            if self.parent.deleteKeysFromLayerConfig([ll[1][0] for ll in tlist],ktext)==0:
                 #self.confconn_link.setupAssigned()
                 self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
                 self.keywordcombo.clearEditText()
@@ -531,7 +531,7 @@ class LayerSelectionPage(QFrame):
         ktext = str(self.keywordcombo.lineEdit().text())
         if not self.checkKeyword(ktext): return
         #------------------------------
-        self.parent.delKeyFromLayers(ktext)
+        self.parent.deleteKeysFromLayerConfig([ll[0] for ll in self.parent.selection_model.mdata],ktext)
         #------------------------------
         self.parent.signalModels(self.parent.STEP.PRE)
         #self.parent.available_model.mdata += self.parent.selection_model.mdata
@@ -569,7 +569,7 @@ class LayerSelectionPage(QFrame):
             return
         #Continue
         ldslog.warn('Reset Layer Config')
-        self.parent.refreshLayers()
+        self.parent.resetLayers()
         self.keywordcombo.clear()
 
     def checkKeyword(self,ktext):

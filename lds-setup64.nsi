@@ -115,6 +115,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\gui\LayerConfigSelector.py
     File F:\git\LDS\LDSReplicate\lds\gui\LDSGUI.py
     File F:\git\LDS\LDSReplicate\lds\gui\MainConfigWizard.py
+    File F:\git\LDS\LDSReplicate\lds\gui\ConfigConnector.py
     SetOutPath $INSTDIR\apps\ldsreplicate\lds\test
     File F:\git\LDS\LDSReplicate\lds\test\__init__.py
     File F:\git\LDS\LDSReplicate\lds\test\SuiteRunAllTests.py

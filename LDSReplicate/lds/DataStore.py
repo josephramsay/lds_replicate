@@ -210,6 +210,7 @@ class DataStore(object):
     def setLayerConf(self,layerconf):
         self.layerconf = layerconf
     
+    #options sections ----------------------------------------
     def getConfigOptions(self):
         '''Returns common gdal operating options, overridden in subclasses for source specifc options'''
         return []  
@@ -302,6 +303,7 @@ class DataStore(object):
         
         while self.attempts < self.MAXIMUM_WFS_ATTEMPTS:
             try:
+                ldslog.info('PAGING = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED'))+' -> ON' if self.getIncremental() else ' -> OFF')
                 #if incr&haspk then fCi
                 if self.getIncremental():
                     # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
@@ -393,15 +395,24 @@ class DataStore(object):
             '''parse discard columns'''
             self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
 
-            ldslog.warning("Non-Incremental layer ["+dst_info.layer_id+"] request. (re)Creating layer")
-            '''create a new layer if a similarly named existing layer can't be found on the dst'''
-            src_info.spatial_ref = src_layer.GetSpatialRef()
-            src_info.geometry = src_layer.GetGeomType()
-            src_info.layer_defn = src_layer.GetLayerDefn()
-            #transforms from SRC to DST sref if user requests a different EPSG, otherwise SRC returned unchanged
-            dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
-            
-            (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
+            try:
+                dst_layer = dst_ds.GetLayer(dst_info.layer_name)
+            except RuntimeError as rer:
+                '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
+                ldslog.warning("Runtime Error fetching layer. "+str(rer))
+                dst_layer = None
+  
+            #NB. this has been modified since replacing 'clean' with 'truncate' since a layer may now exists when creating a layer from scratch
+            if dst_layer is None:
+                ldslog.warning("Non-Incremental layer ["+dst_info.layer_id+"] request. (re)Creating layer")
+                '''create a new layer if a similarly named existing layer can't be found on the dst'''
+                src_info.spatial_ref = src_layer.GetSpatialRef()
+                src_info.geometry = src_layer.GetGeomType()
+                src_info.layer_defn = src_layer.GetLayerDefn()
+                #transforms from SRC to DST sref if user requests a different EPSG, otherwise SRC returned unchanged
+                dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
+                
+                (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
                 
 
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
@@ -414,10 +425,10 @@ class DataStore(object):
             dst_change_count = 0
             src_feat_count = src_layer.GetFeatureCount()
             ldslog.info('Features available = '+str(src_feat_count))
-            src_feat = src_layer.GetNextFeature()
 
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
-            if src_feat is not None:
+            if src_feat_count>0:
+                src_feat = src_layer.GetNextFeature()
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
             elif src_feat_count>0:
                 raise InaccessibleFeatureException('Cannot access any Features of '+str(src_feat_count)+' available')
@@ -439,8 +450,7 @@ class DataStore(object):
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has replicated at least 1 feat'''
             #May need to be pushed out to subclasses depending on syntax differences
             if is_new and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
-                pass
-                #self.buildIndex(layerconfentry,dst_info.layer_name)#temporarily hide this to test whether its the index creation that borks transactions
+                self.buildIndex(layerconfentry,dst_info.layer_name)
                 
             if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 try:
@@ -448,7 +458,7 @@ class DataStore(object):
                 except RuntimeError as rte:
                     #HACK
                     if re.search('General Error',str(rte)):
-                        ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+'] Ignoring!')
+                        ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+']')
                     #else:
                         raise
 
@@ -710,7 +720,7 @@ class DataStore(object):
         except RuntimeError as rer:
             ldslog.error("Cannot create layer. "+str(rer))
             if 'already exists' in str(rer):
-                '''indicates the table has been created previously but may not have been returned with the getlayer command, SL does this with null geom tables'''
+                '''indicates the table has been created previously but may not have been returned with the Getlayer command, SL does this with null geom tables'''
                 #raise ASpatialFailureException('SpatiaLite driver cannot be used to update ASpatial layers')
                 #NB. DeleteLayer also wont work since the layer can't be found.
                 #dst_ds.DeleteLayer(dst_layer_name)
@@ -887,7 +897,7 @@ class DataStore(object):
     def buildIndex(self,lce,dst_layer_name):
         '''Default index string builder for new fully replicated layers'''
         raise NotImplementedError("Abstract method buildIndex not implemented")
-#        #TODO. This isn't meant to be run, subclasses only. 
+#        #TODO. This isn't meant to be run, subclasses only. Left here for reference!
 #        ref_index = DataStore.parseStringList(lce.index)
 #        if ref_index.intersection(set(('spatial','s'))) and lce.gcol is not None:
 #            #cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.gcol,dst_layer_name,lce.gcol)
@@ -932,7 +942,7 @@ class DataStore(object):
                 #this can be a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
                 #but also indicate no problem, e.g. deleting a layer already deleted
                 if re.search('does not exist',str(rex)):
-                    ldslog.error("Attempt to delete non-existant table. "+str(rex))
+                    ldslog.error("Attempt to delete unrecognised table. "+str(rex))
                     return retval
                 raise
             except InvalidSQLException as ise:
@@ -1003,7 +1013,7 @@ class DataStore(object):
         try:
             for li in range(0,self.ds.GetLayerCount()):
                 lref = ds.GetLayerByIndex(li)
-                lname = lref.GetName()
+                lname = lref.GetName().split('.')[-1] #strip schema
                 if lname == name:
                     if truncate:
                         for fi in range(1,lref.GetFeatureCount()+1):
@@ -1128,23 +1138,21 @@ class DataStore(object):
             DataStore._showFeatureData(feat)
             feat = layer.GetNextFeature()                
                 
-
-
-    def transferIETernal(self,override_int_ext):
-        '''Read internal OR external from main config file and set, default to internal'''
-        if override_int_ext is None:
-            #look for 'external' in all the params returned by the mainconf <driver> section (converting to lower case...)
-            #this is because each DS has different parameters in different positions
-            plist = [str(x).lower() for x in self.mainconf.readDSParameters(self.DRIVER_NAME)]
-            if self.CONF_EXT in plist:
-                self.setConfInternal(self.CONF_EXT)
-            elif self.CONF_INT in plist:
-                self.setConfInternal(self.CONF_INT)
-            else:
-                self.setConfInternal(self.DEFAULT_IE)
-        else:
-            #if overriding
-            self.setConfInternal(override_int_ext)
+#    def transferIETernal(self,override_int_ext):
+#        '''Read internal OR external from main config file and set, default to internal'''
+#        if override_int_ext is None:
+#            #look for 'external' in all the params returned by the mainconf <driver> section (converting to lower case...)
+#            #this is because each DS has different parameters in different positions
+#            plist = [str(x).lower() for x in self.mainconf.readDSParameters(self.DRIVER_NAME)]
+#            if self.CONF_EXT in plist:
+#                self.setConfInternal(self.CONF_EXT)
+#            elif self.CONF_INT in plist:
+#                self.setConfInternal(self.CONF_INT)
+#            else:
+#                self.setConfInternal(self.DEFAULT_IE)
+#        else:
+#            #if overriding
+#            self.setConfInternal(override_int_ext)
             
     @abstractmethod
     def versionCheck(self):

@@ -1,35 +1,31 @@
 [prefs]
-dest = FileGDB
+dest = PostgreSQL
 
 [PostgreSQL]
-lgvalue = v:x64
+lgvalue = v:x96
 uconf = pg
 epsg = None
 fd = None
 td = None
-int = external
 
 [SQLite]
-lgvalue = None
-uconf = None
+lgvalue = SQLLH
+uconf = sq
 epsg = None
 fd = None
 td = None
-int = None
 
 [FileGDB]
-lgvalue = v:x64
+lgvalue = ABCKEY
 uconf = fg
 epsg = None
 fd = None
 td = None
-int = external
 
 [MSSQLSpatial]
-lgvalue = None
-uconf = None
+lgvalue = DAGOBAH
+uconf = ms
 epsg = None
 fd = None
 td = None
-int = None
 

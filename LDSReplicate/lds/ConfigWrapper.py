@@ -106,7 +106,7 @@ class ConfigWrapper(object):
 
 
     def readDSProperty(self,drv,prop):
-        '''gets a single property from a selected driver config'''
+        '''Gets a single property from a selected driver config'''
         
         pval = None if self.userconfig is None else self.userconfig.readMainProperty(drv,prop)
         return self.mainconfig.readMainProperty(drv,prop) if pval is None else pval

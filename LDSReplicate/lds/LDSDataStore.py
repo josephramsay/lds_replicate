@@ -39,8 +39,12 @@ class LDSDataStore(WFSDataStore):
     URI builders. For incremental specifically the change-column is defined here
     '''
     
-    '''Default GDAL page size'''
-    LDS_PAGE_SIZE = 10000
+    OGR_WFS_USE_STREAMING = 'NO'
+    OGR_WFS_PAGE_SIZE = 10000
+    OGR_WFS_PAGING_ALLOWED = 'ON'
+    
+    GDAL_HTTP_USERAGENT = 'LDSReplicate/'+str(AppVersion.getVersion())
+    
     SUPPORTED_OUTPUT_FORMATS = ('GML2','GML3','JSON')
     
 
@@ -83,10 +87,10 @@ class LDSDataStore(WFSDataStore):
         '''Adds GDAL options at driver initialisation, pagination_allowed and page_size'''
         #CPL_CURL_VERBOSE for those ogrerror/generalerror
         #OGR_WFS_PAGING_ALLOWED, OGR_WFS_PAGE_SIZE, OGR_WFS_BASE_START_INDEX
-        local_opts = ['GDAL_HTTP_USERAGENT=LDSReplicate/'+str(AppVersion.getVersion())]
-        local_opts += ['OGR_WFS_PAGING_ALLOWED=ON']
-        local_opts += ['OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() is not None else LDSDataStore.LDS_PAGE_SIZE)]
-        local_opts += ['OGR_WFS_USE_STREAMING=NO']
+        local_opts  = ['GDAL_HTTP_USERAGENT='+str(self.GDAL_HTTP_USERAGENT)]
+        local_opts += ['OGR_WFS_PAGING_ALLOWED='+str(self.OGR_WFS_PAGING_ALLOWED)]
+        local_opts += ['OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() else self.OGR_WFS_PAGE_SIZE)]
+        local_opts += ['OGR_WFS_USE_STREAMING='+str(self.OGR_WFS_USE_STREAMING)]
         return super(LDSDataStore,self).getConfigOptions() + local_opts    
     
     def getLayerOptions(self,layer_id):

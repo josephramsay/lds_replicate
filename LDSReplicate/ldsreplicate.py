@@ -90,7 +90,6 @@ def main():
     dc = None
     cq = None
     uc = None
-    ie = None
     
     gdal_ver = VersionChecker.getGDALVersion()   
     #pgis_ver = VersionChecker.getPostGISVersion()   
@@ -142,10 +141,6 @@ def main():
             dc = val
         elif opt in ("-c","--cql"):
             cq = val
-        elif opt in ("-i","--int","--internal"):
-            ie = 'internal'
-        elif opt in ("-x","--ext","--external"):
-            ie = 'external'
         elif opt in ("-u","--userconf"):
             uc = val
         else:
@@ -159,8 +154,6 @@ def main():
             "-d (--destination) Connection string for destination DS," \
             "-c (--cql) Filter definition in CQL format," \
             "-u (--user) User defined config file used as partial override for ldsincr.conf," \
-            "-i (--internal) Override internal/external setting in main config, use internal" \
-            "-x (--external) Override internal/external setting in main config, use external" \
             "-h (--help) Display this message"
             sys.exit(2)
 
@@ -171,7 +164,7 @@ def main():
     print m1
     ldslog.info(m1)
     #layer overrides group, whether layer is IN group is not considered
-    tp = TransferProcessor((LORG.LAYER,ly) if ly else (LORG.GROUP,gp),ep,fd,td,sc,dc,cq,uc,ie)
+    tp = TransferProcessor((LORG.LAYER,ly) if ly else (LORG.GROUP,gp),ep,fd,td,sc,dc,cq,uc)
 
     #output format
     if len(args)==0:

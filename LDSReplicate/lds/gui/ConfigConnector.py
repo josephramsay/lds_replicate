@@ -46,21 +46,20 @@ HCOLS = 2
        
 class ConfigConnector(object):
 
-    def __init__(self,uconf,lgval,destname,internal):
+    def __init__(self,uconf,lgval,destname):
         #HACK. Since we cant init an lg list without first intialising read connections must assume lgval is stored in v:x format. 
         #NOTE. This a controlled call to TP and we cant assume TP will be called with a v:x layer/group (since names are allowed)
         #NOTE. Every time a new CC is created we call LDs for a caps doc even though this is mostly invariant
         self.vlayers = None        
-        self.initConnections(uconf,lgval,destname,internal)
+        self.initConnections(uconf,lgval,destname)
         
-    def initConnections(self,uconf,lgval,destname,internal):
+    def initConnections(self,uconf,lgval,destname):
         #write a refresh CC instead of re initialising the whole object, for use when the dest menu changes
         lgpair = (LORG.LAYER if re.match('^v:x',lgval) else LORG.GROUP,lgval) if lgval else (None,None)
-        self.tp = TransferProcessor(lgpair, None, None, None, None, None, None, uconf, internal)
+        self.tp = TransferProcessor(lgpair, None, None, None, None, None, None, uconf)
         self.lgval = lgval
         self.uconf = uconf
         self.destname = destname
-        self.internal = internal
         self.src,self.dst = self.initSrcDst()
         if not self.vlayers:
             self.vlayers = self.getValidLayers(self.dst is not None)
@@ -74,23 +73,27 @@ class ConfigConnector(object):
     def initSrcDst(self):
         '''Initialises src and dst objects'''
         #initialise layer data using existing source otherwise use the capabilities doc
-        #get SRC here since we need it later for the reserved words anyway
-        src = self.tp.src
         #if doing a first run there is no destname
         if self.destname:
             dst = self.tp.initDestination(self.destname)
             #if internal lconf need to init the DB
-            if self.tp.getConfInternal()==DataStore.CONF_INT:
-                dst.transferIETernal(self.tp.getConfInternal())
+            if dst.getConfInternal()==DataStore.CONF_INT:
                 dst.ds = dst.initDS(dst.destinationURI(None))
             dst.setLayerConf(self.tp.getNewLayerConf(dst))
             ##if a lconf has not been created build a new one
             if not dst.getLayerConf().exists():
-                self.tp.initLayerConfig(src.getCapabilities(),dst,src.pxy)
+                #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
+                self.initLayerConfig(dst)
         else:
             dst = None
-        return src,dst
+        return self.tp.src,dst
     
+    def initLayerConfig(self,dst=None):
+        '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
+        if dst is None:
+            dst = self.dst
+        self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
+        
     def initKeywords(self):
         self.setupComplete()#from LC
         self.setupReserved()#seldom changes, from GC

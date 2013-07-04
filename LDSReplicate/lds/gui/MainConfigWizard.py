@@ -87,10 +87,10 @@ class LDSConfigWizard(QWizard):
     
     def done(self,event):
         '''Override of done to reset parent's status. Note, this gets called before validate page'''
-        #Assumes being called from main dialog. If not just quit...
+        #Assumes being called from main dialog. If being run as standalone there won't be a parent.controls so just quit
         try:
-            self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'UC Done') 
             super(LDSConfigWizard,self).done(event)
+            self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'UC Done') 
         except:
             sys.exit(1)
         
@@ -511,7 +511,8 @@ class MSSQLSpatialConfigPage(QWizardPage):
 
     
     def testConnection(self):
-        if not all(f for f in (self.serverEdit.isModified(),self.dbnameEdit.isModified())):
+        if not any(f for f in (self.serverEdit.isModified(),self.dbnameEdit.isModified(),self.schemaEdit.isModified(),
+                               self.usrEdit.isModified(),self.pwdEdit.isModified())):
             return False
         cs = MS.buildConnStr(self.serverEdit.text(),self.dbnameEdit.text(),self.schemaEdit.text(),
                             'yes' if self.trustCheckBox.isChecked() else 'no',self.usrEdit.text(),self.pwdEdit.text())
@@ -697,6 +698,12 @@ class ConfirmationPage(QWizardPage):
         hbox2.addWidget(QLabel(self.field("ldsapikey").toString()))   
         
         vbox.addLayout(hbox2)
+        
+        hbox7 = QHBoxLayout()
+        hbox7.addWidget(QLabel('In/Ex Config'))
+        hbox7.addWidget(QLabel('Internal' if self.field("ldsinternal").toBool() else 'External'))   
+        
+        vbox.addLayout(hbox7)
     
         sec2 = QLabel('Proxy')
         sec2.setFont(hfont)
@@ -746,7 +753,7 @@ class ConfirmationPage(QWizardPage):
             ldslog.error('No Proxy defined') 
             
             
-        #select dest from index of destmenu
+        #select dest from index of destmenu ie PostgreSQL, FileGDB etc
         self.selected = self.destlist.get(int(self.field("ldsdest").toString()))
         sec3 = QLabel(self.selected[0])
         sec3.setFont(hfont)
@@ -803,11 +810,13 @@ class ConfirmationPage(QWizardPage):
         rv = super(ConfirmationPage, self).validatePage()
         
         encrypt = self.field("ldsencryption").toBool()
+        inex = 'internal' if self.field("ldsinternal").toBool() else 'external'
         
         buildarray = ()
         
         buildarray += ((MFR.LDSN,'key',str(self.field("ldsapikey").toString())),)
-
+        
+        #proxy type = user defined
         if self.field("proxy"+WFSDataStore.PROXY_TYPE[2]).toBool():
             buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[2]),)
             buildarray += ((MFR.PROXY,'host',str(self.field("proxyhost").toString())),)
@@ -819,8 +828,14 @@ class ConfirmationPage(QWizardPage):
                 pwd = Encrypt.ENC_PREFIX+Encrypt.secure(pwd)
             buildarray += ((MFR.PROXY,'pass',pwd),)
             
+        #proxy type = system
         elif self.field("proxy"+WFSDataStore.PROXY_TYPE[1]).toBool():
-            buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[1]),)
+            buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[1]),)            
+            buildarray += ((MFR.PROXY,'host',''),)
+            buildarray += ((MFR.PROXY,'port',''),)
+            buildarray += ((MFR.PROXY,'auth',''),)
+            buildarray += ((MFR.PROXY,'user',''),)
+            buildarray += ((MFR.PROXY,'pass',''),)
 #            if os.name == 'nt':
 #                #windows
 #                from lds.WinUtilities import Registry as WR
@@ -834,8 +849,14 @@ class ConfirmationPage(QWizardPage):
 #                buildarray += ((MFR.PROXY,'host',rm.group(1)),)
 #                buildarray += ((MFR.PROXY,'port',rm.group(2)),)               
             
+        #proxy type = direct
         elif self.field("proxy"+WFSDataStore.PROXY_TYPE[0]).toBool():
-            buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[0]),)
+            buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[0]),)            
+            buildarray += ((MFR.PROXY,'host',''),)
+            buildarray += ((MFR.PROXY,'port',''),)
+            buildarray += ((MFR.PROXY,'auth',''),)
+            buildarray += ((MFR.PROXY,'user',''),)
+            buildarray += ((MFR.PROXY,'pass',''),)
 
         section = self.selected[0]
         for sf in self.selectedfields:
@@ -844,7 +865,8 @@ class ConfirmationPage(QWizardPage):
             if name == 'pass' and encrypt:
                 value = Encrypt.ENC_PREFIX+Encrypt.secure(value)
             buildarray += ((section,name,value),)
-        
+
+        buildarray += ((section,'config',inex),)
         ucfile = str(self.field("ldsfile").toString())
         #ucfile = LDSUtilities.standardiseUserConfigName(str(self.field("ldsfile").toString()))
         

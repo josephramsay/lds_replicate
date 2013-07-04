@@ -68,8 +68,9 @@ class TransferProcessor(object):
     #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
     
     LP_SUFFIX = ".layer.properties"
+    DEF_IE = DataStore.CONF_EXT
     
-    def __init__(self,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None,ie=None):
+    def __init__(self,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
 
         self.CLEANCONF = None
         self.INITCONF = None
@@ -86,16 +87,16 @@ class TransferProcessor(object):
         self.clearInitConfig()
         self.clearCleanConfig()
             
-        self.epsg = LDSUtilities.mightAsWellBeNone(ep)
-        self.fromdate = LDSUtilities.mightAsWellBeNone(fd)
-        self.todate = LDSUtilities.mightAsWellBeNone(td)
+        self.setEPSG(ep)
+        self.setFromDate(fd)
+        self.setToDate(td)
 
         #splitting out group/layer and lgname
         self.lgval = None
         self.lgopt = None
         if LDSUtilities.mightAsWellBeNone(lg) and (isinstance(lg, types.ListType) or isinstance(lg, types.TupleType)):
-            self.lgopt = lg[0]
-            self.lgval = lg[1]
+            self.setLayerOrGroup(lg[0])
+            self.setLayerGroupValue(lg[1])
             
         self.source_str = None
         if LDSUtilities.mightAsWellBeNone(sc):
@@ -103,12 +104,9 @@ class TransferProcessor(object):
             
         self.destination_str = LDSUtilities.mightAsWellBeNone(dc)
         self.cql = LDSUtilities.mightAsWellBeNone(cql)  
-        self.user_config = LDSUtilities.mightAsWellBeNone(uc)
-      
-        self.confinternal = None
-        if ie in [DataStore.CONF_EXT,DataStore.CONF_INT]:
-            self.setConfInternal(ie)
-
+        
+        self.setUserConf(uc)
+        
         #initialise the data source
         self.src = self.initSource()
 
@@ -140,13 +138,23 @@ class TransferProcessor(object):
         self.layer = LDSUtilities.getLayerNameFromURL(sc)
         ldslog.warn('Using layer selection from supplied URL '+str(self.layer))  
             
-    
-    #Internal/External flag to override config set option
-    def setConfInternal(self,confinternal):
-        self.confinternal = confinternal
-         
-    def getConfInternal(self):
-        return self.confinternal
+    def setUserConf(self,uc):
+        self.user_config = LDSUtilities.mightAsWellBeNone(uc)
+        
+    def setLayerOrGroup(self,lgopt):
+        self.lgopt = lgopt
+        
+    def setLayerGroupValue(self,lgval):
+        self.lgval = lgval
+        
+    def setEPSG(self,ep):
+        self.epsg = LDSUtilities.mightAsWellBeNone(ep)
+        
+    def setFromDate(self,fd):
+        self.fromdate = LDSUtilities.mightAsWellBeNone(fd)
+        
+    def setToDate(self,td):
+        self.todate = LDSUtilities.mightAsWellBeNone(td)
     
     #initilaise config flags
     def setInitConfig(self):
@@ -215,14 +223,10 @@ class TransferProcessor(object):
         
         (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.temptable) = self.dst.mainconf.readDSParameters('Misc')
         
-        
         capabilities = self.src.getCapabilities()
-        
-        #transfer internal/external from TP to DS
-        self.dst.transferIETernal(self.getConfInternal())          
                 
         self.dst.setLayerConf(TransferProcessor.getNewLayerConf(self.dst))        
-        
+        #still used on command line
         if self.getInitConfig():
             TransferProcessor.initLayerConfig(capabilities,self.dst,self.src.pxy)
         

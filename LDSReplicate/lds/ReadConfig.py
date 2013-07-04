@@ -55,7 +55,7 @@ class MainFileReader(object):
         
     def initMainFile(self,template=''):
         '''Open and populate a new config file with 'template' else just touch it. Then call the reader'''
-        #I think I was insane when I wrote the previous version of this method... Its supposed to do a touch|init+read
+
         with file(self.filename,'a' if template is '' else 'w') as f:
             f.write(template)
         self._readConfigFile(self.filename)    
@@ -228,8 +228,6 @@ class MainFileReader(object):
             pwd = self.cp.get(MS.DRIVER_NAME, 'pass')
         except NoOptionError as noe:
             ldslog.warn(noe)
-        
-
         
         try:
             config = self.cp.get(MS.DRIVER_NAME, 'config')
@@ -653,16 +651,19 @@ class LayerFileReader(LayerReader):
             if isinstance(layer,tuple) or isinstance(layer,list):
                 value = () 
                 for l in layer:
-                    value += (self.cp.get(l, key),)
+                    value += (LU.mightAsWellBeNone(self.cp.get(l, key)),)
             else:
-                value = self.cp.get(layer, key)
-            if LU.mightAsWellBeNone(value) is None:
-                return None
+                value = LU.mightAsWellBeNone(self.cp.get(layer, key))
+
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
             #the logic here may be a bit suss, if the property is blank return none but if there is an error assume a default is needed?
             return {'pkey':'ID','name':layer,'geocolumn':'SHAPE'}.get(key)
         return value
+    
+    def _readSingleLayerProperty(self,layer,key):
+        return LU.mightAsWellBeNone(self.cp.get(layer, key))
+        
     
     @override(LayerReader)
     def writeLayerProperty(self,layer,field,value):
@@ -670,12 +671,10 @@ class LayerFileReader(LayerReader):
         #if value: value = value.strip()
         try:    
             if (isinstance(layer,tuple) or isinstance(layer,list)) and (isinstance(value,tuple) or isinstance(value,list)): 
-                for l,v in zip(layer,value):  
-                    if v: v = v.strip()      
-                    self.cp.set(l,field,v if v is not None else '')
+                for l,v in zip(layer,value):     
+                    self.cp.set(l,field,v.strip() if v else '')
             else:
-                if value: value = value.strip()
-                self.cp.set(layer,field,value if value is not None else '')
+                self.cp.set(layer,field,value.strip() if value else '')
             with open(self.filename, 'w') as configfile:
                 self.cp.write(configfile)
             #ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
@@ -891,7 +890,6 @@ class LayerDSReader(LayerReader):
     def writeLayerProperty(self,pkey,field,value):
         '''Write changes to layer config table. Keyword changes are written as a comma-seperated value '''
         #ogr.UseExceptions()
-        value = value.strip()
         try:
             layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
             if (isinstance(pkey,tuple) or isinstance(pkey,list)) and (isinstance(value,tuple) or isinstance(value,list)):
@@ -931,8 +929,8 @@ class GUIPrefsReader(object):
         self.dvalue = None
         
         self.dselect = 'dest'
-        #v:x111|MYGROUP, myconf.conf, 2193, 2013-01-01, 2013-01-02, external
-        self.plist = ('lgvalue','uconf','epsg','fd','td','int')
+        #v:x111|MYGROUP, myconf.conf, 2193, 2013-01-01, 2013-01-02
+        self.plist = ('lgvalue','uconf','epsg','fd','td')
         
         self.cp = ConfigParser()
         self.fn = os.path.join(thisdir,guiprefs)

@@ -34,6 +34,12 @@ class PostgreSQLDataStore(DataStore):
     PG_USE_COPY = "NO"
     PG_USE_BASE64 = "YES"
     
+    PGSQL_OGR_FID = "ID"  
+    
+    GEOM_TYPE = 'GEOMETRY'
+    
+    SPATIAL_INDEX = 'ON'
+    
     def __init__(self,conn_str=None,user_config=None):
         '''
         PostgreSQL DataStore constructor
@@ -41,24 +47,12 @@ class PostgreSQLDataStore(DataStore):
         
         super(PostgreSQLDataStore,self).__init__(conn_str,user_config)
               
-        #doesnt work with createlayer... but not needed if we want to overwrite FID with PK
-        #self.PGSQL_OGR_FID = "ID"    
-        #gdal.SetConfigOption("PGSQL_OGR_FID",self.PGSQL_OGR_FID)
-        
-        #do not use PG_USE_COPY if you want FID preserved
-        #self.PG_USE_COPY = "NO"
-        gdal.SetConfigOption("PG_USE_COPY",self.PG_USE_COPY)
-        
-        #self.PG_USE_BASE64 = "YES"
-        gdal.SetConfigOption("PG_USE_BASE64",self.PG_USE_BASE64)
-
         (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite,self.config,self.srs,self.cql) = self.params
 
         
     def sourceURI(self,layer):
         '''URI method returns source DB instance'''
         return self._commonURI(layer)
-    
     
     def destinationURI(self,layer):
         '''URI method returns destination DB instance'''
@@ -86,7 +80,6 @@ class PostgreSQLDataStore(DataStore):
         cs = "PG:dbname='{2}' host='{0}' port='{1}' user='{3}' password='{4}'".format(host,port,dbname,usr,pwd)
         return cs if schema is None else cs+" active_schema="+str(schema)
             
-
     def _commonURI(self,layer):
         '''Refers to common connection instance for reading or writing'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
@@ -112,14 +105,23 @@ class PostgreSQLDataStore(DataStore):
     def getConfigOptions(self):
         '''Add PG options for SCHEMA and GEO_NAME'''
         #PG_USE_COPY,PGSQL_OGR_FID,PG_USE_BASE64
-        local_opts = ['PG_USE_COPY=YES','PG_USE_BASE64=YES']        
+        local_opts = []
+        #doesnt work with createlayer... but not needed if we want to overwrite FID with PK
+        #local_opts += ['PGSQL_OGR_FID='+str(self.PGSQL_OGR_FID)]
+        
+        #do not use PG_USE_COPY if you want FID preserved
+        local_opts += ['PG_USE_COPY='+str(self.PG_USE_COPY)]
+        
+        local_opts += ['PG_USE_BASE64='+str(self.PG_USE_BASE64)]  
+              
         return super(PostgreSQLDataStore,self).getConfigOptions() + local_opts    
     
     def getLayerOptions(self,layer_id):
         '''PG layer creation options'''
         #GEOM_TYPE, OVERWRITE,LAUNDER,PRECISION,DIM={2,3},GEOMETRY_NAME,SCHEMA,SPATIAL_INDEX,TEMPORARY,NONE_AS_UNKNOWN,FID,EXTRACT_SCHEMA_FROM_LAYER_NAME,COLUMN_TYPES
-        #Should default to geometry but doesn't, creates bytea instead
-        local_opts = ['GEOM_TYPE=GEOMETRY']
+        #This should default to geometry but it doesn't, gdal creates bytea instead
+        local_opts  = ['GEOM_TYPE='+str(self.GEOM_TYPE)]
+        local_opts += ['SPATIAL_INDEX='+str(self.SPATIAL_INDEX)]
         gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
         if gname is not None:
@@ -142,9 +144,10 @@ class PostgreSQLDataStore(DataStore):
                 if re.search('already exists', str(rte)): 
                     ldslog.warn(rte)
                 else:
-                    raise        
-                
-        if LDSUtilities.mightAsWellBeNone(lce.gcol) is not None:
+                    raise
+                        
+        #If a spatial index has already been created don't try to create another one
+        if self.SPATIAL_INDEX == 'OFF' and LDSUtilities.mightAsWellBeNone(lce.gcol) is not None:
             cmd = 'CREATE INDEX {1}_{2}_GK ON {0} USING GIST({2})'.format(dst_layer_name,tableonly,lce.gcol)
             try:
                 self.executeSQL(cmd)

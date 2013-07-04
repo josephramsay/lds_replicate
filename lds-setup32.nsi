@@ -8,7 +8,7 @@ Name "LDS Replicate"
 # General Symbol Definitions
 !define APPNAME $(^Name)
 !define REGKEY "SOFTWARE\${APPNAME}"
-!define VERSION 0.0.6
+!define VERSION 0.0.7
 !define PLATFORM "win32"
 !define COMPANY "Land Information New Zealand"
 !define URL https://www.linz.govt.nz/
@@ -18,6 +18,7 @@ Name "LDS Replicate"
 !include nsDialogs.nsh
 !include InstallOptions.nsh
 !include EnvVarUpdate.nsh
+!include textlog.nsh
 
 # Reserved Files
 ReserveFile "${NSISDIR}\Plugins\StartMenu.dll"
@@ -116,6 +117,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\gui\LayerConfigSelector.py
     File F:\git\LDS\LDSReplicate\lds\gui\LDSGUI.py
     File F:\git\LDS\LDSReplicate\lds\gui\MainConfigWizard.py
+    File F:\git\LDS\LDSReplicate\lds\gui\ConfigConnector.py
     SetOutPath $INSTDIR\apps\ldsreplicate\lds\test
     File F:\git\LDS\LDSReplicate\lds\test\__init__.py
     File F:\git\LDS\LDSReplicate\lds\test\SuiteRunAllTests.py
@@ -169,6 +171,7 @@ Section -post SEC0005
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" NoModify 1
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" NoRepair 1
 SectionEnd
+
 
 # Macro for selecting uninstaller sections
 !macro SELECT_UNSECTION SECTION_NAME UNSECTION_ID
@@ -248,6 +251,9 @@ FunctionEnd
 
 Function .onInit
     InitPluginsDir
+    ${LogSetFileName} "$INSTDIR\MyInstallLog.txt"
+    ${LogSetOn}
+    ${LogText} "In .onInit"
 FunctionEnd
 
 #Custom user page functions
@@ -341,10 +347,12 @@ FunctionEnd
 
 Function ConfigWizzCreate
     Var /Global Dialog2
-    Var /Global Label3
-    Var /Global Label4
     Var /Global CheckBox4
+    Var /Global CheckBox5 
+    Var /Global CheckBox6
     Var /Global CheckBox4_State
+    Var /Global CheckBox5_State 
+    Var /Global CheckBox6_State
     
     nsDialogs::Create /NOUNLOAD 1018
     Pop $Dialog2
@@ -353,29 +361,49 @@ Function ConfigWizzCreate
     ${EndIf}
     
     
-    ${NSD_CreateLabel} 0 0 100% 12u "Run the Application when setup completes?"
-    Pop $Label3
-    ${NSD_CreateLabel} 0 20 100% 24u "(You will be prompted to complete the config setup on first run)"
-    Pop $Label4
+    ${NSD_CreateLabel} 0 0 100% 12u "Start the Configuration Wizard to initial user and connection preferences,"
+    ${NSD_CreateLabel} 0 15 100% 12u "start the Layer Config Setup to initialise your layer selections and Run"
+    ${NSD_CreateLabel} 0 30 100% 12u "Application to begin replicating LDS"
+    ${NSD_CreateLabel} 0 45 100% 24u "(You will also be prompted to complete the config and layer setup on first run)"
     
-    ${NSD_CreateCheckbox} 0 95u 100% 10u "&Run Application"
+    ${NSD_CreateCheckBox} 0 60u 100% 10u "Start &Config Wizard"
     Pop $CheckBox4
-    ${If} $CheckBox4_State == ${BST_UNCHECKED}
-        ${NSD_Check} $CheckBox4
-    ${EndIf}
-
     ${NSD_SetState} $CheckBox4_State ${BST_CHECKED}
+    ${NSD_Check} $CheckBox4
+    
+    ${NSD_CreateCheckBox} 0 75u 100% 10u "Start &Layer Setup"
+    Pop $CheckBox5
+    ${NSD_SetState} $CheckBox5_State ${BST_CHECKED}
+    ${NSD_Check} $CheckBox5
+    
+    ${NSD_CreateCheckBox} 0 90u 100% 10u "&Run Application"
+    Pop $CheckBox6
+    ${NSD_SetState} $CheckBox6_State ${BST_CHECKED}
+    ${NSD_Check} $CheckBox6
+    
+
     nsDialogs::Show
 FunctionEnd
 
 Function ConfigWizzLeave
-
+    
     ${NSD_GetState} $CheckBox4 $CheckBox4_State
     ${If} $CheckBox4_State == ${BST_CHECKED}
+        ExecWait '"$INSTDIR\ldsreplicate_gui.cmd" W'
+    ${EndIf}
+    
+    ${NSD_GetState} $CheckBox5 $CheckBox5_State
+    ${If} $CheckBox5_State == ${BST_CHECKED}
+        ExecWait '"$INSTDIR\ldsreplicate_gui.cmd" L'
+    ${EndIf}
+    
+    ${NSD_GetState} $CheckBox6 $CheckBox6_State
+    ${If} $CheckBox6_State == ${BST_CHECKED}
         Exec '"$INSTDIR\ldsreplicate_gui.cmd"'
     ${EndIf}
 
 FunctionEnd
+
 
 Function un.EnvReqUninstall
 
