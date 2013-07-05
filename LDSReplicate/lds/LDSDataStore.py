@@ -41,7 +41,7 @@ class LDSDataStore(WFSDataStore):
     
     OGR_WFS_USE_STREAMING = 'NO'
     OGR_WFS_PAGE_SIZE = 10000
-    OGR_WFS_PAGING_ALLOWED = 'ON'
+    OGR_WFS_PAGING_ALLOWED = 'OFF'
     
     GDAL_HTTP_USERAGENT = 'LDSReplicate/'+str(AppVersion.getVersion())
     

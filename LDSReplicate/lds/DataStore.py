@@ -148,9 +148,11 @@ class DataStore(object):
             
     def clearIncremental(self):
         self.incremental = False
+        gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF')
             
     def setIncremental(self):
         self.incremental = True
+        gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
          
     def getIncremental(self):
         return self.incremental 
@@ -303,14 +305,16 @@ class DataStore(object):
         
         while self.attempts < self.MAXIMUM_WFS_ATTEMPTS:
             try:
-                ldslog.info('PAGING = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED'))+' -> ON' if self.getIncremental() else ' -> OFF')
+                ldslog.info('PAGING1 = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED')))
                 #if incr&haspk then fCi
                 if self.getIncremental():
                     # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
-                    gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
+                    #gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
+                    ldslog.info('PAGING2 = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED')))
                     self.featureCopyIncremental(self.src_link.ds,self.ds,self.src_link.CHANGE_COL)
                 else:
-                    gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF') 
+                    #gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF') 
+                    ldslog.info('PAGING2 = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED')))
                     self.featureCopy(self.src_link.ds,self.ds)
                 
             except (FeatureCopyException, InaccessibleFeatureException, RuntimeError) as rte:
@@ -1017,7 +1021,12 @@ class DataStore(object):
                 if lname == name:
                     if truncate:
                         for fi in range(1,lref.GetFeatureCount()+1):
-                            lref.DeleteFeature(fi)
+                            try:
+                                lref.DeleteFeature(fi)
+                            except RuntimeError as re:
+                                ldslog.error("RuntimeError deleting feature {} on layer {}. {}".format(fi,layer,re))
+                                ds.DeleteLayer(li)
+                                break   
                     else:
                         ds.DeleteLayer(li)
                     ldslog.info("DS {} {}".format(msg,str(lname)))
@@ -1034,6 +1043,9 @@ class DataStore(object):
                     
         except ValueError as ve:
             ldslog.error('Value Error doing {} on layer {}. {}'.format(msg,str(layer),str(ve)))
+            raise
+        except RuntimeError as re:
+            ldslog.error("RuntimeError deleting features on layer "+str(layer)+'. '+str(re))
             raise
         except Exception as e:
             ldslog.error("Generic error in layer "+str(layer)+'. '+str(e))

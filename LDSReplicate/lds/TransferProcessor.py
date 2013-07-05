@@ -348,7 +348,7 @@ class TransferProcessor(object):
         
         if self.src.ds is None:
             raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
-        
+        #--------------------------------------------------
         self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(layer_i))
 
         

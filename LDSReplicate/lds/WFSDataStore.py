@@ -53,7 +53,7 @@ class WFSDataStore(DataStore):
         #system, read from env/reg
 
         proxyconfigoptions = []
-        (type, host, port, auth, usr, pwd) = self.PP
+        #(type, host, port, auth, usr, pwd) = self.PP
         
         type2 = LDSUtilities.mightAsWellBeNone(self.PP['TYPE'])
         if type2 == self.PROXY_TYPE[1]:
@@ -76,7 +76,7 @@ class WFSDataStore(DataStore):
             if LDSUtilities.mightAsWellBeNone(self.PP['USR']):
                 up = 'GDAL_HTTP_PROXYUSERPWD='+str(self.PP['USR'])
                 if LDSUtilities.mightAsWellBeNone(self.PP['PWD']):
-                    if pwd.startswith(Encrypt.ENC_PREFIX):
+                    if self.PP['PWD'].startswith(Encrypt.ENC_PREFIX):
                         up += ":"+str(Encrypt.unSecure(self.PP['PWD']))
                     else:
                         up += ":"+str(self.PP['PWD'])

@@ -1,5 +1,5 @@
 [prefs]
-dest = PostgreSQL
+dest = MSSQLSpatial
 
 [PostgreSQL]
 lgvalue = v:x96
@@ -23,9 +23,9 @@ fd = None
 td = None
 
 [MSSQLSpatial]
-lgvalue = DAGOBAH
+lgvalue = ALDERAAN
 uconf = ms
 epsg = None
 fd = None
-td = None
+td = 2012-05-01
 
