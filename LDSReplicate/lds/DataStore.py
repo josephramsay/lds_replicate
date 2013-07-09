@@ -115,7 +115,7 @@ class DataStore(object):
         self.srs = None
         self.config = None
         self.src_link = None
-        self.sufi_list = None
+        self.sufi_list = None # should be unique per layer
         self.ds = None
         self.transform = None
         self.sixtyfour = None
@@ -169,7 +169,6 @@ class DataStore(object):
         if self.driver == None:
             raise DriverInitialisationException, "Driver cannot be initialised for type "+driver_name
             
-
     def setURI(self,uri):
         self.uri = uri
         
@@ -301,6 +300,8 @@ class DataStore(object):
         self.src_link = src
         #we need to store 64 beyond fC/dC flag to identify need for sufi-to-str conversion
         self.sixtyfour = sixtyfour
+        #Clear sufi list between consecutive calls to reinit on different layers
+        self.sufi_list = None
         self.attempts = 0
         
         while self.attempts < self.MAXIMUM_WFS_ATTEMPTS:
@@ -383,6 +384,7 @@ class DataStore(object):
         '''Feature copy without the change column (and other incremental) overhead. Replacement for driverCopy(cloneDS).''' 
         for li in range(0,src_ds.GetLayerCount()):
             is_new = False
+            transaction_flag = True
             src_layer = src_ds.GetLayer(li)
             src_feat_count = None
             
@@ -419,10 +421,11 @@ class DataStore(object):
                 (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
                 
 
-            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+            if  dst_layer.TestCapability('Transactions') and self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 dst_layer.StartTransaction()
             else:
-                ldslog.warn('FBF outside transaction')
+                transaction_flag = False
+                ldslog.warn('Transactions Disabled')
                 
             #add/copy features
             #src_layer.ResetReading()
@@ -440,7 +443,7 @@ class DataStore(object):
             while src_feat is not None:
                 dst_change_count += 1
                 #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
-                self.insertFeature(dst_layer,src_feat,new_feat_def)
+                self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                 
                 src_feat = src_layer.GetNextFeature()
             
@@ -456,8 +459,9 @@ class DataStore(object):
             if is_new and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
                 self.buildIndex(layerconfentry,dst_info.layer_name)
                 
-            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+            if transaction_flag:
                 try:
+                    ogr.DontUseExceptions()
                     dst_layer.CommitTransaction()
                 except RuntimeError as rte:
                     #HACK
@@ -465,6 +469,8 @@ class DataStore(object):
                         ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+']')
                     #else:
                         raise
+                finally:
+                    ogr.UseExceptions()
 
             
             src_layer.ResetReading()
@@ -478,7 +484,8 @@ class DataStore(object):
 
         ldslog.info("Using featureCopyIncremental. Per-feature copy")
         for li in range(0,src_ds.GetLayerCount()):
-            new_layer = False
+            is_new = False
+            transaction_flag = True
             src_layer = src_ds.GetLayer(li)
 
             #TODO. resolve conflict between lastmodified and fdate
@@ -505,7 +512,7 @@ class DataStore(object):
                     src_info.geometry = src_layer.GetGeomType()
                     src_info.layer_defn = src_layer.GetLayerDefn()
                     dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
-                    (dst_layer,new_layer) = self.buildNewDestinationLayer(dst_info, src_info, dst_ds)
+                    (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info, src_info, dst_ds)
             except RuntimeError as rer:
                 '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
                 ldslog.warning("Runtime Error fetching layer. "+str(rer))
@@ -520,16 +527,17 @@ class DataStore(object):
                 src_info.layer_defn = src_layer.GetLayerDefn()
                 dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
                 
-                (dst_layer,new_layer) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
+                (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
                 
                 if dst_layer is None:
                     #if its still none, bail (and don't bother with re-attempt)
                     raise LayerCreateException('Unable to initialise a new Layer on destination')
                 
             #dont bother with transactions if they're failing > N times
-            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+            if dst_layer.TestCapability('Transactions') and self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                 dst_layer.StartTransaction()
             else:
+                transaction_flag = False
                 ldslog.warn('Attempting replicate without transactions')
 
             
@@ -552,7 +560,7 @@ class DataStore(object):
                     
                     try:
                         if change == 'insert': 
-                            e = self.insertFeature(dst_layer,src_feat,new_feat_def)
+                            e = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                             insert_count += 1
                         elif change == 'delete': 
                             e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
@@ -565,14 +573,16 @@ class DataStore(object):
                         #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
                     except InvalidFeatureException as ife:
                         ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+                    #except Exception as e:
+                    #    ldslog.error('trap new errors here... '+str(e))
                         
                     if e != 0:                  
                         ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
                         if change == 'update':
-                            ldslog.warn('Update failed on SetFeature, attempting delete/insert')
+                            ldslog.warn('Update failed on SetFeature, attempting delete+insert')
                             #let delete and insert error handlers take care of any further exceptions
-                            e1 = self.deleteFeature(dst_layer,src_feat,layerconfentry.pkey)
-                            e2 = self.insertFeature(dst_layer,src_feat,new_feat_def)
+                            e1 = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
+                            e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                             if e1+e2 != 0:
                                 raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
                     
@@ -589,7 +599,7 @@ class DataStore(object):
                         dst_change_count += 1
                     
             if src_feat_count != dst_change_count:
-                if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+                if transaction_flag:
                     dst_layer.RollbackTransaction()
                 raise FeatureCopyException('Feature count mismatch. Source count['+str(src_feat_count)+'] <> Change count['+str(dst_change_count)+']')
                 
@@ -598,11 +608,12 @@ class DataStore(object):
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
             #Ordinarily pushed out to subclasses depending on syntax differences
-            if new_layer and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
+            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
                 self.buildIndex(layerconfentry,dst_info.layer_name)
                 
-            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+            if transaction_flag:
                 try:
+                    ogr.DontUseExceptions()
                     dst_layer.CommitTransaction()
                 except RuntimeError as rte:
                     #HACK
@@ -610,6 +621,8 @@ class DataStore(object):
                         ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+'] Ignoring!')
                     #else:
                         raise
+                finally:
+                    ogr.UseExceptions()
                 
             ldslog.info('Inserts={0}, Deletes={1}, Updates={2}'.format(insert_count,delete_count,update_count))
             
@@ -638,9 +651,9 @@ class DataStore(object):
             return src_layer_sref
                     
     
-    def insertFeature(self,dst_layer,src_feat,new_feat_def):
+    def insertFeature(self,dst_layer,src_feat,new_feat_def,ref_pkey):
         '''insert a new feature'''
-        new_feat = self.partialCloneFeature(src_feat,new_feat_def)
+        new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_pkey)
         
         e = dst_layer.CreateFeature(new_feat)
 
@@ -658,7 +671,7 @@ class DataStore(object):
         
         #ldslog.debug("UPDATE: "+str(src_pkey))
         #if not new_layer_flag: 
-        new_feat = self.partialCloneFeature(src_feat,new_feat_def)
+        new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_pkey)
         dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
         if dst_fid is not None:
             new_feat.SetFID(dst_fid)
@@ -790,7 +803,7 @@ class DataStore(object):
         that have sufi-ids which aren't 64bit...)'''
         return 'sufi' in name     
                                            
-    def partialCloneFeature(self,fin,fout_def):
+    def partialCloneFeature(self,fin,fout_def,pkey):
         '''Builds a feature using a passed in feature definition. Must still ignore discarded columns since they will be in the source'''
 
         fout = ogr.Feature(fout_def)
@@ -834,8 +847,8 @@ class DataStore(object):
         fout_no = 0
         for fin_no in range(0,fin.GetFieldCount()):
             fin_field_name = fin.GetFieldDefnRef(fin_no).GetName()
-            #assumes id is the PK, TODO, change to pkey reference
-            if fin_field_name == 'id':
+            #assumes id is the PK
+            if fin_field_name == pkey:#'id':
                 current_id =  fin.GetField(fin_no)
             if self.sixtyfour and self.identify64Bit(fin_field_name): #in self.sixtyfour
                 #assumes id occurs before sufi in the document
@@ -1019,7 +1032,7 @@ class DataStore(object):
                 lref = ds.GetLayerByIndex(li)
                 lname = lref.GetName().split('.')[-1] #strip schema
                 if lname == name:
-                    if truncate:
+                    if truncate and lref.TestCapability('DeleteFeature'):
                         for fi in range(1,lref.GetFeatureCount()+1):
                             try:
                                 lref.DeleteFeature(fi)

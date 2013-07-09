@@ -651,7 +651,7 @@ class LDSControls(QFrame):
         #begin main process
         self.parent.confconn.tp.processLDS(self.parent.confconn.tp.initDestination(destination_driver))
         
-        self.setStatus(self.STATUS.IDLE,('Clean' if clean else 'Replicate')+' Complete')
+        #self.setStatus(self.STATUS.IDLE,('Clean' if clean else 'Replicate')+' Complete')
 
         
     def userConfMessage(self,uconf,secname=None):

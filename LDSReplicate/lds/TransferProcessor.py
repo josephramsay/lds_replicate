@@ -297,6 +297,7 @@ class TransferProcessor(object):
                 
             #if PK is none can't lookup matching FIDs for updates/deletes
             #if no dates available, LM or user supplied we cant set incr bounds
+            #NB. Could test for layer.TestCapabilitiy('DeleteFeature') to decide whether to go incr route. DS had a TC func but it only tests CreateLayer
             if pk is None or all(i is None for i in [lm, fd, td]):
                 self.src.setURI(self.src.sourceURI(each_layer))
                 self.dst.clearIncremental()

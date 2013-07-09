@@ -1,12 +1,12 @@
 [prefs]
-dest = MSSQLSpatial
+dest = PostgreSQL
 
 [PostgreSQL]
-lgvalue = v:x96
+lgvalue = SUFILAYERS
 uconf = pg
 epsg = None
 fd = None
-td = None
+td = 2013-01-01
 
 [SQLite]
 lgvalue = SQLLH
@@ -23,7 +23,7 @@ fd = None
 td = None
 
 [MSSQLSpatial]
-lgvalue = ALDERAAN
+lgvalue = HOTH
 uconf = ms
 epsg = None
 fd = None

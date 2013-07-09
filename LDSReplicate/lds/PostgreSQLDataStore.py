@@ -135,7 +135,7 @@ class PostgreSQLDataStore(DataStore):
         '''Builds an index creation string for a new full replicate in PG format'''
         tableonly = dst_layer_name.split('.')[-1]
         
-        if LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
+        if LDSUtilities.mightAsWellBeNone(lce.pkey):
             cmd = 'ALTER TABLE {0} ADD CONSTRAINT {1}_{2}_PK UNIQUE({2})'.format(dst_layer_name,tableonly,lce.pkey)
             try:
                 self.executeSQL(cmd)
@@ -147,7 +147,7 @@ class PostgreSQLDataStore(DataStore):
                     raise
                         
         #If a spatial index has already been created don't try to create another one
-        if self.SPATIAL_INDEX == 'OFF' and LDSUtilities.mightAsWellBeNone(lce.gcol) is not None:
+        if self.SPATIAL_INDEX == 'OFF' and LDSUtilities.mightAsWellBeNone(lce.gcol):
             cmd = 'CREATE INDEX {1}_{2}_GK ON {0} USING GIST({2})'.format(dst_layer_name,tableonly,lce.gcol)
             try:
                 self.executeSQL(cmd)
