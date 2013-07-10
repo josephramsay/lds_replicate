@@ -668,12 +668,14 @@ class LDSSFPAvailableModel(LDSSortFilterProxyModel):
                 return self.direction
         return not self.direction     
         
-
+    
 def main():
+    #when called from the CL need to init main UI
+    from lds.gui.LDSGUI import LDSRepl
     #func to call config wizz
     app = QApplication(sys.argv)
-    print 'this isnt going to work without a valid TP'
-    ldsc = LayerConfigSelector()
+
+    ldsc = LayerConfigSelector(LDSRepl())
     ldsc.show()
     sys.exit(app.exec_()) 
     

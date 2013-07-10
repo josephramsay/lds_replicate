@@ -17,9 +17,6 @@ Created on 24/07/2012
 @author: jramsay
 '''
 import unittest
-import os
-import logging
-
 
 #from TestTransferTypes import TestIncrementalDates
 #from TestTransferTypes import TestIncrementalDestinations
@@ -34,22 +31,6 @@ from TestURL import TestURL
 from lds.LDSUtilities import LDSUtilities
 
 ldslog = LDSUtilities.setupLogging()
-
-#ldslog = logging.getLogger('LDS')
-#ldslog.setLevel(logging.DEBUG)
-#
-#
-#path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../log/"))
-#if not os.path.exists(path):
-#    os.mkdir(path)
-#df = os.path.join(path,"debug.log")
-#
-#fh = logging.FileHandler(df,'w')
-#fh.setLevel(logging.DEBUG)
-#
-#formatter = logging.Formatter('* %(asctime)s - %(levelname)s - %(module)s - %(message)s')
-#fh.setFormatter(formatter)
-#ldslog.addHandler(fh)
 
 class FullSuite(unittest.TestSuite):
 

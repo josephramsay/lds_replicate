@@ -19,7 +19,7 @@ Created on 13/02/2013
 from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
                          QVBoxLayout, QHBoxLayout, QGridLayout, QRadioButton,
                          QRegExpValidator, QCheckBox, QMessageBox, QGroupBox,
-                         QMainWindow, QAction, QIcon, qApp, QFrame,
+                         QMainWindow, QAction, QIcon, qApp, QFrame, QDialog,
                          QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
 from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir)
@@ -90,7 +90,8 @@ class LDSConfigWizard(QWizard):
         #Assumes being called from main dialog. If being run as standalone there won't be a parent.controls so just quit
         try:
             super(LDSConfigWizard,self).done(event)
-            self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'UC Done') 
+            if self.parent:
+                self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'UC Done')
         except:
             sys.exit(1)
         
@@ -879,7 +880,7 @@ class ConfirmationPage(QWizardPage):
         gpr.write(( section,'',ucfile))
         
         #pass back name of UC file for GUI dialog
-        if self.ldsfile is not None:
+        if self.ldsfile and self.parent.parent:
             self.parent.parent.controls.confcombo.setEditText(self.ldsfile)
             
         return rv
@@ -890,16 +891,17 @@ def main():
     app0 = QApplication(sys.argv)
     ldsc = LDSConfigWizard()
     ldsc.show()
-    rv0 = app0.exec_()
-    rv1 = 0
-    if rv0==0:
-        from  lds.gui.LDSGUI import LDSRepl
-        app1 = QApplication(sys.argv)
-        lds = LDSRepl()
-        lds.show()
-        rv1 = app1.exec_()
-    
-    sys.exit(rv1 + rv0)
+#    rv0 = app0.exec_()
+#    rv1 = 0
+#    if rv0==QDialog.Rejected:
+#        from  lds.gui.LDSGUI import LDSRepl
+#        app1 = QApplication(sys.argv)
+#        lds = LDSRepl()
+#        lds.show()
+#        rv1 = app1.exec_()
+#    
+#    sys.exit(rv1 + rv0)
+    sys.exit(app0.exec_())
     
     
     

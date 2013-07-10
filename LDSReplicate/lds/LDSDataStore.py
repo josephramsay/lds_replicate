@@ -259,9 +259,6 @@ class LDSDataStore(WFSDataStore):
                 
         except XMLSyntaxError as xe:
             ldslog.error('Error parsing URL;'+str(url)+' ERR;'+str(xe))
-        
-        finally:
-            content.close()
             
         return res
 

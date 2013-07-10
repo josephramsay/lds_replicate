@@ -30,22 +30,6 @@ from lds.LDSUtilities import LDSUtilities
 
 ldslog = LDSUtilities.setupLogging()
 
-#ldslog = logging.getLogger('LDS')
-#ldslog.setLevel(logging.DEBUG)
-#
-#path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../log/"))
-#if not os.path.exists(path):
-#    os.mkdir(path)
-#df = os.path.join(path,"debug.log")
-#
-#fh = logging.FileHandler(df,'a')
-#fh.setLevel(logging.DEBUG)
-#
-#formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-#fh.setFormatter(formatter)
-#ldslog.addHandler(fh)
-
-
 #class TestUI(LDSIncrTestCase):
 class TestUI(unittest.TestCase):
     '''Basic tests of ldsreplicate.py using command line arguments to see whether they work as expected'''
@@ -63,6 +47,7 @@ class TestUI(unittest.TestCase):
     DATE1 = '2012-02-25'
     DATE2 = '2012-09-17'
     
+    #path from test dir
     PATH_L = '../../'
     PATH_W = '..\\..\\'
     PATH_C = re.sub(r'(\w):',r'/cygdrive/\1',PATH_W.replace('\\','/'))

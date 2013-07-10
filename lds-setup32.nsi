@@ -3,7 +3,7 @@
 
 Name "LDS Replicate"
 
-#lds-replicate-setup-win32-1.0.0.exe
+#lds-replicate-setup-win32-0.0.7.exe
 
 # General Symbol Definitions
 !define APPNAME $(^Name)
@@ -18,7 +18,6 @@ Name "LDS Replicate"
 !include nsDialogs.nsh
 !include InstallOptions.nsh
 !include EnvVarUpdate.nsh
-!include textlog.nsh
 
 # Reserved Files
 ReserveFile "${NSISDIR}\Plugins\StartMenu.dll"
@@ -172,7 +171,6 @@ Section -post SEC0005
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" NoRepair 1
 SectionEnd
 
-
 # Macro for selecting uninstaller sections
 !macro SELECT_UNSECTION SECTION_NAME UNSECTION_ID
     Push $R0
@@ -193,17 +191,17 @@ done${UNSECTION_ID}:
 !macroend
 
 Section /o -un.License UNSEC0003
-    RmDir /r /REBOOTOK $INSTDIR
+    RmDir /r /REBOOTOK $INSTDIR\license
     DeleteRegValue HKLM "${REGKEY}\Components" License
 SectionEnd
 
 Section /o -un.GDAL UNSEC0002
-    RmDir /r /REBOOTOK $INSTDIR
+    RmDir /r /REBOOTOK $INSTDIR\bin\gdal
     DeleteRegValue HKLM "${REGKEY}\Components" GDAL
 SectionEnd
 
 Section /o "-un.Python 2.7" UNSEC0001
-    RmDir /r /REBOOTOK $INSTDIR
+    RmDir /r /REBOOTOK $INSTDIR\apps\python27
     DeleteRegValue HKLM "${REGKEY}\Components" "Python 2.7"
 SectionEnd
 
@@ -211,7 +209,7 @@ Section /o "-un.LDS Replicate" UNSEC0000
     Delete /REBOOTOK $INSTDIR\setup_vars.bat
     Delete /REBOOTOK $INSTDIR\ldsreplicate_gui.bat
     Delete /REBOOTOK $INSTDIR\ldsreplicate.bat
-    RmDir /r /REBOOTOK $INSTDIR\apps
+    RmDir /r /REBOOTOK $INSTDIR\apps\ldsreplicate
     DeleteRegValue HKLM "${REGKEY}\Components" "LDS Replicate"
 SectionEnd
 
@@ -226,12 +224,15 @@ Section -un.post UNSEC0004
     DeleteRegKey /IfEmpty HKLM "${REGKEY}\Components"
     DeleteRegKey /IfEmpty HKLM "${REGKEY}"
     RmDir /REBOOTOK $SMPROGRAMS\$StartMenuGroup
+    RmDir /REBOOTOK $INSTDIR\apps
+    RmDir /REBOOTOK $INSTDIR\bin
     RmDir /REBOOTOK $INSTDIR
     Push $R0
     StrCpy $R0 $StartMenuGroup 1
     StrCmp $R0 ">" no_smgroup
 no_smgroup:
     Pop $R0
+    
 SectionEnd
 
 # Installer functions
@@ -251,9 +252,6 @@ FunctionEnd
 
 Function .onInit
     InitPluginsDir
-    ${LogSetFileName} "$INSTDIR\MyInstallLog.txt"
-    ${LogSetOn}
-    ${LogText} "In .onInit"
 FunctionEnd
 
 #Custom user page functions
@@ -403,7 +401,6 @@ Function ConfigWizzLeave
     ${EndIf}
 
 FunctionEnd
-
 
 Function un.EnvReqUninstall
 

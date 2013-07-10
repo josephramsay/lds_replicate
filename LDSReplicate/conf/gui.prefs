@@ -9,14 +9,14 @@ fd = None
 td = 2013-01-01
 
 [SQLite]
-lgvalue = SQLLH
+lgvalue = BINGBONG
 uconf = sq
 epsg = None
 fd = None
 td = None
 
 [FileGDB]
-lgvalue = ABCKEY
+lgvalue = SUPERKEY
 uconf = fg
 epsg = None
 fd = None

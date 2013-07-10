@@ -97,7 +97,7 @@ class TestSize(unittest.TestCase):
 
         
     def testBasicCompare(self):
-        '''Simple PG layer compare'''
+        '''Simple PG layer payload compare'''
 
         for o in self.OUTP:
             for l in self.LAYER:#+self.LAYER_ASPATIAL+self.LAYER_GEODETIC+self.LAYER_HYDRO+self.LAYER_TOPO:

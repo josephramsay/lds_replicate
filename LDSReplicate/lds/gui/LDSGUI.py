@@ -690,6 +690,7 @@ class LDSPrefsEditor(QMainWindow):
         super(LDSPrefsEditor, self).__init__()
         
         self.parent = parent
+        self.filename = filename
         self.setWindowTitle('LDS Preferences Editor')
         
         self.editor = LDSPrefsFrame(self)
@@ -730,10 +731,10 @@ class LDSPrefsEditor(QMainWindow):
         fileMenu.addAction(exitAction) 
         
         
-        with open(filename, 'r') as f:
+        with open(self.filename, 'r') as f:
             filedata = f.read()
         self.editor.textedit.setText(filedata)
-        self.statusbar.showMessage('Editing '+filename)
+        self.statusbar.showMessage('Editing '+self.filename)
         
         self.initUI()
         
