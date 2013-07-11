@@ -1,9 +1,16 @@
 [prefs]
-dest = MSSQLSpatial
+dest = PostgreSQL
 
 [MSSQLSpatial]
 uconf = ms
 lgvalue = HOTH
+epsg = None
+fd = None
+td = None
+
+[PostgreSQL]
+lgvalue = None
+uconf = pg
 epsg = None
 fd = None
 td = None

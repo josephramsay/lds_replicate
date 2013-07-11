@@ -152,12 +152,7 @@ class LDSRepl(QMainWindow):
     
     def getConnectionParameters(self,controls):
         '''Init a new TP and return selected controls'''
-        
-        destination,lgval,uconf,epsg,fe,te,fd,td,internal = controls.readParameters()
-        #this bit is probably not needed now we're selecting from dropdown. leave it commented to see if any errors occur
-        #if lgval:
-        #    lgindex = self.confconn.getLGIndex(lgval,col=1)
-        #    lgval = self.confconn.lglist[lgindex][1]
+        destination,lgval,uconf,_,_,_,_,_,internal = controls.readParameters()
 
         return uconf,lgval,destination,internal
     
@@ -215,7 +210,7 @@ class LDSControls(QFrame):
         self.parent = parent
         self.initConf()
         self.initEPSG()
-        self.initUI()        
+        self.initUI()
         
     def initConf(self):
         '''Read files in conf dir ending in conf'''
@@ -466,14 +461,6 @@ class LDSControls(QFrame):
         rvals = self.gprParameters(rdest)
         self.updateGUIValues([rdest]+rvals)
         
-#internal now set in user config wizz
-#    def doInternalChanged(self):
-#        '''Read the destname parameter and fill dialog with matching GPR values'''
-#        rdest = str(self.destmenulist[self.destmenu.currentIndex()])
-#        rint = 'internal' if self.internalTrigger.isChecked() else 'external'
-#        rvals = self.gprParameters(rdest)
-#        self.updateGUIValues([rdest]+rvals[:-1]+[rint])
-        
     def updateGUIValues(self,readlist):
         '''Fill dialog values from provided list'''
         #Note. rlgval must be an object var since its used in doaction function
@@ -486,8 +473,8 @@ class LDSControls(QFrame):
         self.destmenu.setCurrentIndex(destindex)
         
         #InitButton
-        ilabel = self.getInitLabel(selecteddest)
-        self.initButton.setText(ilabel)
+        #ilabel = self.getInitLabel(selecteddest)
+        self.initButton.setText('Layer Select')#ilabel)
         
         #Config File
         confindex = 0

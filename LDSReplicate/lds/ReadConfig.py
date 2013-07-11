@@ -586,7 +586,7 @@ class LayerReader(object):
             self.writeLayerProperty(layer, 'Category', ','.join(keywords))
 
     def getLConfAs3Array(self):
-        '''Specialised conversion of the entire lconf to an array of layer-id,name and keys... for GUI use'''
+        '''Specialised conversion of the entire lconf to an array of layer-id,name and keys... for GUI menu use'''
         return [(i[0],i[2],i[3]) for i in self.getLConfAsArray()] 
     
     def getLConfAsArray(self):
@@ -686,13 +686,13 @@ class LayerFileReader(LayerReader):
     #def readLayerSchemaConfig(self,layer):
         '''Full Layer config reader. Returns the config values for the whole layer or makes sensible guesses for defaults'''
         from LDSUtilities import LayerConfEntry
-        
-        try:
-            defn = self.cp.get(layer, 'sql')
-            #if the user has gone to the trouble of defining their own schema in SQL just return that
-            return (defn,None,None,None,None,None,None,None,None)
-        except:
-            pass
+#        
+#        try:
+#            defn = self.cp.get(layer, 'sql')
+#            #not advertised... if the user has gone to the trouble of defining their own schema in SQL just return that
+#            return (defn,None,None,None,None,None,None,None,None)
+#        except:
+#            pass
         
         '''optional but one way to record the type and name of a column is to save a string tuple (name,type) and parse this at build time'''
         try:

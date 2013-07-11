@@ -114,7 +114,7 @@ class LDSConfigPage(QWizardPage):
         fileLabel = QLabel('User Config File')
         keyLabel = QLabel('LDS API Key')
         destLabel = QLabel('Output Type')
-        internalLabel = QLabel('Internalise Layer Config')
+        internalLabel = QLabel('Save Layer-Config in DB')
         encryptionLabel = QLabel('Enable Password Protection')
         
         
