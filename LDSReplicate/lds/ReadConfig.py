@@ -998,10 +998,18 @@ class GUIPrefsReader(object):
             
     def write(self,rlist):
         self.dvalue = rlist[0]
-        self.cp.set(self.PREFS_SEC,self.dselect,self.dvalue)
+        
+        if self.cp.has_section(self.PREFS_SEC):
+            self.cp.set(self.PREFS_SEC,self.dselect,self.dvalue)
+        else:
+            self.cp.add_section(self.PREFS_SEC)
+            self.cp.set(self.PREFS_SEC,self.dselect,self.dvalue)
+            
         for pr in zip(self.plist,rlist[1:]):
+            if not self.cp.has_section(self.dvalue):
+                self.cp.add_section(self.dvalue)
             try:
-                if LU.mightAsWellBeNone(pr[1]) is not None:            
+                if LU.mightAsWellBeNone(pr[1]) is not None:         
                     self.cp.set(self.dvalue,pr[0],pr[1])
                     with open(self.fn, 'w') as configfile:
                         self.cp.write(configfile)

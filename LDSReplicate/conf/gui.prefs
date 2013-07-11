@@ -1,31 +1,10 @@
 [prefs]
-dest = PostgreSQL
-
-[PostgreSQL]
-lgvalue = SUFILAYERS
-uconf = pg
-epsg = None
-fd = None
-td = 2013-01-01
-
-[SQLite]
-lgvalue = BINGBONG
-uconf = sq
-epsg = None
-fd = None
-td = None
-
-[FileGDB]
-lgvalue = SUPERKEY
-uconf = fg
-epsg = None
-fd = None
-td = None
+dest = MSSQLSpatial
 
 [MSSQLSpatial]
-lgvalue = HOTH
 uconf = ms
+lgvalue = HOTH
 epsg = None
 fd = None
-td = 2012-05-01
+td = None
 

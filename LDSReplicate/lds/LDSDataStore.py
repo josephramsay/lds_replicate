@@ -129,7 +129,7 @@ class LDSDataStore(WFSDataStore):
         '''Make sure the provided key conforms to the required format'''
         srch = re.search('[a-f0-9]{32}',kstr,flags=re.IGNORECASE)
         if srch is None:
-            raise MalformedConnectionString('Cannot parse API key')
+            raise MalformedConnectionString('Cannot parse API key, '+str(kstr))
         return True
         
     def extractAPIKey(self,cs,raiseerr=False):

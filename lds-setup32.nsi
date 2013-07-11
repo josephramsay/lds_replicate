@@ -89,12 +89,10 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\doc\LDSReplicate_instructions.pdf
     File F:\git\LDS\LDSReplicate\doc\README
     SetOutPath $INSTDIR\apps\ldsreplicate\img
-    File F:\git\LDS\LDSReplicate\img\linz.gif
     File F:\git\LDS\LDSReplicate\img\linz_static.png
-    File F:\git\LDS\LDSReplicate\img\busy.gif
     File F:\git\LDS\LDSReplicate\img\busy_static.png
-    File F:\git\LDS\LDSReplicate\img\clean.gif
     File F:\git\LDS\LDSReplicate\img\clean_static.png
+    File F:\git\LDS\LDSReplicate\img\error_static.png
     SetOutPath $INSTDIR\apps\ldsreplicate\lds
     File F:\git\LDS\LDSReplicate\lds\__init__.py
     File F:\git\LDS\LDSReplicate\lds\ConfigWrapper.py

@@ -200,7 +200,7 @@ class LDSRepl(QMainWindow):
         
 class LDSControls(QFrame):
         
-    STATIC_IMG = ('linz_static.png','clean_static.png','busy_static2.png','error_static.png')
+    STATIC_IMG = ('linz_static.png','clean_static.png','busy_static.png','error_static.png')
     ANIM_IMG = ('linz.gif','clean.gif','busy.gif','error.gif')
     IMG = STATIC_IMG
     
