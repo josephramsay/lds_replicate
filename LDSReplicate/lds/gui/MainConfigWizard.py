@@ -19,10 +19,8 @@ Created on 13/02/2013
 from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
                          QVBoxLayout, QHBoxLayout, QGridLayout, QRadioButton,
                          QRegExpValidator, QCheckBox, QMessageBox, QGroupBox,
-                         QMainWindow, QAction, QIcon, qApp, QFrame, QDialog,
-                         QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
-                         QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
-from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir)
+                         QLineEdit,QToolTip, QFont, QComboBox, QPushButton, QFileDialog)
+from PyQt4.QtCore import (QRegExp)
 
 import re
 import sys

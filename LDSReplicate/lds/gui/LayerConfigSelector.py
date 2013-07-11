@@ -326,7 +326,7 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.setToolTip('Select or Add a unique identifier to be saved in layer config (keyword)')
         self.keywordcombo.addItems(list(self.confconn_link.assigned))
         self.keywordcombo.setEditable(True)
-        self.keywordcombo.activated.connect(self.doReadClickAction)
+        self.keywordcombo.activated.connect(self.doKeyComboChangeAction)
         
         lgindex = self.confconn_link.getLGIndex(self.confconn_link.lgval,col=1)
         lgentry = self.confconn_link.lglist[lgindex] if LDSUtilities.mightAsWellBeNone(lgindex) is not None else None
@@ -451,7 +451,7 @@ class LayerSelectionPage(QFrame):
         #------------------------------
         self.parent.writeKeysToLayerConfig(ktext)
         #self.confconn_link.setupAssigned()
-        if not self.keywordcombo.findText(ktext):
+        if self.keywordcombo.findText(ktext) == -1:
             self.keywordcombo.addItem(ktext)
     
     def doChooseClickAction(self):
@@ -465,7 +465,8 @@ class LayerSelectionPage(QFrame):
             #------------------------------
             self.parent.writeKeysToLayerConfig(ktext)
             #self.confconn_link.assigned = self.confconn_link.setupAssigned()
-            if not self.keywordcombo.findText(ktext):
+            # -1 to indicate no index since 0,1,... are valid
+            if self.keywordcombo.findText(ktext) == -1:
                 self.keywordcombo.addItem(ktext)
         else:
             ldslog.warn('L2R > Transfer action without selection')
@@ -491,9 +492,15 @@ class LayerSelectionPage(QFrame):
         if select.hasSelection():
             tlist = self.transferSelectedRows(select.selectedRows(),self.selection_sfpm,self.available_sfpm)
             #------------------------------
-            if self.parent.deleteKeysFromLayerConfig([ll[1][0] for ll in tlist],ktext)==0:
-                #self.confconn_link.setupAssigned()
-                self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
+            kindex = self.keywordcombo.findText(ktext)
+            remainder = self.parent.deleteKeysFromLayerConfig([ll[1][0] for ll in tlist],ktext)
+            if remainder > 0 and kindex == -1:
+                #items+newkey -> add
+                self.parent.writeKeysToLayerConfig(ktext)
+                self.keywordcombo.addItem(ktext)
+            elif remainder == 0 and kindex > -1:
+                #empty+oldkey -> del
+                self.keywordcombo.removeItem(kindex)
                 self.keywordcombo.clearEditText()
         else:
             ldslog.warn('R2L < Transfer action without selection')
@@ -516,7 +523,7 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
         self.keywordcombo.clearEditText()
         
-    def doReadClickAction(self):
+    def doKeyComboChangeAction(self):
         '''Reset the available pane and if there is anything in the keyword box use this to init the selection pane'''
         #HACK
         if self.keywordbypass:
@@ -532,7 +539,7 @@ class LayerSelectionPage(QFrame):
         self.parent.signalModels(self.parent.STEP.POST)
     
     def doResetClickAction(self):
-        '''Main selection action, takes selection and adds to conf layer (via tp)'''
+        '''Dumps the LC and rebuilds from a fresh read of the caps doc'''
         #int warning (QWidget parent, QString title, QString text, QString button0Text, QString button1Text = QString(), QString button2Text = QString(), int defaultButtonNumber = 0, int escapeButtonNumber = -1)
         ans = QMessageBox.warning(self, "Reset","This action will overwrite your Layer Configuration using the current LDS settings (potentially adding new or removing layers). Continue?","Continue","Cancel")
         if ans:
@@ -545,7 +552,7 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.clear()
 
     def checkKeyword(self,ktext):
-        '''Main selection action, takes selection and adds to conf layer (via tp)'''
+        '''Checks keyword isn't null and isn't part of the LDS supplied keywords'''
         if LDSUtilities.mightAsWellBeNone(ktext) is None:
             QMessageBox.about(self, "Keyword Required","Please enter a Keyword to assign Layer(s) to")
             return False
