@@ -17,6 +17,7 @@ Created on 26/07/2012
 
 import logging
 import types
+import re
 
 from datetime import datetime 
 
@@ -94,9 +95,8 @@ class TransferProcessor(object):
         #splitting out group/layer and lgname
         self.lgval = None
         self.lgopt = None
-        if LDSUtilities.mightAsWellBeNone(lg) and (isinstance(lg, types.ListType) or isinstance(lg, types.TupleType)):
-            self.setLayerOrGroup(lg[0])
-            self.setLayerGroupValue(lg[1])
+        if LDSUtilities.mightAsWellBeNone(lg):
+            self.setLayerGroupValue(lg)
             
         self.source_str = None
         if LDSUtilities.mightAsWellBeNone(sc):
@@ -113,6 +113,12 @@ class TransferProcessor(object):
         
     def __str__(self):
         return 'Dst:{ds}, Layer/Group:{lgval}, CQL:{cql}, '.format(ds=self.destination_str,lgval=self.lgval,cql=self.cql)
+    
+    def idLayerOrGroup(self,lg):
+        '''Identify whether being passed a layer or a group identifier'''
+        #still need to decide the difference between a layer name and a group name e.g. nz_rock_polys vs GROUP_ABC. 
+        #For now (and probably better that) we take care of this when we search/match group names 
+        return LORG.LAYER if re.match('^v:x',lg) else LORG.GROUP
     
     def parseSourceConfig(self,sc):
         '''If a user supplied their own LDS connection string, parse out relevant values'''
@@ -243,21 +249,25 @@ class TransferProcessor(object):
         
         #if layer provided, check that layer is in valid list
         #else if group then intersect valid and group members
-        if self.lgopt == LORG.LAYER:
-            layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.lgval) 
-            if layer in lds_valid:
-                self.lnl = (layer,)
-            else:
-                raise InputMisconfigurationException('Layer '+str(layer)+' invalid')
-        elif self.lgopt == LORG.GROUP:
+        lgid = self.idLayerOrGroup(self.lgval)
+        if lgid == LORG.GROUP:
             self.lnl = set()
             group = set(self.lgval.split(','))
             for lid in lds_valid:
                 cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
                 if cats is not None and set(cats.split(',')).intersection(group):
                     self.lnl.update((lid,))
-        else:
-            raise InputMisconfigurationException('Did not find a valid Group/Layer designation '+str(self.lgopt))
+                
+            if not len(self.lnl):
+                ldslog.warn('Possible mis-identified Group, {}'.format(group))
+                lgid = LORG.LAYER
+                
+        if lgid == LORG.LAYER:
+            layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.lgval) 
+            if layer in lds_valid:
+                self.lnl = (layer,)
+            else:
+                raise InputMisconfigurationException('Layer '+str(layer)+' invalid')
 
         # ***HACK*** big layer bypass (address this with partitions)
         #self.lnl = filter(lambda each_layer: each_layer not in self.partitionlayers, self.lnl)
@@ -316,7 +326,6 @@ class TransferProcessor(object):
                 else:
                     ldslog.warning("No update required for layer "+each_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
                 
-
         self.dst.closeDS()
         
     def initCapsDoc(self,capabilities,src):

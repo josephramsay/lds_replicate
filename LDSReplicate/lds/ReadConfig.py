@@ -16,9 +16,11 @@ Created on 24/07/2012
 '''
 
 import os
+import re
 import logging
 import json
 import ogr
+import gdal
 
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError, Error
 from LDSUtilities import LDSUtilities as LU
@@ -779,8 +781,12 @@ class LayerDSReader(LayerReader):
     def exists(self):
         '''Test for DS table'''
         if self.ds is not None:
-            if self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE) is not None:
-                return True
+            try:
+                if self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE):
+                    return True
+            except RuntimeError as rte:
+                if not re.search('No table/field definitions found for',str(rte)): 
+                    ldslog.warn('Unable to open '+str(self.fname.LDS_CONFIG_TABLE))#raise
         return False
         
     def buildConfigLayer(self,res):
@@ -794,8 +800,10 @@ class LayerDSReader(LayerReader):
             self.ds.DeleteLayer(self.fname.LDS_CONFIG_TABLE)
         except Exception as e:
             ldslog.warn("Exception deleting config layer: "+str(e))
-        
-        config_layer = self.ds.CreateLayer(self.fname.LDS_CONFIG_TABLE, None, self.getConfigGeometry(), ['OVERWRITE=YES'])
+        #CreateLayer(self, char name, SpatialReference srs = None, OGRwkbGeometryType geom_type = wkbUnknown, char options = None) -> Layer
+        config_layer = self.ds.CreateLayer(self.fname.LDS_CONFIG_TABLE, None, self.fname.selectValidGeom(ogr.wkbNone), ['OVERWRITE=YES'])
+        if config_layer is None:
+            ldslog.error("Cannot create lds config layer: " + self.fname.LDS_CONFIG_TABLE)
         
         feat_def = ogr.FeatureDefn()
         for name in self.fname.CONFIG_COLUMNS:
@@ -804,7 +812,9 @@ class LayerDSReader(LayerReader):
             #in the feature defn, define a new field
             feat_def.AddFieldDefn(fld_def)
             #also add a field to the table definition, i.e. column
-            config_layer.CreateField(fld_def,True)                
+            if config_layer.TestCapability('CreateField'):
+                config_layer.CreateField(fld_def,True)
+              
         
         for row in json.loads(res):
             config_feat = ogr.Feature(feat_def)
@@ -814,7 +824,7 @@ class LayerDSReader(LayerReader):
             config_feat.SetField(self.fname.CONFIG_COLUMNS[0],str(row[0]))
             config_feat.SetField(self.fname.CONFIG_COLUMNS[1],str(row[1]))
             config_feat.SetField(self.fname.CONFIG_COLUMNS[2],str(row[2]))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[3],str(','.join(row[3])))
+            config_feat.SetField(self.fname.CONFIG_COLUMNS[3],str(','.join(row[3])))#keywords
             config_feat.SetField(self.fname.CONFIG_COLUMNS[4],str(row[4]))
             config_feat.SetField(self.fname.CONFIG_COLUMNS[5],str(row[5]))
             config_feat.SetField(self.fname.CONFIG_COLUMNS[6],str(row[6]))
@@ -827,9 +837,6 @@ class LayerDSReader(LayerReader):
         config_layer.ResetReading()
         config_layer.SyncToDisk()
 
-    
-    def getConfigGeometry(self):
-        return ogr.wkbNone
     
     @override(LayerReader)
     def findLayerIdByName(self,lname):
@@ -846,8 +853,11 @@ class LayerDSReader(LayerReader):
     @override(LayerReader)
     def getLayerNames(self):
         '''Returns configured layers for respective layer properties file'''
+        #gdal.SetConfigOption('CPL_DEBUG','ON')
+        #gdal.SetConfigOption('CPL_LOG_ERRORS','ON')
         if not self.namelist:
             layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+            layer.SetIgnoredFields(('OGR_GEOMETRY',))
             layer.ResetReading()
             feat = layer.GetNextFeature() 
             while feat is not None:

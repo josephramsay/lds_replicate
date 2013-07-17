@@ -18,6 +18,7 @@ Created on 9/08/2012
 import logging
 import os
 import re
+import ogr
 
 from ESRIDataStore import ESRIDataStore
 from DataStore import DataStore,MalformedConnectionString
@@ -29,6 +30,14 @@ class FileGDBDataStore(ESRIDataStore):
     FileGDB DataStore wrapper for file location and options 
     '''
     DRIVER_NAME = DataStore.DRIVER_NAMES['fg']#"FileGDB"
+    
+        #wkbNone removed
+    ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
+                      ogr.wkbPolygon, ogr.wkbMultiPoint, ogr.wkbMultiLineString, 
+                      ogr.wkbMultiPolygon, ogr.wkbGeometryCollection, 
+                      ogr.wkbLinearRing, ogr.wkbPoint25D, ogr.wkbLineString25D,
+                      ogr.wkbPolygon25D, ogr.wkbMultiPoint25D, ogr.wkbMultiLineString25D, 
+                      ogr.wkbMultiPolygon25D, ogr.wkbGeometryCollection25D)
 
     def __init__(self,conn_str=None,user_config=None):
         
@@ -94,14 +103,20 @@ class FileGDBDataStore(ESRIDataStore):
         
         return super(FileGDBDataStore,self).getLayerOptions(layer_id) + local_opts
     
+#    def selectValidGeom(self,geom):
+#        '''Override for wkbNone'''
+#        return geom if geom in self.ValidGeometryTypes else ogr.wkbPoint
+    
+    
     def changeColumnIntToString(self,table,column):
         '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 
         self.executeSQL('alter table '+table+' alter '+column+' type varchar')
     
 
-    def formatWhereClause(self,ref_pkey,key_val):
-        '''FGDB where clause doesn't use single quotes in int matching string'''
-        return "{0} = {1}".format(ref_pkey,key_val)
+#    def formatWhereClause(self,ref_pkey,key_val):
+#        '''FGDB where clause doesn't use single quotes in int matching string'''
+#        #return "{0} = {1}".format(ref_pkey,key_val) #new driver fixes this behaviour
+#        return super(FileGDBDataStore,self).formatWhereClause(ref_pkey,key_val)
 
     def versionCheck(self):
         '''Nothing to check?'''

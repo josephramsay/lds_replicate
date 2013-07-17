@@ -61,6 +61,7 @@
 		</xsl:choose>
 		<xsl:text>null,</xsl:text>
 		<xsl:text>null,</xsl:text>
+		<xsl:text>null,</xsl:text>
 		<xsl:choose>
 			<xsl:when test="position() != last()">
 				<xsl:text>null],&#xa;</xsl:text>

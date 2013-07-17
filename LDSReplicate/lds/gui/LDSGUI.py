@@ -58,7 +58,7 @@ class LDSRepl(QMainWindow):
         self.gpr = GUIPrefsReader()
         
         self.initial = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
-        
+        #if init=False no point reading gpr vals
         self.confconn = ConfigConnector(self.initial[2],self.initial[1],self.initial[0])
         
         self.setGeometry(300, 300, 350, 250)
@@ -166,7 +166,7 @@ class LDSRepl(QMainWindow):
         if self.confconn is None:
             #if any parameters have changed, re-initialise
             self.confconn = ConfigConnector(uconf,lgval,dest)
-        elif ((uconf,lgval,dest)!=(self.confconn.uconf,self.confconn.lgval,self.confconn.destname)):
+        else:
             self.confconn.initConnections(uconf,lgval,dest)
             
         ldscs = LayerConfigSelector(self)
@@ -430,10 +430,10 @@ class LDSControls(QFrame):
         self.sepindex = [i[0] for i in self.parent.confconn.lglist].count(LORG.GROUP)
         self.lgcombo.insertSeparator(self.sepindex)
         
-    def updateLGValues(self,uconf,lgval,destname):
+    def updateLGValues(self,uconf,lgval,dest):
         '''Sets the values displayed in the Layer/Group combo'''
         #because we cant seem to sort combobox entries and want groups at the top, clear and re-add
-        self.parent.confconn.initConnections(uconf,lgval,destname)
+        self.parent.confconn.initConnections(uconf,lgval,dest)
         self.refreshLGCombo()
         
     def centre(self):
@@ -619,9 +619,9 @@ class LDSControls(QFrame):
         ldslog.info('fd={0}, td={1}, fe={2}, te={3}'.format(str(fd),str(td),str(fe),str(te)))
 
         lgindex = self.parent.confconn.getLGIndex(lgval,col=1)
-        lorg = self.parent.confconn.lglist[lgindex][0]
-        
-        self.parent.confconn.tp.setLayerOrGroup(lorg)
+        #lorg = self.parent.confconn.lglist[lgindex][0]
+        #----------don't need lorg in TP anymore but it is useful for sorting/counting groups
+        #self.parent.confconn.tp.setLayerOrGroup(lorg)
         self.parent.confconn.tp.setLayerGroupValue(lgval)
         self.parent.confconn.tp.setFromDate(fd)
         self.parent.confconn.tp.setToDate(td)

@@ -40,6 +40,8 @@ class MSSQLSpatialDataStore(DataStore):
                       ogr.wkbLinearRing, ogr.wkbPoint25D, ogr.wkbLineString25D,
                       ogr.wkbPolygon25D, ogr.wkbMultiPoint25D, ogr.wkbMultiLineString25D, 
                       ogr.wkbMultiPolygon25D, ogr.wkbGeometryCollection25D)
+    
+    BBOX = {'XMIN':-180,'XMAX':180,'YMIN':-90,'YMAX':90}
       
     def __init__(self,conn_str=None,user_config=None):
         '''
@@ -140,8 +142,9 @@ class MSSQLSpatialDataStore(DataStore):
                     raise        
                 
         if LDSUtilities.mightAsWellBeNone(lce.gcol) is not None:
-            #cmd = 'CREATE SPATIAL INDEX {1}_{2}_GK ON {0}({2})'.format(dst_layer_name,tableonly,lce.gcol)
-            cmd = 'CREATE SPATIAL INDEX ON {}'.format(tableonly)
+            cmd = 'CREATE SPATIAL INDEX {1}_{2}_GK ON {0}({2})'.format(dst_layer_name,tableonly,lce.gcol)
+            cmd += ' WITH (BOUNDING_BOX = (XMIN = {0},YMIN = {1},XMAX = {2},YMAX = {3}))'.format(self.BBOX['XMIN'],self.BBOX['YMIN'],self.BBOX['XMAX'],self.BBOX['YMAX'])
+            #cmd = 'CREATE SPATIAL INDEX ON {}'.format(tableonly)
             try:
                 self.executeSQL(cmd)
                 ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.gcol,cmd))
@@ -180,20 +183,13 @@ class MSSQLSpatialDataStore(DataStore):
     
             
     def selectValidGeom(self,geom):
-        '''To be overridden, eliminates geometry types that cause trouble for certain driver types'''
-        if geom in self.ValidGeometryTypes:
-            return geom
-        else: 
-            #default?
-            return ogr.wkbUnknown
+        '''Override for wkbNone'''
+        return geom if geom in self.ValidGeometryTypes else ogr.wkbUnknown
 
     def changeColumnIntToString(self,table,column):
         '''MSSQL column type changer. Used to change 64 bit integer columns to string. NB Default varchar length for MS is 1!. so, 2^64 ~ 10^19 allow 32 chars''' 
         '''No longer used!'''
         self.executeSQL('alter table '+table+' alter column '+column+' varchar(32)')
-        
-    def getConfigGeometry(self):
-        return ogr.wkbPoint
     
     def _clean(self):
         '''Deletes the entire DS layer by layer'''

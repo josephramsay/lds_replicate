@@ -1,16 +1,30 @@
 [prefs]
-dest = PostgreSQL
+dest = FileGDB
 
 [MSSQLSpatial]
 uconf = ms
-lgvalue = HOTH
+lgvalue = UDON
+epsg = None
+fd = None
+td = None
+
+[FileGDB]
+uconf = fgl
+lgvalue = ONETHREESEVEN
 epsg = None
 fd = None
 td = None
 
 [PostgreSQL]
-lgvalue = None
+lgvalue = MANKEL
 uconf = pg
+epsg = None
+fd = None
+td = None
+
+[SQLite]
+uconf = sql
+lgvalue = NEWSQ
 epsg = None
 fd = None
 td = None

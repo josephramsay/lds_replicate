@@ -50,30 +50,36 @@ class ConfigConnector(object):
         #HACK. Since we cant init an lg list without first intialising read connections must assume lgval is stored in v:x format. 
         #NOTE. This a controlled call to TP and we cant assume TP will be called with a v:x layer/group (since names are allowed)
         #NOTE. Every time a new CC is created we call LDs for a caps doc even though this is mostly invariant
-        self.vlayers = None        
+        self.vlayers = None     
+        self.lgval = None
+        self.uconf = None
+        self.destname = None   
         self.initConnections(uconf,lgval,destname)
         
     def initConnections(self,uconf,lgval,destname):
-        #write a refresh CC instead of re initialising the whole object, for use when the dest menu changes
-        lgpair = (LORG.LAYER if re.match('^v:x',lgval) else LORG.GROUP,lgval) if lgval else (None,None)
-        self.tp = TransferProcessor(lgpair, None, None, None, None, None, None, uconf)
+        #write a refresh CC instead of re initialising the whole object, for use when the dest menu changes  
+        #lgval isn't used in CC itself but the gui's use it for menu indexing      
         self.lgval = lgval
-        self.uconf = uconf
-        self.destname = destname
-        self.src,self.dst = self.initSrcDst()
-        if not self.vlayers:
-            self.vlayers = self.getValidLayers(self.dst is not None)
-            self.setupReserved()
-        self.setupComplete()
-        self.setupAssigned()
-        self.buildLGList()
-        self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
-    
+        #Optimisation. If the uconf or dest type are unchanged don't go through the expensive task of updating TP and the layer lists
+        if ((uconf,destname)!=(self.uconf,self.destname)):
+            #lgpair = (LORG.LAYER if re.match('^v:x',lgval) else LORG.GROUP,lgval) if lgval else (None,None)
+            self.uconf = uconf
+            self.destname = destname
+            self.tp = TransferProcessor(lgval, None, None, None, None, None, None, uconf)
+            self.src,self.dst = self.initSrcDst()
+            if not self.vlayers:
+                self.vlayers = self.getValidLayers(self.dst is not None)
+                self.setupReserved()
+            self.setupComplete()
+            self.setupAssigned()
+            self.buildLGList()
+            self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
+
         
     def initSrcDst(self):
         '''Initialises src and dst objects'''
         #initialise layer data using existing source otherwise use the capabilities doc
-        #if doing a first run there is no destname
+        #if doing a first run there is/may-be no destname
         if self.destname:
             dst = self.tp.initDestination(self.destname)
             #if internal lconf need to init the DB
@@ -132,7 +138,7 @@ class ConfigConnector(object):
         #if dest is true we should have a layerconf so use intersect(read_lc,lds_getcaps)
         capabilities = self.src.getCapabilities()
         self.tp.initCapsDoc(capabilities, self.src)
-        vlayers = self.tp.assembleLayerList(self.dst,dest)
+        vlayers = self.tp.assembleLayerList(self.dst,intersect=dest)
         #In the case where we are setting up unconfigured (first init) populate the layer list with default/all layers
         return vlayers if vlayers else self.tp.assembleLayerList(self.dst,intersect=False) 
     

@@ -272,8 +272,8 @@ class LayerSelectionPage(QFrame):
         #convenience link
         self.confconn_link = self.parent.parent.confconn
         
-        #flag top prevent read read action on keyword delete
-        self.keywordbypass = False
+        #flag top prevent read read action on keyword delete. New logic makes this redundant
+        #self.keywordbypass = False
 
         QToolTip.setFont(QFont('SansSerif', 10))
         
@@ -519,16 +519,16 @@ class LayerSelectionPage(QFrame):
         self.parent.signalModels(self.parent.STEP.POST)        
         #------------------------------
         #self.confconn_link.setupAssigned()
-        self.keywordbypass = True
+        #self.keywordbypass = True
         self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
         self.keywordcombo.clearEditText()
         
     def doKeyComboChangeAction(self):
         '''Reset the available pane and if there is anything in the keyword box use this to init the selection pane'''
         #HACK
-        if self.keywordbypass:
-            self.keywordbypass = False
-            return
+        #if self.keywordbypass:
+        #    self.keywordbypass = False
+        #    return
         #------------------------------
         ktext = str(self.keywordcombo.lineEdit().text())
         #------------------------------

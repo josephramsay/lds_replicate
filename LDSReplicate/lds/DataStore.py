@@ -121,7 +121,7 @@ class DataStore(object):
         self.sixtyfour = None
         self.conn_str = None
         
-        self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"
+        #self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"#we use just 'file' or 'json' now
          
         if LDSUtilities.mightAsWellBeNone(conn_str) is not None:
             self.conn_str = conn_str
@@ -266,7 +266,7 @@ class DataStore(object):
                 raise DSReaderException("Error opening DS "+str(dsn)+(', attempting DS create.' if create else '.'))
         except (RuntimeError,DSReaderException) as dsre1:
             #print "DSReaderException",dsre1 
-            ldslog.error(dsre1,exc_info=1)
+            ldslog.error('Open '+str(dsn)+' throws '+str(dsre1),exc_info=1)
             if create:
                 try:
                     ds = self.driver.CreateDataSource(dsn, self.getDBOptions())
@@ -311,11 +311,9 @@ class DataStore(object):
                 if self.getIncremental():
                     # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
                     #gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
-                    ldslog.info('PAGING2 = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED')))
                     self.featureCopyIncremental(self.src_link.ds,self.ds,self.src_link.CHANGE_COL)
                 else:
                     #gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF') 
-                    ldslog.info('PAGING2 = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED')))
                     self.featureCopy(self.src_link.ds,self.ds)
                 
             except (FeatureCopyException, InaccessibleFeatureException, RuntimeError) as rte:
@@ -325,7 +323,8 @@ class DataStore(object):
                 ldslog.warn("ErrorNo: "+str(en))
                 #Errors below seem to all indicate server load problems, so we try again
                 if self.attempts < self.MAXIMUM_WFS_ATTEMPTS-1 and ( \
-                    re.search(   'HTTP error code : 504',str(rte)) \
+                    re.search(   'Function sequence error',str(rte)) \
+                    or re.search('HTTP error code : 504',str(rte)) \
                     or re.search('HTTP error code : 502',str(rte)) \
                     or re.search('HTTP error code : 404',str(rte)) \
                     or re.search('General Error',str(rte)) \
@@ -351,7 +350,9 @@ class DataStore(object):
         '''close a DS with sync and destroy'''
         ldslog.info("Sync DS and Close")
         self.ds.SyncToDisk()
-        self.ds.Destroy()  
+        #FileGDB locks up on destroy, do we even need this? Supposedly for backward compatibility
+        #self.ds.Destroy()  
+        self.ds = None
     
         
     def deleteOptionalColumns(self,dst_layer):
@@ -901,7 +902,7 @@ class DataStore(object):
     def clearLastModified(self,layer):
         '''Clears the last modification time of a layer following a successful clean operation'''
         self.layerconf.writeLayerProperty(layer, 'lastmodified', None)  
-
+    
     @classmethod
     def getCurrent(cls):
         '''Gets the current timestamp for incremental todate calls. 
@@ -1111,13 +1112,22 @@ class DataStore(object):
     
     def _findMatchingFeature(self,search_layer,ref_pkey,key_val):
         '''Find the Feature matching a primary key value'''
-        search_layer.SetAttributeFilter(self.formatWhereClause(ref_pkey, key_val))
-        #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error". 
-        #NB. Since we're resetting the DST layer it has no affect on the SRC read order, just starts the FID search from the beginning  
-        search_layer.ResetReading()
-        matching_feature = search_layer.GetNextFeature()
-        #Once you have a matching feature clear the attribute filter or postgres gets upset
-        search_layer.SetAttributeFilter(None)
+        matching_feature = None
+        try:
+            where = self.formatWhereClause(ref_pkey, key_val)
+            search_layer.SetAttributeFilter(where)
+            #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error". 
+            #NB. Since we're resetting the DST layer it has no affect on the SRC read order, just starts the FID search from the beginning  
+            search_layer.ResetReading()
+            matching_feature = search_layer.GetNextFeature()
+        except RuntimeError as rte:
+            ldslog.error('Cant find matching feature using '+str(where)+'. '+str(rte))
+            raise
+
+        finally:
+            #Once you have a matching feature clear the attribute filter or postgres gets upset
+            search_layer.SetAttributeFilter(None)
+            
         return matching_feature
         
             
