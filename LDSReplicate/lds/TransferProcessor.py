@@ -18,6 +18,7 @@ Created on 26/07/2012
 import logging
 import types
 import re
+import gdal
 
 from datetime import datetime 
 
@@ -94,7 +95,6 @@ class TransferProcessor(object):
 
         #splitting out group/layer and lgname
         self.lgval = None
-        self.lgopt = None
         if LDSUtilities.mightAsWellBeNone(lg):
             self.setLayerGroupValue(lg)
             
@@ -147,11 +147,11 @@ class TransferProcessor(object):
     def setUserConf(self,uc):
         self.user_config = LDSUtilities.mightAsWellBeNone(uc)
         
-    def setLayerOrGroup(self,lgopt):
-        self.lgopt = lgopt
-        
     def setLayerGroupValue(self,lgval):
-        self.lgval = lgval
+        self.lgval = lgval    
+        
+    def getLayerGroupValue(self):
+        return self.lgval
         
     def setEPSG(self,ep):
         self.epsg = LDSUtilities.mightAsWellBeNone(ep)
@@ -305,26 +305,44 @@ class TransferProcessor(object):
             #Destination URI won't change because of incremental so set it here
             self.dst.setURI(self.dst.destinationURI(each_layer))
                 
-            #if PK is none can't lookup matching FIDs for updates/deletes
-            #if no dates available, LM or user supplied we cant set incr bounds
-            #NB. Could test for layer.TestCapabilitiy('DeleteFeature') to decide whether to go incr route. DS had a TC func but it only tests CreateLayer
-            if pk is None or all(i is None for i in [lm, fd, td]):
-                self.src.setURI(self.src.sourceURI(each_layer))
-                self.dst.clearIncremental()
-                self.cleanLayer(each_layer,truncate=True)
-                self.replicateLayer(each_layer)
-                self.dst.setLastModified(each_layer)
+            #if PK is none do paging since page index uses pk (can't lookup matching FIDs for updates/deletes?)
+            if pk:
+                gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
             else:
+                gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF')
+                
+            #check dates -> check incr read -> incr or non
+            
+            nonincr = False                
+            if any(i is not None for i in [lm, fd, td]):
                 final_fd = (early if lm is None else lm) if fd is None else fd
                 final_td = today if td is None else td
-
-                self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
-                self.dst.setIncremental()            
+          
                 if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
-                    self.replicateLayer(each_layer)        
-                    self.dst.setLastModified(each_layer,final_td)
+                    self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
+                    if self.readLayer():
+                        self.dst.setIncremental()    
+                        self.replicateLayer(each_layer)
+                        self.dst.setLastModified(each_layer,final_td)
+                    else:
+                        ldslog.warn('Incremental Read failed')
+                        nonincr = True
                 else:
                     ldslog.warning("No update required for layer "+each_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
+                    return
+            else:
+                nonincr = True
+            #--------------------------------------------------    
+            if nonincr:                
+                self.src.setURI(self.src.sourceURI(each_layer))
+                if self.readLayer():
+                    self.dst.clearIncremental()
+                    self.cleanLayer(each_layer,truncate=True)
+                    self.replicateLayer(each_layer)
+                    self.dst.setLastModified(each_layer)
+                else:
+                    ldslog.warn('Non-Incremental Read failed')
+                    raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
                 
         self.dst.closeDS()
         
@@ -336,10 +354,7 @@ class TransferProcessor(object):
     def assembleLayerList(self,dst,intersect=True):
         '''Match the capabilities layer list with the configured layer list'''
         #List of configured layers (from layer-config file/table)
-        if dst:
-            lds_read = dst.getLayerConf().getLayerNames()
-        else:
-            lds_read = []
+        lds_read = dst.getLayerConf().getLayerNames() if dst else []
         
         #Valid layers are those that exist in LDS and are also configured in the LC
         #set(lds_full).intersection(set(lds_read))
@@ -348,17 +363,15 @@ class TransferProcessor(object):
         else: #union
             return self.lds_full+[i for i in lds_read if i[0] not in self.lds_full]
 
-    
 #--------------------------------------------------------------------------------------------------
-    
-    def replicateLayer(self,layer_i):
-        '''Replicate the requested layer non-incrementally, ie Init a new layer overwriting any previous iteration of that layer'''
-        #We dont try and create (=false) a DS on a LDS WFS connection since its RO
+
+    def readLayer(self):
+        '''Attempt a read of the configured layer'''
         self.src.read(self.src.getURI(),False)
+        return self.src.ds is not None
         
-        if self.src.ds is None:
-            raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
-        #--------------------------------------------------
+    def replicateLayer(self,layer_i):
+        '''Replicate the requested layer, ie URI triggers incr or not'''
         self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(layer_i))
 
         

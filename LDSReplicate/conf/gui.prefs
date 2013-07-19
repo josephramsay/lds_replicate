@@ -1,5 +1,5 @@
 [prefs]
-dest = FileGDB
+dest = PostgreSQL
 
 [MSSQLSpatial]
 uconf = ms
@@ -13,14 +13,14 @@ uconf = fgl
 lgvalue = ONETHREESEVEN
 epsg = None
 fd = None
-td = None
+td = 2013-07-19
 
 [PostgreSQL]
-lgvalue = MANKEL
+lgvalue = v:x583
 uconf = pg
 epsg = None
 fd = None
-td = None
+td = 2013-05-01
 
 [SQLite]
 uconf = sql

@@ -148,11 +148,9 @@ class DataStore(object):
             
     def clearIncremental(self):
         self.incremental = False
-        gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF')
             
     def setIncremental(self):
         self.incremental = True
-        gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
          
     def getIncremental(self):
         return self.incremental 
@@ -260,31 +258,34 @@ class DataStore(object):
         '''initialise a DS for writing'''
         try:
             #we turn ogr exceptions off here so reported errors don't kill DS initialisation 
-            ogr.DontUseExceptions()
+            #ogr.DontUseExceptions()
             ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)       
-            if ds is None:
-                raise DSReaderException("Error opening DS "+str(dsn)+(', attempting DS create.' if create else '.'))
-        except (RuntimeError,DSReaderException) as dsre1:
-            #print "DSReaderException",dsre1 
-            ldslog.error('Open '+str(dsn)+' throws '+str(dsre1),exc_info=1)
+        except RuntimeError as re1:
+            #If its a 404 return for a new URL
+            if re.search('HTTP error code : 404',str(re1)):
+                return None
+             
+            ldslog.error('Open '+str(dsn)+' throws '+str(re1),exc_info=1)
+                
             if create:
                 try:
                     ds = self.driver.CreateDataSource(dsn, self.getDBOptions())
                     if ds is None:
                         raise DSReaderException("Error opening/creating DS "+str(dsn))
-                except DSReaderException as dsre2:
+                except DSReaderException as ds1:
                     #print "DSReaderException, Cannot create DS.",dsre2
-                    ldslog.error(dsre2,exc_info=1)
+                    ldslog.error(ds1,exc_info=1)
                     raise
-                except RuntimeError as rte:
+                except RuntimeError as re2:
                     '''this is only caught if ogr.UseExceptions() is enabled (which we done enable since RunErrs thrown even when DS completes)'''
                     #print "GDAL RuntimeError. Error creating DS.",rte
-                    ldslog.error(rte,exc_info=1)
+                    ldslog.error(re2,exc_info=1)
                     raise
             else:
-                raise dsre1
+                raise re1
         finally:
-            ogr.UseExceptions()
+            pass
+            #ogr.UseExceptions()
         return ds
         
     def read(self,dsn,create=True):
@@ -402,16 +403,18 @@ class DataStore(object):
             '''parse discard columns'''
             self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
 
+            #MSSQL doesn't like schema specifiers
+            tableonly = dst_info.layer_name.split('.')[-1]
             try:
-                dst_layer = dst_ds.GetLayer(dst_info.layer_name)
+                dst_layer = dst_ds.GetLayer(tableonly)#dst_info.layer_name)
             except RuntimeError as rer:
                 '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
                 ldslog.warning("Runtime Error fetching layer. "+str(rer))
                 dst_layer = None
   
-            #NB. this has been modified since replacing 'clean' with 'truncate' since a layer may now exists when creating a layer from scratch
+            #NB. this has been modified since replacing 'clean' with 'truncate' since a layer may now exist when creating a layer from scratch
             if dst_layer is None:
-                ldslog.warning("Non-Incremental layer ["+dst_info.layer_id+"] request. (re)Creating layer")
+                ldslog.warning("Non-Incremental layer ["+dst_info.layer_id+"] request. Creating layer")
                 '''create a new layer if a similarly named existing layer can't be found on the dst'''
                 src_info.spatial_ref = src_layer.GetSpatialRef()
                 src_info.geometry = src_layer.GetGeomType()
@@ -504,9 +507,10 @@ class DataStore(object):
             self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
             
             try:
+                tableonly = dst_info.layer_name.split('.')[-1]
                 if layerconfentry.lmod:
                     #if the layer conf had a lastmodified don't overwrite
-                    dst_layer = dst_ds.GetLayer(dst_info.layer_name)
+                    dst_layer = dst_ds.GetLayer(tableonly)#dst_info.layer_name)
                 else:
                     #with no lastmodified can assume the layer doesnt exist
                     src_info.spatial_ref = src_layer.GetSpatialRef()
@@ -1034,13 +1038,31 @@ class DataStore(object):
                 lname = lref.GetName().split('.')[-1] #strip schema
                 if lname == name:
                     if truncate and lref.TestCapability('DeleteFeature'):
-                        for fi in range(1,lref.GetFeatureCount()+1):
-                            try:
-                                lref.DeleteFeature(fi)
-                            except RuntimeError as re:
-                                ldslog.error("RuntimeError deleting feature {} on layer {}. {}".format(fi,layer,re))
-                                ds.DeleteLayer(li)
-                                break   
+                        begun = False
+                        try:
+                            fid = 0
+                            f = lref.GetNextFeature()
+                            if f: 
+                                begun = True
+                                lref.StartTransaction()
+                            while f:
+                                fid = f.GetFID()
+                                lref.DeleteFeature(fid)
+                                f = lref.GetNextFeature()  
+                        except Exception as e:
+                            ldslog.error("Error deleting feature {} on layer {}. {}".format(fid,layer,e))
+                            lref.RollbackTransaction()     
+                            
+                        try:
+                            #General Errors occur on commit even though it succeeds
+                            if begun: lref.CommitTransaction()
+                        except Exception as e:
+                            ldslog.error("Error during commit on delete. {}".format(e))
+                            if re.search('OGR General Error',str(e)):
+                                ldslog.warn('General error, ignoring')
+                            else:
+                                lref.RollbackTransaction()
+                                raise                   
                     else:
                         ds.DeleteLayer(li)
                     ldslog.info("DS {} {}".format(msg,str(lname)))
@@ -1173,22 +1195,6 @@ class DataStore(object):
             DataStore._showFeatureData(feat)
             feat = layer.GetNextFeature()                
                 
-#    def transferIETernal(self,override_int_ext):
-#        '''Read internal OR external from main config file and set, default to internal'''
-#        if override_int_ext is None:
-#            #look for 'external' in all the params returned by the mainconf <driver> section (converting to lower case...)
-#            #this is because each DS has different parameters in different positions
-#            plist = [str(x).lower() for x in self.mainconf.readDSParameters(self.DRIVER_NAME)]
-#            if self.CONF_EXT in plist:
-#                self.setConfInternal(self.CONF_EXT)
-#            elif self.CONF_INT in plist:
-#                self.setConfInternal(self.CONF_INT)
-#            else:
-#                self.setConfInternal(self.DEFAULT_IE)
-#        else:
-#            #if overriding
-#            self.setConfInternal(override_int_ext)
-            
     @abstractmethod
     def versionCheck(self):
         '''A version check to be used once the DS have been initialised... if normal checks cant be established eg psql on w32'''

@@ -605,8 +605,7 @@ class LDSControls(QFrame):
             self.userConfMessage(uconf_path,destination_driver)
             return
         
-
-        if not os.path.exists(destination_path):
+        if not self.parent.confconn.dst.getLayerConf().exists():
             self.layerConfMessage(destination_path)
             return
   
