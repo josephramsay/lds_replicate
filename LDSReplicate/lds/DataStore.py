@@ -990,14 +990,16 @@ class DataStore(object):
             #match 'create/drop index/table'
             if re.match('(?:create|drop)\s+(?:index|table)',line):
                 continue
+            if re.match('select\s+',line):
+                continue
             #SL index function'
-            if re.match('select\s+createspatialindex',line):
-                continue
+            #if re.match('select\s+createspatialindex',line):
+            #    continue
             #match 'select'
-            if re.match('select\s+(?:\w+|\*)\s+from',line):
-                continue
-            if re.match('select\s+(has_table_privilege|has_schema_privilege|version|postgis_full_version|@@version)',line):
-                continue
+            #if re.match('select\s+(?:\w+|\*)\s+from',line):
+            #    continue
+            #if re.match('select\s+(has_table_privilege|has_schema_privilege|version|postgis_full_version|@@version)',line):
+            #    continue
             #match 'insert'
             if re.match('(?:update|insert)\s+(?:\w+|\*)\s+',line):
                 continue

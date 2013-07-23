@@ -1,5 +1,5 @@
 [prefs]
-dest = PostgreSQL
+dest = SQLite
 
 [MSSQLSpatial]
 uconf = ms
@@ -23,8 +23,8 @@ fd = None
 td = 2013-05-01
 
 [SQLite]
+lgvalue = None
 uconf = sql
-lgvalue = NEWSQ
 epsg = None
 fd = None
 td = None

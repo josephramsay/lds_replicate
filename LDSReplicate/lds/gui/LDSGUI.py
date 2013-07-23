@@ -28,6 +28,7 @@ import os
 import re
 import sys
 import subprocess
+import gdal
 
 from lds.TransferProcessor import TransferProcessor, LORG
 from lds.ReadConfig import GUIPrefsReader, MainFileReader, LayerFileReader,LayerDSReader
@@ -36,7 +37,7 @@ from lds.VersionUtilities import AppVersion
 from lds.gui.LayerConfigSelector import LayerConfigSelector
 from lds.gui.ConfigConnector import ConfigConnector
 
-from lds.DataStore import DataStore
+from lds.DataStore import DataStore, MalformedConnectionString
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -59,7 +60,12 @@ class LDSRepl(QMainWindow):
         
         self.initial = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
         #if init=False no point reading gpr vals
-        self.confconn = ConfigConnector(self.initial[2],self.initial[1],self.initial[0])
+        try:
+            self.confconn = ConfigConnector(self.initial[2],self.initial[1],self.initial[0])
+        except MalformedConnectionString as mcse:
+            ldslog.warn(str(mcse))
+            self.runWizardDialog(None,None)
+            self.confconn = ConfigConnector(self.initial[2],self.initial[1],self.initial[0])
         
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
@@ -138,26 +144,29 @@ class LDSRepl(QMainWindow):
 
         
     def runWizardAction(self):
-        '''Run the User Config setup wizz'''
-        from lds.gui.MainConfigWizard import LDSConfigWizard
+        '''Init and run the User Config setup wizz'''
         self.controls.setStatus(self.controls.STATUS.BUSY,'Opening User-Config Wizard')  
         #rather than readparams
         uconf = self.controls.confcombo.itemText(self.controls.confcombo.currentIndex())
         secname = self.controls.destmenu.itemText(self.controls.destmenu.currentIndex())
-        
         self.statusbar.showMessage('Editing User-Config')
+        self.runWizardDialog(uconf, secname)
+        
+    def runWizardDialog(self,uconf,secname):
+        '''User Config/Wizz dialog opener'''
+        from lds.gui.MainConfigWizard import LDSConfigWizard
         ldscw = LDSConfigWizard(uconf,secname,self)
         ldscw.exec_()
         
     
-    def getConnectionParameters(self,controls):
-        '''Init a new TP and return selected controls'''
-        destination,lgval,uconf,_,_,_,_,_,internal = controls.readParameters()
-
-        return uconf,lgval,destination,internal
+#    def getConnectionParameters(self,controls):
+#        '''Init a new TP and return selected controls'''
+#        destination,lgval,uconf,_,_,_,_,_,internal = controls.readParameters()
+#
+#        return uconf,lgval,destination,internal
     
     def runLayerConfigAction(self):
-        '''Open a new Layer dialog'''        
+        '''Arg-less action to open a new layer config dialog'''        
         dest,lgval,uconf,_,_,_,_,_ = self.controls.readParameters()
         if not LDSUtilities.mightAsWellBeNone(dest):
             self.controls.setStatus(self.controls.STATUS.IDLE,'Cannot open Layer-Config without defined Destination')
@@ -169,6 +178,10 @@ class LDSRepl(QMainWindow):
         else:
             self.confconn.initConnections(uconf,lgval,dest)
             
+        self.runLayerConfigDialog()
+        
+    def runLayerConfigDialog(self):
+        '''Layer Config dialog opener'''
         ldscs = LayerConfigSelector(self)
         ldscs.show()
         
@@ -178,19 +191,7 @@ class LDSRepl(QMainWindow):
         if reply == QMessageBox.Yes:
             event.accept()
         else:
-            event.ignore()    
-            
-#    def getUserGroups(self):
-#        '''Return groups or call the LC to init some'''
-#        if self.groups is None:
-#            self.runLayerConfigAction() 
-#        return self.groups
-#    
-#    def getLayers(self):
-#        '''Return all layers or call the LC to init some'''
-#        if self.layers is None:
-#            self.runLayerConfigAction() 
-#        return self.layers
+            event.ignore()
 
         
 class LDSControls(QFrame):
@@ -218,8 +219,11 @@ class LDSControls(QFrame):
         
     def initEPSG(self):
         '''Read GDAL EPSG files, splitting by NZ(RSR) and RestOfTheWorld'''
-        gcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'gcs.csv'))
-        pcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'pcs.csv'))
+        gcs = ConfigInitialiser.readCSV(gdal.FindFile('gdal','gcs.csv'))
+        pcs = ConfigInitialiser.readCSV(gdal.FindFile('gdal','pcs.csv'))
+
+        #gcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'gcs.csv'))
+        #pcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'pcs.csv'))
         self.nzlsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]] \
                    + [e[0]+' - '+e[1] for e in pcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]]
         self.rowsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]] \

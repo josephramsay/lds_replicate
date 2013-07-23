@@ -48,8 +48,8 @@ class ConfigConnector(object):
 
     def __init__(self,uconf,lgval,destname):
         #HACK. Since we cant init an lg list without first intialising read connections must assume lgval is stored in v:x format. 
-        #NOTE. This a controlled call to TP and we cant assume TP will be called with a v:x layer/group (since names are allowed)
-        #NOTE. Every time a new CC is created we call LDs for a caps doc even though this is mostly invariant
+        #NOTE. This a controlled call to TP and we cant assume in general that TP will be called with a v:x layer/group (since names are allowed)
+        #NOTE. Every time a new CC is created we call LDS for a caps doc even though this is mostly invariant
         self.vlayers = None     
         self.lgval = None
         self.uconf = None

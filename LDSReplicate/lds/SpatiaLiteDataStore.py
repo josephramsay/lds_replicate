@@ -220,8 +220,11 @@ class SpatiaLiteDataStore(DataStore):
         #slv_ver = VersionChecker.getVersionFromShell(slv_cmd,'SQLite (\d+\.\w+) database')
         
         #Gets the version of the sqlite application
-        slv_cmd = 'sqlite -version'
-        slv_ver = VersionChecker.getVersionFromShell(slv_cmd,'(\d+\.*\d*\.*\d*)')
+        #slv_cmd = 'sqlite -version'
+        #slv_ver = VersionChecker.getVersionFromShell(slv_cmd,'(\d+\.*\d*\.*\d*)')
+        
+        slv_cmd = 'select spatialite_version()'
+        slv_ver = self.executeSQL(slv_cmd).GetFeature(0).GetField(0)
         
         
         if VersionChecker.compareVersions(VersionChecker.SpatiaLite_MIN, slv_ver if slv_ver is not None else VersionChecker.SpatiaLite_MIN):

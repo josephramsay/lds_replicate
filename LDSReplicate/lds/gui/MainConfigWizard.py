@@ -878,7 +878,7 @@ class ConfirmationPage(QWizardPage):
         gpr.write(( section,'',ucfile))
         
         #pass back name of UC file for GUI dialog
-        if self.ldsfile and self.parent.parent:
+        if self.ldsfile and self.parent.parent and hasattr(self.parent.parent,'controls'):
             self.parent.parent.controls.confcombo.setEditText(self.ldsfile)
             
         return rv

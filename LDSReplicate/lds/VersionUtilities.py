@@ -67,7 +67,7 @@ class VersionChecker(object):
     PostgreSQL_MIN = '8.4'
     PostGIS_MIN = '2.0'
     MSSQL_MIN = '10.0.0.0'
-    SpatiaLite_MIN = '2.0'
+    SpatiaLite_MIN = '3.0'
     FileGDB_MIN = '$1,000,000.00'
     
     def __init__(self,params):
