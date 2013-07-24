@@ -22,7 +22,8 @@ from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
                          QMainWindow, QAction, QIcon, qApp, QFrame,
                          QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
-from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, QTimer, QEventLoop)
+from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, 
+                          QTimer, QEventLoop, QThread)
 
 import os
 import re
@@ -55,17 +56,19 @@ class LDSRepl(QMainWindow):
         
         self.layers = None
         self.groups = None
+        self.gpr = None
+        self.gvs = None
         
-        self.gpr = GUIPrefsReader()
-        
-        self.initial = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
+        initcc = True
         #if init=False no point reading gpr vals
-        try:
-            self.confconn = ConfigConnector(self.initial[2],self.initial[1],self.initial[0])
-        except MalformedConnectionString as mcse:
-            ldslog.warn(str(mcse))
-            self.runWizardDialog(None,None)
-            self.confconn = ConfigConnector(self.initial[2],self.initial[1],self.initial[0])
+        while initcc:
+            try:
+                self.initConfigConnector()
+                initcc = False
+            except MalformedConnectionString as mcse:
+                ldslog.warn(str(mcse))
+                self.runWizardDialog(None,None)
+
         
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
@@ -121,6 +124,11 @@ class LDSRepl(QMainWindow):
         helpMenu = menubar.addMenu('&Help')
         helpMenu.addAction(helpAction)
 
+    def initConfigConnector(self):
+        self.gpr = GUIPrefsReader()
+        self.gvs = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
+        self.confconn = ConfigConnector(self.gvs[2],self.gvs[1],self.gvs[0])
+        
     def launchUCEditor(self, checked=None):
         fn = LDSUtilities.standardiseUserConfigName(str(self.controls.confcombo.lineEdit().text()))
         prefs = LDSPrefsEditor(fn,self)
@@ -159,12 +167,6 @@ class LDSRepl(QMainWindow):
         ldscw.exec_()
         
     
-#    def getConnectionParameters(self,controls):
-#        '''Init a new TP and return selected controls'''
-#        destination,lgval,uconf,_,_,_,_,_,internal = controls.readParameters()
-#
-#        return uconf,lgval,destination,internal
-    
     def runLayerConfigAction(self):
         '''Arg-less action to open a new layer config dialog'''        
         dest,lgval,uconf,_,_,_,_,_ = self.controls.readParameters()
@@ -193,6 +195,20 @@ class LDSRepl(QMainWindow):
         else:
             event.ignore()
 
+class WizzRunner(QThread):
+    def __init__(self,parent):
+        self.parent = parent
+        QThread.__init__(self)
+        
+    def __del__(self):
+        self.wait()
+        
+    def run(self):
+        from lds.gui.MainConfigWizard import LDSConfigWizard
+        print 'fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+        ldscw = LDSConfigWizard(None,None)
+        ldscw.exec_()
+        return
         
 class LDSControls(QFrame):
         
@@ -324,7 +340,7 @@ class LDSControls(QFrame):
 
 
         #set dialog values using GPR
-        self.updateGUIValues(self.parent.initial)
+        self.updateGUIValues(self.parent.gvs)
         
         #set onchange here otherwise we get circular initialisation
         self.destmenu.currentIndexChanged.connect(self.doDestChanged)

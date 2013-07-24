@@ -1082,8 +1082,10 @@ class DataStore(object):
         except ValueError as ve:
             ldslog.error('Value Error doing {} on layer {}. {}'.format(msg,str(layer),str(ve)))
             raise
-        except RuntimeError as re:
-            ldslog.error("RuntimeError deleting features on layer "+str(layer)+'. '+str(re))
+        except RuntimeError as rte:
+            ldslog.error("RuntimeError deleting features on layer "+str(layer)+'. '+str(rte))
+            if re.search('database table is locked',str(rte)):
+                ldslog.warn('Unable to clean layer, table may be open in another application. '+str(rte))
             raise
         except Exception as e:
             ldslog.error("Generic error in layer "+str(layer)+'. '+str(e))

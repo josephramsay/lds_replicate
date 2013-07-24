@@ -15,18 +15,17 @@ Created on 13/02/2013
 @author: jramsay
 '''
 
-from PyQt4.QtGui import (QApplication, QLabel, QComboBox,
-                         QVBoxLayout, QHBoxLayout, QGridLayout,QAbstractItemView,
-                         QSizePolicy,QSortFilterProxyModel, QTextBrowser,
-                         QMainWindow, QFrame, QStandardItemModel, 
-                         QLineEdit,QToolTip, QFont, QHeaderView, 
-                         QPushButton, QTableView,QMessageBox, QGroupBox)
-from PyQt4.QtCore import (Qt, QCoreApplication, QAbstractTableModel, QVariant, QRect,SIGNAL)
+#from PyQt4.QtGui import (QApplication, QLabel, QComboBox,
+#                         QVBoxLayout, QHBoxLayout, QGridLayout,QAbstractItemView,
+#                         QSizePolicy,QSortFilterProxyModel, QTextBrowser,
+#                         QMainWindow, QFrame, QStandardItemModel, 
+#                         QLineEdit,QToolTip, QFont, QHeaderView, 
+#                         QPushButton, QTableView,QMessageBox, QGroupBox)
+#from PyQt4.QtCore import (Qt, QCoreApplication, QAbstractTableModel, QVariant, QRect,SIGNAL)
 
 
 
 import re
-import json
 
 from lds.TransferProcessor import TransferProcessor, LORG
 from lds.DataStore import DataStore
@@ -82,8 +81,8 @@ class ConfigConnector(object):
         #if doing a first run there is/may-be no destname
         if self.destname:
             dst = self.tp.initDestination(self.destname)
-            #if internal lconf need to init the DB
-            if dst.getConfInternal()==DataStore.CONF_INT:
+            #if internal lconf, need to init the DB
+            if dst.getConfInternal() == DataStore.CONF_INT:
                 dst.ds = dst.initDS(dst.destinationURI(None))
             dst.setLayerConf(self.tp.getNewLayerConf(dst))
             ##if a lconf has not been created build a new one
@@ -96,9 +95,7 @@ class ConfigConnector(object):
     
     def initLayerConfig(self,dst=None):
         '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
-        if dst is None:
-            dst = self.dst
-        self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
+        self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst if dst else self.dst,self.tp.src.pxy)
         
     def initKeywords(self):
         self.setupComplete()#from LC

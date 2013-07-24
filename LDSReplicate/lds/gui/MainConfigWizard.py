@@ -88,7 +88,7 @@ class LDSConfigWizard(QWizard):
         #Assumes being called from main dialog. If being run as standalone there won't be a parent.controls so just quit
         try:
             super(LDSConfigWizard,self).done(event)
-            if self.parent:
+            if self.parent and hasattr(self.parent,'controls'):
                 self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'UC Done')
         except:
             sys.exit(1)
