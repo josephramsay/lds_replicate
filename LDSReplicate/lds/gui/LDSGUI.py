@@ -194,21 +194,6 @@ class LDSRepl(QMainWindow):
             event.accept()
         else:
             event.ignore()
-
-class WizzRunner(QThread):
-    def __init__(self,parent):
-        self.parent = parent
-        QThread.__init__(self)
-        
-    def __del__(self):
-        self.wait()
-        
-    def run(self):
-        from lds.gui.MainConfigWizard import LDSConfigWizard
-        print 'fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
-        ldscw = LDSConfigWizard(None,None)
-        ldscw.exec_()
-        return
         
 class LDSControls(QFrame):
         
@@ -293,7 +278,7 @@ class LDSControls(QFrame):
         self.epsgcombo.setEditable(True)
         self.epsgcombo.setEnabled(False)
         
-        self.destmenulist = ['',]+DataStore.DRIVER_NAMES.values()
+        self.destmenulist = self.getConfiguredDestinations()
         self.destmenu = QComboBox(self)
         self.destmenu.setToolTip('Choose the desired output type')   
         self.destmenu.addItems(self.destmenulist)
@@ -543,6 +528,10 @@ class LDSControls(QFrame):
 #        else:
 #            self.internalTrigger.setChecked(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
         
+        
+    def getConfiguredDestinations(self):
+        defml = ['',]+DataStore.DRIVER_NAMES.values()
+        return [d for d in self.parent.gpr.getDestinations() if d in defml]
         
     def doEPSGEnable(self):
         self.epsgcombo.setEnabled(self.epsgEnable.isChecked())

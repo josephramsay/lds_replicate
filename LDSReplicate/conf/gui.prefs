@@ -20,7 +20,7 @@ fd = None
 td = 2013-05-01
 
 [SQLite]
-lgvalue = v:x100
+lgvalue = v:x502
 uconf = sl2
 epsg = None
 fd = None

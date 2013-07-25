@@ -322,7 +322,7 @@ class TransferProcessor(object):
                     self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
                     if self.readLayer():
                         self.dst.setIncremental()    
-                        self.replicateLayer(each_layer)
+                        self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
                         self.dst.setLastModified(each_layer,final_td)
                     else:
                         ldslog.warn('Incremental Read failed')
@@ -338,7 +338,7 @@ class TransferProcessor(object):
                 if self.readLayer():
                     self.dst.clearIncremental()
                     self.cleanLayer(each_layer,truncate=True)
-                    self.replicateLayer(each_layer)
+                    self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
                     self.dst.setLastModified(each_layer)
                 else:
                     ldslog.warn('Non-Incremental Read failed')
@@ -369,11 +369,6 @@ class TransferProcessor(object):
         '''Attempt a read of the configured layer'''
         self.src.read(self.src.getURI(),False)
         return self.src.ds is not None
-        
-    def replicateLayer(self,layer_i):
-        '''Replicate the requested layer, ie URI triggers incr or not'''
-        self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(layer_i))
-
         
 #--------------------------------------------------------------------------------------------------
         

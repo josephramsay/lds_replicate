@@ -617,6 +617,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         
         self.parent = parent 
         self.key = key
+        self.text_entered = False
         
         (slfname,slconfig,slepsg,slcql) = self.parent.mfr.readSpatiaLiteConfig()
         
@@ -660,8 +661,10 @@ class SpatiaLiteConfigPage(QWizardPage):
 
     def selectSpatiaLiteFile(self):
         fdtext = QFileDialog.getSaveFileName(self,'Select SpatiaLite File','~','SQlite (*.db *.sqlite *.sqlite3)')
+        self.text_entered = False
         if re.match(self.filter,fdtext):
             self.fileEdit.setText(fdtext)
+            self.text_entered = True
         else:
             self.fileEdit.setText('')
         
@@ -671,7 +674,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         return self.parent.plist.get('sl')[0]
     
     def testConnection(self):
-        if not self.fileEdit.isModified():# and not self.text_entered:
+        if not self.fileEdit.isModified() and not self.text_entered:
             return False
         
         sl = SL(str(self.fileEdit.text()))

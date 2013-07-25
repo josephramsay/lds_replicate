@@ -969,6 +969,9 @@ class GUIPrefsReader(object):
         return (self.dvalue,)+self.readsec(self.dvalue)
 
         
+    def getDestinations(self):
+        return self.cp.sections()
+    
     def readsec(self,section):
         #options per DS type
         rlist = ()

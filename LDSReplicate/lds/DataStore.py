@@ -260,7 +260,7 @@ class DataStore(object):
             #we turn ogr exceptions off here so reported errors don't kill DS initialisation 
             #ogr.DontUseExceptions()
             ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
-            if not ds: raise DatasourceOpenException('Cannot open DS, '+str(dsn))   
+            if ds is None: raise DatasourceOpenException('Cannot open DS, '+str(dsn))   
         except (RuntimeError, DatasourceOpenException) as re1:
             #If its a 404 return for a new URL
             if re.search('HTTP error code : 404',str(re1)):
@@ -923,31 +923,6 @@ class DataStore(object):
     def buildIndex(self,lce,dst_layer_name):
         '''Default index string builder for new fully replicated layers'''
         raise NotImplementedError("Abstract method buildIndex not implemented")
-#        #TODO. This isn't meant to be run, subclasses only. Left here for reference!
-#        ref_index = DataStore.parseStringList(lce.index)
-#        if ref_index.intersection(set(('spatial','s'))) and lce.gcol is not None:
-#            #cmd = 'CREATE INDEX {}_SK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.gcol,dst_layer_name,lce.gcol)
-#            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.gcol)
-#        elif ref_index.intersection(set(('primary','pkey','p'))):
-#            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+lce.pkey,dst_layer_name,lce.pkey)
-#            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,lce.pkey)
-#        elif ref_index is not None:
-#            #maybe the user wants a non pk/spatial index? Try to filter the string
-#            clst = ','.join(ref_index)
-#            #cmd = 'CREATE INDEX {}_PK ON {}({})'.format(dst_layer_name.split('.')[-1]+"_"+DataStore.sanitise(clst),dst_layer_name,clst)
-#            cmd = 'ALTER TABLE {} ADD CONSTRAINT UNIQUE({})'.format(dst_layer_name,clst)
-#        else:
-#            return
-#        ldslog.info("Index="+','.join(ref_index)+". Execute "+cmd)
-#        
-#        try:
-#            self.executeSQL(cmd)
-#        except RuntimeError as rte:
-#            if re.search('already exists', str(rte)): 
-#                ldslog.warn(rte)
-#            else:
-#                raise
-
     
     # private methods
         
@@ -996,15 +971,6 @@ class DataStore(object):
                 continue
             if re.match('select\s+',line):
                 continue
-            #SL index function'
-            #if re.match('select\s+createspatialindex',line):
-            #    continue
-            #match 'select'
-            #if re.match('select\s+(?:\w+|\*)\s+from',line):
-            #    continue
-            #if re.match('select\s+(has_table_privilege|has_schema_privilege|version|postgis_full_version|@@version)',line):
-            #    continue
-            #match 'insert'
             if re.match('(?:update|insert)\s+(?:\w+|\*)\s+',line):
                 continue
             if re.match('if\s+object_id\(',line):
@@ -1075,12 +1041,13 @@ class DataStore(object):
                     #since we only want to alter lastmodified on success return flag=True
                     #we return here too since we assume user only wants to delete one layer, re-indexing issues occur for more than one deletion
                     return True
-            ldslog.warning('Matching layer name not found, '+name+'. Attempting base level delete.')
-            try:
-                self._baseDeleteLayer(name)
-            except:
-                raise DatasourceOpenException('Unable to {} layer, {}'.format(msg,str(layer)))
-            return True
+            ldslog.warning('Matching layer name not found, '+name)
+            #NB THE FOLLOWING HAS BEEN COMMENTED AS A TEST AND MAY NEED TO BE ADDED BACK, MAKE SURE ITS OKAY TO DELETE
+            #try:
+            #    self._baseDeleteLayer(name)
+            #except:
+            #    raise DatasourceOpenException('Unable to {} layer, {}'.format(msg,str(layer)))
+            #return True
                 
                     
         except ValueError as ve:
@@ -1099,12 +1066,14 @@ class DataStore(object):
     def _baseDeleteLayer(self,table):
         '''Basic layer delete function intended for aspatial tables which are not returned by queries to the DS. Should work on most DS types'''
         #TODO. Implement for all DS types
+        #THIS DOESN'T GET CALLED ANYMORE AND CAN PROBABLY BE DELETED
         sql_str = "drop table "+table
         return self.executeSQL(sql_str)    
     
     def _baseDeleteColumn(self,table,column):
         '''Basic column delete function for when regular deletes fail. Intended for aspatial tables which are not returned by queries to the DS'''
         #TODO. Implement for all DS types
+        #THIS DOESN'T GET CALLED ANYMORE AND CAN PROBABLY BE DELETED
         sql_str = "alter table "+table+" drop column "+column
         return self.executeSQL(sql_str)
         

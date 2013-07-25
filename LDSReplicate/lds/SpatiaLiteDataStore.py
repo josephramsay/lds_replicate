@@ -174,7 +174,7 @@ class SpatiaLiteDataStore(DataStore):
 
     def _baseDeleteColumn(self,table,column):
         '''Basic column delete function for when regular deletes fail. Spatialite doesn't do column drops so we recreate instead'''
-
+        #THIS DOESN'T GET CALLED ANYMORE AND CAN PROBABLY BE DELETED
         sql_mstr = "select * from "+table
         sql_tabl = self.executeSQL(sql_mstr)
         feat_defn = sql_tabl.GetLayerDefn()
