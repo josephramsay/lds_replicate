@@ -259,34 +259,38 @@ class DataStore(object):
         try:
             #we turn ogr exceptions off here so reported errors don't kill DS initialisation 
             #ogr.DontUseExceptions()
-            ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)       
-        except RuntimeError as re1:
+            ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
+            if not ds: raise DatasourceOpenException('Cannot open DS, '+str(dsn))   
+        except (RuntimeError, DatasourceOpenException) as re1:
             #If its a 404 return for a new URL
             if re.search('HTTP error code : 404',str(re1)):
                 return None
              
             ldslog.error('Open '+str(dsn)+' throws '+str(re1),exc_info=1)
                 
-            if create:
-                try:
-                    ds = self.driver.CreateDataSource(dsn, self.getDBOptions())
-                    if ds is None:
-                        raise DSReaderException("Error opening/creating DS "+str(dsn))
-                except DSReaderException as ds1:
-                    #print "DSReaderException, Cannot create DS.",dsre2
-                    ldslog.error(ds1,exc_info=1)
-                    raise
-                except RuntimeError as re2:
-                    '''this is only caught if ogr.UseExceptions() is enabled (which we done enable since RunErrs thrown even when DS completes)'''
-                    #print "GDAL RuntimeError. Error creating DS.",rte
-                    ldslog.error(re2,exc_info=1)
-                    raise
+            if create: 
+                self.createDS(dsn)
             else:
                 raise re1
         finally:
             pass
             #ogr.UseExceptions()
         return ds
+    
+    def createDS(self,dsn):
+        try:
+            ds = self.driver.CreateDataSource(dsn, self.getDBOptions())
+            if ds is None:
+                raise DSReaderException("Error opening/creating DS "+str(dsn))
+        except DSReaderException as ds1:
+            #print "DSReaderException, Cannot create DS.",dsre2
+            ldslog.error(ds1,exc_info=1)
+            raise
+        except RuntimeError as re2:
+            '''this is only caught if ogr.UseExceptions() is enabled (which we done enable since RunErrs thrown even when DS completes)'''
+            #print "GDAL RuntimeError. Error creating DS.",rte
+            ldslog.error(re2,exc_info=1)
+            raise
         
     def read(self,dsn,create=True):
         '''Main DS read method'''

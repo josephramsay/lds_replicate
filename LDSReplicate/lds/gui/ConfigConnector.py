@@ -15,15 +15,6 @@ Created on 13/02/2013
 @author: jramsay
 '''
 
-#from PyQt4.QtGui import (QApplication, QLabel, QComboBox,
-#                         QVBoxLayout, QHBoxLayout, QGridLayout,QAbstractItemView,
-#                         QSizePolicy,QSortFilterProxyModel, QTextBrowser,
-#                         QMainWindow, QFrame, QStandardItemModel, 
-#                         QLineEdit,QToolTip, QFont, QHeaderView, 
-#                         QPushButton, QTableView,QMessageBox, QGroupBox)
-#from PyQt4.QtCore import (Qt, QCoreApplication, QAbstractTableModel, QVariant, QRect,SIGNAL)
-
-
 
 import re
 
@@ -46,8 +37,8 @@ HCOLS = 2
 class ConfigConnector(object):
 
     def __init__(self,uconf,lgval,destname):
-        #HACK. Since we cant init an lg list without first intialising read connections must assume lgval is stored in v:x format. 
-        #NOTE. This a controlled call to TP and we cant assume in general that TP will be called with a v:x layer/group (since names are allowed)
+        #HACK. Since we can't init an lg list without first intialising read connections must assume lgval is stored in v:x format. 
+        #NOTE. This a controlled call to TP and we can't assume in general that TP will be called with a v:x layer/group (since names are allowed)
         #NOTE. Every time a new CC is created we call LDS for a caps doc even though this is mostly invariant
         self.vlayers = None     
         self.lgval = None

@@ -6,7 +6,7 @@ fd = None
 td = None
 
 [FileGDB]
-uconf = fgl
+uconf = fg2
 lgvalue = ONETHREESEVEN
 epsg = None
 fd = None
@@ -20,8 +20,8 @@ fd = None
 td = 2013-05-01
 
 [SQLite]
-lgvalue = NEWSQ
-uconf = sql
+lgvalue = v:x100
+uconf = sl2
 epsg = None
 fd = None
 td = None

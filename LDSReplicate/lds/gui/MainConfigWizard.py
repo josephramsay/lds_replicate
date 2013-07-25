@@ -532,6 +532,7 @@ class FileGDBConfigPage(QWizardPage):
         
         self.parent = parent 
         self.key = key
+        self.text_entered = False
         
         (fgfname,fgconfig,fgepsg,fgcql) = self.parent.mfr.readFileGDBConfig()
         
@@ -576,10 +577,11 @@ class FileGDBConfigPage(QWizardPage):
     def selectFileGDBFile(self):
         fdtext = QFileDialog.getExistingDirectory(self,'Select FileGDB Directory','~',QFileDialog.ShowDirsOnly)
         #fdtext = QFileDialog.getSaveFileName(self,'Select FileGDB Directory OR Set New','~')
-        
+        self.text_entered = False
         if re.match(self.filter,fdtext):
             self.deleteEmptyDir(fdtext)
             self.fileEdit.setText(fdtext)
+            self.text_entered = True
         else:
             self.fileEdit.setText('')
         
@@ -590,9 +592,23 @@ class FileGDBConfigPage(QWizardPage):
         
         
     def nextId(self):
-        if re.match(self.filter,str(self.fileEdit.text())):
+        if self.testConnection():
             return self.parent.plist.get('final')[0]
         return self.parent.plist.get('fg')[0]
+    
+    def testConnection(self):
+        if not self.fileEdit.isModified() and not self.text_entered:
+            return False
+        
+        fg = FG(str(self.fileEdit.text()))
+        fg.applyConfigOptions()
+        try:
+            fg.initDS(fg.destinationURI(None),True)
+            #ms.checkGeoPrivileges(self.usrEdit.text())
+        except DSReaderException as dse:
+            QMessageBox.warning(self, 'Connection Error', 'Cannot connect to FileGDB file using parameters provided: '+str(dse), 'OK')
+            return False
+        return True
         
         
 class SpatiaLiteConfigPage(QWizardPage):
@@ -649,11 +665,25 @@ class SpatiaLiteConfigPage(QWizardPage):
         else:
             self.fileEdit.setText('')
         
-    def nextId(self):
-        if re.match(self.filter,str(self.fileEdit.text())):
+    def nextId(self):    
+        if self.testConnection():
             return self.parent.plist.get('final')[0]
         return self.parent.plist.get('sl')[0]
-
+    
+    def testConnection(self):
+        if not self.fileEdit.isModified():# and not self.text_entered:
+            return False
+        
+        sl = SL(str(self.fileEdit.text()))
+        sl.applyConfigOptions()
+        try:
+            sl.initDS(sl.destinationURI(None),True)
+            #ms.checkGeoPrivileges(self.usrEdit.text())
+        except DSReaderException as dse:
+            QMessageBox.warning(self, 'Connection Error', 'Cannot connect to SpatiaLite file using parameters provided: '+str(dse), 'OK')
+            return False
+        return True
+    
 class ConfirmationPage(QWizardPage):
         
     def __init__(self,parent=None,key=None):

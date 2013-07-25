@@ -62,7 +62,7 @@ class SpatiaLiteDataStore(DataStore):
     def validateConnStr(self,cs):
         '''SLITE basic checks. 1 correct file suffix. 2 the directory can be accessed'''
         #-d "/home/<username>/temp/spatialite/ldsincr.db
-        if not hasattr(self,'SUFFIX') or not re.search(self.SUFFIX+'$',cs,flags=re.IGNORECASE):
+        if not hasattr(self,'SUFFIX') or not any([re.search(s+'$',cs,flags=re.IGNORECASE) for s in self.SUFFIX]):
             raise MalformedConnectionString('SpatiaLite file suffix must be one of '+self.SUFFIX)
         if not os.access(os.path.dirname(cs), os.W_OK):
             raise MalformedConnectionString('Data file path cannot be found')
