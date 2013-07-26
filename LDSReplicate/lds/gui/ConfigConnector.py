@@ -36,10 +36,11 @@ HCOLS = 2
        
 class ConfigConnector(object):
 
-    def __init__(self,uconf,lgval,destname):
+    def __init__(self,parent,uconf,lgval,destname):
         #HACK. Since we can't init an lg list without first intialising read connections must assume lgval is stored in v:x format. 
         #NOTE. This a controlled call to TP and we can't assume in general that TP will be called with a v:x layer/group (since names are allowed)
         #NOTE. Every time a new CC is created we call LDS for a caps doc even though this is mostly invariant
+        self.parent = parent
         self.vlayers = None     
         self.lgval = None
         self.uconf = None
@@ -55,7 +56,7 @@ class ConfigConnector(object):
             #lgpair = (LORG.LAYER if re.match('^v:x',lgval) else LORG.GROUP,lgval) if lgval else (None,None)
             self.uconf = uconf
             self.destname = destname
-            self.tp = TransferProcessor(lgval, None, None, None, None, None, None, uconf)
+            self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
             self.src,self.dst = self.initSrcDst()
             if not self.vlayers:
                 self.vlayers = self.getValidLayers(self.dst is not None)

@@ -111,7 +111,7 @@ def profile01AutoFillLayer(conf=CONF):
     
     for o in OUTP:
         #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc)
-        tp1 = TransferProcessor('v:x785', None, None, None, None, None, None, None, conf)
+        tp1 = TransferProcessor(self,'v:x785', None, None, None, None, None, None, None, conf)
         selectProcess(tp1,o)
         
         

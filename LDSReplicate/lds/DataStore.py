@@ -23,6 +23,8 @@ import gdal
 import re
 import logging
 import string
+import time
+import math
 
 #from osr import CoordinateTransformation
 from datetime import datetime
@@ -33,6 +35,7 @@ from ProjectionReference import Projection
 from ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
 
+from threading import Thread
 
 ldslog = logging.getLogger('LDS')
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
@@ -79,6 +82,8 @@ class DataStore(object):
     #Number of retry attempts before abandoning transactions (slower but more likely to succeed)
     TRANSACTION_THRESHOLD_WFS_ATTEMPTS = 3
     
+    POLL_INTERVAL = 5
+    
     DRIVER_NAME = '<init in subclass>'
     
     DEFAULT_IE = 'external'
@@ -99,11 +104,12 @@ class DataStore(object):
     
     ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
     
-    def __init__(self,conn_str=None,user_config=None):
+    def __init__(self,parent,conn_str=None,user_config=None):
         '''
         Constructor inits driver and some date specific settings. Arguments are for config overrides 
         '''
 
+        self.parent = parent
         #PYLINT. Set by TP but defined here. Not sure I agree with this requirement since it enforces specific instantiation order
         self.layer = None
         self.layerconf = None
@@ -140,6 +146,8 @@ class DataStore(object):
         '''set of <potential> columns not needed in final output, global'''
         self.optcols = set(['__change__','gml_id'])
         
+        self.src_feat_count = 0
+        self.dst_change_count = 0
 
     #incr flag copied straight from Datastore
     #def setIncremental(self,itype):
@@ -298,7 +306,7 @@ class DataStore(object):
         #5050 initDS for consistency and utilise if-ds-is-none check OR quick open and overwrite
         self.ds = self.initDS(dsn,create)
         #self.ds = self.driver.Open(dsn)
-    
+        
     def write(self,src,dsn,sixtyfour):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
         #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
@@ -308,6 +316,12 @@ class DataStore(object):
         #Clear sufi list between consecutive calls to reinit on different layers
         self.sufi_list = None
         self.attempts = 0
+        
+        #timer = Timer(self.POLL_INTERVAL, self.printSG)
+        #timer.start()
+        
+        pt = ProgressTimer(self)
+        pt.start()
         
         while self.attempts < self.MAXIMUM_WFS_ATTEMPTS:
             try:
@@ -349,6 +363,9 @@ class DataStore(object):
                     raise
             else:
                 break
+            
+        pt.join()
+        pt = None
 
         
     def closeDS(self):
@@ -392,7 +409,7 @@ class DataStore(object):
             is_new = False
             transaction_flag = True
             src_layer = src_ds.GetLayer(li)
-            src_feat_count = None
+            #src_feat_count = None
             
             src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
             
@@ -437,34 +454,34 @@ class DataStore(object):
                 
             #add/copy features
             #src_layer.ResetReading()
-            dst_change_count = 0
-            src_feat_count = src_layer.GetFeatureCount()
-            ldslog.info('Features available = '+str(src_feat_count))
+            self.dst_change_count = 0
+            self.src_feat_count = src_layer.GetFeatureCount()
+            ldslog.info('Features available = '+str(self.src_feat_count))
 
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
-            if src_feat_count>0:
+            if self.src_feat_count>0:
                 src_feat = src_layer.GetNextFeature()
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
-            elif src_feat_count>0:
-                raise InaccessibleFeatureException('Cannot access any Features of '+str(src_feat_count)+' available')
+            elif self.src_feat_count>0:
+                raise InaccessibleFeatureException('Cannot access any Features of '+str(self.src_feat_count)+' available')
                 
             while src_feat is not None:
-                dst_change_count += 1
+                self.dst_change_count += 1
                 #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
                 self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                 
                 src_feat = src_layer.GetNextFeature()
             
-            if src_feat_count is not None and src_feat_count != dst_change_count:
+            if self.src_feat_count is not None and self.src_feat_count != self.dst_change_count:
                 if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                     dst_layer.RollbackTransaction()
-                raise FeatureCopyException('Feature count mismatch. Source count['+str(src_feat_count)+'] <> Change count['+str(dst_change_count)+']')
+                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_count)+']')
             
             
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has replicated at least 1 feat'''
             #May need to be pushed out to subclasses depending on syntax differences
-            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
+            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and self.dst_change_count>0:
                 self.buildIndex(layerconfentry,dst_info.layer_name)
                 
             if transaction_flag:
@@ -552,14 +569,14 @@ class DataStore(object):
             
             #add/copy features
             insert_count, delete_count, update_count = 0,0,0
-            dst_change_count = 0
-            src_feat_count = src_layer.GetFeatureCount()
-            ldslog.info('Features available = '+str(src_feat_count))
+            self.dst_change_count = 0
+            self.src_feat_count = src_layer.GetFeatureCount()
+            ldslog.info('Features available = '+str(self.src_feat_count))
             src_feat = src_layer.GetNextFeature()
             #since the characteristics of each feature wont change between layers we only need to define a new feature definition once
             if src_feat is not None:
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
-                dst_change_count = 1
+                self.dst_change_count = 1
                 e = 0
                 while 1:
                     '''identify the change in the WFS doc (INS,UPD,DEL)'''
@@ -605,19 +622,19 @@ class DataStore(object):
                         break
                     else:
                         src_feat = next_feat
-                        dst_change_count += 1
+                        self.dst_change_count += 1
                     
-            if src_feat_count != dst_change_count:
+            if self.src_feat_count != self.dst_change_count:
                 if transaction_flag:
                     dst_layer.RollbackTransaction()
-                raise FeatureCopyException('Feature count mismatch. Source count['+str(src_feat_count)+'] <> Change count['+str(dst_change_count)+']')
+                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_count)+']')
                 
             #self._showLayerData(dst_layer)
             
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
             #Ordinarily pushed out to subclasses depending on syntax differences
-            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and dst_change_count>0:
+            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and self.dst_change_count>0:
                 self.buildIndex(layerconfentry,dst_info.layer_name)
                 
             if transaction_flag:
@@ -1195,3 +1212,30 @@ class LayerInfo(object):
     def setLCE(self,lce):
         self.lce = lce
         
+#now that groups have been added it might be better to move this to TP class to save re initialisation at each layer
+class ProgressTimer(Thread):
+    def __init__(self,ds):
+        self.stopped = False
+        self.ds = ds
+        Thread.__init__(self)
+
+    def run(self):
+        while not self.stopped:
+            self.poll()
+            time.sleep(self.ds.POLL_INTERVAL)
+
+    def poll(self):
+        feat_part = 100*float(self.ds.dst_change_count)/(float(self.ds.src_feat_count)*float(self.ds.parent.layer_total)) if self.ds.src_feat_count and self.ds.parent.layer_total else 0
+        layer_part = 100*float(self.ds.parent.layer_count)/float(self.ds.parent.layer_total) if self.ds.parent.layer_total else 0
+        self.report(feat_part+layer_part)
+        print 'poll count : fc='+str(self.ds.dst_change_count)+'/'+str(self.ds.src_feat_count)+'; lc='+str(self.ds.parent.layer_count)+'/'+str(self.ds.parent.layer_total)
+        print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
+        print 'poll total : tt='+str(int(feat_part+layer_part))
+        
+    def report(self,pct):
+        #       tp     cc     repl   con
+        self.ds.parent.parent.parent.controls.setProgress(pct)
+        
+    def join(self,timeout=None):
+        self.stopped = True
+        Thread.join(self,timeout)

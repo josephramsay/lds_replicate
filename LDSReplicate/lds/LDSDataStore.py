@@ -59,7 +59,7 @@ class LDSDataStore(WFSDataStore):
           'xsi'  : '{http://www.w3.org/2001/XMLSchema-instance}', 
           'ogc'  : '{http://www.opengis.net/ogc}'}
 
-    def __init__(self,conn_str=None,user_config=None):
+    def __init__(self,parent,conn_str=None,user_config=None):
         '''
         LDS init/constructor subclassing WFSDataStore
         '''
@@ -69,7 +69,7 @@ class LDSDataStore(WFSDataStore):
         self.psize = None
         self.pstart = None
         
-        super(LDSDataStore,self).__init__(conn_str,user_config)
+        super(LDSDataStore,self).__init__(parent,conn_str,user_config)
         
         self.CHANGE_COL = "__change__"
 

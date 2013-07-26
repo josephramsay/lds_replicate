@@ -43,12 +43,12 @@ class MSSQLSpatialDataStore(DataStore):
     
     BBOX = {'XMIN':-180,'XMAX':180,'YMIN':-90,'YMAX':90}
       
-    def __init__(self,conn_str=None,user_config=None):
+    def __init__(self,parent,conn_str=None,user_config=None):
         '''
         cons init driver
         '''
         
-        super(MSSQLSpatialDataStore,self).__init__(conn_str,user_config)
+        super(MSSQLSpatialDataStore,self).__init__(parent,conn_str,user_config)
         
         (self.odbc,self.server,self.dsn,self.trust,self.dbname,self.schema,self.usr,self.pwd,self.config,self.srs,self.cql) = self.params
         

@@ -39,10 +39,10 @@ class FileGDBDataStore(ESRIDataStore):
                       ogr.wkbPolygon25D, ogr.wkbMultiPoint25D, ogr.wkbMultiLineString25D, 
                       ogr.wkbMultiPolygon25D, ogr.wkbGeometryCollection25D)
 
-    def __init__(self,conn_str=None,user_config=None):
+    def __init__(self,parent,conn_str=None,user_config=None):
         
         
-        super(FileGDBDataStore,self).__init__(conn_str,user_config)
+        super(FileGDBDataStore,self).__init__(parent,conn_str,user_config)
         
         (self.fname,self.config,self.srs,self.cql) = self.params
         #because sometimes ~ (if included) isnt translated to home

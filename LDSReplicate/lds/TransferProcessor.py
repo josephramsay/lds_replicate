@@ -72,8 +72,9 @@ class TransferProcessor(object):
     LP_SUFFIX = ".layer.properties"
     DEF_IE = DataStore.CONF_EXT
     
-    def __init__(self,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
+    def __init__(self,parent,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
 
+        self.parent = parent
         self.CLEANCONF = None
         self.INITCONF = None
         
@@ -203,12 +204,12 @@ class TransferProcessor(object):
                 SpatiaLiteDataStore.DRIVER_NAME:SpatiaLiteDataStore,
                 FileGDBDataStore.DRIVER_NAME:FileGDBDataStore
                 }.get(LDSUtilities.standardiseDriverNames(dstname))
-        return proc(self.destination_str,self.user_config)
+        return proc(self,self.destination_str,self.user_config)
 
 
     def initSource(self):
         '''Initialise a new source, LDS nominally'''
-        src = LDSDataStore(self.source_str,self.user_config) 
+        src = LDSDataStore(self,self.source_str,self.user_config) 
         src.setPartitionSize(self.partitionsize)#partitionsize may not exist when this is called but thats okay!
         src.applyConfigOptions()
         return src                
@@ -290,6 +291,8 @@ class TransferProcessor(object):
         today = self.dst.getCurrent()
         early = DataStore.EARLIEST_INIT_DATE
 
+        self.layer_total = len(self.lnl)
+        self.layer_count = 0
         for each_layer in self.lnl:
             lm = LDSUtilities.checkDateFormat(self.dst.getLayerConf().readLayerProperty(each_layer,'lastmodified'))
             pk = LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(each_layer,'pkey'))
@@ -343,6 +346,8 @@ class TransferProcessor(object):
                 else:
                     ldslog.warn('Non-Incremental Read failed')
                     raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
+                
+            self.layer_count += 1
                 
         self.dst.closeDS()
         

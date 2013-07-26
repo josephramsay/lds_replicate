@@ -38,12 +38,12 @@ class SpatiaLiteDataStore(DataStore):
     
     DEFAULT_GCOL = 'GEOMETRY'
       
-    def __init__(self,conn_str=None,user_config=None):
+    def __init__(self,parent,conn_str=None,user_config=None):
         '''
         cons init driver
         '''
 
-        super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
+        super(SpatiaLiteDataStore,self).__init__(parent,conn_str,user_config)
 
         (self.fname,self.config,self.srs,self.cql) = self.params 
         #because sometimes ~ isnt translated to home

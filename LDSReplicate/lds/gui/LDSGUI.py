@@ -16,7 +16,7 @@ Created on 13/02/2013
 '''
 
 
-from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
+from PyQt4.QtGui import (QApplication, QProgressBar, QLabel,
                          QVBoxLayout, QHBoxLayout, QGridLayout, QMovie, QSizePolicy, 
                          QRegExpValidator, QCheckBox, QMessageBox, 
                          QMainWindow, QAction, QIcon, qApp, QFrame,
@@ -127,7 +127,7 @@ class LDSRepl(QMainWindow):
     def initConfigConnector(self):
         self.gpr = GUIPrefsReader()
         self.gvs = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
-        self.confconn = ConfigConnector(self.gvs[2],self.gvs[1],self.gvs[0])
+        self.confconn = ConfigConnector(self,self.gvs[2],self.gvs[1],self.gvs[0])
         
     def launchUCEditor(self, checked=None):
         fn = LDSUtilities.standardiseUserConfigName(str(self.controls.confcombo.lineEdit().text()))
@@ -255,7 +255,7 @@ class LDSControls(QFrame):
         self.confcombo = QComboBox(self)
         self.confcombo.setToolTip('Enter your user config name (file) here')
         self.confcombo.addItems(self.cflist)
-        self.confcombo.setEditable(True)
+        self.confcombo.setEditable(False)
         #self.confcombo.currentIndexChanged.connect(self.doLGEditUpdate)
         
         #combos
@@ -281,6 +281,7 @@ class LDSControls(QFrame):
         self.destmenulist = self.getConfiguredDestinations()
         self.destmenu = QComboBox(self)
         self.destmenu.setToolTip('Choose the desired output type')   
+        self.destmenu.setEditable(False)
         self.destmenu.addItems(self.destmenulist)
 
         #date selection
@@ -304,6 +305,11 @@ class LDSControls(QFrame):
         self.toDateEnable = QCheckBox()
         self.toDateEnable.setCheckState(False) 
         self.toDateEnable.clicked.connect(self.doToDateEnable)
+        
+        self.progressBar = QProgressBar()
+        self.progressBar.setRange(0,100)
+        self.progressBar.setVisible(True)
+        self.progressBar.setMinimumWidth(self.MAX_WD)
         
         
         #buttons        
@@ -375,8 +381,9 @@ class LDSControls(QFrame):
         grid.addWidget(self.toDateEdit, 7, 2)
         
         hbox3 = QHBoxLayout()
-        hbox3.addWidget(self.view)
+        hbox3.addWidget(self.view) 
         hbox3.addStretch(1)
+        hbox3.addWidget(self.progressBar)
 
         #hbox3.addLayout(vbox2)
         #hbox3.addLayout(vbox3)
@@ -398,24 +405,35 @@ class LDSControls(QFrame):
         
         self.setLayout(vbox)  
        
+    def setProgress(self,pct):
+        self.progressBar.setValue(pct)
         
     def setStatus(self,status,message='',tooltip=None):
         '''Sets indicator icon and statusbar message'''
         self.parent.statusbar.showMessage(message)
         self.parent.statusbar.setToolTip(tooltip if tooltip else '')
         
+        visibility = False
+        progress = 0
         if status is self.STATUS.ERROR:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[3]))
         elif status is self.STATUS.BUSY:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[2]))
+            visibility = True
         elif status is self.STATUS.CLEAN:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[1]))
+            visibility = True
         elif status is self.STATUS.IDLE:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[0]))
         else:
             ldslog.warn('Unknown Status')
             return
         
+        #progress
+        self.progressBar.setVisible(visibility)
+        self.progressBar.setValue(progress)
+        
+        #icon
         anim = QMovie(loc, QByteArray(), self)
         anim.setCacheMode(QMovie.CacheAll)
         anim.setSpeed(50)
@@ -549,7 +567,8 @@ class LDSControls(QFrame):
         #NB need to test for None explicitly since zero is a valid index
         lgval = self.parent.confconn.lglist[lgindex][1] if LDSUtilities.mightAsWellBeNone(lgindex) is not None else None       
         #uconf = LDSUtilities.standardiseUserConfigName(str(self.confcombo.lineEdit().text()))
-        uconf = str(self.confcombo.lineEdit().text())
+        #uconf = str(self.confcombo.lineEdit().text())
+        uconf = str(self.cflist[self.confcombo.currentIndex()])
         ee = self.epsgEnable.isChecked()
         epsg = None if ee is False else re.match('^\s*(\d+).*',str(self.epsgcombo.lineEdit().text())).group(1)
         fe = self.fromDateEnable.isChecked()

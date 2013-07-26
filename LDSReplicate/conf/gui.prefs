@@ -13,7 +13,7 @@ fd = None
 td = 2013-07-19
 
 [PostgreSQL]
-lgvalue = v:x583
+lgvalue = FOURPART
 uconf = pg
 epsg = None
 fd = None
@@ -27,5 +27,5 @@ fd = None
 td = None
 
 [prefs]
-dest = SQLite
+dest = PostgreSQL
 

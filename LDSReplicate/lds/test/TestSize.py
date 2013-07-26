@@ -104,17 +104,17 @@ class TestSize(unittest.TestCase):
                 
                 #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc)
 
-                tp2 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_2)
+                tp2 = TransferProcessor(self,l, None, None, None, None, None, None, None, self.CONF_2)
                 self.prepLayer(tp2,o)
                 d2t,d2r,d2c = self.monitor(self.selectProcess(tp2,o))
                 print 'GML2::layer::',l,' data='+str(d2t/1000)+'kb.','rate='+str(d2r)+'b/s.','count='+str(d2c)
                 
-                tp3 = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_3)
+                tp3 = TransferProcessor(self,l, None, None, None, None, None, None, None, self.CONF_3)
                 self.prepLayer(tp3,o)
                 d3t,d3r,d3c = self.monitor(self.selectProcess(tp3,o))
                 print 'GML3::layer::',l,' data='+str(d3t/1000)+'kb.','rate='+str(d3r)+'b/s.','count='+str(d3c)
 
-                tpj = TransferProcessor(l, None, None, None, None, None, None, None, self.CONF_J)
+                tpj = TransferProcessor(self,l, None, None, None, None, None, None, None, self.CONF_J)
                 self.prepLayer(tpj, o) 
                 djt,djr,djc = self.monitor(self.selectProcess(tpj,o))
                 print 'JSON::layer::',l,' data='+str(djt/1000)+'kb.','rate='+str(djr)+'b/s.','count='+str(djc)
