@@ -13,7 +13,7 @@ fd = None
 td = 2013-07-19
 
 [PostgreSQL]
-lgvalue = FOURPART
+lgvalue = PGBARTEST
 uconf = pg
 epsg = None
 fd = None

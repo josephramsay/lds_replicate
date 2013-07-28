@@ -19,8 +19,10 @@ import logging
 import types
 import re
 import gdal
+import time
 
 from datetime import datetime 
+from threading import Thread
 
 from DataStore import DataStore
 from DataStore import DatasourceOpenException
@@ -71,6 +73,8 @@ class TransferProcessor(object):
     
     LP_SUFFIX = ".layer.properties"
     DEF_IE = DataStore.CONF_EXT
+        
+    POLL_INTERVAL = 5
     
     def __init__(self,parent,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
 
@@ -290,64 +294,72 @@ class TransferProcessor(object):
         td = LDSUtilities.checkDateFormat(self.todate)
         today = self.dst.getCurrent()
         early = DataStore.EARLIEST_INIT_DATE
-
-        self.layer_total = len(self.lnl)
-        self.layer_count = 0
-        for each_layer in self.lnl:
-            lm = LDSUtilities.checkDateFormat(self.dst.getLayerConf().readLayerProperty(each_layer,'lastmodified'))
-            pk = LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(each_layer,'pkey'))
-            filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
-            srs = self.dst.getLayerConf().readLayerProperty(each_layer,'epsg')
-            
-            #Set (cql) filters in URI call using layer picking the one with highest precedence            
-            self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),filt))
         
-            #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy
-            self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),srs))
+        pt = ProgressTimer(self)
+        try:
+            self.layer_total = len(self.lnl)
+            self.layer_count = 0
+            pt.start()
             
-            #Destination URI won't change because of incremental so set it here
-            self.dst.setURI(self.dst.destinationURI(each_layer))
+            for each_layer in self.lnl:
+                lm = LDSUtilities.checkDateFormat(self.dst.getLayerConf().readLayerProperty(each_layer,'lastmodified'))
+                pk = LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(each_layer,'pkey'))
+                filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
+                srs = self.dst.getLayerConf().readLayerProperty(each_layer,'epsg')
                 
-            #if PK is none do paging since page index uses pk (can't lookup matching FIDs for updates/deletes?)
-            if pk:
-                gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
-            else:
-                gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF')
-                
-            #check dates -> check incr read -> incr or non
+                #Set (cql) filters in URI call using layer picking the one with highest precedence            
+                self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),filt))
             
-            nonincr = False                
-            if any(i is not None for i in [lm, fd, td]):
-                final_fd = (early if lm is None else lm) if fd is None else fd
-                final_td = today if td is None else td
-          
-                if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
-                    self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
-                    if self.readLayer():
-                        self.dst.setIncremental()    
-                        self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
-                        self.dst.setLastModified(each_layer,final_td)
+                #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy
+                self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),srs))
+                
+                #Destination URI won't change because of incremental so set it here
+                self.dst.setURI(self.dst.destinationURI(each_layer))
+                    
+                #if PK is none do paging since page index uses pk (can't lookup matching FIDs for updates/deletes?)
+                if pk:
+                    gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
+                else:
+                    gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF')
+                    
+                #check dates -> check incr read -> incr or non
+                
+                nonincr = False                
+                if any(i is not None for i in [lm, fd, td]):
+                    final_fd = (early if lm is None else lm) if fd is None else fd
+                    final_td = today if td is None else td
+              
+                    if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
+                        self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
+                        if self.readLayer():
+                            self.dst.setIncremental()    
+                            self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
+                            self.dst.setLastModified(each_layer,final_td)
+                        else:
+                            ldslog.warn('Incremental Read failed')
+                            nonincr = True
                     else:
-                        ldslog.warn('Incremental Read failed')
-                        nonincr = True
+                        ldslog.warning("No update required for layer "+each_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
+                        return
                 else:
-                    ldslog.warning("No update required for layer "+each_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
-                    return
-            else:
-                nonincr = True
-            #--------------------------------------------------    
-            if nonincr:                
-                self.src.setURI(self.src.sourceURI(each_layer))
-                if self.readLayer():
-                    self.dst.clearIncremental()
-                    self.cleanLayer(each_layer,truncate=True)
-                    self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
-                    self.dst.setLastModified(each_layer)
-                else:
-                    ldslog.warn('Non-Incremental Read failed')
-                    raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
-                
-            self.layer_count += 1
+                    nonincr = True
+                #--------------------------------------------------    
+                if nonincr:                
+                    self.src.setURI(self.src.sourceURI(each_layer))
+                    if self.readLayer():
+                        self.dst.clearIncremental()
+                        self.cleanLayer(each_layer,truncate=True)
+                        self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
+                        self.dst.setLastModified(each_layer)
+                    else:
+                        ldslog.warn('Non-Incremental Read failed')
+                        raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
+                    
+                self.layer_count += 1
+        finally:        
+            #die progress counter
+            pt.join()
+            pt = None
                 
         self.dst.closeDS()
         
@@ -410,3 +422,31 @@ class TransferProcessor(object):
         res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json,pxy)
         dst.getLayerConf().buildConfigLayer(str(res))
         
+        
+#now that groups have been added it might be better to move this to TP class to save re initialisation at each layer
+class ProgressTimer(Thread):
+    def __init__(self,tp):
+        self.stopped = False
+        self.tp = tp
+        Thread.__init__(self)
+
+    def run(self):
+        while not self.stopped:
+            self.poll()
+            time.sleep(self.tp.POLL_INTERVAL)
+
+    def poll(self):
+        feat_part = 100*float(self.tp.dst.dst_change_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.dst.parent.layer_total)) if self.tp.dst.src_feat_count and self.tp.layer_total else 0
+        layer_part = 100*float(self.tp.layer_count)/float(self.tp.layer_total) if self.tp.layer_total else 0
+        self.report(feat_part+layer_part)
+        print 'poll count : fc='+str(self.tp.dst.dst_change_count)+'/'+str(self.tp.dst.src_feat_count)+'; lc='+str(self.tp.layer_count)+'/'+str(self.tp.layer_total)
+        print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
+        print 'poll total : tt='+str(int(feat_part+layer_part))
+        
+    def report(self,pct):
+        #    tp cc     repl   con
+        self.tp.parent.parent.controls.setProgress(pct)
+        
+    def join(self,timeout=None):
+        self.stopped = True
+        Thread.join(self,timeout)

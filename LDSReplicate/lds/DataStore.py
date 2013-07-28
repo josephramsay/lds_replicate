@@ -82,8 +82,6 @@ class DataStore(object):
     #Number of retry attempts before abandoning transactions (slower but more likely to succeed)
     TRANSACTION_THRESHOLD_WFS_ATTEMPTS = 3
     
-    POLL_INTERVAL = 5
-    
     DRIVER_NAME = '<init in subclass>'
     
     DEFAULT_IE = 'external'
@@ -317,12 +315,6 @@ class DataStore(object):
         self.sufi_list = None
         self.attempts = 0
         
-        #timer = Timer(self.POLL_INTERVAL, self.printSG)
-        #timer.start()
-        
-        pt = ProgressTimer(self)
-        pt.start()
-        
         while self.attempts < self.MAXIMUM_WFS_ATTEMPTS:
             try:
                 ldslog.info('PAGING1 = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED')))
@@ -363,10 +355,6 @@ class DataStore(object):
                     raise
             else:
                 break
-            
-        pt.join()
-        pt = None
-
         
     def closeDS(self):
         '''close a DS with sync and destroy'''
@@ -1213,29 +1201,29 @@ class LayerInfo(object):
         self.lce = lce
         
 #now that groups have been added it might be better to move this to TP class to save re initialisation at each layer
-class ProgressTimer(Thread):
-    def __init__(self,ds):
-        self.stopped = False
-        self.ds = ds
-        Thread.__init__(self)
-
-    def run(self):
-        while not self.stopped:
-            self.poll()
-            time.sleep(self.ds.POLL_INTERVAL)
-
-    def poll(self):
-        feat_part = 100*float(self.ds.dst_change_count)/(float(self.ds.src_feat_count)*float(self.ds.parent.layer_total)) if self.ds.src_feat_count and self.ds.parent.layer_total else 0
-        layer_part = 100*float(self.ds.parent.layer_count)/float(self.ds.parent.layer_total) if self.ds.parent.layer_total else 0
-        self.report(feat_part+layer_part)
-        print 'poll count : fc='+str(self.ds.dst_change_count)+'/'+str(self.ds.src_feat_count)+'; lc='+str(self.ds.parent.layer_count)+'/'+str(self.ds.parent.layer_total)
-        print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
-        print 'poll total : tt='+str(int(feat_part+layer_part))
-        
-    def report(self,pct):
-        #       tp     cc     repl   con
-        self.ds.parent.parent.parent.controls.setProgress(pct)
-        
-    def join(self,timeout=None):
-        self.stopped = True
-        Thread.join(self,timeout)
+#class ProgressTimer(Thread):
+#    def __init__(self,ds):
+#        self.stopped = False
+#        self.ds = ds
+#        Thread.__init__(self)
+#
+#    def run(self):
+#        while not self.stopped:
+#            self.poll()
+#            time.sleep(self.ds.POLL_INTERVAL)
+#
+#    def poll(self):
+#        feat_part = 100*float(self.ds.dst_change_count)/(float(self.ds.src_feat_count)*float(self.ds.parent.layer_total)) if self.ds.src_feat_count and self.ds.parent.layer_total else 0
+#        layer_part = 100*float(self.ds.parent.layer_count)/float(self.ds.parent.layer_total) if self.ds.parent.layer_total else 0
+#        self.report(feat_part+layer_part)
+#        print 'poll count : fc='+str(self.ds.dst_change_count)+'/'+str(self.ds.src_feat_count)+'; lc='+str(self.ds.parent.layer_count)+'/'+str(self.ds.parent.layer_total)
+#        print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
+#        print 'poll total : tt='+str(int(feat_part+layer_part))
+#        
+#    def report(self,pct):
+#        #       tp     cc     repl   con
+#        self.ds.parent.parent.parent.controls.setProgress(pct)
+#        
+#    def join(self,timeout=None):
+#        self.stopped = True
+#        Thread.join(self,timeout)
