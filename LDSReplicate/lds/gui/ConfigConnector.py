@@ -156,3 +156,17 @@ class ConfigConnector(object):
             index = None
         return index
     
+    
+from threading import Thread
+class TPRunner(Thread):
+    def __init__(self,cc):
+        Thread.__init__(self)
+        self.cc = cc
+        
+    def run(self):
+        self.cc.tp.processLDS(self.cc.dst)
+        
+
+    def join(self,timeout=None):
+        Thread.join(self,timeout)
+        

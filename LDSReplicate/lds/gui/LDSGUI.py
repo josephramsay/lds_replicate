@@ -413,7 +413,7 @@ class LDSControls(QFrame):
         self.parent.statusbar.showMessage(message)
         self.parent.statusbar.setToolTip(tooltip if tooltip else '')
         
-        visibility = False
+        visibility = True#False
         progress = 0
         if status is self.STATUS.ERROR:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[3]))
@@ -663,8 +663,13 @@ class LDSControls(QFrame):
         #initialise the data source since uconf may have changed
         self.parent.confconn.tp.src = self.parent.confconn.tp.initSource()
         #begin main process
-        self.parent.confconn.tp.processLDS(self.parent.confconn.tp.initDestination(destination_driver))
         
+        #self.parent.confconn.tp.processLDS(self.parent.confconn.tp.initDestination(destination_driver))
+        #experiment
+        from ConfigConnector import TPRunner
+        self.tpr = TPRunner(self.parent.confconn)
+        self.tpr.start()
+
         #self.setStatus(self.STATUS.IDLE,('Clean' if clean else 'Replicate')+' Complete')
 
         

@@ -19,7 +19,6 @@ import logging
 import types
 import re
 import gdal
-import time
 
 from datetime import datetime 
 from threading import Thread
@@ -74,7 +73,7 @@ class TransferProcessor(object):
     LP_SUFFIX = ".layer.properties"
     DEF_IE = DataStore.CONF_EXT
         
-    POLL_INTERVAL = 5
+    POLL_INTERVAL = 1
     
     def __init__(self,parent,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
 
@@ -356,6 +355,8 @@ class TransferProcessor(object):
                         raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
                     
                 self.layer_count += 1
+                self.dst.src_feat_count = 0
+                self.dst.dst_change_count = 0
         finally:        
             #die progress counter
             pt.join()
@@ -422,31 +423,43 @@ class TransferProcessor(object):
         res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json,pxy)
         dst.getLayerConf().buildConfigLayer(str(res))
         
-        
+#NB this probably breaks CL method of starting app
 #now that groups have been added it might be better to move this to TP class to save re initialisation at each layer
-class ProgressTimer(Thread):
+from PyQt4.QtCore import QThread, Qt
+from PyQt4 import QtCore
+
+class ProgressTimer(QThread):
+    
+    changeval = QtCore.pyqtSignal(int)
+    
     def __init__(self,tp):
+        QThread.__init__(self)
         self.stopped = False
         self.tp = tp
-        Thread.__init__(self)
-
+        #                              cc     gui
+        self.changeval.connect(self.tp.parent.parent.controls.progressBar.setValue, Qt.QueuedConnection)
+        
     def run(self):
         while not self.stopped:
             self.poll()
-            time.sleep(self.tp.POLL_INTERVAL)
+            self.sleep(self.tp.POLL_INTERVAL)
 
     def poll(self):
-        feat_part = 100*float(self.tp.dst.dst_change_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.dst.parent.layer_total)) if self.tp.dst.src_feat_count and self.tp.layer_total else 0
-        layer_part = 100*float(self.tp.layer_count)/float(self.tp.layer_total) if self.tp.layer_total else 0
-        self.report(feat_part+layer_part)
-        print 'poll count : fc='+str(self.tp.dst.dst_change_count)+'/'+str(self.tp.dst.src_feat_count)+'; lc='+str(self.tp.layer_count)+'/'+str(self.tp.layer_total)
-        print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
-        print 'poll total : tt='+str(int(feat_part+layer_part))
+        '''Calculate progress. Bypass if denominators are zero'''
+        if self.tp.dst.src_feat_count and self.tp.layer_total:
+            feat_part = 100*float(self.tp.dst.dst_change_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.dst.parent.layer_total))
+            layer_part = 100*float(self.tp.layer_count)/float(self.tp.layer_total)
+            self.report(int(feat_part+layer_part))
+            print 'poll count : fc='+str(self.tp.dst.dst_change_count)+'/'+str(self.tp.dst.src_feat_count)+'; lc='+str(self.tp.layer_count)+'/'+str(self.tp.layer_total)
+            print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
+            print 'poll total : tt='+str(int(feat_part+layer_part))
         
     def report(self,pct):
         #    tp cc     repl   con
-        self.tp.parent.parent.controls.setProgress(pct)
+        #self.tp.parent.parent.controls.setProgress(pct)
+        self.changeval.emit(pct)
         
     def join(self,timeout=None):
+        #QThread.join(self,timeout)
         self.stopped = True
-        Thread.join(self,timeout)
+        self.quit()
