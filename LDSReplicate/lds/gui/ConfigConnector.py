@@ -65,8 +65,7 @@ class ConfigConnector(object):
             self.setupAssigned()
             self.buildLGList()
             self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
-
-        
+  
     def initSrcDst(self):
         '''Initialises src and dst objects'''
         #initialise layer data using existing source otherwise use the capabilities doc
@@ -157,16 +156,74 @@ class ConfigConnector(object):
         return index
     
     
-from threading import Thread
-class TPRunner(Thread):
-    def __init__(self,cc):
-        Thread.__init__(self)
-        self.cc = cc
+#from threading import Thread
+from PyQt4.QtCore import QThread, Qt
+
+class ProcessRunner(QThread):
+    def __init__(self,controls):
+        QThread.__init__(self)
+        self.controls = controls
+        self.tp = controls.parent.confconn.tp
+        self.dst = controls.parent.confconn.dst
         
     def run(self):
-        self.cc.tp.processLDS(self.cc.dst)
+        pt = ProgressTimer(self.controls)
+        try:
+            pt.start()
+            self.tp.processLDS(self.dst)
+        finally:
+            #die progress counter
+            pt.join()
+            pt = None
+        
+    def join(self,timeout=None):
+        QThread.join(self,timeout)
         
 
-    def join(self,timeout=None):
-        Thread.join(self,timeout)
         
+
+from PyQt4 import QtCore
+#can't imprt enum directly, have to refer to them with index
+#'ERROR'=0,'IDLE'=1,'BUSY'=2,'CLEAN'=3
+#from lds.gui.LDSGUI.LDSControls import STATUS
+
+class ProgressTimer(QThread):
+    
+    pgbar = QtCore.pyqtSignal(int)
+    stsly = QtCore.pyqtSignal(int,str,str)
+    
+    def __init__(self,controls):
+        QThread.__init__(self)
+        self.stopped = False
+        self.controls = controls
+        self.tp = controls.parent.confconn.tp
+        #                              cc     gui
+        self.pgbar.connect(self.controls.progressBar.setValue, Qt.QueuedConnection)
+        self.stsly.connect(self.controls.setStatus, Qt.QueuedConnection)
+        
+    def run(self):
+        while not self.stopped:
+            self.poll()
+            self.sleep(self.tp.POLL_INTERVAL)
+
+    def poll(self):
+        '''Calculate progress. Bypass if denominators are zero'''
+        if self.tp.dst.src_feat_count and self.tp.layer_total:
+            feat_part = 100*float(self.tp.dst.dst_change_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.dst.parent.layer_total))
+            layer_part = 100*float(self.tp.layer_count)/float(self.tp.layer_total)
+            self.report(int(feat_part+layer_part),self.tp.dst.dst_info.layer_name)
+            #print 'poll count : fc='+str(self.tp.dst.dst_change_count)+'/'+str(self.tp.dst.src_feat_count)+'; lc='+str(self.tp.layer_count)+'/'+str(self.tp.layer_total)
+            #print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
+            #print 'poll total : tt='+str(int(feat_part+layer_part))
+        
+    def report(self,pct,lyr=None):
+        #    tp cc     repl   con
+        self.pgbar.emit(pct)
+        if lyr: self.stsly.emit(2,'Replicating Layer '+str(lyr),'')
+        
+    def join(self,timeout=None):
+        #QThread.join(self,timeout)
+        self.stopped = True
+        self.stsly.emit(1,'Finished','')
+        
+        self.quit()

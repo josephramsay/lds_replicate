@@ -7,10 +7,10 @@ td = None
 
 [FileGDB]
 uconf = fg2
-lgvalue = ONETHREESEVEN
+lgvalue = LINPAC1570
 epsg = None
 fd = None
-td = 2013-07-19
+td = 2013-05-01
 
 [PostgreSQL]
 lgvalue = PGBARTEST
@@ -27,5 +27,5 @@ fd = None
 td = None
 
 [prefs]
-dest = PostgreSQL
+dest = FileGDB
 

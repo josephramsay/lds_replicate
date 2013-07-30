@@ -363,6 +363,8 @@ class LDSUtilities(object):
         #if its already none is will return itself
         return nstr
     
+    '''Enumeration method'''
+    
     @staticmethod
     def enum(*sequential, **named):
         #http://stackoverflow.com/questions/36932/how-can-i-represent-an-enum-in-python

@@ -165,7 +165,7 @@ def main():
     ldslog.info(m1)
     #layer overrides group, whether layer is IN group is not considered
     ly if ly else gp
-    tp = TransferProcessor(self,ly if ly else gp,ep,fd,td,sc,dc,cq,uc)
+    tp = TransferProcessor(None,ly if ly else gp,ep,fd,td,sc,dc,cq,uc)
 
     #output format
     if len(args)==0:

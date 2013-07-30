@@ -35,8 +35,6 @@ from ProjectionReference import Projection
 from ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
 
-from threading import Thread
-
 ldslog = logging.getLogger('LDS')
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
 ogr.UseExceptions()
@@ -405,15 +403,15 @@ class DataStore(object):
             #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
             layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
             
-            dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
+            self.dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
             
-            ldslog.info("Dest layer: "+dst_info.layer_id)
+            ldslog.info("Dest layer: "+self.dst_info.layer_id)
             
             '''parse discard columns'''
             self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
 
             #MSSQL doesn't like schema specifiers
-            tableonly = dst_info.layer_name.split('.')[-1]
+            tableonly = self.dst_info.layer_name.split('.')[-1]
             try:
                 dst_layer = dst_ds.GetLayer(tableonly)#dst_info.layer_name)
             except RuntimeError as rer:
@@ -423,15 +421,15 @@ class DataStore(object):
   
             #NB. this has been modified since replacing 'clean' with 'truncate' since a layer may now exist when creating a layer from scratch
             if dst_layer is None:
-                ldslog.warning("Non-Incremental layer ["+dst_info.layer_id+"] request. Creating layer")
+                ldslog.warning("Non-Incremental layer ["+self.dst_info.layer_id+"] request. Creating layer")
                 '''create a new layer if a similarly named existing layer can't be found on the dst'''
                 src_info.spatial_ref = src_layer.GetSpatialRef()
                 src_info.geometry = src_layer.GetGeomType()
                 src_info.layer_defn = src_layer.GetLayerDefn()
                 #transforms from SRC to DST sref if user requests a different EPSG, otherwise SRC returned unchanged
-                dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
+                self.dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
                 
-                (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
+                (dst_layer,is_new) = self.buildNewDestinationLayer(self.dst_info,src_info,dst_ds)
                 
 
             if  dst_layer.TestCapability('Transactions') and self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
@@ -470,7 +468,7 @@ class DataStore(object):
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has replicated at least 1 feat'''
             #May need to be pushed out to subclasses depending on syntax differences
             if is_new and (layerconfentry.gcol or layerconfentry.pkey) and self.dst_change_count>0:
-                self.buildIndex(layerconfentry,dst_info.layer_name)
+                self.buildIndex(layerconfentry,self.dst_info.layer_name)
                 
             if transaction_flag:
                 try:
@@ -508,15 +506,15 @@ class DataStore(object):
             #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
             layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
             
-            dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
+            self.dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
 
-            ldslog.info("Dest layer: "+dst_info.layer_id)
+            ldslog.info("Dest layer: "+self.dst_info.layer_id)
             
             '''parse discard columns'''
             self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
             
             try:
-                tableonly = dst_info.layer_name.split('.')[-1]
+                tableonly = self.dst_info.layer_name.split('.')[-1]
                 if layerconfentry.lmod:
                     #if the layer conf had a lastmodified don't overwrite
                     dst_layer = dst_ds.GetLayer(tableonly)#dst_info.layer_name)
@@ -525,8 +523,8 @@ class DataStore(object):
                     src_info.spatial_ref = src_layer.GetSpatialRef()
                     src_info.geometry = src_layer.GetGeomType()
                     src_info.layer_defn = src_layer.GetLayerDefn()
-                    dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
-                    (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info, src_info, dst_ds)
+                    self.dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
+                    (dst_layer,is_new) = self.buildNewDestinationLayer(self.dst_info, src_info, dst_ds)
             except RuntimeError as rer:
                 '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
                 ldslog.warning("Runtime Error fetching layer. "+str(rer))
@@ -534,14 +532,14 @@ class DataStore(object):
                 
             if dst_layer is None:
                 #with or without a lmod its still possible the layer doesn't exist or cannot be read
-                ldslog.warning(dst_info.layer_id+" does not exist. Creating new layer")
+                ldslog.warning(self.dst_info.layer_id+" does not exist. Creating new layer")
                 '''create a new layer if a similarly named existing layer can't be found on the dst'''
                 src_info.spatial_ref = src_layer.GetSpatialRef()
                 src_info.geometry = src_layer.GetGeomType()
                 src_info.layer_defn = src_layer.GetLayerDefn()
-                dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
+                self.dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
                 
-                (dst_layer,is_new) = self.buildNewDestinationLayer(dst_info,src_info,dst_ds)
+                (dst_layer,is_new) = self.buildNewDestinationLayer(self.dst_info,src_info,dst_ds)
                 
                 if dst_layer is None:
                     #if its still none, bail (and don't bother with re-attempt)
@@ -623,7 +621,7 @@ class DataStore(object):
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
             #Ordinarily pushed out to subclasses depending on syntax differences
             if is_new and (layerconfentry.gcol or layerconfentry.pkey) and self.dst_change_count>0:
-                self.buildIndex(layerconfentry,dst_info.layer_name)
+                self.buildIndex(layerconfentry,self.dst_info.layer_name)
                 
             if transaction_flag:
                 try:
@@ -1112,13 +1110,15 @@ class DataStore(object):
         return search_layer.GetNextFeature()
            
     def formatWhereClause(self,ref_pkey,key_val):
-        return "{0} = '{1}'".format(ref_pkey,key_val)
+        fstr = "{0} = {1}" if isinstance(key_val,int) or re.search('^\d+$',str(key_val)) else "{0} = '{1}'"
+        return fstr.format(ref_pkey,key_val)
     
     def _findMatchingFeature(self,search_layer,ref_pkey,key_val):
         '''Find the Feature matching a primary key value'''
         matching_feature = None
         try:
             where = self.formatWhereClause(ref_pkey, key_val)
+            print '>>>'+str(search_layer.GetName())+':'+str(where)
             search_layer.SetAttributeFilter(where)
             #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error". 
             #NB. Since we're resetting the DST layer it has no affect on the SRC read order, just starts the FID search from the beginning  
@@ -1200,30 +1200,3 @@ class LayerInfo(object):
     def setLCE(self,lce):
         self.lce = lce
         
-#now that groups have been added it might be better to move this to TP class to save re initialisation at each layer
-#class ProgressTimer(Thread):
-#    def __init__(self,ds):
-#        self.stopped = False
-#        self.ds = ds
-#        Thread.__init__(self)
-#
-#    def run(self):
-#        while not self.stopped:
-#            self.poll()
-#            time.sleep(self.ds.POLL_INTERVAL)
-#
-#    def poll(self):
-#        feat_part = 100*float(self.ds.dst_change_count)/(float(self.ds.src_feat_count)*float(self.ds.parent.layer_total)) if self.ds.src_feat_count and self.ds.parent.layer_total else 0
-#        layer_part = 100*float(self.ds.parent.layer_count)/float(self.ds.parent.layer_total) if self.ds.parent.layer_total else 0
-#        self.report(feat_part+layer_part)
-#        print 'poll count : fc='+str(self.ds.dst_change_count)+'/'+str(self.ds.src_feat_count)+'; lc='+str(self.ds.parent.layer_count)+'/'+str(self.ds.parent.layer_total)
-#        print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
-#        print 'poll total : tt='+str(int(feat_part+layer_part))
-#        
-#    def report(self,pct):
-#        #       tp     cc     repl   con
-#        self.ds.parent.parent.parent.controls.setProgress(pct)
-#        
-#    def join(self,timeout=None):
-#        self.stopped = True
-#        Thread.join(self,timeout)

@@ -36,7 +36,7 @@ from lds.ReadConfig import GUIPrefsReader, MainFileReader, LayerFileReader,Layer
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 from lds.gui.LayerConfigSelector import LayerConfigSelector
-from lds.gui.ConfigConnector import ConfigConnector
+from lds.gui.ConfigConnector import ConfigConnector, ProcessRunner
 
 from lds.DataStore import DataStore, MalformedConnectionString
 
@@ -405,24 +405,22 @@ class LDSControls(QFrame):
         
         self.setLayout(vbox)  
        
-    def setProgress(self,pct):
-        self.progressBar.setValue(pct)
+    #def setProgress(self,pct):
+    #    self.progressBar.setValue(pct)
         
     def setStatus(self,status,message='',tooltip=None):
         '''Sets indicator icon and statusbar message'''
         self.parent.statusbar.showMessage(message)
         self.parent.statusbar.setToolTip(tooltip if tooltip else '')
         
-        visibility = True#False
-        progress = 0
+        pgbvis = False
         if status is self.STATUS.ERROR:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[3]))
         elif status is self.STATUS.BUSY:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[2]))
-            visibility = True
+            pgbvis = True
         elif status is self.STATUS.CLEAN:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[1]))
-            visibility = True
         elif status is self.STATUS.IDLE:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[0]))
         else:
@@ -430,8 +428,8 @@ class LDSControls(QFrame):
             return
         
         #progress
-        self.progressBar.setVisible(visibility)
-        self.progressBar.setValue(progress)
+        self.progressBar.setVisible(pgbvis)
+        #if pgbvis: self.progressBar.setValue(progress)
         
         #icon
         anim = QMovie(loc, QByteArray(), self)
@@ -584,6 +582,7 @@ class LDSControls(QFrame):
         try:
             try:
                 self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')  
+                self.progressBar.setValue(0)
                 self.parent.runLayerConfigAction()
             finally:
                 self.setStatus(self.STATUS.IDLE,'Ready')
@@ -597,9 +596,11 @@ class LDSControls(QFrame):
         try:
             try:
                 self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
+                self.progressBar.setValue(0)
                 self.runReplicationScript(True)
             finally:
-                self.setStatus(self.STATUS.IDLE,'Clean of '+lgo+' complete')
+                pass
+                #self.setStatus(self.STATUS.IDLE,'Clean of '+lgo+' complete')
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Clean of '+lgo,str(e))
         #self.setStatus(self.STATUS.IDLE,'Clean '+lgo+' Complete')
@@ -610,9 +611,11 @@ class LDSControls(QFrame):
         try:
             try:
                 self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
+                self.progressBar.setValue(0)
                 self.runReplicationScript(False)
             finally:
-                self.setStatus(self.STATUS.IDLE,'Replication of '+lgo+' complete')
+                pass
+                #self.setStatus(self.STATUS.IDLE,'Replication of '+lgo+' complete')
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Replication of '+lgo,str(e))
         
@@ -665,9 +668,8 @@ class LDSControls(QFrame):
         #begin main process
         
         #self.parent.confconn.tp.processLDS(self.parent.confconn.tp.initDestination(destination_driver))
-        #experiment
-        from ConfigConnector import TPRunner
-        self.tpr = TPRunner(self.parent.confconn)
+        #Open ProcessRunner and run with TP(proc)/self(gui) instances
+        self.tpr = ProcessRunner(self)
         self.tpr.start()
 
         #self.setStatus(self.STATUS.IDLE,('Clean' if clean else 'Replicate')+' Complete')
