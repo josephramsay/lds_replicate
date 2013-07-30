@@ -22,9 +22,6 @@ import osr
 import gdal
 import re
 import logging
-import string
-import time
-import math
 
 #from osr import CoordinateTransformation
 from datetime import datetime
@@ -1118,7 +1115,7 @@ class DataStore(object):
         matching_feature = None
         try:
             where = self.formatWhereClause(ref_pkey, key_val)
-            print '>>>'+str(search_layer.GetName())+':'+str(where)
+            #print '>>>'+str(search_layer.GetName())+':'+str(where)
             search_layer.SetAttributeFilter(where)
             #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error". 
             #NB. Since we're resetting the DST layer it has no affect on the SRC read order, just starts the FID search from the beginning  
@@ -1133,9 +1130,6 @@ class DataStore(object):
             search_layer.SetAttributeFilter(None)
             
         return matching_feature
-        
-            
-            
             
 # static utility methods
     

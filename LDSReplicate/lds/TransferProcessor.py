@@ -338,7 +338,7 @@ class TransferProcessor(object):
                         nonincr = True
                 else:
                     ldslog.warning("No update required for layer "+each_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
-                    return
+                    continue
             else:
                 nonincr = True
             #--------------------------------------------------    

@@ -208,13 +208,19 @@ class ProgressTimer(QThread):
 
     def poll(self):
         '''Calculate progress. Bypass if denominators are zero'''
-        if self.tp.dst.src_feat_count and self.tp.layer_total:
-            feat_part = 100*float(self.tp.dst.dst_change_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.dst.parent.layer_total))
+        feat_part = 0
+        layer_part = 0
+        layer_name = ''
+        if self.tp.layer_total:
             layer_part = 100*float(self.tp.layer_count)/float(self.tp.layer_total)
-            self.report(int(feat_part+layer_part),self.tp.dst.dst_info.layer_name)
-            #print 'poll count : fc='+str(self.tp.dst.dst_change_count)+'/'+str(self.tp.dst.src_feat_count)+'; lc='+str(self.tp.layer_count)+'/'+str(self.tp.layer_total)
-            #print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
-            #print 'poll total : tt='+str(int(feat_part+layer_part))
+            if self.tp.dst.src_feat_count:
+                feat_part = 100*float(self.tp.dst.dst_change_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.layer_total))
+        if hasattr(self.tp.dst,'dst_info'):
+            layer_name = self.tp.dst.dst_info.layer_name
+        self.report(int(feat_part+layer_part),layer_name)
+        #print 'poll count : fc='+str(self.tp.dst.dst_change_count)+'/'+str(self.tp.dst.src_feat_count)+'; lc='+str(self.tp.layer_count)+'/'+str(self.tp.layer_total)
+        #print 'poll pct   : fp='+str(feat_part)+'; lp='+str(layer_part)
+        #print 'poll total : tt='+str(int(feat_part+layer_part))
         
     def report(self,pct,lyr=None):
         #    tp cc     repl   con
