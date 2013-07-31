@@ -22,7 +22,7 @@ import json
 import ogr
 import gdal
 
-from ConfigParser import ConfigParser, NoSectionError, NoOptionError, Error
+from ConfigParser import ConfigParser, NoSectionError, NoOptionError, ParsingError,  Error
 from LDSUtilities import LDSUtilities as LU
 
 
@@ -633,7 +633,11 @@ class LayerFileReader(LayerReader):
     def _readConfigFile(self,fname):
         '''Reads named config file'''
         #Split off so you can override the config file on the same reader object if needed
-        self.cp.read(fname)  
+        try:
+            self.cp.read(fname)
+        except ParsingError as pe:
+            ldslog.error('{0} file corrupt. Please correct the error; {1} OR delete and rebuild'.format(fname,str(pe)))
+            raise
     
     @override(LayerReader)
     def findLayerIdByName(self,name):

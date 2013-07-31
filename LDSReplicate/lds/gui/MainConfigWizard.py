@@ -413,7 +413,7 @@ class PostgreSQLConfigPage(QWizardPage):
             return False
         cs = PG.buildConnStr(self.hostEdit.text(),self.portEdit.text(),self.dbnameEdit.text(),
                             self.schemaEdit.text(),self.usrEdit.text(),self.pwdEdit.text())
-        pg = PG(cs)
+        pg = PG(None,cs)
         pg.applyConfigOptions()
         try:
             pg.ds = pg.initDS(pg.destinationURI(None),False)
@@ -515,7 +515,7 @@ class MSSQLSpatialConfigPage(QWizardPage):
             return False
         cs = MS.buildConnStr(self.serverEdit.text(),self.dbnameEdit.text(),self.schemaEdit.text(),
                             'yes' if self.trustCheckBox.isChecked() else 'no',self.usrEdit.text(),self.pwdEdit.text())
-        ms = MS(cs)
+        ms = MS(None,cs)
         ms.applyConfigOptions()
         try:
             ms.initDS(ms.destinationURI(None),False)
@@ -600,7 +600,7 @@ class FileGDBConfigPage(QWizardPage):
         if not self.fileEdit.isModified() and not self.text_entered:
             return False
         
-        fg = FG(str(self.fileEdit.text()))
+        fg = FG(None,str(self.fileEdit.text()))
         fg.applyConfigOptions()
         try:
             fg.initDS(fg.destinationURI(None),True)
@@ -677,7 +677,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         if not self.fileEdit.isModified() and not self.text_entered:
             return False
         
-        sl = SL(str(self.fileEdit.text()))
+        sl = SL(None,str(self.fileEdit.text()))
         sl.applyConfigOptions()
         try:
             sl.initDS(sl.destinationURI(None),True)
