@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSReplicate -  ldsrepl
+LDSReplicate -  LDSGUI
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -23,7 +23,7 @@ from PyQt4.QtGui import (QApplication, QProgressBar, QLabel,
                          QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
 from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, 
-                          QTimer, QEventLoop, QThread)
+                          QTimer, QEventLoop, QThread, QSize)
 
 import os
 import re
@@ -130,7 +130,7 @@ class LDSRepl(QMainWindow):
         self.confconn = ConfigConnector(self,self.gvs[2],self.gvs[1],self.gvs[0])
         
     def launchUCEditor(self, checked=None):
-        fn = LDSUtilities.standardiseUserConfigName(str(self.controls.confcombo.lineEdit().text()))
+        fn = LDSUtilities.standardiseUserConfigName(str(self.controls.cflist[self.controls.confcombo.currentIndex()]))
         prefs = LDSPrefsEditor(fn,self)
         prefs.setWindowTitle('LDS Preferences Editor (User Config)')
         prefs.show()    
@@ -198,15 +198,18 @@ class LDSRepl(QMainWindow):
 class LDSControls(QFrame):
         
     STATIC_IMG = ('linz_static.png','clean_static.png','busy_static.png','error_static.png')
-    ANIM_IMG = ('linz.gif','clean.gif','busy.gif','error.gif')
-    IMG = STATIC_IMG
+    ANIM_IMG   = ('linz.gif','clean.gif','busy.gif','error.gif')
+    IMG = ANIM_IMG
+    
+    IMG_SPEED  = 100
+    IMG_WIDTH  = 64
+    IMG_HEIGHT = 64
     
     MAX_WD = 450
     
     GD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data'))
     STATUS = LDSUtilities.enum('ERROR','IDLE','BUSY','CLEAN')
     
-    #GD_PATH = os.path.abspath('/home/jramsay/temp/ldsreplicate_builddir/32/bin/gdal/gdal-data/')
     def __init__(self,parent):
         super(LDSControls, self).__init__()
         self.parent = parent
@@ -421,6 +424,7 @@ class LDSControls(QFrame):
             pgbvis = True
         elif status is self.STATUS.CLEAN:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[1]))
+            pgbvis = True
         elif status is self.STATUS.IDLE:
             loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[0]))
         else:
@@ -433,8 +437,9 @@ class LDSControls(QFrame):
         
         #icon
         anim = QMovie(loc, QByteArray(), self)
+        anim.setScaledSize(QSize(self.IMG_WIDTH,self.IMG_HEIGHT))
         anim.setCacheMode(QMovie.CacheAll)
-        anim.setSpeed(50)
+        anim.setSpeed(self.IMG_SPEED)
         self.view.clear()
         self.view.setMovie(anim)
         anim.start()
@@ -593,14 +598,11 @@ class LDSControls(QFrame):
     def doCleanClickAction(self):
         '''Set clean anim and run clean'''
         lgo = str(self.lgcombo.currentText())
+        
         try:
-            try:
-                self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
-                self.progressBar.setValue(0)
-                self.runReplicationScript(True)
-            finally:
-                pass
-                #self.setStatus(self.STATUS.IDLE,'Clean of '+lgo+' complete')
+            self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
+            self.progressBar.setValue(0)
+            self.runReplicationScript(True)
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Clean of '+lgo,str(e))
         #self.setStatus(self.STATUS.IDLE,'Clean '+lgo+' Complete')
@@ -609,13 +611,9 @@ class LDSControls(QFrame):
         '''Set busy anim and run repl'''
         lgo = str(self.lgcombo.currentText())
         try:
-            try:
-                self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
-                self.progressBar.setValue(0)
-                self.runReplicationScript(False)
-            finally:
-                pass
-                #self.setStatus(self.STATUS.IDLE,'Replication of '+lgo+' complete')
+            self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
+            self.progressBar.setValue(0)
+            self.runReplicationScript(False)
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Replication of '+lgo,str(e))
         
@@ -669,10 +667,9 @@ class LDSControls(QFrame):
         
         #self.parent.confconn.tp.processLDS(self.parent.confconn.tp.initDestination(destination_driver))
         #Open ProcessRunner and run with TP(proc)/self(gui) instances
+        
         self.tpr = ProcessRunner(self)
         self.tpr.start()
-
-        #self.setStatus(self.STATUS.IDLE,('Clean' if clean else 'Replicate')+' Complete')
 
         
     def userConfMessage(self,uconf,secname=None):
@@ -804,7 +801,6 @@ class LDSPrefsFrame(QFrame):
         
         self.setLayout(vbox)  
 
-    
 def main():
 
     app = QApplication(sys.argv)

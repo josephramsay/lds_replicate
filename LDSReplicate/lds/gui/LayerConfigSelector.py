@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSReplicate -  ldsrepl
+LDSReplicate -  LayerConfigSelector
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.

@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSReplicate -  ldsrepl
+LDSReplicate -  ConfigConnector
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -158,32 +158,38 @@ class ConfigConnector(object):
     
 #from threading import Thread
 from PyQt4.QtCore import QThread, Qt
+from PyQt4 import QtCore
 
 class ProcessRunner(QThread):
+    
+    stsly = QtCore.pyqtSignal(int,str,str)
+    
     def __init__(self,controls):
         QThread.__init__(self)
         self.controls = controls
         self.tp = controls.parent.confconn.tp
         self.dst = controls.parent.confconn.dst
+        #error notification
+        self.stsly.connect(self.controls.setStatus, Qt.QueuedConnection)
+
         
     def run(self):
         pt = ProgressTimer(self.controls)
         try:
-            pt.start()
-            self.tp.processLDS(self.dst)
-        finally:
-            #die progress counter
-            pt.join()
-            pt = None
+            try:
+                pt.start()
+                self.tp.processLDS(self.dst)
+            finally:
+                #die progress counter
+                pt.join()
+                pt = None
+        except Exception as e:
+            self.stsly.emit(0,'Error. Halting Processing',str(e))
         
     def join(self,timeout=None):
         QThread.join(self,timeout)
         
-
-        
-
-from PyQt4 import QtCore
-#can't imprt enum directly, have to refer to them with index
+#can't imprt enum directly!? have to refer to them by index
 #'ERROR'=0,'IDLE'=1,'BUSY'=2,'CLEAN'=3
 #from lds.gui.LDSGUI.LDSControls import STATUS
 

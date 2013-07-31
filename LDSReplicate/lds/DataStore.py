@@ -549,7 +549,6 @@ class DataStore(object):
                 transaction_flag = False
                 ldslog.warn('Attempting replicate without transactions')
 
-            
             #add/copy features
             insert_count, delete_count, update_count = 0,0,0
             self.dst_change_count = 0
