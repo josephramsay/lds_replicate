@@ -46,15 +46,6 @@ HCOLS = 2
 
 class LayerConfigSelector(QMainWindow):
     STEP = LDSUtilities.enum('PRE','POST')
-    
-    testdata = [('v:x845', '12 Mile Territorial Sea Limit Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries','TESTSELECT']), 
-                ('v:x846', '12 Mile Territorial Sea Outer Limit', ['New Zealand', 'Hydrographic &  Maritime', 'Maritime Boundaries']), 
-                ('v:x842', '200 Mile Exclusive Economic Zone Outer Limits', ['New  Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
-                ('v:x844', '24 Mile Contiguous Zone  Basepoints', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
-                ('v:x843', '24 Mile  Contiguous Zone Outer Limits', ['New Zealand', 'Hydrographic & Maritime', 'Maritime Boundaries']), 
-                ('v:x1198', 'ASP: Check Combination', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','TESTSELECT']), 
-                ('v:x1199', 'ASP: GED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index']), 
-                ('v:x1202', 'ASP:  MED Codes', ['New Zealand', 'Roads and Addresses', 'Street and Places Index','TESTSELECT'])] 
 
     #def __init__(self,tp,uconf,group,dest='PostgreSQL',parent=None):
     def __init__(self,parent=None):
@@ -74,7 +65,6 @@ class LayerConfigSelector(QMainWindow):
         
         self.page = LayerSelectionPage(self)
         self.setCentralWidget(self.page)
-
 
         self.setWindowTitle("LDS Layer Selection")
         self.resize(725,480)
@@ -121,7 +111,6 @@ class LayerConfigSelector(QMainWindow):
         self.parent.confconn.buildLGList()   
         #self.refreshLayers(customkey)
         return self.selection_model.rowCount()
-        
     
     @staticmethod
     def splitData(keyword,complete):
@@ -158,7 +147,10 @@ class LayerConfigSelector(QMainWindow):
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
             self.parent.controls.refreshLGCombo()
             self.parent.controls.lgcombo.setCurrentIndex(lgindex)
-        self.close()
+
+        ##super(LayerConfigSelector,self).closeEvent(event)
+        #self.close()
+
     
 class LayerTableModel(QAbstractTableModel):
     #NB. There dont need to be any row/col inserts but will need to add keyword (selecting a layer  = adding user-custom tag)
@@ -304,7 +296,7 @@ class LayerSelectionPage(QFrame):
         #operation buttons        
         finishbutton = QPushButton('Finish')
         finishbutton.setToolTip('Finish and Close layer selection dialog')
-        finishbutton.clicked.connect(self.parent.close) 
+        finishbutton.clicked.connect(self.parent.close)
         
         resetbutton = QPushButton('Reset')
         resetbutton.font()
@@ -436,7 +428,7 @@ class LayerSelectionPage(QFrame):
             self.setLayout(vbox3)
         except Exception as e:
             print e
-        
+
             
     def doChooseAllClickAction(self):
         '''Moves the lot to Selected'''
@@ -561,6 +553,7 @@ class LayerSelectionPage(QFrame):
             return False
         return True
     
+        
 class LDSSortFilterProxyModel(QSortFilterProxyModel):
     def __init__(self, parent=None):
         super(LDSSortFilterProxyModel, self).__init__(parent)
@@ -650,11 +643,11 @@ class LDSSFPAvailableModel(LDSSortFilterProxyModel):
     
 def main():
     #when called from the CL need to init main UI
-    from lds.gui.LDSGUI import LDSRepl
+    from lds.gui.LDSGUI import LDSMain
     #func to call config wizz
     app = QApplication(sys.argv)
 
-    ldsc = LayerConfigSelector(LDSRepl())
+    ldsc = LayerConfigSelector(LDSMain())
     ldsc.show()
     sys.exit(app.exec_()) 
     

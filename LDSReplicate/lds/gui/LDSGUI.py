@@ -44,7 +44,7 @@ ldslog = LDSUtilities.setupLogging()
 
 __version__ = AppVersion.getVersion()
 
-class LDSRepl(QMainWindow):
+class LDSMain(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
     
     HELPFILE = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
@@ -52,7 +52,7 @@ class LDSRepl(QMainWindow):
     DEF_RVALS = ('','','','2193','','')
     
     def __init__(self):
-        super(LDSRepl, self).__init__()
+        super(LDSMain, self).__init__()
         
         self.layers = None
         self.groups = None
@@ -136,7 +136,7 @@ class LDSRepl(QMainWindow):
         prefs.show()    
         
     def launchLCEditor(self, checked=None):
-        fn = LDSUtilities.standardiseLayerConfigName(str(self.controls.destmenulist[self.controls.destmenu.currentIndex()]))
+        fn = LDSUtilities.standardiseLayerConfigName(str(self.controls.destlist[self.controls.destcombo.currentIndex()]))
         prefs = LDSPrefsEditor(fn,self)
         prefs.setWindowTitle('LDS Preferences Editor (Layer Config)')
         prefs.show()
@@ -156,7 +156,7 @@ class LDSRepl(QMainWindow):
         self.controls.setStatus(self.controls.STATUS.BUSY,'Opening User-Config Wizard')  
         #rather than readparams
         uconf = self.controls.confcombo.itemText(self.controls.confcombo.currentIndex())
-        secname = self.controls.destmenu.itemText(self.controls.destmenu.currentIndex())
+        secname = self.controls.destcombo.itemText(self.controls.destcombo.currentIndex())
         self.statusbar.showMessage('Editing User-Config')
         self.runWizardDialog(uconf, secname)
         
@@ -165,6 +165,7 @@ class LDSRepl(QMainWindow):
         from lds.gui.MainConfigWizard import LDSConfigWizard
         ldscw = LDSConfigWizard(uconf,secname,self)
         ldscw.exec_()
+        ldscw = None
         
     
     def runLayerConfigAction(self):
@@ -197,8 +198,8 @@ class LDSRepl(QMainWindow):
         
 class LDSControls(QFrame):
         
-    STATIC_IMG = ('linz_static.png','clean_static.png','busy_static.png','error_static.png')
-    ANIM_IMG   = ('linz.gif','clean.gif','busy.gif','error.gif')
+    STATIC_IMG = ('error_static.png','linz_static.png','busy_static.png','clean_static.png')
+    ANIM_IMG   = ('error.gif','linz.gif','busy.gif','clean.gif')
     IMG = ANIM_IMG
     
     IMG_SPEED  = 100
@@ -281,11 +282,11 @@ class LDSControls(QFrame):
         self.epsgcombo.setEditable(True)
         self.epsgcombo.setEnabled(False)
         
-        self.destmenulist = self.getConfiguredDestinations()
-        self.destmenu = QComboBox(self)
-        self.destmenu.setToolTip('Choose the desired output type')   
-        self.destmenu.setEditable(False)
-        self.destmenu.addItems(self.destmenulist)
+        self.destlist = self.getConfiguredDestinations()
+        self.destcombo = QComboBox(self)
+        self.destcombo.setToolTip('Choose the desired output type')   
+        self.destcombo.setEditable(False)
+        self.destcombo.addItems(self.destlist)
 
         #date selection
         self.fromDateEdit = QDateEdit()
@@ -337,7 +338,8 @@ class LDSControls(QFrame):
         self.updateGUIValues(self.parent.gvs)
         
         #set onchange here otherwise we get circular initialisation
-        self.destmenu.currentIndexChanged.connect(self.doDestChanged)
+        self.destcombo.currentIndexChanged.connect(self.doDestChanged)
+        self.confcombo.currentIndexChanged.connect(self.doConfChanged)
 
         self.setStatus(self.STATUS.IDLE)
         
@@ -347,19 +349,19 @@ class LDSControls(QFrame):
         
         
         #placement section ------------------------------------
-        
-        #-------------+-----------------
-        #   dst label |    dst dropdown
-        # layer label |  layer dropdown
-        # ...
-        #-------------+--+------+-------
-        #           opt1 | opt2 | opt...
-        #----------------+-----+-+------
-        #                   ok | cancel
-        #----------------------+--------
+        #---------+---------+--------+---------+--------
+        # dest LB           | dest DD
+        # grp LB            | grp DD
+        # conf LB           | conf DD
+        # epsg L  | epsg CB | epsg DD
+        # f dt L  | f dt CB | f dt DD
+        # t td L  | t td CB | t td DD
+        # icon    |       <- progress ->
+        # layer B | <- . -> |repl B  | clean B | close B 
+        #---------+---------+--------+---------+--------
 
         grid.addWidget(destLabel, 1, 0)
-        grid.addWidget(self.destmenu, 1, 2)
+        grid.addWidget(self.destcombo, 1, 2)
 
         #grid.addWidget(layerLabel, 2, 0)
         grid.addWidget(lgLabel, 2, 0)
@@ -405,7 +407,6 @@ class LDSControls(QFrame):
         vbox.addLayout(hbox3)
         vbox.addLayout(hbox4)
         
-        
         self.setLayout(vbox)  
        
     #def setProgress(self,pct):
@@ -415,25 +416,10 @@ class LDSControls(QFrame):
         '''Sets indicator icon and statusbar message'''
         self.parent.statusbar.showMessage(message)
         self.parent.statusbar.setToolTip(tooltip if tooltip else '')
-        
-        pgbvis = False
-        if status is self.STATUS.ERROR:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[3]))
-        elif status is self.STATUS.BUSY:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[2]))
-            pgbvis = True
-        elif status is self.STATUS.CLEAN:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[1]))
-            pgbvis = True
-        elif status is self.STATUS.IDLE:
-            loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[0]))
-        else:
-            ldslog.warn('Unknown Status')
-            return
-        
+
         #progress
-        self.progressBar.setVisible(pgbvis)
-        #if pgbvis: self.progressBar.setValue(progress)
+        loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[status]))
+        self.progressBar.setVisible(status in (self.STATUS.BUSY, self.STATUS.CLEAN))
         
         #icon
         anim = QMovie(loc, QByteArray(), self)
@@ -483,9 +469,16 @@ class LDSControls(QFrame):
     
     def doDestChanged(self):
         '''Read the destname parameter and fill dialog with matching GPR values'''
-        rdest = str(self.destmenulist[self.destmenu.currentIndex()])
+        rdest = str(self.destlist[self.destcombo.currentIndex()])
         rvals = self.gprParameters(rdest)
-        self.updateGUIValues([rdest]+rvals)
+        self.updateGUIValues([rdest]+rvals)    
+        
+    def doConfChanged(self):
+        '''Read the destname parameter and fill dialog with matching GPR values'''
+        rdest = str(self.destlist[self.destcombo.currentIndex()])
+        rlg,_,rep,rfd,rtd = self.gprParameters(rdest)
+        ruc = str(self.cflist[self.confcombo.currentIndex()])
+        self.updateGUIValues((rdest,rlg,ruc,rep,rfd,rtd))
         
     def updateGUIValues(self,readlist):
         '''Fill dialog values from provided list'''
@@ -495,8 +488,8 @@ class LDSControls(QFrame):
         
         #Destination Menu
         selecteddest = LDSUtilities.standardiseDriverNames(rdest)
-        destindex = self.destmenulist.index(selecteddest) if selecteddest else 0
-        self.destmenu.setCurrentIndex(destindex)
+        destindex = self.destlist.index(selecteddest) if selecteddest else 0
+        self.destcombo.setCurrentIndex(destindex)
         
         #InitButton
         #ilabel = self.getInitLabel(selecteddest)
@@ -565,7 +558,7 @@ class LDSControls(QFrame):
           
     def readParameters(self):
         '''Read values out of dialogs'''
-        destination = LDSUtilities.mightAsWellBeNone(str(self.destmenulist[self.destmenu.currentIndex()]))
+        destination = LDSUtilities.mightAsWellBeNone(str(self.destlist[self.destcombo.currentIndex()]))
         lgindex = self.parent.confconn.getLGIndex(str(self.lgcombo.currentText()))
         #NB need to test for None explicitly since zero is a valid index
         lgval = self.parent.confconn.lglist[lgindex][1] if LDSUtilities.mightAsWellBeNone(lgindex) is not None else None       
@@ -583,7 +576,6 @@ class LDSControls(QFrame):
     
     def doInitClickAction(self):
         '''Initialise the LC on LC-button-click, action'''
-        #self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')
         try:
             try:
                 self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')  
@@ -593,7 +585,6 @@ class LDSControls(QFrame):
                 self.setStatus(self.STATUS.IDLE,'Ready')
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Error in Layer-Config',str(e))
-        #self.setStatus(self.STATUS.IDLE,'Editing Layer-Config')
         
     def doCleanClickAction(self):
         '''Set clean anim and run clean'''
@@ -605,7 +596,6 @@ class LDSControls(QFrame):
             self.runReplicationScript(True)
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Clean of '+lgo,str(e))
-        #self.setStatus(self.STATUS.IDLE,'Clean '+lgo+' Complete')
         
     def doReplicateClickAction(self):
         '''Set busy anim and run repl'''
@@ -616,8 +606,6 @@ class LDSControls(QFrame):
             self.runReplicationScript(False)
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Replication of '+lgo,str(e))
-        
-        #self.setStatus(self.STATUS.IDLE,'Replicate '+lgo+' Complete')
 
     def runReplicationScript(self,clean=False):
         '''Run the layer/group repliction script'''
@@ -693,7 +681,7 @@ class LDSControls(QFrame):
         if not lcans:
             #Retry
             ldslog.warn('Retry specifying LC')
-            self.destmenu.setCurrentIndex(0)
+            self.destcombo.setCurrentIndex(0)
             return
         #Init
         ldslog.warn('Reset Layer Config')
@@ -804,7 +792,7 @@ class LDSPrefsFrame(QFrame):
 def main():
 
     app = QApplication(sys.argv)
-    lds = LDSRepl()
+    lds = LDSMain()
     lds.show()
     sys.exit(app.exec_())
     

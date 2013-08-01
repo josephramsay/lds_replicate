@@ -27,17 +27,15 @@ import sys
 import os
 
 from lds.DataStore import DSReaderException,DatasourcePrivilegeException
-from lds.TransferProcessor import TransferProcessor
-from lds.LDSDataStore import LDSDataStore
 from lds.WFSDataStore import WFSDataStore
 from lds.ReadConfig import GUIPrefsReader, MainFileReader
 from lds.LDSUtilities import LDSUtilities
 from lds.VersionUtilities import AppVersion
 
-from lds.PostgreSQLDataStore import PostgreSQLDataStore as PG
-from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore as MS
-from lds.FileGDBDataStore import FileGDBDataStore as FG
-from lds.SpatiaLiteDataStore import SpatiaLiteDataStore as SL
+from lds.PostgreSQLDataStore import PostgreSQLDataStore
+from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore
+from lds.FileGDBDataStore import FileGDBDataStore
+from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
 
 
 ldslog = LDSUtilities.setupLogging()
@@ -411,9 +409,9 @@ class PostgreSQLConfigPage(QWizardPage):
         if not any(f for f in (self.hostEdit.isModified(),self.portEdit.isModified(),self.dbnameEdit.isModified(),
                                self.schemaEdit.isModified(),self.usrEdit.isModified(),self.pwdEdit.isModified())):
             return False
-        cs = PG.buildConnStr(self.hostEdit.text(),self.portEdit.text(),self.dbnameEdit.text(),
+        cs = PostgreSQLDataStore.buildConnStr(self.hostEdit.text(),self.portEdit.text(),self.dbnameEdit.text(),
                             self.schemaEdit.text(),self.usrEdit.text(),self.pwdEdit.text())
-        pg = PG(None,cs)
+        pg = PostgreSQLDataStore(None,cs)
         pg.applyConfigOptions()
         try:
             pg.ds = pg.initDS(pg.destinationURI(None),False)
@@ -513,9 +511,9 @@ class MSSQLSpatialConfigPage(QWizardPage):
         if not any(f for f in (self.serverEdit.isModified(),self.dbnameEdit.isModified(),self.schemaEdit.isModified(),
                                self.usrEdit.isModified(),self.pwdEdit.isModified())):
             return False
-        cs = MS.buildConnStr(self.serverEdit.text(),self.dbnameEdit.text(),self.schemaEdit.text(),
+        cs = MSSQLSpatialDataStore.buildConnStr(self.serverEdit.text(),self.dbnameEdit.text(),self.schemaEdit.text(),
                             'yes' if self.trustCheckBox.isChecked() else 'no',self.usrEdit.text(),self.pwdEdit.text())
-        ms = MS(None,cs)
+        ms = MSSQLSpatialDataStore(None,cs)
         ms.applyConfigOptions()
         try:
             ms.initDS(ms.destinationURI(None),False)
@@ -600,7 +598,7 @@ class FileGDBConfigPage(QWizardPage):
         if not self.fileEdit.isModified() and not self.text_entered:
             return False
         
-        fg = FG(None,str(self.fileEdit.text()))
+        fg = FileGDBDataStore(None,str(self.fileEdit.text()))
         fg.applyConfigOptions()
         try:
             fg.initDS(fg.destinationURI(None),True)
@@ -677,7 +675,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         if not self.fileEdit.isModified() and not self.text_entered:
             return False
         
-        sl = SL(None,str(self.fileEdit.text()))
+        sl = SpatiaLiteDataStore(None,str(self.fileEdit.text()))
         sl.applyConfigOptions()
         try:
             sl.initDS(sl.destinationURI(None),True)
@@ -785,7 +783,7 @@ class ConfirmationPage(QWizardPage):
             ldslog.error('No Proxy defined') 
             
             
-        #select dest from index of destmenu ie PostgreSQL, FileGDB etc
+        #select dest from index of destcombo ie PostgreSQL, FileGDB etc
         self.selected = self.destlist.get(int(self.field("ldsdest").toString()))
         sec3 = QLabel(self.selected[0])
         sec3.setFont(hfont)
@@ -922,16 +920,7 @@ def main():
     app0 = QApplication(sys.argv)
     ldsc = LDSConfigWizard()
     ldsc.show()
-#    rv0 = app0.exec_()
-#    rv1 = 0
-#    if rv0==QDialog.Rejected:
-#        from  lds.gui.LDSGUI import LDSRepl
-#        app1 = QApplication(sys.argv)
-#        lds = LDSRepl()
-#        lds.show()
-#        rv1 = app1.exec_()
-#    
-#    sys.exit(rv1 + rv0)
+
     sys.exit(app0.exec_())
     
     

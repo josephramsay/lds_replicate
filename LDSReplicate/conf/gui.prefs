@@ -6,21 +6,21 @@ fd = None
 td = None
 
 [FileGDB]
-uconf = fg2
-lgvalue = LINPAC1570
+uconf = fgx
+lgvalue = FGMULTI
 epsg = None
 fd = None
 td = 2013-05-01
 
 [PostgreSQL]
-lgvalue = PGBARTEST
+lgvalue = BIG
 uconf = pg
 epsg = None
 fd = None
 td = 2013-05-01
 
 [SQLite]
-lgvalue = v:x502
+lgvalue = SQLLH
 uconf = sl2
 epsg = None
 fd = None

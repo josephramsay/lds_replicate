@@ -1,7 +1,7 @@
 '''
 v.0.0.1
 
-LDSReplicate -  ldsrepl
+LDSReplicate -  ldsreplicate_gui
 
 Copyright 2011 Crown copyright (c)
 Land Information New Zealand and the New Zealand Government.
@@ -36,9 +36,9 @@ __version__ = AppVersion.getVersion()
 def lconf():
     #func to call layer config selector
     from lds.gui.LayerConfigSelector import LayerConfigSelector
-    from lds.gui.LDSGUI import LDSRepl
+    from lds.gui.LDSGUI import LDSMain
     app = QApplication(sys.argv)
-    ldsc = LayerConfigSelector(LDSRepl())
+    ldsc = LayerConfigSelector(LDSMain())
     ldsc.show()
     sys.exit(app.exec_())        
 
@@ -53,9 +53,9 @@ def conf():
     
 def main():
     #main application
-    from  lds.gui.LDSGUI import LDSRepl
+    from  lds.gui.LDSGUI import LDSMain
     app = QApplication(sys.argv)
-    lds = LDSRepl()
+    lds = LDSMain()
     lds.show()
     sys.exit(app.exec_())
     
