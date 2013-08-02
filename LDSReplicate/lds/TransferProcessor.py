@@ -16,27 +16,26 @@ Created on 26/07/2012
 '''
 
 import logging
-import types
 import re
 import gdal
 
 from datetime import datetime 
 
-from DataStore import DataStore
-from DataStore import DatasourceOpenException
+from lds.DataStore import DataStore
+from lds.DataStore import DatasourceOpenException
 
-from LDSDataStore import LDSDataStore
-from LDSUtilities import LDSUtilities, ConfigInitialiser
+from lds.LDSDataStore import LDSDataStore
+from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 #from ArcSDEDataStore import ArcSDEDataStore
 #from CSVDataStore import CSVDataStore
-from FileGDBDataStore import FileGDBDataStore
+from lds.FileGDBDataStore import FileGDBDataStore
 #from ShapefileDataStore import ShapefileDataStore
 #from MapinfoDataStore import MapinfoDataStore
-from PostgreSQLDataStore import PostgreSQLDataStore
-from MSSQLSpatialDataStore import MSSQLSpatialDataStore
-from SpatiaLiteDataStore import SpatiaLiteDataStore
+from lds.PostgreSQLDataStore import PostgreSQLDataStore
+from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore
+from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
 
-from ReadConfig import LayerFileReader, LayerDSReader
+from lds.ReadConfig import LayerFileReader, LayerDSReader
 
 ldslog = logging.getLogger('LDS')
 
@@ -334,7 +333,7 @@ class TransferProcessor(object):
                         self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
                         self.dst.setLastModified(each_layer,final_td)
                     else:
-                        ldslog.warn('Incremental Read failed')
+                        ldslog.warn('Incremental Read failed. Switching to Non-Incremental')
                         nonincr = True
                 else:
                     ldslog.warning("No update required for layer "+each_layer+" since [start:"+final_fd+" >= finish:"+final_td+"] by at least 1 day")
@@ -348,6 +347,7 @@ class TransferProcessor(object):
                     self.dst.clearIncremental()
                     self.cleanLayer(each_layer,truncate=True)
                     self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
+                    #since no date provided defaults to current 
                     self.dst.setLastModified(each_layer)
                 else:
                     ldslog.warn('Non-Incremental Read failed')

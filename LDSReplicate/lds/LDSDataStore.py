@@ -43,9 +43,15 @@ class LDSDataStore(WFSDataStore):
     OGR_WFS_PAGE_SIZE = 10000
     OGR_WFS_PAGING_ALLOWED = 'OFF'
     
+    OGR_WFS_LOAD_MULTIPLE_LAYER_DEFN = 'OFF'
+    OGR_WFS_BASE_START_INDEX = 0
+    
     GDAL_HTTP_USERAGENT = 'LDSReplicate/'+str(AppVersion.getVersion())
     
     SUPPORTED_OUTPUT_FORMATS = ('GML2','GML3','JSON')
+    
+    VERSION_COUNT = '1.1.0'
+    VERSION_REPLICATE = '1.0.0'
     
 
     #Namespace declarations
@@ -80,8 +86,6 @@ class LDSDataStore(WFSDataStore):
         
         #we're not going to try and overwrite LDS    
         self.clearOverwrite()
-            
-
 
     def getConfigOptions(self):
         '''Adds GDAL options at driver initialisation, pagination_allowed and page_size'''
@@ -91,6 +95,8 @@ class LDSDataStore(WFSDataStore):
         local_opts += ['OGR_WFS_PAGING_ALLOWED='+str(self.OGR_WFS_PAGING_ALLOWED)]
         local_opts += ['OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() else self.OGR_WFS_PAGE_SIZE)]
         local_opts += ['OGR_WFS_USE_STREAMING='+str(self.OGR_WFS_USE_STREAMING)]
+        local_opts += ['OGR_WFS_LOAD_MULTIPLE_LAYER_DEFN='+str(self.OGR_WFS_LOAD_MULTIPLE_LAYER_DEFN)]
+        local_opts += ['OGR_WFS_BASE_START_INDEX='+str(self.OGR_WFS_BASE_START_INDEX)]
         return super(LDSDataStore,self).getConfigOptions() + local_opts    
     
     def getLayerOptions(self,layer_id):
@@ -158,7 +164,7 @@ class LDSDataStore(WFSDataStore):
     def buildIndex(self,lce,dst_layer_name):
         pass
         
-    def sourceURI(self,layername):
+    def sourceURI(self,layername,purpose=None):
         '''Basic Endpoint constructor'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             valid,urilayer = self.validateConnStr(self.conn_str)
@@ -177,7 +183,7 @@ class LDSDataStore(WFSDataStore):
         return uri
 
         
-    def sourceURI_incrd(self,layername,fromdate,todate):
+    def sourceURI_incrd(self,layername,fromdate,todate,purpose=None):
         '''Endpoint constructor fetching specific layers with incremental date fields'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             valid,urilayer = self.validateConnStr(self.conn_str)
@@ -203,9 +209,8 @@ class LDSDataStore(WFSDataStore):
     def sourceURI_feats(self,layername):
         '''Endpoint constructor to fetch number of features for a specific layer. for: Trigger manual paging for broken JSON'''
         #version must be 1.1.0 or > for this to work. NB outputFormat doesn't seem to have any effect here either so its omitted
-        ver="1.1.0"
         typ = "&typeName="+layername
-        uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+ver+"&request=GetFeature&resultType=hits"+typ
+        uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+self.VERSION_COUNT+"&request=GetFeature&resultType=hits"+typ
         ldslog.debug(uri)
         return uri
     

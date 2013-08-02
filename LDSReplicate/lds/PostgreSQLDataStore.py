@@ -111,7 +111,6 @@ class PostgreSQLDataStore(DataStore):
         
         #do not use PG_USE_COPY if you want FID preserved
         local_opts += ['PG_USE_COPY='+str(self.PG_USE_COPY)]
-        
         local_opts += ['PG_USE_BASE64='+str(self.PG_USE_BASE64)]  
               
         return super(PostgreSQLDataStore,self).getConfigOptions() + local_opts    

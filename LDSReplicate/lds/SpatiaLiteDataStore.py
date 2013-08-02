@@ -18,12 +18,12 @@ Created on 9/08/2012
 import logging
 import os
 import ogr
-import gdal
 import re
 
-from DataStore import DataStore
-from DataStore import MalformedConnectionString
-from LDSUtilities import LDSUtilities
+
+from lds.DataStore import DataStore
+from lds.DataStore import MalformedConnectionString
+from lds.LDSUtilities import LDSUtilities
 
 ldslog = logging.getLogger('LDS')
 
@@ -35,6 +35,7 @@ class SpatiaLiteDataStore(DataStore):
     DRIVER_NAME = DataStore.DRIVER_NAMES['sl']#"SQLite"
     
     SQLITE_LIST_ALL_TABLES = 'YES'
+    OGR_SQLITE_CACHE = 1024
     
     DEFAULT_GCOL = 'GEOMETRY'
       
@@ -81,6 +82,7 @@ class SpatiaLiteDataStore(DataStore):
         '''SL config opts'''
         #DS options: METADATA, SPATIALITE, INIT_WITH_EPSG
         local_opts = ['SQLITE_LIST_ALL_TABLES='+self.SQLITE_LIST_ALL_TABLES]
+        local_opts += ['OGR_SQLITE_CACHE='+str(self.OGR_SQLITE_CACHE)]
         
         return super(SpatiaLiteDataStore,self).getConfigOptions() + local_opts
     

@@ -31,6 +31,8 @@ class FileGDBDataStore(ESRIDataStore):
     '''
     DRIVER_NAME = DataStore.DRIVER_NAMES['fg']#"FileGDB"
     
+    FGDB_BULK_LOAD = 'YES'
+    
         #wkbNone removed
     ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
                       ogr.wkbPolygon, ogr.wkbMultiPoint, ogr.wkbMultiLineString, 
@@ -89,7 +91,7 @@ class FileGDBDataStore(ESRIDataStore):
     
     def getConfigOptions(self):
         '''FGDB doesn't have any dataset creation options'''
-        local_opts = []        
+        local_opts = ['FGDB_BULK_LOAD='+str(self.FGDB_BULK_LOAD)]        
         return super(FileGDBDataStore,self).getConfigOptions() + local_opts    
     
     def getLayerOptions(self,layer_id):

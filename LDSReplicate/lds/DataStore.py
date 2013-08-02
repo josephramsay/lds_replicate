@@ -97,6 +97,8 @@ class DataStore(object):
     
     ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
     
+    CPL_DEBUG = 'OFF'
+    
     def __init__(self,parent,conn_str=None,user_config=None):
         '''
         Constructor inits driver and some date specific settings. Arguments are for config overrides 
@@ -158,10 +160,13 @@ class DataStore(object):
      
     def applyConfigOptions(self):
         for opt in self.getConfigOptions():
+            self.applyConfigOptionSingle(opt)
+            
+    def applyConfigOptionSingle(self,opt):
             ldslog.info('Applying '+self.DRIVER_NAME+' option '+opt)
             k,v = str(opt).split('=')
             gdal.SetConfigOption(k.strip(),v.strip())
-             
+            
     def getDriver(self,driver_name):
 
         self.driver = ogr.GetDriverByName(driver_name)
@@ -211,9 +216,10 @@ class DataStore(object):
         self.layerconf = layerconf
     
     #options sections ----------------------------------------
+
     def getConfigOptions(self):
         '''Returns common gdal operating options, overridden in subclasses for source specifc options'''
-        return []  
+        return ['CPL_DEBUG='+str(self.CPL_DEBUG)]  
     
     def getDBOptions(self):
         '''Returns database creation options (used by spatialite)'''
@@ -439,6 +445,7 @@ class DataStore(object):
             #src_layer.ResetReading()
             self.dst_change_count = 0
             self.src_feat_count = src_layer.GetFeatureCount()
+            #temp_src_feat_count = self.getFeatureCount()
             ldslog.info('Features available = '+str(self.src_feat_count))
 
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''

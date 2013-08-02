@@ -37,6 +37,7 @@ from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 from lds.gui.LayerConfigSelector import LayerConfigSelector
 from lds.gui.ConfigConnector import ConfigConnector, ProcessRunner
+from lds.ConfigWrapper import ConfigWrapper
 
 from lds.DataStore import DataStore, MalformedConnectionString
 
@@ -199,8 +200,7 @@ class LDSMain(QMainWindow):
 class LDSControls(QFrame):
         
     STATIC_IMG = ('error_static.png','linz_static.png','busy_static.png','clean_static.png')
-    ANIM_IMG   = ('error.gif','linz.gif','busy.gif','clean.gif')
-    IMG = ANIM_IMG
+    ANIM_IMG   = ('error.gif','linz.gif','layer.gif','clean.gif')
     
     IMG_SPEED  = 100
     IMG_WIDTH  = 64
@@ -221,6 +221,8 @@ class LDSControls(QFrame):
     def initConf(self):
         '''Read files in conf dir ending in conf'''
         self.cflist = ConfigInitialiser.getConfFiles()
+        #self.imgset = self.STATIC_IMG if ConfigWrapper().readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
+        self.imgset = self.STATIC_IMG if self.parent.confconn.tp.src.mainconf.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
         
     def initEPSG(self):
         '''Read GDAL EPSG files, splitting by NZ(RSR) and RestOfTheWorld'''
@@ -418,7 +420,7 @@ class LDSControls(QFrame):
         self.parent.statusbar.setToolTip(tooltip if tooltip else '')
 
         #progress
-        loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.IMG[status]))
+        loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.imgset[status]))
         self.progressBar.setVisible(status in (self.STATUS.BUSY, self.STATUS.CLEAN))
         
         #icon
