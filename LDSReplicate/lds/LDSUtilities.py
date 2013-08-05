@@ -511,6 +511,23 @@ class SUFIExtractor(object):
         
         return sufi
     
+class FeatureCounter(object):
+    '''XSL parser to read big int columns returning a dict of id<->col matches'''
+    @staticmethod
+    def readCount(xml):
+        p = os.path.join(os.path.dirname(__file__), '../conf/featurecounter.xsl')
+        with open(p,'r') as featcount:
+            converter = featcount.read()
+        xslt = etree.XML(converter)
+        transform = etree.XSLT(xslt)
+        
+        doc = etree.parse(StringIO(xml))
+        res = transform(doc)
+        
+        fcval = ast.literal_eval(str(res))
+        
+        return fcval
+    
 class Encrypt(object):
     from ReadConfig import MainFileReader
     ENC_PREFIX = "ENC:"

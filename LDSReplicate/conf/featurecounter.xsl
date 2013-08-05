@@ -10,16 +10,7 @@
 <xsl:strip-space elements="*"/>
 
 <xsl:template match="wfs:FeatureCollection">
-	<xsl:text>{</xsl:text>
-	<xsl:apply-templates/>
-	<xsl:text>}&#xa;</xsl:text>
-</xsl:template>
-
-<xsl:template match="gml:featureMember">
-	<xsl:value-of select='node()/v:id'/>
-	<xsl:text>:</xsl:text>
-	<xsl:value-of select='node()/v:#REPLACE'/>
-	<xsl:text>,</xsl:text>
+	<xsl:value-of select="@numberOfFeatures"/>
 </xsl:template>
 
 

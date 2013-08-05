@@ -27,7 +27,7 @@ import logging
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
 
-from LDSUtilities import LDSUtilities,SUFIExtractor
+from LDSUtilities import LDSUtilities,SUFIExtractor,FeatureCounter
 from ProjectionReference import Projection
 from ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
@@ -364,7 +364,10 @@ class DataStore(object):
         #FileGDB locks up on destroy, do we even need this? Supposedly for backward compatibility
         #self.ds.Destroy()  
         self.ds = None
-    
+                    
+    def rebuildDS(self):
+        '''Re read the DS in case there is a failure. Implemented for WFS. Not necessary here'''
+        self.read(self.getURI(),False)
         
     def deleteOptionalColumns(self,dst_layer):
         '''Delete unwanted columns from layer'''
@@ -390,7 +393,15 @@ class DataStore(object):
         and PostgreSQL implements an "active_schema" option bypassing the need for a schema declaration'''
         return self.sanitise(ref_name)
         
-    #--------------------------------------------------------------------------            
+    #--------------------------------------------------------------------------
+        
+    def getFeatureCount(self,layername):
+        '''Backup feature counter by hacking the uri with a new version and asking for a hits result'''
+        append = "&resultType=hits"
+        doc = LDSUtilities.readDocument(self.src_link.getURI()+append,self.src_link.pxy)
+        fc = FeatureCounter.readCount(doc)
+        ldslog.warn('Alt FeatureCount '+str(fc))
+        return fc
     
     def featureCopy(self,src_ds,dst_ds):
         '''Feature copy without the change column (and other incremental) overhead. Replacement for driverCopy(cloneDS).''' 
@@ -444,16 +455,24 @@ class DataStore(object):
             #add/copy features
             #src_layer.ResetReading()
             self.dst_change_count = 0
-            self.src_feat_count = src_layer.GetFeatureCount()
-            #temp_src_feat_count = self.getFeatureCount()
+            try:
+                self.src_feat_count = src_layer.GetFeatureCount()
+            except Exception:
+                self.src_link.rebuildDS()
+                src_ds = self.src_link.ds
+                src_layer = src_ds.GetLayer(li)
+                self.src_feat_count = self.getFeatureCount(self.dst_info.layer_id)
             ldslog.info('Features available = '+str(self.src_feat_count))
 
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
             if self.src_feat_count>0:
                 src_feat = src_layer.GetNextFeature()
-                new_feat_def = self.partialCloneFeatureDef(src_feat)
-            elif self.src_feat_count>0:
-                raise InaccessibleFeatureException('Cannot access any Features of '+str(self.src_feat_count)+' available')
+                if src_feat:
+                    new_feat_def = self.partialCloneFeatureDef(src_feat)
+                else:
+                    raise InaccessibleFeatureException('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
+            else:
+                raise InaccessibleFeatureException('Error attempting to access Feature ('+str(self.src_feat_count)+' available)')
                 
             while src_feat is not None:
                 self.dst_change_count += 1
@@ -490,7 +509,6 @@ class DataStore(object):
             
             src_layer.ResetReading()
             dst_layer.ResetReading()    
-
     
     def featureCopyIncremental(self,src_ds,dst_ds,changecol):
         #TDOD. decide whether C_C is better as an arg or a src.prop
@@ -559,11 +577,19 @@ class DataStore(object):
             #add/copy features
             insert_count, delete_count, update_count = 0,0,0
             self.dst_change_count = 0
-            self.src_feat_count = src_layer.GetFeatureCount()
+            try:
+                self.src_feat_count = src_layer.GetFeatureCount()
+            except Exception:        
+                self.src_link.rebuildDS()
+                src_ds = self.src_link.ds
+                src_layer = src_ds.GetLayer(li)
+                self.src_feat_count = self.getFeatureCount(self.dst_info.layer_id)
+                
             ldslog.info('Features available = '+str(self.src_feat_count))
+
             src_feat = src_layer.GetNextFeature()
             #since the characteristics of each feature wont change between layers we only need to define a new feature definition once
-            if src_feat is not None:
+            if src_feat:
                 new_feat_def = self.partialCloneFeatureDef(src_feat)
                 self.dst_change_count = 1
                 e = 0
@@ -612,7 +638,9 @@ class DataStore(object):
                     else:
                         src_feat = next_feat
                         self.dst_change_count += 1
-                    
+            else:
+                raise InaccessibleFeatureException('Cannot access Feature 1. ('+str(self.src_feat_count)+' available)')
+            
             if self.src_feat_count != self.dst_change_count:
                 if transaction_flag:
                     dst_layer.RollbackTransaction()

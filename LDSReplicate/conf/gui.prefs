@@ -13,11 +13,11 @@ fd = None
 td = 2013-05-01
 
 [PostgreSQL]
-lgvalue = BIG
+lgvalue = v:x772
 uconf = pg
 epsg = None
 fd = None
-td = 2013-05-01
+td = 2012-01-01
 
 [SQLite]
 lgvalue = SQLLH

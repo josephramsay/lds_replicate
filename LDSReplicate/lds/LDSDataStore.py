@@ -214,6 +214,15 @@ class LDSDataStore(WFSDataStore):
         ldslog.debug(uri)
         return uri
     
+    def reVersionURI(self):
+        '''Because there is sometimes a problem with WFS <1.0.0, change to WFS 1.1.0'''
+        ldslog.warn('Rewriting URI version to '+str(self.VERSION_COUNT))
+        self.setURI(re.sub('&version=[0-9\.]+','&version='+str(self.VERSION_COUNT),self.getURI()))
+        
+                    
+    def rebuildDS(self):
+        self.reVersionURI()
+        self.read(self.getURI(),False)
     
     def _buildPageStr(self):
         '''Manual paging using startIndex instead of cql'''
