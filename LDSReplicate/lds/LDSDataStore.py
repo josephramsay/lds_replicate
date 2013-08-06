@@ -17,7 +17,6 @@ Created on 23/07/2012
 @author: jramsay
 '''
 import re
-import gdal
 
 import logging
 
@@ -25,11 +24,11 @@ from contextlib import closing
 from lxml import etree
 from lxml.etree import XMLSyntaxError
 
-from WFSDataStore import WFSDataStore
+from lds.WFSDataStore import WFSDataStore
 from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
-from LDSUtilities import LDSUtilities
-from DataStore import MalformedConnectionString
-from VersionUtilities import AppVersion
+from lds.LDSUtilities import LDSUtilities
+from lds.DataStore import MalformedConnectionString
+from lds.VersionUtilities import AppVersion
 
 ldslog = logging.getLogger('LDS')
 
@@ -46,13 +45,7 @@ class LDSDataStore(WFSDataStore):
     OGR_WFS_LOAD_MULTIPLE_LAYER_DEFN = 'OFF'
     OGR_WFS_BASE_START_INDEX = 0
     
-    GDAL_HTTP_USERAGENT = 'LDSReplicate/'+str(AppVersion.getVersion())
-    
-    SUPPORTED_OUTPUT_FORMATS = ('GML2','GML3','JSON')
-    
-    VERSION_COUNT = '1.1.0'
-    VERSION_REPLICATE = '1.0.0'
-    
+    GDAL_HTTP_USERAGENT = 'LDSReplicate/'+str(AppVersion.getVersion())    
 
     #Namespace declarations
     NS = {'g'    : '{http://data.linz.govt.nz/ns/g}', 
@@ -175,10 +168,13 @@ class LDSDataStore(WFSDataStore):
         cql = self._buildCQLStr()
         #pql = self._buildPageStr()     
             
-        typ = "&typeName="+layername
+        typ = "##typeName="+layername
+        ver = "##version="+self.ver if self.ver else ""
+        svc = "##service="+self.svc if self.svc else "##service=WFS"
+        req = "##request=GetFeature"
         #if omitted the outputformat parameter is null and default used, GML2
-        fmt = "&outputFormat="+self.fmt if (self.fmt in self.SUPPORTED_OUTPUT_FORMATS) else ''
-        uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+fmt+cql
+        fmt = "##outputFormat="+self.fmt if (self.fmt in self.SUPPORTED_OUTPUT_FORMATS) else ""
+        uri = re.sub('##','&',re.sub('##','?',self.url+self.key+"/wfs"+svc+ver+req+typ+fmt+cql,1))
         ldslog.debug(uri)
         return uri
 
@@ -198,11 +194,14 @@ class LDSDataStore(WFSDataStore):
         #pql = self._buildPageStr()     
         
         vep = LDSUtilities.splitLayerName(layername)+"-changeset"
-        typ = "&typeName="+layername+"-changeset"
-        inc = "&viewparams=from:"+fromdate+";to:"+todate
+        typ = "##typeName="+layername+"-changeset"
+        inc = "##viewparams=from:"+fromdate+";to:"+todate
+        ver = "##version="+self.ver if self.ver else ""
+        svc = "##service="+self.svc if self.svc else "##service=WFS"
+        req = "##request=GetFeature"
         #if omitted the outputformat parameter is null and default used, GML2
-        fmt = "&outputFormat="+self.fmt if (self.fmt in self.SUPPORTED_OUTPUT_FORMATS) else ''
-        uri = self.url+self.key+vep+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature"+typ+inc+fmt+cql
+        fmt = "##outputFormat="+self.fmt if (self.fmt in self.SUPPORTED_OUTPUT_FORMATS) else ""
+        uri = re.sub('##','&',re.sub('##','?',self.url+self.key+vep+"/wfs"+svc+ver+req+typ+inc+fmt+cql,1))
         ldslog.debug(uri)
         return uri
     
@@ -212,16 +211,11 @@ class LDSDataStore(WFSDataStore):
         typ = "&typeName="+layername
         uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+self.VERSION_COUNT+"&request=GetFeature&resultType=hits"+typ
         ldslog.debug(uri)
-        return uri
-    
-    def reVersionURI(self):
-        '''Because there is sometimes a problem with WFS <1.0.0, change to WFS 1.1.0'''
-        ldslog.warn('Rewriting URI version to '+str(self.VERSION_COUNT))
-        self.setURI(re.sub('&version=[0-9\.]+','&version='+str(self.VERSION_COUNT),self.getURI()))
-        
+        return uri        
                     
     def rebuildDS(self):
-        self.reVersionURI()
+        '''Resets the DS. Needed if the URI is edited'''
+        self.setURI(LDSUtilities.reVersionURL(self.getURI(),LDSDataStore.VERSION_COUNT))
         self.read(self.getURI(),False)
     
     def _buildPageStr(self):

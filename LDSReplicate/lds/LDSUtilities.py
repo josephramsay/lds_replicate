@@ -22,8 +22,8 @@ import re
 import os
 import logging
 import ast
-import string
 
+from string import whitespace
 from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
 from contextlib import closing
 from StringIO import StringIO
@@ -153,6 +153,13 @@ class LDSUtilities(object):
         url = re.sub(',','%2C',url)
         url = re.sub(' ','%20',url)
         return url
+    
+    @staticmethod
+    def reVersionURL(url,newversion):
+        '''Because there is sometimes a problem with WFS <1.0.0, esp GetFeatureCount, change to WFS 1.1.0'''
+        ldslog.warn('Rewriting URI version to '+str(newversion))
+        return re.sub('&version=[0-9\.]+','&version='+str(newversion),url)
+    
     
     @staticmethod
     def containsOnlyAlphaNumeric(anstr):
@@ -358,7 +365,7 @@ class LDSUtilities(object):
                 if LDSUtilities.mightAsWellBeNone(i) is None:
                     return None
         else:
-            if isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in string.whitespace for i in nstr)):
+            if isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in whitespace for i in nstr)):
                 return None
         #if its already none is will return itself
         return nstr
@@ -529,7 +536,7 @@ class FeatureCounter(object):
         return fcval
     
 class Encrypt(object):
-    from ReadConfig import MainFileReader
+    from lds.ReadConfig import MainFileReader
     ENC_PREFIX = "ENC:"
     #SbO, not secret at all actually
     p = LDSUtilities.standardiseUserConfigName(MainFileReader.DEFAULT_MF)

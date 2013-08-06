@@ -27,9 +27,9 @@ import logging
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
 
-from LDSUtilities import LDSUtilities,SUFIExtractor,FeatureCounter
-from ProjectionReference import Projection
-from ConfigWrapper import ConfigWrapper
+from lds.LDSUtilities import LDSUtilities,SUFIExtractor,FeatureCounter
+from lds.ProjectionReference import Projection
+from lds.ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
 
 ldslog = logging.getLogger('LDS')
@@ -366,7 +366,7 @@ class DataStore(object):
         self.ds = None
                     
     def rebuildDS(self):
-        '''Re read the DS in case there is a failure. Implemented for WFS. Not necessary here'''
+        '''Re read the DS in case there is a failure. Implemented for WFS. Not really necessary here'''
         self.read(self.getURI(),False)
         
     def deleteOptionalColumns(self,dst_layer):
@@ -395,12 +395,14 @@ class DataStore(object):
         
     #--------------------------------------------------------------------------
         
-    def getFeatureCount(self,layername):
-        '''Backup feature counter by hacking the uri with a new version and asking for a hits result'''
+    def getFeatureCount(self):
+        '''Alternate feature counter by hacking the uri (using wfs version 1.1.0) and asking for a hits result'''
+        import WFSDataStore
         append = "&resultType=hits"
-        doc = LDSUtilities.readDocument(self.src_link.getURI()+append,self.src_link.pxy)
+        newurl = LDSUtilities.reVersionURL(self.src_link.getURI(), WFSDataStore.WFSDataStore.VERSION_COUNT)
+        doc = LDSUtilities.readDocument(newurl+append,self.src_link.pxy)
         fc = FeatureCounter.readCount(doc)
-        ldslog.warn('Alt FeatureCount '+str(fc))
+        ldslog.info('Alt FeatureCount '+str(fc))
         return fc
     
     def featureCopy(self,src_ds,dst_ds):
@@ -456,12 +458,14 @@ class DataStore(object):
             #src_layer.ResetReading()
             self.dst_change_count = 0
             try:
-                self.src_feat_count = src_layer.GetFeatureCount()
+                #self.src_feat_count = src_layer.GetFeatureCount()
+                self.src_feat_count = self.getFeatureCount()
             except Exception:
                 self.src_link.rebuildDS()
                 src_ds = self.src_link.ds
                 src_layer = src_ds.GetLayer(li)
-                self.src_feat_count = self.getFeatureCount(self.dst_info.layer_id)
+                self.src_feat_count = self.getFeatureCount()
+                
             ldslog.info('Features available = '+str(self.src_feat_count))
 
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
@@ -578,12 +582,13 @@ class DataStore(object):
             insert_count, delete_count, update_count = 0,0,0
             self.dst_change_count = 0
             try:
-                self.src_feat_count = src_layer.GetFeatureCount()
+                #self.src_feat_count = src_layer.GetFeatureCount()
+                self.src_feat_count = self.getFeatureCount()
             except Exception:        
                 self.src_link.rebuildDS()
                 src_ds = self.src_link.ds
                 src_layer = src_ds.GetLayer(li)
-                self.src_feat_count = self.getFeatureCount(self.dst_info.layer_id)
+                self.src_feat_count = self.getFeatureCount()
                 
             ldslog.info('Features available = '+str(self.src_feat_count))
 
@@ -1015,6 +1020,8 @@ class DataStore(object):
             #match 'alter table'
             if re.match('alter\s+table',line):
                 continue
+            if re.match('delete\s+\*?\s*from',line):
+                continue
             
             ldslog.error("Line in SQL failed to validate. "+line)
             raise InvalidSQLException('SQL '+str(sql)+' failed to validate')
@@ -1043,7 +1050,8 @@ class DataStore(object):
                 lref = ds.GetLayerByIndex(li)
                 lname = lref.GetName().split('.')[-1] #strip schema
                 if lname == name:
-                    if truncate and lref.TestCapability('DeleteFeature'):
+                    delete_capable = lref.TestCapability('DeleteFeature')
+                    if truncate and delete_capable:
                         begun = False
                         try:
                             fid = 0
@@ -1064,11 +1072,14 @@ class DataStore(object):
                             if begun: lref.CommitTransaction()
                         except Exception as e:
                             ldslog.error("Error during commit on delete. {}".format(e))
-                            if re.search('OGR General Error',str(e)):
-                                ldslog.warn('General error, ignoring')
+                            if re.search('OGR Error: General Error',str(e)):
+                                ldslog.warn('General error on Delete/Commit, ignoring')
                             else:
                                 lref.RollbackTransaction()
-                                raise                   
+                                raise  
+                    elif truncate and not delete_capable:
+                        #Attempt sql truncate after delete feature and before delete layer
+                        self._baseDeleteFeature(lname)                 
                     else:
                         ds.DeleteLayer(li)
                     ldslog.info("DS {} {}".format(msg,str(lname)))
@@ -1109,6 +1120,12 @@ class DataStore(object):
         #TODO. Implement for all DS types
         #THIS DOESN'T GET CALLED ANYMORE AND CAN PROBABLY BE DELETED
         sql_str = "alter table "+table+" drop column "+column
+        return self.executeSQL(sql_str)
+        
+    def _baseDeleteFeature(self,table,where=None):
+        '''Deletion by feature using base methods but intended for truncate operations'''
+        #works with PG, MS, SL fg? NB. Not Fully tested...
+        sql_str = "delete * from "+table + " where "+str(where) if where else "delete from "+table
         return self.executeSQL(sql_str)
         
     def _clean(self):

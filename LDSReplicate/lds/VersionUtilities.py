@@ -48,7 +48,7 @@ import os
 
 from distutils.version import StrictVersion, LooseVersion
 #from verlib import NormalizedVersion
-from ReadConfig import MainFileReader
+from lds.ReadConfig import MainFileReader
 
 class UnsupportedVersionException(Exception): pass
 

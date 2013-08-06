@@ -18,8 +18,8 @@ Created on 23/07/2012
 import os 
 import re
 
-from DataStore import DataStore
-from LDSUtilities import LDSUtilities, Encrypt
+from lds.DataStore import DataStore
+from lds.LDSUtilities import LDSUtilities, Encrypt
 
 class WFSDataStore(DataStore):
     '''
@@ -30,6 +30,12 @@ class WFSDataStore(DataStore):
     PROXY_AUTH = ('BASIC','NTLM','DIGEST','ANY')    
     PROXY_TYPE = ('DIRECT','SYSTEM','USER_DEFINED')
     #PROXY_AUTH = ('BASIC','NTLM','GSSNEGOTIATE','ANY')    
+    
+    SUPPORTED_OUTPUT_FORMATS = ('GML2','GML3','JSON')
+    
+    VERSION_COUNT = '1.1.0'
+    VERSION_REPLICATE = '1.0.0'
+    
     def __init__(self,parent,conn_str=None,user_config=None):
         '''
         Init driver, read config and set up proxy data. 

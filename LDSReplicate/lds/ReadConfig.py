@@ -20,10 +20,9 @@ import re
 import logging
 import json
 import ogr
-import gdal
 
 from ConfigParser import ConfigParser, NoSectionError, NoOptionError, ParsingError,  Error
-from LDSUtilities import LDSUtilities as LU
+from lds.LDSUtilities import LDSUtilities as LU
 
 
 ldslog = logging.getLogger('LDS')

@@ -19,8 +19,8 @@ Created on 9/08/2012
 
 '''
 
-from DataStore import DataStore
-from ProjectionReference import Projection
+from lds.DataStore import DataStore
+from lds.ProjectionReference import Projection
 
 import logging
 #from osr import SpatialReference 

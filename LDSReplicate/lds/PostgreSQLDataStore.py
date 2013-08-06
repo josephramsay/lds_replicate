@@ -14,14 +14,12 @@ Created on 9/08/2012
 
 @author: jramsay
 '''
-import gdal
+
 import logging
 import re
-import string
 
-from DataStore import DataStore
-from DataStore import MalformedConnectionString, DatasourcePrivilegeException
-from LDSUtilities import LDSUtilities, Encrypt
+from lds.DataStore import DataStore, MalformedConnectionString, DatasourcePrivilegeException
+from lds.LDSUtilities import LDSUtilities, Encrypt
 
 ldslog = logging.getLogger('LDS')
 

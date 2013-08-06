@@ -16,11 +16,9 @@ Created on 9/08/2012
 '''
 import logging
 import ogr
-import json
 import re
 
-from DataStore import DataStore
-from DataStore import MalformedConnectionString
+from lds.DataStore import DataStore, MalformedConnectionString
 from lds.LDSUtilities import LDSUtilities, Encrypt
 
 ldslog = logging.getLogger('LDS')

@@ -20,8 +20,8 @@ import os
 import re
 import ogr
 
-from ESRIDataStore import ESRIDataStore
-from DataStore import DataStore,MalformedConnectionString
+from lds.ESRIDataStore import ESRIDataStore
+from lds.DataStore import DataStore,MalformedConnectionString
 
 ldslog = logging.getLogger('LDS')
 

@@ -15,10 +15,9 @@ Created on 23/07/2012
 @author: jramsay
 '''
 import logging
-import os
 
-from ReadConfig import MainFileReader#, LayerFileReader
-from LDSUtilities import LDSUtilities
+from lds.ReadConfig import MainFileReader#, LayerFileReader
+from lds.LDSUtilities import LDSUtilities
 ldslog = logging.getLogger('LDS')
 
 class ConfigWrapper(object):
@@ -26,8 +25,7 @@ class ConfigWrapper(object):
     Convenience wrapper class to main and user config-file reader instances. Main function of this class is to 
     allow user to override selected portions of the main config file.
     '''
-    #TODO. since we dont use this as a Layer reader anymore consider removing it completely
-
+    
     def __init__(self,config_file=None):
         
         #self.layerconfig = None #internal/external; but only external is coded an never used

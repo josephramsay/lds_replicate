@@ -21,20 +21,14 @@ import gdal
 
 from datetime import datetime 
 
-from lds.DataStore import DataStore
-from lds.DataStore import DatasourceOpenException
-
+from lds.DataStore import DataStore, DatasourceOpenException
 from lds.LDSDataStore import LDSDataStore
-from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
-#from ArcSDEDataStore import ArcSDEDataStore
-#from CSVDataStore import CSVDataStore
 from lds.FileGDBDataStore import FileGDBDataStore
-#from ShapefileDataStore import ShapefileDataStore
-#from MapinfoDataStore import MapinfoDataStore
 from lds.PostgreSQLDataStore import PostgreSQLDataStore
 from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore
 from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
 
+from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.ReadConfig import LayerFileReader, LayerDSReader
 
 ldslog = logging.getLogger('LDS')
@@ -56,7 +50,6 @@ class TransferProcessor(object):
     '''Primary class controlling data transfer objects and the parameters for these'''
     
     #Hack for testing, these layers that {are too big, dont have PKs} crash the program so we'll just avoid them. Its not definitive, just ones we've come across while testing
-    #1029 has no PK though Koordinates are working on this
     ###layers_that_crash = map(lambda s: 'v:x'+s, ('772','839','1029','817'))
     
     
