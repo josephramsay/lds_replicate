@@ -1,6 +1,6 @@
 [MSSQLSpatial]
-uconf = ms
-lgvalue = UDON
+uconf = ms4
+lgvalue = PARCELSMED
 epsg = None
 fd = None
 td = None
@@ -27,5 +27,5 @@ fd = None
 td = None
 
 [prefs]
-dest = PostgreSQL
+dest = MSSQLSpatial
 

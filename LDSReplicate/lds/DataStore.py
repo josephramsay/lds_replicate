@@ -331,8 +331,8 @@ class DataStore(object):
             except (FeatureCopyException, InaccessibleFeatureException, RuntimeError) as rte:
                 em = gdal.GetLastErrorMsg()
                 en = gdal.GetLastErrorNo()
-                ldslog.warn("ErrorMsg: "+str(em))
-                ldslog.warn("ErrorNo: "+str(en))
+                ldslog.warn("GDAL ErrorMsg: "+str(em))
+                ldslog.warn("GDAL ErrorNo: "+str(en))
                 #Errors below seem to all indicate server load problems, so we try again
                 if self.attempts < self.MAXIMUM_WFS_ATTEMPTS-1 and ( \
                     re.search(   'Function sequence error',str(rte)) \
@@ -351,7 +351,16 @@ class DataStore(object):
                     src.read(src.getURI(),False)
                     #self.read(self.getURI(),False)
                     
+                    #For 504's also reduce page size
+                    if re.search('HTTP error code : 504',str(rte)):
+                        ps = src.getPartitionSize() if src.getPartitionSize() else src.OGR_WFS_PAGE_SIZE
+                        reduction = int(ps*src.PAGE_REDUCTION_STEP)
+                        ldslog.warn('Reducing Page Size to '+str(reduction))
+                        src.setPartitionSize(reduction)
+                        src.applyConfigOptionSingle('OGR_WFS_PAGE_SIZE='+str(reduction))
+                    
                 else: 
+                    #for all other errors, quit
                     ldslog.error(rte,exc_info=1)
                     raise
             else:

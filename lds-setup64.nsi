@@ -8,7 +8,7 @@ Name "LDS Replicate"
 # General Symbol Definitions
 !define APPNAME $(^Name)
 !define REGKEY "SOFTWARE\${APPNAME}"
-!define VERSION 0.0.7
+!define VERSION 0.0.8
 !define PLATFORM "win64"
 !define COMPANY "Land Information New Zealand"
 !define URL https://www.linz.govt.nz/
@@ -44,7 +44,7 @@ Icon F:\git\LDS\LDSReplicate\doc\LINZsmall.ico
 ShowInstDetails show
 AutoCloseWindow false
 LicenseData "F:\git\LDS\license\LDS\linz-license.txt"
-VIProductVersion 0.0.5.0
+VIProductVersion 0.0.8.0
 VIAddVersionKey ProductName "LDS Replicate"
 VIAddVersionKey ProductVersion "${VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
@@ -85,6 +85,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\conf\ldsincr.conf
     File F:\git\LDS\LDSReplicate\conf\ldspk.csv
     File F:\git\LDS\LDSReplicate\conf\sufiselector.xsl
+    File F:\git\LDS\LDSReplicate\conf\featurecounter.xsl
     SetOutPath $INSTDIR\apps\ldsreplicate\doc
     File F:\git\LDS\LDSReplicate\doc\demo2_commands.txt
     File F:\git\LDS\LDSReplicate\doc\LDSReplicate_instructions.pdf
@@ -95,7 +96,8 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\img\clean_static.png
     File F:\git\LDS\LDSReplicate\img\error_static.png
     File F:\git\LDS\LDSReplicate\img\linz.gif
-    File F:\git\LDS\LDSReplicate\img\busy.gif
+    File F:\git\LDS\LDSReplicate\img\layer.gif
+    File F:\git\LDS\LDSReplicate\img\spin.gif
     File F:\git\LDS\LDSReplicate\img\clean.gif
     File F:\git\LDS\LDSReplicate\img\error.gif
     SetOutPath $INSTDIR\apps\ldsreplicate\lds

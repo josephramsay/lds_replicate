@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.8
 
 LDSReplicate -  LDSDataStore
 
@@ -41,6 +41,8 @@ class LDSDataStore(WFSDataStore):
     OGR_WFS_USE_STREAMING = 'NO'
     OGR_WFS_PAGE_SIZE = 10000
     OGR_WFS_PAGING_ALLOWED = 'OFF'
+    
+    PAGE_REDUCTION_STEP = 0.5
     
     OGR_WFS_LOAD_MULTIPLE_LAYER_DEFN = 'OFF'
     OGR_WFS_BASE_START_INDEX = 0

@@ -39,7 +39,7 @@ from lds.gui.LayerConfigSelector import LayerConfigSelector
 from lds.gui.ConfigConnector import ConfigConnector, ProcessRunner
 from lds.ConfigWrapper import ConfigWrapper
 
-from lds.DataStore import DataStore, MalformedConnectionString
+from lds.DataStore import DataStore, MalformedConnectionString, DriverInitialisationException
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -67,8 +67,13 @@ class LDSMain(QMainWindow):
                 self.initConfigConnector()
                 initcc = False
             except MalformedConnectionString as mcse:
-                ldslog.warn(str(mcse))
+                ldslog.warn('Connection String malformed or missing. '+str(mcse))
                 self.runWizardDialog(None,None)
+            except DriverInitialisationException as die:
+                ldslog.warn('Cannot Initialise selected driver. '+str(die))
+                self.runWizardDialog(None,None)
+                #self.initConfigConnector(self.DEF_RVALS)
+                #initcc = False
 
         
         self.setGeometry(300, 300, 350, 250)
@@ -125,9 +130,9 @@ class LDSMain(QMainWindow):
         helpMenu = menubar.addMenu('&Help')
         helpMenu.addAction(helpAction)
 
-    def initConfigConnector(self):
+    def initConfigConnector(self,gvs=None):
         self.gpr = GUIPrefsReader()
-        self.gvs = [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
+        self.gvs = gvs if gvs else [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
         self.confconn = ConfigConnector(self,self.gvs[2],self.gvs[1],self.gvs[0])
         
     def launchUCEditor(self, checked=None):
