@@ -52,6 +52,10 @@ class MSSQLSpatialDataStore(DataStore):
         
 
         
+    def clone(self):
+        clone = MSSQLSpatialDataStore(self.parent,self.conn_str,None)
+        return clone
+    
     def sourceURI(self,layer):
         '''URI method returns source file name'''
         return self._commonURI(layer)

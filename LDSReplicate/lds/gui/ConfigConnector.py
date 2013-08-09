@@ -57,7 +57,8 @@ class ConfigConnector(object):
             self.uconf = uconf
             self.destname = destname
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
-            self.src,self.dst = self.initSrcDst()
+            self.src = ConfigConnector.initSrc(self.tp)
+            self.dst = ConfigConnector.initDst(self.tp,self.destname)
             if not self.vlayers:
                 self.vlayers = self.getValidLayers(self.dst is not None)
                 self.setupReserved()
@@ -66,27 +67,35 @@ class ConfigConnector(object):
             self.buildLGList()
             self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
   
-    def initSrcDst(self):
-        '''Initialises src and dst objects'''
+    @staticmethod
+    def initSrc(tp):
+        '''aesthetics!?'''
+        return tp.src
+    
+    @staticmethod
+    def initDst(tp,destname):
+        '''Initialises dst objects'''
         #initialise layer data using existing source otherwise use the capabilities doc
         #if doing a first run there is/may-be no destname
-        if self.destname:
-            dst = self.tp.initDestination(self.destname)
+        if destname:
+            dst = tp.initDestination(destname)
             #if internal lconf, need to init the DB
             if dst.getConfInternal() == DataStore.CONF_INT:
                 dst.ds = dst.initDS(dst.destinationURI(None))
-            dst.setLayerConf(self.tp.getNewLayerConf(dst))
+            dst.setLayerConf(tp.getNewLayerConf(dst))
             ##if a lconf has not been created build a new one
             if not dst.getLayerConf().exists():
                 #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
-                self.initLayerConfig(dst)
+                ConfigConnector.initLayerConfig(tp,dst)
         else:
             dst = None
-        return self.tp.src,dst
+        return dst
     
-    def initLayerConfig(self,dst=None):
+    @staticmethod
+    def initLayerConfig(tp,dst=None):
         '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
-        self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst if dst else self.dst,self.tp.src.pxy)
+        #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst if dst else self.dst,self.tp.src.pxy)
+        tp.initLayerConfig(tp.src.getCapabilities(),dst,tp.src.pxy)
         
     def initKeywords(self):
         self.setupComplete()#from LC
@@ -163,22 +172,30 @@ from PyQt4 import QtCore
 class ProcessRunner(QThread):
     
     stsly = QtCore.pyqtSignal(int,str,str)
+    fin = QtCore.pyqtSignal(bool)
     
-    def __init__(self,controls):
+    def __init__(self,controls,dd):
         QThread.__init__(self)
         self.controls = controls
-        self.tp = controls.parent.confconn.tp
-        self.dst = controls.parent.confconn.dst
+        #clone a new TP so that when we exit the thread the tp and its children die
+        self.tp = controls.parent.confconn.tp.clone()
+        #self.dst = controls.parent.confconn.dst.clone()
+        self.dst = ConfigConnector.initDst(self.tp,dd)
+        
+        #self.tp = controls.parent.confconn.tp
+        #self.dst = controls.parent.confconn.dst
         #error notification
         self.stsly.connect(self.controls.setStatus, Qt.QueuedConnection)
-
         
     def run(self):
-        pt = ProgressTimer(self.controls)
+        pt = ProgressTimer(self.controls,self.tp)
         try:
             try:
                 pt.start()
                 self.tp.processLDS(self.dst)
+            except Exception as e1:
+                print 'thread run exception = ',str(e1)
+                raise
             finally:
                 #die progress counter
                 pt.join()
@@ -186,8 +203,11 @@ class ProcessRunner(QThread):
         except Exception as e:
             self.stsly.emit(0,'Error. Halting Processing',str(e))
         
+        self.quit()
+        
     def join(self,timeout=None):
-        QThread.join(self,timeout)
+        #QThread.join(self,timeout)
+        self.quit()
         
 #can't imprt enum directly!? have to refer to them by index
 #'ERROR'=0,'IDLE'=1,'BUSY'=2,'CLEAN'=3
@@ -198,11 +218,11 @@ class ProgressTimer(QThread):
     pgbar = QtCore.pyqtSignal(int)
     stsly = QtCore.pyqtSignal(int,str,str)
     
-    def __init__(self,controls):
+    def __init__(self,controls,tp):
         QThread.__init__(self)
         self.stopped = False
         self.controls = controls
-        self.tp = controls.parent.confconn.tp
+        self.tp = tp#controls.parent.confconn.tp
         #                              cc     gui
         self.pgbar.connect(self.controls.progressBar.setValue, Qt.QueuedConnection)
         self.stsly.connect(self.controls.setStatus, Qt.QueuedConnection)

@@ -48,6 +48,10 @@ class PostgreSQLDataStore(DataStore):
         (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite,self.config,self.srs,self.cql) = self.params
 
         
+    def clone(self):
+        clone = PostgreSQLDataStore(self.parent,self.conn_str,None)
+        return clone
+    
     def sourceURI(self,layer):
         '''URI method returns source DB instance'''
         return self._commonURI(layer)

@@ -6,26 +6,26 @@ fd = None
 td = None
 
 [FileGDB]
-uconf = fgx
-lgvalue = FGMULTI
+uconf = fg9
+lgvalue = v:x1085
 epsg = None
 fd = None
 td = 2013-05-01
 
 [PostgreSQL]
-lgvalue = v:x772
+lgvalue = v:x278
 uconf = pg
 epsg = None
 fd = None
 td = 2012-01-01
 
+[prefs]
+dest = SQLite
+
 [SQLite]
-lgvalue = SQLLH
-uconf = sl2
+uconf = sl22
+lgvalue = v:x514
 epsg = None
 fd = None
 td = None
-
-[prefs]
-dest = MSSQLSpatial
 

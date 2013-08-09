@@ -108,6 +108,10 @@ class TransferProcessor(object):
         #initialise the data source
         self.src = self.initSource()
 
+    def clone(self):
+        '''Clone self. Parent retained so clone is sib'''
+        clone = TransferProcessor(self.parent,self.lgval,self.epsg,self.fromdate,self.todate,self.source_str,self.destination_str,self.cql,self.user_config)
+        return clone
         
     def __str__(self):
         return 'Dst:{ds}, Layer/Group:{lgval}, CQL:{cql}, '.format(ds=self.destination_str,lgval=self.lgval,cql=self.cql)
@@ -266,9 +270,6 @@ class TransferProcessor(object):
                 self.lnl = (layer,)
             else:
                 raise InputMisconfigurationException('Layer '+str(layer)+' invalid')
-
-        # ***HACK*** big layer bypass (address this with partitions)
-        #self.lnl = filter(lambda each_layer: each_layer not in self.partitionlayers, self.lnl)
         
         #override config file dates with command line dates if provided
         ldslog.debug("SelectedLayers={}".format(len(self.lnl)))
@@ -349,8 +350,14 @@ class TransferProcessor(object):
             self.layer_count += 1
             self.dst.src_feat_count = 0
             self.dst.dst_change_count = 0
-                
+            
+        self.closeConnections()
+        
+    def closeConnections(self):
         self.dst.closeDS()
+        self.dst = None
+        #self.src.closeDS()
+        #self.src = None
         
     def initCapsDoc(self,capabilities,src):
         '''Fetch, format and store the capabilities document'''

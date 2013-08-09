@@ -52,7 +52,10 @@ class FileGDBDataStore(ESRIDataStore):
         self.SUFFIX = '.gdb'
         
 
-        
+    def clone(self):
+        clone = FileGDBDataStore(self.parent,self.conn_str,None)
+        return clone
+    
     def sourceURI(self,layer):
         '''URI method returns source file name'''
         return self._commonURI(layer)
@@ -114,7 +117,15 @@ class FileGDBDataStore(ESRIDataStore):
         '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 
         self.executeSQL('alter table '+table+' alter '+column+' type varchar')
     
-
+    def closeDS(self):
+        '''Close a DS with sync and destroy'''
+        ldslog.info("Sync DS and Close")
+        self.ds.SyncToDisk()
+        #FileGDB locks up on destroy, do we even need this? Supposedly for backward compatibility
+        #self.ds.Destroy()  
+        self.ds = None
+        
+        
 #    def formatWhereClause(self,ref_pkey,key_val):
 #        '''FGDB where clause doesn't use single quotes in int matching string'''
 #        #return "{0} = {1}".format(ref_pkey,key_val) #new driver fixes this behaviour

@@ -60,7 +60,7 @@ class DatasourcePrivilegeException(DSReaderException): pass
 
 class DataStore(object):
     '''
-    DataStore superclasses PostgreSQL, LDS(WFS), FileGDB and SpatiaLite datastores.
+    DataStore superclasses PostgreSQL, LDS(WFS), FileGDB(ESRI) and SpatiaLite datastores.
     This class contains the main copy functions for each datasource and sets up default connection parameters. Common options are also set up in this class 
     but variations are implemented in the appropriate subclasses
     '''
@@ -266,7 +266,8 @@ class DataStore(object):
         try:
             #we turn ogr exceptions off here so reported errors don't kill DS initialisation 
             #ogr.DontUseExceptions()
-            ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
+            ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if isinstance(self,WFSDataStore) else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
+            #ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
             if ds is None: raise DatasourceOpenException('Cannot open DS, '+str(dsn))   
         except (RuntimeError, DatasourceOpenException) as re1:
             #If its a 404 return for a new URL
@@ -369,10 +370,11 @@ class DataStore(object):
     def closeDS(self):
         '''close a DS with sync and destroy'''
         ldslog.info("Sync DS and Close")
+        print 'getattr=',self.ds.__getattr__
         self.ds.SyncToDisk()
-        #FileGDB locks up on destroy, do we even need this? Supposedly for backward compatibility
-        #self.ds.Destroy()  
-        self.ds = None
+        #FileGDB locks up on destroy/release so FG subclasses this method
+        self.ds.Release()
+        print self.ds 
                     
     def rebuildDS(self):
         '''Re read the DS in case there is a failure. Implemented for WFS. Not really necessary here'''
@@ -806,6 +808,9 @@ class DataStore(object):
             elif 'General function failure' in str(rer):
                 ldslog.error('Possible SR problem, continuing. '+str(rer))
                 dst_layer = None
+            elif 'database is locked' in str(rer):
+                ldslog.error('Locked database - SpatiaLite problem, cannot continue. '+str(rer))
+                raise
             
         #if we fail through to this point most commonly the problem is SpatialRef
         if dst_layer is None:

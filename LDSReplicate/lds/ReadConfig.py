@@ -952,6 +952,7 @@ class GUIPrefsReader(object):
     def read(self):
         '''Read stored DS value and return this and its matching params'''
         try:
+            self.cp.read(self.fn)
             self.dvalue = self.cp.get(self.PREFS_SEC, self.dselect) 
             if LU.mightAsWellBeNone(self.dvalue) is None:
                 return (None,)*(len(self.plist)+1)

@@ -31,11 +31,13 @@ class SpatiaLiteDataStore(DataStore):
     '''
     SpatiaLite  DataStore
     '''
+    #TODO. Figure out why replications fail around the 1M mark with a "Failed Writing body" error
     
     DRIVER_NAME = DataStore.DRIVER_NAMES['sl']#"SQLite"
     
     SQLITE_LIST_ALL_TABLES = 'YES'
     OGR_SQLITE_CACHE = 1024
+    OGR_SQLITE_SYNCHRONOUS = 'ON' #by default
     
     DEFAULT_GCOL = 'GEOMETRY'
       
@@ -51,6 +53,9 @@ class SpatiaLiteDataStore(DataStore):
         self.fname = os.path.expanduser(self.fname)
         self.SUFFIX = ['.db','.sqlite','.sqlite3']
         
+    def clone(self):
+        clone = SpatiaLiteDataStore(self.parent,self.conn_str,None)
+        return clone
         
     def sourceURI(self,layer):
         '''URI method returns source file name'''
@@ -83,6 +88,7 @@ class SpatiaLiteDataStore(DataStore):
         #DS options: METADATA, SPATIALITE, INIT_WITH_EPSG
         local_opts = ['SQLITE_LIST_ALL_TABLES='+self.SQLITE_LIST_ALL_TABLES]
         local_opts += ['OGR_SQLITE_CACHE='+str(self.OGR_SQLITE_CACHE)]
+        local_opts += ['OGR_SQLITE_SYNCHRONOUS='+str(self.OGR_SQLITE_SYNCHRONOUS)]
         
         return super(SpatiaLiteDataStore,self).getConfigOptions() + local_opts
     
@@ -145,7 +151,6 @@ class SpatiaLiteDataStore(DataStore):
                     ldslog.warn(rte)
                 else:
                     raise
-
 
     def changeColumnIntToString(self,table,column):
         '''SQLite column type changer. Used to change 64 bit integer columns to string. Brutal converter that deletes and recreates layer table'''

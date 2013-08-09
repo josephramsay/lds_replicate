@@ -130,9 +130,14 @@ class LDSMain(QMainWindow):
         helpMenu = menubar.addMenu('&Help')
         helpMenu.addAction(helpAction)
 
+    def updateFromGPR(self):
+        '''Read GPR file for changes or init'''
+        if not self.gpr: 
+            self.gpr = GUIPrefsReader()
+        return [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
+        
     def initConfigConnector(self,gvs=None):
-        self.gpr = GUIPrefsReader()
-        self.gvs = gvs if gvs else [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
+        self.gvs = gvs if gvs else self.updateFromGPR()
         self.confconn = ConfigConnector(self,self.gvs[2],self.gvs[1],self.gvs[0])
         
     def launchUCEditor(self, checked=None):
@@ -165,6 +170,10 @@ class LDSMain(QMainWindow):
         secname = self.controls.destcombo.itemText(self.controls.destcombo.currentIndex())
         self.statusbar.showMessage('Editing User-Config')
         self.runWizardDialog(uconf, secname)
+        #update the gui with new dest data
+        self.initConfigConnector()
+        self.controls.updateGUIValues(self.gvs)
+
         
     def runWizardDialog(self,uconf,secname):
         '''User Config/Wizz dialog opener'''
@@ -495,6 +504,9 @@ class LDSControls(QFrame):
         
         #Destination Menu
         selecteddest = LDSUtilities.standardiseDriverNames(rdest)
+        if selecteddest not in self.destlist:
+            self.destlist = self.getConfiguredDestinations()
+            self.destcombo.addItem(selecteddest)
         destindex = self.destlist.index(selecteddest) if selecteddest else 0
         self.destcombo.setCurrentIndex(destindex)
         
@@ -658,13 +670,23 @@ class LDSControls(QFrame):
             
         #initialise the data source since uconf may have changed
         self.parent.confconn.tp.src = self.parent.confconn.tp.initSource()
-        #begin main process
         
-        #self.parent.confconn.tp.processLDS(self.parent.confconn.tp.initDestination(destination_driver))
         #Open ProcessRunner and run with TP(proc)/self(gui) instances
-        
-        self.tpr = ProcessRunner(self)
+        #HACK temp add of dest_drv to PR call
+        self.tpr = ProcessRunner(self,destination_driver)
+        print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
         self.tpr.start()
+        print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
+        
+    def quitProcessRunner(self,quit):
+        if quit: 
+            print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
+            self.tpr.join()
+            print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
+            self.tpr.quit()
+            print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
+
+            self.trp = None
 
         
     def userConfMessage(self,uconf,secname=None):

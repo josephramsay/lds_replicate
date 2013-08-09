@@ -586,7 +586,7 @@ class FileGDBConfigPage(QWizardPage):
     def deleteEmptyDir(self,fdtext):
         '''If the user creates an empty directory we delete it but retain the name so fgdb can init properly'''
         if os.path.exists(fdtext) and len(os.listdir(fdtext))==0:
-            os.rmdir(fdtext)
+            os.rmdir(str(fdtext))
         
         
     def nextId(self):
