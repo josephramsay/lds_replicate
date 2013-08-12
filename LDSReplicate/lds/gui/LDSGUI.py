@@ -457,6 +457,16 @@ class LDSControls(QFrame):
         for c in cons:
             c.setEnabled(enable)
             
+        if enable:
+            self.epsgcombo.setEnabled(self.epsgenable.checkState())
+            self.fromdateedit.setEnabled(self.fromdateenable.checkState())
+            self.todateedit.setEnabled(self.todateenable.checkState())
+        else:
+            self.epsgcombo.setEnabled(False)
+            self.fromdateedit.setEnabled(False)
+            self.todateedit.setEnabled(False)
+            
+            
         QApplication.restoreOverrideCursor() if enable else QApplication.setOverrideCursor(QCursor(Qt.WaitCursor)) 
 
                 
