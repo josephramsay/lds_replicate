@@ -104,6 +104,8 @@ class DataStore(object):
         Constructor inits driver and some date specific settings. Arguments are for config overrides 
         '''
 
+        self.name = 'DS{}'.format(datetime.utcnow().strftime('%y%m%d%H%M%S'))
+        
         self.parent = parent
         #PYLINT. Set by TP but defined here. Not sure I agree with this requirement since it enforces specific instantiation order
         self.layer = None
@@ -149,6 +151,9 @@ class DataStore(object):
     #    if itype in self.ITYPES:
     #        self.incremental = itype
             
+    def __str__(self):
+        return '{name}: URI:{uri}, Layer:{layer}, CQL:{cql} '.format(name=self.name,uri=self.uri,layer=self.layer,cql=self.cql)
+    
     def clearIncremental(self):
         self.incremental = False
             
@@ -163,9 +168,9 @@ class DataStore(object):
             self.applyConfigOptionSingle(opt)
             
     def applyConfigOptionSingle(self,opt):
-            ldslog.info('Applying '+self.DRIVER_NAME+' option '+opt)
-            k,v = str(opt).split('=')
-            gdal.SetConfigOption(k.strip(),v.strip())
+        k,v = str(opt).split('=',1)
+        res = gdal.SetConfigOption(k.strip(),v.strip())
+        ldslog.info('Applying {} option {} -> {}'.format(self.DRIVER_NAME,opt,str(res)))
             
     def getDriver(self,driver_name):
 
@@ -370,11 +375,9 @@ class DataStore(object):
     def closeDS(self):
         '''close a DS with sync and destroy'''
         ldslog.info("Sync DS and Close")
-        print 'getattr=',self.ds.__getattr__
         self.ds.SyncToDisk()
         #FileGDB locks up on destroy/release so FG subclasses this method
         self.ds.Release()
-        print self.ds 
                     
     def rebuildDS(self):
         '''Re read the DS in case there is a failure. Implemented for WFS. Not really necessary here'''
@@ -998,6 +1001,9 @@ class DataStore(object):
                 if re.search('does not exist',str(rex)):
                     ldslog.error("Attempt to delete unrecognised table. "+str(rex))
                     return retval
+                if self.DRIVER_NAME=='SQLite' and re.search('SQL logic error or missing database',str(rex)):
+                    ldslog.error("SQLite error evecuting pragma? ignoring. "+str(rex))
+                    return retval
                 raise
             except InvalidSQLException as ise:
                 #Caused by query not matching valid entry
@@ -1035,6 +1041,9 @@ class DataStore(object):
             if re.match('alter\s+table',line):
                 continue
             if re.match('delete\s+\*?\s*from',line):
+                continue
+            #pragma commands, needed to turn on sqlite journal_mode=WAL
+            if re.match('pragma\s+',line):
                 continue
             
             ldslog.error("Line in SQL failed to validate. "+line)

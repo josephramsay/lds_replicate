@@ -23,8 +23,8 @@ td = 2012-01-01
 dest = SQLite
 
 [SQLite]
-uconf = sl22
-lgvalue = v:x514
+uconf = sl23
+lgvalue = v:x786
 epsg = None
 fd = None
 td = None

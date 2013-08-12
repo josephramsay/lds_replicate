@@ -72,7 +72,9 @@ class LayerConfigSelector(QMainWindow):
         
     def resetLayers(self):
         '''Rebuilds lconf from scratch'''
-        self.parent.confconn.initLayerConfig()
+        from lds.gui.ConfigConnector import ConfigConnector
+        ConfigConnector.initLayerConfig(self.parent.confconn.tp,self.parent.confconn.dst)
+        #self.parent.confconn.initLayerConfig(self.parent.confconn.tp,self.parent.confconn.dst)
         self.refreshLayers()
         
     def refreshLayers(self,customkey=None):
@@ -424,10 +426,8 @@ class LayerSelectionPage(QFrame):
         #vbox3.addWidget(line0)
         vbox3.addLayout(hbox2)
         
-        try:
-            self.setLayout(vbox3)
-        except Exception as e:
-            print e
+        self.setLayout(vbox3)
+
 
             
     def doChooseAllClickAction(self):

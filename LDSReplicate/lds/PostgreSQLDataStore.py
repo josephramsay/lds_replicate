@@ -50,6 +50,7 @@ class PostgreSQLDataStore(DataStore):
         
     def clone(self):
         clone = PostgreSQLDataStore(self.parent,self.conn_str,None)
+        clone.name = str(self.name)+'C'
         return clone
     
     def sourceURI(self,layer):

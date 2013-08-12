@@ -54,6 +54,7 @@ class FileGDBDataStore(ESRIDataStore):
 
     def clone(self):
         clone = FileGDBDataStore(self.parent,self.conn_str,None)
+        clone.name = str(self.name)+'C'
         return clone
     
     def sourceURI(self,layer):

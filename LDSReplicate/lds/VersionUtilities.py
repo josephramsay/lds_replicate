@@ -35,6 +35,9 @@ MSSQL versions since 8
 10.25    2010     SQL Azure DB                   CloudDatabase
 10.5     2010     SQL Server 2008 R2             Kilimanjaro (aka KJ)
 11.0     2012     SQL Server 2012                Denali
+
+SpatiaLite
+Spatialite 2.4.0RC3 uses SQLite 3.7.0 which has Write-Ahead-Logging (WAL)
     
 '''
 
@@ -53,7 +56,7 @@ from lds.ReadConfig import MainFileReader
 class UnsupportedVersionException(Exception): pass
 
 class AppVersion(object):
-    __version__ = '0.0.5.0'
+    __version__ = '0.0.8.0'
     
     @staticmethod
     def getVersion():

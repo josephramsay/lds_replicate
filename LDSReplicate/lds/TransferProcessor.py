@@ -68,6 +68,7 @@ class TransferProcessor(object):
     
     def __init__(self,parent,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
 
+        self.name = 'TP{}'.format(datetime.utcnow().strftime('%y%m%d%H%M%S'))
         self.parent = parent
         self.CLEANCONF = None
         self.INITCONF = None
@@ -111,10 +112,11 @@ class TransferProcessor(object):
     def clone(self):
         '''Clone self. Parent retained so clone is sib'''
         clone = TransferProcessor(self.parent,self.lgval,self.epsg,self.fromdate,self.todate,self.source_str,self.destination_str,self.cql,self.user_config)
+        clone.name = str(self.name)+'C'
         return clone
         
     def __str__(self):
-        return 'Dst:{ds}, Layer/Group:{lgval}, CQL:{cql}, '.format(ds=self.destination_str,lgval=self.lgval,cql=self.cql)
+        return '{name}: Dst:{ds}, Layer/Group:{lgval}, CQL:{cql}, '.format(name=self.name,ds=self.destination_str,lgval=self.lgval,cql=self.cql)
     
     def idLayerOrGroup(self,lg):
         '''Identify whether being passed a layer or a group identifier'''

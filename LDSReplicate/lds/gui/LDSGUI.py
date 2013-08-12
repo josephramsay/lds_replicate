@@ -16,7 +16,7 @@ Created on 13/02/2013
 '''
 
 
-from PyQt4.QtGui import (QApplication, QProgressBar, QLabel,
+from PyQt4.QtGui import (QApplication, QProgressBar, QLabel, QCursor,
                          QVBoxLayout, QHBoxLayout, QGridLayout, QMovie, QSizePolicy, 
                          QRegExpValidator, QCheckBox, QMessageBox, 
                          QMainWindow, QAction, QIcon, qApp, QFrame,
@@ -24,6 +24,7 @@ from PyQt4.QtGui import (QApplication, QProgressBar, QLabel,
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
 from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, 
                           QTimer, QEventLoop, QThread, QSize)
+
 
 import os
 import re
@@ -305,49 +306,49 @@ class LDSControls(QFrame):
         self.destcombo.addItems(self.destlist)
 
         #date selection
-        self.fromDateEdit = QDateEdit()
-        self.fromDateEdit.setCalendarPopup(True)
-        self.fromDateEdit.setEnabled(False)
+        self.fromdateedit = QDateEdit()
+        self.fromdateedit.setCalendarPopup(True)
+        self.fromdateedit.setEnabled(False)
         
-        self.toDateEdit = QDateEdit()
-        self.toDateEdit.setCalendarPopup(True)
-        self.toDateEdit.setEnabled(False)
+        self.todateedit = QDateEdit()
+        self.todateedit.setCalendarPopup(True)
+        self.todateedit.setEnabled(False)
         
         #check boxes
-        self.epsgEnable = QCheckBox()
-        self.epsgEnable.setCheckState(False)
-        self.epsgEnable.clicked.connect(self.doEPSGEnable)       
+        self.epsgenable = QCheckBox()
+        self.epsgenable.setCheckState(False)
+        self.epsgenable.clicked.connect(self.doEPSGEnable)       
         
-        self.fromDateEnable = QCheckBox()
-        self.fromDateEnable.setCheckState(False)
-        self.fromDateEnable.clicked.connect(self.doFromDateEnable)
+        self.fromdateenable = QCheckBox()
+        self.fromdateenable.setCheckState(False)
+        self.fromdateenable.clicked.connect(self.doFromDateEnable)
         
-        self.toDateEnable = QCheckBox()
-        self.toDateEnable.setCheckState(False) 
-        self.toDateEnable.clicked.connect(self.doToDateEnable)
+        self.todateenable = QCheckBox()
+        self.todateenable.setCheckState(False) 
+        self.todateenable.clicked.connect(self.doToDateEnable)
         
-        self.progressBar = QProgressBar()
-        self.progressBar.setRange(0,100)
-        self.progressBar.setVisible(True)
-        self.progressBar.setMinimumWidth(self.MAX_WD)
+        self.progressbar = QProgressBar()
+        self.progressbar.setRange(0,100)
+        self.progressbar.setVisible(True)
+        self.progressbar.setMinimumWidth(self.MAX_WD)
         
         
         #buttons        
-        self.initButton = QPushButton("waiting")
-        self.initButton.setToolTip('Initialise the Layer Configuration')
-        self.initButton.clicked.connect(self.doInitClickAction)
+        self.initbutton = QPushButton("waiting")
+        self.initbutton.setToolTip('Initialise the Layer Configuration')
+        self.initbutton.clicked.connect(self.doInitClickAction)
         
-        cleanButton = QPushButton("Clean")
-        cleanButton.setToolTip('Clean the selected layer/group from local storage')
-        cleanButton.clicked.connect(self.doCleanClickAction)
+        self.cleanbutton = QPushButton("Clean")
+        self.cleanbutton.setToolTip('Clean the selected layer/group from local storage')
+        self.cleanbutton.clicked.connect(self.doCleanClickAction)
         
-        replicateButton = QPushButton("Replicate")
-        replicateButton.setToolTip('Execute selected replication')
-        replicateButton.clicked.connect(self.doReplicateClickAction)
+        self.replicatebutton = QPushButton("Replicate")
+        self.replicatebutton.setToolTip('Execute selected replication')
+        self.replicatebutton.clicked.connect(self.doReplicateClickAction)
         
-        cancelButton = QPushButton("Close")
-        cancelButton.setToolTip('Close the LDS Replicate application')       
-        cancelButton.clicked.connect(self.parent.close)
+        self.cancelbutton = QPushButton("Close")
+        self.cancelbutton.setToolTip('Close the LDS Replicate application')       
+        self.cancelbutton.clicked.connect(self.parent.close)
 
 
         #set dialog values using GPR
@@ -390,31 +391,31 @@ class LDSControls(QFrame):
         #grid.addWidget(self.groupEdit, 4, 2)
         
         grid.addWidget(epsgLabel, 5, 0)
-        grid.addWidget(self.epsgEnable, 5, 1)
+        grid.addWidget(self.epsgenable, 5, 1)
         grid.addWidget(self.epsgcombo, 5, 2)
 
         grid.addWidget(fromDateLabel, 6, 0)
-        grid.addWidget(self.fromDateEnable, 6, 1)
-        grid.addWidget(self.fromDateEdit, 6, 2)
+        grid.addWidget(self.fromdateenable, 6, 1)
+        grid.addWidget(self.fromdateedit, 6, 2)
         
         grid.addWidget(toDateLabel, 7, 0)
-        grid.addWidget(self.toDateEnable, 7, 1)
-        grid.addWidget(self.toDateEdit, 7, 2)
+        grid.addWidget(self.todateenable, 7, 1)
+        grid.addWidget(self.todateedit, 7, 2)
         
         hbox3 = QHBoxLayout()
         hbox3.addWidget(self.view) 
         hbox3.addStretch(1)
-        hbox3.addWidget(self.progressBar)
+        hbox3.addWidget(self.progressbar)
 
         #hbox3.addLayout(vbox2)
         #hbox3.addLayout(vbox3)
         
         hbox4 = QHBoxLayout()
-        hbox4.addWidget(self.initButton)
+        hbox4.addWidget(self.initbutton)
         hbox4.addStretch(1)
-        hbox4.addWidget(replicateButton)
-        hbox4.addWidget(cleanButton)
-        hbox4.addWidget(cancelButton)
+        hbox4.addWidget(self.replicatebutton)
+        hbox4.addWidget(self.cleanbutton)
+        hbox4.addWidget(self.cancelbutton)
         
 
         vbox = QVBoxLayout()
@@ -426,7 +427,7 @@ class LDSControls(QFrame):
         self.setLayout(vbox)  
        
     #def setProgress(self,pct):
-    #    self.progressBar.setValue(pct)
+    #    self.progressbar.setValue(pct)
         
     def setStatus(self,status,message='',tooltip=None):
         '''Sets indicator icon and statusbar message'''
@@ -435,7 +436,7 @@ class LDSControls(QFrame):
 
         #progress
         loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.imgset[status]))
-        self.progressBar.setVisible(status in (self.STATUS.BUSY, self.STATUS.CLEAN))
+        self.progressbar.setVisible(status in (self.STATUS.BUSY, self.STATUS.CLEAN))
         
         #icon
         anim = QMovie(loc, QByteArray(), self)
@@ -449,6 +450,17 @@ class LDSControls(QFrame):
         self.view.repaint()
         QApplication.processEvents(QEventLoop.AllEvents)
 
+    def mainWindowEnable(self,enable=True):
+        cons = (self.lgcombo, self.confcombo, self.destcombo, 
+                self.initbutton, self.replicatebutton, self.cleanbutton, self.cancelbutton,
+                self.epsgenable,self.fromdateenable,self.todateenable)
+        for c in cons:
+            c.setEnabled(enable)
+            
+        QApplication.restoreOverrideCursor() if enable else QApplication.setOverrideCursor(QCursor(Qt.WaitCursor)) 
+
+                
+            
     def refreshLGCombo(self):
         self.lgcombo.clear()
         self.lgcombo.addItems([i[2] for i in self.parent.confconn.lglist])
@@ -512,7 +524,7 @@ class LDSControls(QFrame):
         
         #InitButton
         #ilabel = self.getInitLabel(selecteddest)
-        self.initButton.setText('Layer Select')#ilabel)
+        self.initbutton.setText('Layer Select')#ilabel)
         
         #Config File
         confindex = 0
@@ -544,16 +556,16 @@ class LDSControls(QFrame):
         
         #To/From Dates
         if LDSUtilities.mightAsWellBeNone(rfd) is not None:
-            self.fromDateEdit.setDate(QDate(int(rfd[0:4]),int(rfd[5:7]),int(rfd[8:10])))
+            self.fromdateedit.setDate(QDate(int(rfd[0:4]),int(rfd[5:7]),int(rfd[8:10])))
         else:
             early = DataStore.EARLIEST_INIT_DATE
-            self.fromDateEdit.setDate(QDate(int(early[0:4]),int(early[5:7]),int(early[8:10])))
+            self.fromdateedit.setDate(QDate(int(early[0:4]),int(early[5:7]),int(early[8:10])))
             
         if LDSUtilities.mightAsWellBeNone(rtd) is not None:
-            self.toDateEdit.setDate(QDate(int(rtd[0:4]),int(rtd[5:7]),int(rtd[8:10]))) 
+            self.todateedit.setDate(QDate(int(rtd[0:4]),int(rtd[5:7]),int(rtd[8:10]))) 
         else:
             today = DataStore.getCurrent()
-            self.toDateEdit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
+            self.todateedit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
             
         #Internal/External CheckBox
 #        if LDSUtilities.mightAsWellBeNone(rint) is not None:
@@ -567,13 +579,13 @@ class LDSControls(QFrame):
         return [d for d in self.parent.gpr.getDestinations() if d in defml]
         
     def doEPSGEnable(self):
-        self.epsgcombo.setEnabled(self.epsgEnable.isChecked())
+        self.epsgcombo.setEnabled(self.epsgenable.isChecked())
         
     def doFromDateEnable(self):
-        self.fromDateEdit.setEnabled(self.fromDateEnable.isChecked())
+        self.fromdateedit.setEnabled(self.fromdateenable.isChecked())
           
     def doToDateEnable(self):
-        self.toDateEdit.setEnabled(self.toDateEnable.isChecked())  
+        self.todateedit.setEnabled(self.todateenable.isChecked())  
           
     def readParameters(self):
         '''Read values out of dialogs'''
@@ -584,12 +596,12 @@ class LDSControls(QFrame):
         #uconf = LDSUtilities.standardiseUserConfigName(str(self.confcombo.lineEdit().text()))
         #uconf = str(self.confcombo.lineEdit().text())
         uconf = str(self.cflist[self.confcombo.currentIndex()])
-        ee = self.epsgEnable.isChecked()
+        ee = self.epsgenable.isChecked()
         epsg = None if ee is False else re.match('^\s*(\d+).*',str(self.epsgcombo.lineEdit().text())).group(1)
-        fe = self.fromDateEnable.isChecked()
-        te = self.toDateEnable.isChecked()
-        fd = None if fe is False else str(self.fromDateEdit.date().toString('yyyy-MM-dd'))
-        td = None if te is False else str(self.toDateEdit.date().toString('yyyy-MM-dd'))
+        fe = self.fromdateenable.isChecked()
+        te = self.todateenable.isChecked()
+        fd = None if fe is False else str(self.fromdateedit.date().toString('yyyy-MM-dd'))
+        td = None if te is False else str(self.todateedit.date().toString('yyyy-MM-dd'))
         
         return destination,lgval,uconf,epsg,fe,te,fd,td
     
@@ -598,7 +610,7 @@ class LDSControls(QFrame):
         try:
             try:
                 self.setStatus(self.STATUS.BUSY,'Opening Layer-Config Editor')  
-                self.progressBar.setValue(0)
+                self.progressbar.setValue(0)
                 self.parent.runLayerConfigAction()
             finally:
                 self.setStatus(self.STATUS.IDLE,'Ready')
@@ -611,7 +623,7 @@ class LDSControls(QFrame):
         
         try:
             self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
-            self.progressBar.setValue(0)
+            self.progressbar.setValue(0)
             self.runReplicationScript(True)
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Clean of '+lgo,str(e))
@@ -621,7 +633,7 @@ class LDSControls(QFrame):
         lgo = str(self.lgcombo.currentText())
         try:
             self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
-            self.progressBar.setValue(0)
+            self.progressbar.setValue(0)
             self.runReplicationScript(False)
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Replication of '+lgo,str(e))
@@ -674,19 +686,12 @@ class LDSControls(QFrame):
         #Open ProcessRunner and run with TP(proc)/self(gui) instances
         #HACK temp add of dest_drv to PR call
         self.tpr = ProcessRunner(self,destination_driver)
-        print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
         self.tpr.start()
-        print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
         
-    def quitProcessRunner(self,quit):
-        if quit: 
-            print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
-            self.tpr.join()
-            print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
-            self.tpr.quit()
-            print 'run={}, fin={}'.format(self.tpr.isRunning(),self.tpr.isFinished())
-
-            self.trp = None
+    def quitProcessRunner(self):
+        self.tpr.join()
+        self.tpr.quit()
+        self.trp = None
 
         
     def userConfMessage(self,uconf,secname=None):

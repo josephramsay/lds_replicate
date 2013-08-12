@@ -15,7 +15,6 @@ Created on 13/02/2013
 @author: jramsay
 '''
 
-
 import re
 
 from lds.TransferProcessor import TransferProcessor, LORG
@@ -59,6 +58,8 @@ class ConfigConnector(object):
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
             self.src = ConfigConnector.initSrc(self.tp)
             self.dst = ConfigConnector.initDst(self.tp,self.destname)
+            #print 'CCt',self.tp
+            #print 'CCd',self.dst
             if not self.vlayers:
                 self.vlayers = self.getValidLayers(self.dst is not None)
                 self.setupReserved()
@@ -96,11 +97,6 @@ class ConfigConnector(object):
         '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
         #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst if dst else self.dst,self.tp.src.pxy)
         tp.initLayerConfig(tp.src.getCapabilities(),dst,tp.src.pxy)
-        
-    def initKeywords(self):
-        self.setupComplete()#from LC
-        self.setupReserved()#seldom changes, from GC
-        self.setupAssigned()#diff of the above 2
         
     def setupComplete(self):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
@@ -165,43 +161,56 @@ class ConfigConnector(object):
         return index
     
     
+#import pydevd
+#pydevd.settrace(suspend=False)
+#import threading
+#threading.settrace(pydevd.GetGlobalDebugger().trace_dispatch)
+
 #from threading import Thread
+
 from PyQt4.QtCore import QThread, Qt
 from PyQt4 import QtCore
 
 class ProcessRunner(QThread):
     
-    stsly = QtCore.pyqtSignal(int,str,str)
-    fin = QtCore.pyqtSignal(bool)
+    status = QtCore.pyqtSignal(int,str,str)
+    enable = QtCore.pyqtSignal(bool)
     
     def __init__(self,controls,dd):
         QThread.__init__(self)
         self.controls = controls
-        #clone a new TP so that when we exit the thread the tp and its children die
-        self.tp = controls.parent.confconn.tp.clone()
-        #self.dst = controls.parent.confconn.dst.clone()
-        self.dst = ConfigConnector.initDst(self.tp,dd)
+        #original TP
+        self.tp = controls.parent.confconn.tp
+        #self.tp = controls.parent.confconn.tp.clone()
         
-        #self.tp = controls.parent.confconn.tp
-        #self.dst = controls.parent.confconn.dst
+        #original DST
+        self.dst = controls.parent.confconn.dst
+        #self.dst = controls.parent.confconn.dst.clone()
+        #self.dst = ConfigConnector.initDst(self.tp,dd)
+        #print 'PRt',self.tp
+        #print 'PRd',self.dst
+        
         #error notification
-        self.stsly.connect(self.controls.setStatus, Qt.QueuedConnection)
+        self.status.connect(self.controls.setStatus, Qt.QueuedConnection)
+        self.enable.connect(self.controls.mainWindowEnable, Qt.QueuedConnection)
         
     def run(self):
         pt = ProgressTimer(self.controls,self.tp)
         try:
             try:
                 pt.start()
+                self.enable.emit(False)
                 self.tp.processLDS(self.dst)
             except Exception as e1:
-                print 'thread run exception = ',str(e1)
+                ldslog.error('Error running PT thread, '+str(e1))
                 raise
             finally:
                 #die progress counter
+                self.enable.emit(True)
                 pt.join()
                 pt = None
         except Exception as e:
-            self.stsly.emit(0,'Error. Halting Processing',str(e))
+            self.status.emit(0,'Error. Halting Processing',str(e))
         
         self.quit()
         
@@ -216,7 +225,7 @@ class ProcessRunner(QThread):
 class ProgressTimer(QThread):
     
     pgbar = QtCore.pyqtSignal(int)
-    stsly = QtCore.pyqtSignal(int,str,str)
+    status = QtCore.pyqtSignal(int,str,str)
     
     def __init__(self,controls,tp):
         QThread.__init__(self)
@@ -224,8 +233,8 @@ class ProgressTimer(QThread):
         self.controls = controls
         self.tp = tp#controls.parent.confconn.tp
         #                              cc     gui
-        self.pgbar.connect(self.controls.progressBar.setValue, Qt.QueuedConnection)
-        self.stsly.connect(self.controls.setStatus, Qt.QueuedConnection)
+        self.pgbar.connect(self.controls.progressbar.setValue, Qt.QueuedConnection)
+        self.status.connect(self.controls.setStatus, Qt.QueuedConnection)
         
     def run(self):
         while not self.stopped:
@@ -239,7 +248,7 @@ class ProgressTimer(QThread):
         layer_name = ''
         if self.tp.layer_total:
             layer_part = 100*float(self.tp.layer_count)/float(self.tp.layer_total)
-            if self.tp.dst.src_feat_count:
+            if hasattr(self.tp.dst,'src_feat_count') and self.tp.dst.src_feat_count:
                 feat_part = 100*float(self.tp.dst.dst_change_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.layer_total))
         if hasattr(self.tp.dst,'dst_info'):
             layer_name = self.tp.dst.dst_info.layer_name
@@ -251,11 +260,11 @@ class ProgressTimer(QThread):
     def report(self,pct,lyr=None):
         #    tp cc     repl   con
         self.pgbar.emit(pct)
-        if lyr: self.stsly.emit(2,'Replicating Layer '+str(lyr),'')
+        if lyr: self.status.emit(2,'Replicating Layer '+str(lyr),'')
         
     def join(self,timeout=None):
         #QThread.join(self,timeout)
         self.stopped = True
-        self.stsly.emit(1,'Finished','')
+        self.status.emit(1,'Finished','')
         
         self.quit()

@@ -38,6 +38,7 @@ class SpatiaLiteDataStore(DataStore):
     SQLITE_LIST_ALL_TABLES = 'YES'
     OGR_SQLITE_CACHE = 1024
     OGR_SQLITE_SYNCHRONOUS = 'ON' #by default
+    OGR_SQLITE_PRAGMA = 'journal_mode=WAL' #only works for OGR>=2.0
     
     DEFAULT_GCOL = 'GEOMETRY'
       
@@ -55,6 +56,7 @@ class SpatiaLiteDataStore(DataStore):
         
     def clone(self):
         clone = SpatiaLiteDataStore(self.parent,self.conn_str,None)
+        clone.name = str(self.name)+'C'
         return clone
         
     def sourceURI(self,layer):
@@ -89,6 +91,7 @@ class SpatiaLiteDataStore(DataStore):
         local_opts = ['SQLITE_LIST_ALL_TABLES='+self.SQLITE_LIST_ALL_TABLES]
         local_opts += ['OGR_SQLITE_CACHE='+str(self.OGR_SQLITE_CACHE)]
         local_opts += ['OGR_SQLITE_SYNCHRONOUS='+str(self.OGR_SQLITE_SYNCHRONOUS)]
+        local_opts += ['OGR_SQLITE_PRAGMA='+str(self.OGR_SQLITE_PRAGMA)]
         
         return super(SpatiaLiteDataStore,self).getConfigOptions() + local_opts
     
@@ -121,6 +124,17 @@ class SpatiaLiteDataStore(DataStore):
         
         return super(SpatiaLiteDataStore,self).getLayerOptions(layer_id) + self.sl_local_opts
         
+    def initDS(self,dsn=None,create=True):
+        '''Seperate initDS to insert pragma command once DS is available'''
+        #HACK
+        self.ds = super(SpatiaLiteDataStore,self).initDS(dsn,create)
+        self.executePragma(self.OGR_SQLITE_PRAGMA)
+        #redundant to return DS and then reassign to self...
+        return self.ds
+        
+    def executePragma(self,pragma):
+        '''Hack to turn WAL on when OGR version<2.0'''
+        self.executeSQL('PRAGMA '+str(pragma))
 
     def buildIndex(self,lce,dst_layer_name):
         '''Builds an index creation string for a new full replicate in PG format'''

@@ -103,7 +103,6 @@ class Projection(object):
             #srs.SetFromUserInput(epsg)#consider allowing WKT
         except:
             ldslog.warning("Invalid EPSG,"+str(epsg)+". Reprojection disabled")
-            print "Invalid EPSG,",epsg,". Reprojection disabled"
             srs = None
         return srs
     
