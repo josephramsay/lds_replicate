@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  TestURL
 
@@ -20,7 +20,6 @@ import unittest
 import os
 import sys
 import time
-import logging
 import subprocess
 
 sys.path.append('..')

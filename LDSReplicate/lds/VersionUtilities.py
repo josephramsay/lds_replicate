@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  VersionUtilities
 
@@ -41,22 +41,24 @@ Spatialite 2.4.0RC3 uses SQLite 3.7.0 which has Write-Ahead-Logging (WAL)
     
 '''
 
-#__version__ = '0.0.5.0'
+#__version__ = '0.0.9.0'
 
 
 import osgeo.gdal
 import subprocess
 import re
-import os
 
 from distutils.version import StrictVersion, LooseVersion
 #from verlib import NormalizedVersion
 from lds.ReadConfig import MainFileReader
+from LDSUtilities import LDSUtilities
+
+ldslog = LDSUtilities.setupLogging()
 
 class UnsupportedVersionException(Exception): pass
 
 class AppVersion(object):
-    __version__ = '0.0.8.0'
+    __version__ = '0.0.9.0'
     
     @staticmethod
     def getVersion():
@@ -126,7 +128,8 @@ class VersionChecker(object):
                 ret = match.group(1)
         try:
             sp.kill()
-        except:
+        except Exception as e:
+            ldslog.warn('Exception on uubprocess kill, '+str(e))
             pass
         return ret
         

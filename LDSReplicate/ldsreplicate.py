@@ -1,5 +1,5 @@
 '''
-v.0.0.3
+v.0.0.9
 
 LDSReplicate -  ldsreplicate
 
@@ -36,15 +36,12 @@ python LDSReader/ldsreplicate.py -l <layer_id>
 
 
 import sys
-import os
 import getopt
-import logging
-#import traceback
 
 from datetime import datetime
 from urllib2 import HTTPError
 
-from lds.TransferProcessor import TransferProcessor, LORG
+from lds.TransferProcessor import TransferProcessor
 from lds.TransferProcessor import InputMisconfigurationException
 from lds.VersionUtilities import AppVersion, VersionChecker, UnsupportedVersionException
 from lds.DataStore import DSReaderException

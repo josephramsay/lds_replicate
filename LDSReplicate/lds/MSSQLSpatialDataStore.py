@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  MSSQLSpatialDataStore
 
@@ -21,7 +21,7 @@ import re
 from lds.DataStore import DataStore, MalformedConnectionString
 from lds.LDSUtilities import LDSUtilities, Encrypt
 
-ldslog = logging.getLogger('LDS')
+ldslog = LDSUtilities.setupLogging()
 
 class MSSQLSpatialDataStore(DataStore):
     '''
@@ -213,6 +213,6 @@ class MSSQLSpatialDataStore(DataStore):
         if VersionChecker.compareVersions(VersionChecker.MSSQL_MIN, msv_res.group(1) if msv_res is not None else VersionChecker.MSSQL_MIN):
             raise UnsupportedVersionException('MSSQL version '+str(msv_res.group(1))+' does not meet required minumum '+str(VersionChecker.MSSQL_MIN))
         
-
+        ldslog.info(self.DRIVER_NAME+' version '+str(msv_res.group(1)))
         return True
     

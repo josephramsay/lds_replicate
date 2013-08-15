@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  TestDemo
 
@@ -22,23 +22,9 @@ import os
 import sys
 import logging
 
-ldslog = logging.getLogger('LDS')
-ldslog.setLevel(logging.DEBUG)
+from lds.LDSUtilities import LDSUtilities
 
-
-path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../log/"))
-if not os.path.exists(path):
-    os.mkdir(path)
-df = os.path.join(path,"debug.log")
-
-#df = '../debug.log'
-fh = logging.FileHandler(df,'w')
-fh.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-fh.setFormatter(formatter)
-ldslog.addHandler(fh)
-
+ldslog = LDSUtilities.setupLogging()
 
 #class TestUI(LDSIncrTestCase):
 class TestDemo2(unittest.TestCase):

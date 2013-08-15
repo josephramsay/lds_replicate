@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate - ESRIDataStore
 
@@ -21,10 +21,10 @@ Created on 9/08/2012
 
 from lds.DataStore import DataStore
 from lds.ProjectionReference import Projection
-
-import logging
+from lds.LDSUtilities import LDSUtilities
 #from osr import SpatialReference 
-ldslog = logging.getLogger('LDS')
+
+ldslog = LDSUtilities.setupLogging()
 
 class ESRIDataStore(DataStore):
     '''

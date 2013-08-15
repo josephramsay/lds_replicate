@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  DataStore
 
@@ -21,7 +21,6 @@ import ogr
 import osr
 import gdal
 import re
-import logging
 
 #from osr import CoordinateTransformation
 from datetime import datetime
@@ -32,7 +31,8 @@ from lds.ProjectionReference import Projection
 from lds.ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
 
-ldslog = logging.getLogger('LDS')
+ldslog = LDSUtilities.setupLogging()
+
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
 ogr.UseExceptions()
 
@@ -97,7 +97,7 @@ class DataStore(object):
     
     ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
     
-    CPL_DEBUG = 'OFF'
+    CPL_DEBUG = 'ON'
     
     def __init__(self,parent,conn_str=None,user_config=None):
         '''
@@ -605,61 +605,67 @@ class DataStore(object):
                 self.src_feat_count = self.getFeatureCount()
                 
             ldslog.info('Features available = '+str(self.src_feat_count))
-
-            src_feat = src_layer.GetNextFeature()
-            #since the characteristics of each feature wont change between layers we only need to define a new feature definition once
-            if src_feat:
-                new_feat_def = self.partialCloneFeatureDef(src_feat)
-                self.dst_change_count = 1
-                e = 0
-                while 1:
-                    '''identify the change in the WFS doc (INS,UPD,DEL)'''
-                    change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
-                    '''not just copy but possubly delete or update a feature on the DST layer'''
-                    #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
-                    
-                    try:
-                        if change == 'insert': 
-                            e = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-                            insert_count += 1
-                        elif change == 'delete': 
-                            e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
-                            delete_count += 1
-                        elif change == 'update': 
-                            e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-                            update_count += 1
-                        else:
-                            ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
-                        #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
-                    except InvalidFeatureException as ife:
-                        ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
-                    #except Exception as e:
-                    #    ldslog.error('trap new errors here... '+str(e))
-                        
-                    if e != 0:                  
-                        ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-                        if change == 'update':
-                            ldslog.warn('Update failed on SetFeature, attempting delete+insert')
-                            #let delete and insert error handlers take care of any further exceptions
-                            e1 = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
-                            e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-                            if e1+e2 != 0:
-                                raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
-                    
-
-                    next_feat = src_layer.GetNextFeature()
-                    #On no-new-features grab the last primary key index and break
-                    if next_feat is None:
-                        if hasattr(self.src_link, 'pkey'):
-                            #this of course assumes the layer is correctly sorted in pkey
-                            src_feat.GetField(layerconfentry.pkey)
-                        break
-                    else:
-                        src_feat = next_feat
-                        self.dst_change_count += 1
-            else:
-                raise InaccessibleFeatureException('Cannot access Feature 1. ('+str(self.src_feat_count)+' available)')
             
+            if self.src_feat_count>0:
+                src_feat = src_layer.GetNextFeature()
+                if src_feat:
+                    new_feat_def = self.partialCloneFeatureDef(src_feat)
+                else:
+                    raise InaccessibleFeatureException('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
+            else:
+                raise InaccessibleFeatureException('Error attempting to access Feature ('+str(self.src_feat_count)+' available)')
+                
+            #loop till break on next feat is none
+            self.dst_change_count = 0
+            e = 0
+            while src_feat:
+                self.dst_change_count += 1
+                '''identify the change in the WFS doc (INS,UPD,DEL)'''
+                change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+                '''not just copy but possubly delete or update a feature on the DST layer'''
+                #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
+                
+                try:
+                    if change == 'insert': 
+                        e = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                        insert_count += 1
+                    elif change == 'delete': 
+                        e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
+                        delete_count += 1
+                    elif change == 'update': 
+                        e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                        update_count += 1
+                    else:
+                        ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
+                    #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
+                except InvalidFeatureException as ife:
+                    ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+                #except Exception as e:
+                #    ldslog.error('trap new errors here... '+str(e))
+                    
+                if e != 0:                  
+                    ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
+                    if change == 'update':
+                        ldslog.warn('Update failed on SetFeature, attempting delete+insert')
+                        #let delete and insert error handlers take care of any further exceptions
+                        e1 = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
+                        e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                        if e1+e2 != 0:
+                            raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
+                
+                #final pk no longer needed so switch to simple while src_feat
+                #next_feat = src_layer.GetNextFeature()
+                ##On no-new-features grab the last primary key index and break
+                #if next_feat is None:
+                #    #if hasattr(self.src_link, 'pkey'):
+                #    #    #this of course assumes the layer is correctly sorted in pkey
+                #    #    src_feat.GetField(layerconfentry.pkey)
+                #    break
+                #else:
+                #    src_feat = next_feat
+                #    self.dst_change_count += 1
+                src_feat = src_layer.GetNextFeature()
+                
             if self.src_feat_count != self.dst_change_count:
                 if transaction_flag:
                     dst_layer.RollbackTransaction()
@@ -998,12 +1004,12 @@ class DataStore(object):
                 ldslog.error("Runtime Error. Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
                 #this can be a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
                 #but also indicate no problem, e.g. deleting a layer already deleted
-                if re.search('does not exist',str(rex)):
+                if re.search('does not exist|no such table',str(rex)):
                     ldslog.error("Attempt to delete unrecognised table. "+str(rex))
                     return retval
-                if self.DRIVER_NAME=='SQLite' and re.search('SQL logic error or missing database',str(rex)):
-                    ldslog.error("SQLite error evecuting pragma? ignoring. "+str(rex))
-                    return retval
+                #if self.DRIVER_NAME=='SQLite' and re.search('SQL logic error or missing database',str(rex)):
+                #    ldslog.error("SQLite error evecuting pragma? ignoring. "+str(rex))
+                #    return retval
                 raise
             except InvalidSQLException as ise:
                 #Caused by query not matching valid entry
@@ -1062,19 +1068,20 @@ class DataStore(object):
             return False
         return True
     
-    def _cleanLayerByRef(self,ds,layer,truncate):
+    def _cleanLayerByRef(self,ds,layerid,truncate):
         '''Deletes a layer from the DS using the layer reference ie. v:x###'''
         msg = 'truncate' if truncate else 'clean'
         #when the DS is created it uses (PG) the active_schema which is the same as the layername schema.
         #since getlayerX returns all layers in all schemas we ignore the ones with schema prepended since they wont be 'active'
-        name = self.generateLayerName(self.layerconf.readLayerProperty(layer,'name')).split('.')[-1]
+        name = self.generateLayerName(self.layerconf.readLayerProperty(layerid,'name')).split('.')[-1]
         try:
-            for li in range(0,self.ds.GetLayerCount()):
-                lref = ds.GetLayerByIndex(li)
-                lname = lref.GetName().split('.')[-1] #strip schema
-                if lname == name:
-                    delete_capable = lref.TestCapability('DeleteFeature')
-                    if truncate and delete_capable:
+            lref = ds.GetLayerByName(name)
+            if lref: 
+                feat_delete_capable = lref.TestCapability('DeleteFeature')
+                layer_delete_capable = ds.TestCapability('DeleteLayer')
+            
+                if truncate:
+                    if feat_delete_capable:
                         begun = False
                         try:
                             fid = 0
@@ -1087,7 +1094,7 @@ class DataStore(object):
                                 lref.DeleteFeature(fid)
                                 f = lref.GetNextFeature()  
                         except Exception as e:
-                            ldslog.error("Error deleting feature {} on layer {}. {}".format(fid,layer,e))
+                            ldslog.error("Error deleting feature {} on layer {}. {}".format(fid,layerid,e))
                             lref.RollbackTransaction()     
                             
                         try:
@@ -1100,54 +1107,70 @@ class DataStore(object):
                             else:
                                 lref.RollbackTransaction()
                                 raise  
-                    elif truncate and not delete_capable:
-                        #Attempt sql truncate after delete feature and before delete layer
-                        self._baseDeleteFeature(lname)                 
                     else:
-                        ds.DeleteLayer(li)
-                    ldslog.info("DS {} {}".format(msg,str(lname)))
-                    #since we only want to alter lastmodified on success return flag=True
-                    #we return here too since we assume user only wants to delete one layer, re-indexing issues occur for more than one deletion
-                    return True
-            ldslog.warning('Matching layer name not found, '+name)
-            #NB THE FOLLOWING HAS BEEN COMMENTED AS A TEST AND MAY NEED TO BE ADDED BACK, MAKE SURE ITS OKAY TO DELETE
-            #try:
-            #    self._baseDeleteLayer(name)
-            #except:
-            #    raise DatasourceOpenException('Unable to {} layer, {}'.format(msg,str(layer)))
-            #return True
+                        #Attempt sql truncate, 'delete from'
+                        self._baseDeleteFeature(name)   
+                else:        
+                    #delete
+                    #lref = None
+                    ds.SyncToDisk()
+                    if layer_delete_capable:
+                        #HACK. Attempt repeated deletes until no longer locked
+                        i=0
+                        keep_trying = True
+                        while keep_trying or i>5:
+                            i+=1
+                            try:
+                                keep_trying = False
+                                ds.DeleteLayer(name)
+                            except Exception as e: 
+                                if re.search('database table is locked',str(e)):
+                                    keep_trying = True
+                                ldslog.error('#{}. {}. layercount={}'.format(i,e,ds.GetLayerCount()))
+
+                            ds.SyncToDisk()
+                    else:
+                        #Attempt sql drop, 'drop table'
+                        self._baseDeleteLayer(name)
+            else:
+                ldslog.warn('Layer {} not found'.format(name))        
                 
-                    
+            ldslog.info("DS {} {}".format(msg,str(name)))    
+            return True                
+            #-----------------------------                             
+                   
         except ValueError as ve:
-            ldslog.error('Value Error doing {} on layer {}. {}'.format(msg,str(layer),str(ve)))
+            ldslog.error('Value Error doing {} on layer {}. {}'.format(msg,str(layerid),str(ve)))
             raise
         except RuntimeError as rte:
-            ldslog.error("RuntimeError deleting features on layer "+str(layer)+'. '+str(rte))
+            ldslog.error("RuntimeError deleting layer/feature "+str(layerid)+'. '+str(rte))
             if re.search('database table is locked',str(rte)):
                 ldslog.warn('Unable to clean layer, table may be open in another application. '+str(rte))
             raise
         except Exception as e:
-            ldslog.error("Generic error in layer "+str(layer)+'. '+str(e))
+            ldslog.error("Generic error in layer "+str(layerid)+'. '+str(e))
             raise
         return False
     
     def _baseDeleteLayer(self,table):
         '''Basic layer delete function intended for aspatial tables which are not returned by queries to the DS. Should work on most DS types'''
         #TODO. Implement for all DS types
-        #THIS DOESN'T GET CALLED ANYMORE AND CAN PROBABLY BE DELETED
-        sql_str = "drop table "+table
-        return self.executeSQL(sql_str)    
+        sql_tbd = "drop table "+table
+        sql_gcd = "delete from geometry_columns where f_table_name = "+table
+        self.executeSQL(sql_tbd)    
+        self.executeSQL(sql_gcd)   
+        
+        #MSSQL = DELETE FROM geometry_columns WHERE f_table_schema = '%s' AND f_table_name = '%s'\n
     
     def _baseDeleteColumn(self,table,column):
         '''Basic column delete function for when regular deletes fail. Intended for aspatial tables which are not returned by queries to the DS'''
         #TODO. Implement for all DS types
-        #THIS DOESN'T GET CALLED ANYMORE AND CAN PROBABLY BE DELETED
         sql_str = "alter table "+table+" drop column "+column
         return self.executeSQL(sql_str)
         
     def _baseDeleteFeature(self,table,where=None):
         '''Deletion by feature using base methods but intended for truncate operations'''
-        #works with PG, MS, SL fg? NB. Not Fully tested...
+        #works with PG, MS, SL FG? NB. Not Fully tested...
         sql_str = "delete * from "+table + " where "+str(where) if where else "delete from "+table
         return self.executeSQL(sql_str)
         

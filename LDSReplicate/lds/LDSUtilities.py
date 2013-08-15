@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  LDSUtilities
 
@@ -29,6 +29,8 @@ from contextlib import closing
 from StringIO import StringIO
 from lxml import etree
 
+#from lds.LDSUtilities import LDSUtilities
+#ldslog = LDSUtilities.setupLogging()
 ldslog = logging.getLogger('LDS')
 
 class LDSUtilities(object):
@@ -395,7 +397,7 @@ class LDSUtilities(object):
         fh.setFormatter(formatter)
         log.addHandler(fh)
         
-        return ldslog
+        return log
     
         
     @staticmethod

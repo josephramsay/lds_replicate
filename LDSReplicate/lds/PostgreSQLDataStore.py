@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  PostgreSQLDataStore
 
@@ -21,7 +21,7 @@ import re
 from lds.DataStore import DataStore, MalformedConnectionString, DatasourcePrivilegeException
 from lds.LDSUtilities import LDSUtilities, Encrypt
 
-ldslog = logging.getLogger('LDS')
+ldslog = LDSUtilities.setupLogging()
 
 class PostgreSQLDataStore(DataStore):
     '''
@@ -195,6 +195,8 @@ class PostgreSQLDataStore(DataStore):
         if VersionChecker.compareVersions(VersionChecker.PostGIS_MIN, pgisv_res.group(1) if pgisv_res is not None else VersionChecker.PostGIS_MIN):
             raise UnsupportedVersionException('PostGIS version '+str(pgisv_res.group(1))+' does not meet required minumum '+str(VersionChecker.PostGIS_MIN))
         
+        ldslog.info(self.DRIVER_NAME+' version '+str(pgv_res.group(1)))
+        ldslog.info('PostGIS version '+str(pgisv_res.group(1)))
         return True
         
         

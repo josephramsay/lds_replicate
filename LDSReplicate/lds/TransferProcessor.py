@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  TransferProcessor
 
@@ -31,7 +31,7 @@ from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.ReadConfig import LayerFileReader, LayerDSReader
 
-ldslog = logging.getLogger('LDS')
+ldslog = LDSUtilities.setupLogging()
 
 
 class InputMisconfigurationException(Exception): 
@@ -81,6 +81,7 @@ class TransferProcessor(object):
         self.sixtyfourlayers = None
         self.temptable = None
         
+        self.layer = None
         self.layer_total = 0
         self.layer_count = 0
         
@@ -305,7 +306,7 @@ class TransferProcessor(object):
         
             #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy
             self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),srs))
-            
+
             #Destination URI won't change because of incremental so set it here
             self.dst.setURI(self.dst.destinationURI(each_layer))
                 

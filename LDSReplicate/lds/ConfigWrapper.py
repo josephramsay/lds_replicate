@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  ConfigWrapper
 
@@ -18,7 +18,8 @@ import logging
 
 from lds.ReadConfig import MainFileReader#, LayerFileReader
 from lds.LDSUtilities import LDSUtilities
-ldslog = logging.getLogger('LDS')
+
+ldslog = LDSUtilities.setupLogging()
 
 class ConfigWrapper(object):
     '''

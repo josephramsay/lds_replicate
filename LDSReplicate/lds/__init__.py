@@ -1,7 +1,7 @@
 '''
-| v.0.0.1
+| v.0.0.9
 |
-| LDSReplicate -  LDS Incremental Utilities
+| LDSReplicate -  lds.__init__
 |
 | Copyright 2011 Crown copyright (c)
 | Land Information New Zealand and the New Zealand Government.

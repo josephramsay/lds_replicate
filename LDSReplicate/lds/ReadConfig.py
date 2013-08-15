@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  ReadConfig
 
@@ -25,7 +25,7 @@ from ConfigParser import ConfigParser, NoSectionError, NoOptionError, ParsingErr
 from lds.LDSUtilities import LDSUtilities as LU
 
 
-ldslog = logging.getLogger('LDS')
+ldslog = LU.setupLogging()
 
 class MainFileReader(object):
     '''

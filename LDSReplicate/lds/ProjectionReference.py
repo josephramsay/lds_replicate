@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  ProjectionReference
 
@@ -22,7 +22,9 @@ import logging
 from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
 from contextlib import closing
 
-ldslog =  logging.getLogger('LDS')
+from lds.LDSUtilities import LDSUtilities
+
+ldslog = LDSUtilities.setupLogging()
 
 class Projection(object):
     '''

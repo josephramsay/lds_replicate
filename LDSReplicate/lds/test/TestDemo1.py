@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  TestDemo
 
@@ -20,8 +20,6 @@ Created on 17/09/2012
 import unittest
 import os
 import sys
-import time
-import logging
 
 from lds.LDSUtilities import LDSUtilities
 

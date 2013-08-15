@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  FileGDBDataStore
 
@@ -22,8 +22,9 @@ import ogr
 
 from lds.ESRIDataStore import ESRIDataStore
 from lds.DataStore import DataStore,MalformedConnectionString
+from lds.LDSUtilities import LDSUtilities
 
-ldslog = logging.getLogger('LDS')
+ldslog = LDSUtilities.setupLogging()
 
 class FileGDBDataStore(ESRIDataStore):
     '''
@@ -134,5 +135,7 @@ class FileGDBDataStore(ESRIDataStore):
 
     def versionCheck(self):
         '''Nothing to check?'''
-        return super(FileGDBDataStore,self).versionCheck()
+        v = super(FileGDBDataStore,self).versionCheck()
+        ldslog.info(self.DRIVER_NAME+' version '+str(v))
+        return v
         

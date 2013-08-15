@@ -23,9 +23,9 @@ td = 2012-01-01
 dest = SQLite
 
 [SQLite]
-uconf = sl23
-lgvalue = v:x786
-epsg = None
-fd = None
+uconf = sl24
+lgvalue = BLDGPTS
+epsg = 4764
+fd = 2000-01-22
 td = None
 

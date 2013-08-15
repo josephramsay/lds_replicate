@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  LDSGUI
 
@@ -117,9 +117,9 @@ class LDSMain(QMainWindow):
         helpAction.setStatusTip('Open Help Document')
         helpAction.triggered.connect(self.launchHelpFile)
         
-        menubar = self.menuBar()
+        self.menubar = self.menuBar()
 
-        fileMenu = menubar.addMenu('&File')
+        fileMenu = self.menubar.addMenu('&File')
         fileMenu.addAction(openUCAction)
         fileMenu.addAction(openLCAction)
         fileMenu.addSeparator()
@@ -128,7 +128,7 @@ class LDSMain(QMainWindow):
         fileMenu.addSeparator()
         fileMenu.addAction(exitAction)
 
-        helpMenu = menubar.addMenu('&Help')
+        helpMenu = self.menubar.addMenu('&Help')
         helpMenu.addAction(helpAction)
 
     def updateFromGPR(self):
@@ -453,7 +453,8 @@ class LDSControls(QFrame):
     def mainWindowEnable(self,enable=True):
         cons = (self.lgcombo, self.confcombo, self.destcombo, 
                 self.initbutton, self.replicatebutton, self.cleanbutton, self.cancelbutton,
-                self.epsgenable,self.fromdateenable,self.todateenable)
+                self.epsgenable,self.fromdateenable,self.todateenable,
+                self.parent.menubar)
         for c in cons:
             c.setEnabled(enable)
             

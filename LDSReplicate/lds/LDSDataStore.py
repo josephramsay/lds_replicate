@@ -1,5 +1,5 @@
 '''
-v.0.0.8
+v.0.0.9
 
 LDSReplicate -  LDSDataStore
 
@@ -30,7 +30,7 @@ from lds.LDSUtilities import LDSUtilities
 from lds.DataStore import MalformedConnectionString
 from lds.VersionUtilities import AppVersion
 
-ldslog = logging.getLogger('LDS')
+ldslog = LDSUtilities.setupLogging()
 
 class LDSDataStore(WFSDataStore):
     '''
@@ -159,7 +159,7 @@ class LDSDataStore(WFSDataStore):
     def buildIndex(self,lce,dst_layer_name):
         pass
         
-    def sourceURI(self,layername,purpose=None):
+    def sourceURI(self,layername):
         '''Basic Endpoint constructor'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             valid,urilayer = self.validateConnStr(self.conn_str)
@@ -181,7 +181,7 @@ class LDSDataStore(WFSDataStore):
         return uri
 
         
-    def sourceURI_incrd(self,layername,fromdate,todate,purpose=None):
+    def sourceURI_incrd(self,layername,fromdate,todate):
         '''Endpoint constructor fetching specific layers with incremental date fields'''
         if hasattr(self,'conn_str') and self.conn_str is not None:
             valid,urilayer = self.validateConnStr(self.conn_str)

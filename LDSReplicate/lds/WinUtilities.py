@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  WinUtilities
 
@@ -26,7 +26,7 @@ import _winreg
 from _winreg import *
 
 
-ldslog = logging.getLogger('LDS')
+ldslog = LDSUtilities.setupLogging()
 
 class WinUtilities(object):
     '''Windows specific functions.'''

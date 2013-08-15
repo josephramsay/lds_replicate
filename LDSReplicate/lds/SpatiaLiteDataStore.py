@@ -1,5 +1,5 @@
 '''
-v.0.0.1
+v.0.0.9
 
 LDSReplicate -  SpatiaLiteDataStore
 
@@ -25,7 +25,7 @@ from lds.DataStore import DataStore
 from lds.DataStore import MalformedConnectionString
 from lds.LDSUtilities import LDSUtilities
 
-ldslog = logging.getLogger('LDS')
+ldslog = LDSUtilities.setupLogging()
 
 class SpatiaLiteDataStore(DataStore):
     '''
@@ -35,10 +35,14 @@ class SpatiaLiteDataStore(DataStore):
     
     DRIVER_NAME = DataStore.DRIVER_NAMES['sl']#"SQLite"
     
+    #db create options
+    SPATIALITE = 'yes'
+    
     SQLITE_LIST_ALL_TABLES = 'YES'
     OGR_SQLITE_CACHE = 1024
     OGR_SQLITE_SYNCHRONOUS = 'ON' #by default
     OGR_SQLITE_PRAGMA = 'journal_mode=WAL' #only works for OGR>=2.0
+    OGR_SQLITE_JOURNAL = 'WAL'
     
     DEFAULT_GCOL = 'GEOMETRY'
       
@@ -82,7 +86,9 @@ class SpatiaLiteDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.validateConnStr(self.conn_str)
         #return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
-        return self.fname+('' if re.search('|'.join(self.SUFFIX)+'$',self.fname,flags=re.IGNORECASE) else self.SUFFIX[0])
+        file = self.fname+('' if re.search('|'.join(self.SUFFIX)+'$',self.fname,flags=re.IGNORECASE) else self.SUFFIX[0])
+        prag = ';'+self.OGR_SQLITE_PRAGMA
+        return file
     
         
     def getConfigOptions(self):
@@ -91,7 +97,8 @@ class SpatiaLiteDataStore(DataStore):
         local_opts = ['SQLITE_LIST_ALL_TABLES='+self.SQLITE_LIST_ALL_TABLES]
         local_opts += ['OGR_SQLITE_CACHE='+str(self.OGR_SQLITE_CACHE)]
         local_opts += ['OGR_SQLITE_SYNCHRONOUS='+str(self.OGR_SQLITE_SYNCHRONOUS)]
-        local_opts += ['OGR_SQLITE_PRAGMA='+str(self.OGR_SQLITE_PRAGMA)]
+        #local_opts += ['OGR_SQLITE_PRAGMA='+str(self.OGR_SQLITE_PRAGMA)]
+        local_opts += ['OGR_SQLITE_JOURNAL='+str(self.OGR_SQLITE_JOURNAL)]
         
         return super(SpatiaLiteDataStore,self).getConfigOptions() + local_opts
     
@@ -105,36 +112,21 @@ class SpatiaLiteDataStore(DataStore):
         #FORMAT=WKB/WKT/SPATIALITE, LAUNDER, SPATIAL_INDEX, COMPRESS_GEOM, SRID, COMPRESS_COLUMNS
         
         self.sl_local_opts = []
-       
-        #TODO Figure out how to set geom_name for SL... this wont do it. GEOMETRY is default
-        #gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
-        #if gname is not None:
-        #    local_opts += ['GEOMETRY_NAME='+gname]
-        
-        #NB. We could directly edit the geometry_columns table... something like?
-        #"update table geometry_columns set f_geometry_column to '<geocolumn>' where f_table_name like <layername>"
-            
-        #Not really needed since default is YES
-        #if index == 'spatial' or index == 's' or re.match(index,gname.lower()):
-        #   local_opts += ['SPATIAL_INDEX=yes']
-        
-        #no reason to turn spatial index off since it doesnt affect Aspatial table creation
-        #if self.layerconf.readLayerProperty(layer_id,'geocolumn') is None:
-        #    local_opts += ['SPATIAL_INDEX=no']
         
         return super(SpatiaLiteDataStore,self).getLayerOptions(layer_id) + self.sl_local_opts
         
-    def initDS(self,dsn=None,create=True):
-        '''Seperate initDS to insert pragma command once DS is available'''
-        #HACK
-        self.ds = super(SpatiaLiteDataStore,self).initDS(dsn,create)
-        self.executePragma(self.OGR_SQLITE_PRAGMA)
-        #redundant to return DS and then reassign to self...
-        return self.ds
+#     def initDS(self,dsn=None,create=True):
+#         '''Seperate initDS to insert pragma command once DS is available. Depends on SL/GDAL version'''
+#         #HACK
+#         self.ds = super(SpatiaLiteDataStore,self).initDS(dsn,create)
+#         #self.executePragma(self.OGR_SQLITE_PRAGMA)
+#         #redundant to return DS and then reassign to self...
+#         return self.ds
         
     def executePragma(self,pragma):
         '''Hack to turn WAL on when OGR version<2.0'''
-        self.executeSQL('PRAGMA '+str(pragma))
+        rv = self.executeSQL('PRAGMA '+str(pragma))
+        print rv.GetName()
 
     def buildIndex(self,lce,dst_layer_name):
         '''Builds an index creation string for a new full replicate in PG format'''
@@ -220,6 +212,25 @@ class SpatiaLiteDataStore(DataStore):
         return self.executeSQL(sql_str)
         
 
+    def _baseDeleteLayer(self,table):
+        '''Basic layer delete function intended for SpatiaLite includes geo_col syntax and idx tables'''
+        GCOL = 'GEOMETRY'
+        sql_tbd = "drop table "+table
+        sql_gcd = "delete from geometry_columns where f_table_name = "+table
+        sql_i1d = "drop table 'idx_{}_{}'".format(table,GCOL)
+        sql_i2d = "drop table 'idx_{}_{}_node'".format(table,GCOL)
+        sql_i3d = "drop table 'idx_{}_{}_parent'".format(table,GCOL)
+        sql_i4d = "drop table 'idx_{}_{}_rowid'".format(table,GCOL)
+        #sql_idx delete matching index?
+        self.executeSQL(sql_tbd)    
+        self.executeSQL(sql_gcd)   
+        self.executeSQL(sql_i1d)   
+        self.executeSQL(sql_i2d)   
+        self.executeSQL(sql_i3d)   
+        self.executeSQL(sql_i4d)   
+        
+        
+        
     '''Spatialite has datatypes INT, INTEGER, SMALLINT, TINYINT, DEC, DECIMAL, LONGCHAR, LONGVARCHAR, DATETIME, SMALLDATETIME which are only
     remaned INTEGER, REAL, TEXT, BLOB and NULL. This converts and aggregates from gdal to these'''
     def convertToDestinationType(self,key):
@@ -251,6 +262,6 @@ class SpatiaLiteDataStore(DataStore):
         if VersionChecker.compareVersions(VersionChecker.SpatiaLite_MIN, slv_ver if slv_ver is not None else VersionChecker.SpatiaLite_MIN):
             raise UnsupportedVersionException('SpatiaLite version '+str(slv_ver)+' does not meet required minumum '+str(VersionChecker.SpatiaLite_MIN))
         
-
+        ldslog.info(self.DRIVER_NAME+' version '+str(slv_ver))
         return True
         
