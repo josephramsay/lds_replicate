@@ -97,9 +97,9 @@ class LDSMain(QMainWindow):
         openLCAction.setStatusTip('Open Layer Config File (only applies to external LC storage)')
         openLCAction.triggered.connect(self.launchLCEditor)
         
-        initUCAction = QAction(QIcon('uc.png'), 'User &Setup Wizard', self)   
+        initUCAction = QAction(QIcon('uc.png'), 'Database &Setup Wizard', self)   
         initUCAction.setShortcut('Ctrl+S')
-        initUCAction.setStatusTip('Open User Config Wizard')
+        initUCAction.setStatusTip('Open Database Setup Wizard')
         initUCAction.triggered.connect(self.runWizardAction)
         
         initLCAction = QAction(QIcon('lc.png'), 'Layer &Config Editor', self)   

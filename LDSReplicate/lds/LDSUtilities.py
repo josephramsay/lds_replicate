@@ -362,10 +362,7 @@ class LDSUtilities(object):
             ldslog.warn('Converting Integer to String for null comparison')
             return str(nstr)
         if isinstance(nstr,tuple) or isinstance(nstr,list):
-            for i in nstr:
-                #OR NONE. If any element is none return none. Since we consider '0' valid (ie LG enum) must use ==None
-                if LDSUtilities.mightAsWellBeNone(i) is None:
-                    return None
+            return None if any(not LDSUtilities.mightAsWellBeNone(i) for i in nstr) else nstr
         else:
             if isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in whitespace for i in nstr)):
                 return None

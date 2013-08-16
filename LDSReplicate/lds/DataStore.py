@@ -97,7 +97,7 @@ class DataStore(object):
     
     ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
     
-    CPL_DEBUG = 'ON'
+    CPL_DEBUG = 'OFF'
     
     def __init__(self,parent,conn_str=None,user_config=None):
         '''
@@ -267,6 +267,7 @@ class DataStore(object):
         #1. FGDB.driver will Open() a directory if its a valid FGDB dir, it will not Open() an empty directory. It will not CreateDataSource() an existing directory, valid or empty
         from WFSDataStore import WFSDataStore
         ds = None
+        self.setURI(dsn)
         '''initialise a DS for writing'''
         try:
             #we turn ogr exceptions off here so reported errors don't kill DS initialisation 
@@ -1081,7 +1082,7 @@ class DataStore(object):
                 layer_delete_capable = ds.TestCapability('DeleteLayer')
             
                 if truncate:
-                    if feat_delete_capable:
+                    if feat_delete_capable and lref.GetFeatureCount():
                         begun = False
                         try:
                             fid = 0
@@ -1112,10 +1113,9 @@ class DataStore(object):
                         self._baseDeleteFeature(name)   
                 else:        
                     #delete
-                    #lref = None
                     ds.SyncToDisk()
                     if layer_delete_capable:
-                        #HACK. Attempt repeated deletes until no longer locked
+                        #HACK. Attempt repeated deletes/re-inits until no longer locked
                         i=0
                         keep_trying = True
                         while keep_trying or i>5:
@@ -1124,11 +1124,19 @@ class DataStore(object):
                                 keep_trying = False
                                 ds.DeleteLayer(name)
                             except Exception as e: 
+                                '''for SL trial and error shows that, if we get a db locked error the db unlocks on delete but then loses the
+                                layer being deleted returning a not found error. This repeats until we re-init the ds and delete again''' 
                                 if re.search('database table is locked',str(e)):
-                                    keep_trying = True
-                                ldslog.error('#{}. {}. layercount={}'.format(i,e,ds.GetLayerCount()))
+                                    pass
+                                elif re.search('not found to delete',str(e)):
+                                    ds.SyncToDisk()
+                                    ds.Release()
+                                    ds = self.initDS(self.getURI(), create=False)
+                                else:
+                                    raise
+                                keep_trying = True
+                                ldslog.error('Delete attempt #{}. {}'.format(i,e))
 
-                            ds.SyncToDisk()
                     else:
                         #Attempt sql drop, 'drop table'
                         self._baseDeleteLayer(name)
@@ -1143,9 +1151,12 @@ class DataStore(object):
             ldslog.error('Value Error doing {} on layer {}. {}'.format(msg,str(layerid),str(ve)))
             raise
         except RuntimeError as rte:
-            ldslog.error("RuntimeError deleting layer/feature "+str(layerid)+'. '+str(rte))
+            ldslog.error("RuntimeError performing {} on layer/feature {}. {}".format(msg,str(layerid),str(rte)))
+            if re.search('No field definitions found for',str(rte)):
+                ldslog.warn('Unable to {} layer, cannot get layer ref for field-less table using driver {}. {}'.format(msg,self.DRIVER_NAME,str(rte)))
+                return True
             if re.search('database table is locked',str(rte)):
-                ldslog.warn('Unable to clean layer, table may be open in another application. '+str(rte))
+                ldslog.warn('Unable to {} layer, table may be open in another application. {}'+str(rte))
             raise
         except Exception as e:
             ldslog.error("Generic error in layer "+str(layerid)+'. '+str(e))

@@ -1,6 +1,6 @@
 [MSSQLSpatial]
-uconf = ms4
-lgvalue = PARCELSMED
+uconf = ms
+lgvalue = v:x979
 epsg = None
 fd = None
 td = None
@@ -13,18 +13,18 @@ fd = None
 td = 2013-05-01
 
 [PostgreSQL]
-lgvalue = v:x278
+lgvalue = v:x979
 uconf = pg
 epsg = None
 fd = None
 td = 2012-01-01
 
 [prefs]
-dest = SQLite
+dest = MSSQLSpatial
 
 [SQLite]
 uconf = sl24
-lgvalue = BLDGPTS
+lgvalue = v:x979
 epsg = 4764
 fd = 2000-01-22
 td = None
