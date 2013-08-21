@@ -1132,6 +1132,7 @@ class DataStore(object):
                                     ds.SyncToDisk()
                                     ds.Release()
                                     ds = self.initDS(self.getURI(), create=False)
+                                    self.ds = ds
                                 else:
                                     raise
                                 keep_trying = True

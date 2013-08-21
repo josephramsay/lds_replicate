@@ -1,6 +1,7 @@
-set PATH=%~dp0\bin\gdal;%~dp0\apps\python27;%~dp0\apps\ldsreplicate;%~dp0\bin\gdal\bin;%~dp0\bin\gdal\gdalplugins;%~dp0\bin\gdal\gdal-data
-set GDAL_DATA=%~dp0\bin\gdal\gdal-data
-set GDAL_DRIVER_PATH=%~dp0\bin\gdal\gdalplugins
-set PYTHONHOME=%~dp0\apps\python27
-set PYTHONPATH=%~dp0\apps\python27;%~dp0\apps\python27\DLLs;%~dp0\apps\python27\lib;%~dp0\apps\python27\lib\lib-tk;%~dp0\apps\python27\lib\site-packages;%~dp0\apps\python27\lib\site-packages\osgeo
-set PROJ_LIB=%~dp0\bin\GDAL\projlib
+set PATH=%~dp0bin;%~dp0bin\gdal;%~dp0bin\gdal\apps;%~dp0bin\gdal\plugins;%~dp0bin\gdal-data
+set PATH=%PATH%;%~dp0apps\python27;%~dp0apps\ldsreplicate
+set GDAL_DATA=%~dp0bin\gdal-data
+set GDAL_DRIVER_PATH=%~dp0bin\gdal\plugins
+set PYTHONHOME=%~dp0apps\python27
+set PYTHONPATH=%~dp0apps\python27;%~dp0apps\python27\DLLs;%~dp0apps\python27\Lib
+set PYTHONPATH=%PYTHONPATH%;%~dp0apps\python27\lib\site-packages;%~dp0apps\python27\lib\site-packages\osgeo

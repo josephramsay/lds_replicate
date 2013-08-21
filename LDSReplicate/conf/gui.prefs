@@ -13,18 +13,18 @@ fd = None
 td = 2013-05-01
 
 [PostgreSQL]
-lgvalue = v:x979
+lgvalue = ABROCKS
 uconf = pg
 epsg = None
 fd = None
 td = 2012-01-01
 
 [prefs]
-dest = MSSQLSpatial
+dest = SQLite
 
 [SQLite]
-uconf = sl24
-lgvalue = v:x979
+uconf = sl22
+lgvalue = MULTILAYERFORSQLITE
 epsg = 4764
 fd = 2000-01-22
 td = None

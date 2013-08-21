@@ -1,13 +1,16 @@
 @echo off
+SET PWD=%~dp0
+
 REM Setup Local Environment
 
-set PATH=%~dp0bin\gdal;%~dp0apps\python27;%~dp0apps\ldsreplicate;%~dp0bin\gdal\bin;%~dp0bin\gdal\gdalplugins;%~dp0bin\gdal\gdal-data
-set GDAL_DATA=%~dp0bin\gdal\gdal-data
-set GDAL_DRIVER_PATH=%~dp0bin\gdal\gdalplugins
-set PYTHONHOME=%~dp0apps\python27
-set PYTHONPATH=%~dp0apps\python27;%~dp0apps\python27\DLLs;%~dp0apps\python27\lib;%~dp0apps\python27\lib\lib-tk;%~dp0apps\python27\lib\site-packages;%~dp0apps\python27\lib\site-packages\osgeo
-set PROJ_LIB=%~dp0bin\GDAL\projlib
+set PATH=%PWD%bin;%PWD%bin\gdal;%PWD%bin\gdal\apps;%PWD%bin\gdal\plugins;%PWD%bin\gdal-data
+set PATH=%PATH%;%PWD%apps\python27;%PWD%apps\ldsreplicate
+set GDAL_DATA=%PWD%bin\gdal-data
+set GDAL_DRIVER_PATH=%PWD%bin\gdal\plugins
+set PYTHONHOME=%PWD%apps\python27
+set PYTHONPATH=%PYTHONHOME%;%PYTHONHOME%\DLLs;%PYTHONHOME%\Lib
+set PYTHONPATH=%PYTHONPATH%;%PYTHONHOME%\lib\site-packages;%PYTHONHOME%\lib\site-packages\osgeo
 
 REM Execute LDS Replicate
 
-%~dp0apps\python27\python.exe %~dp0apps\ldsreplicate\ldsreplicate.py %*    
+"%PWD%apps\python27\python.exe" "%PWD%apps\ldsreplicate\ldsreplicate.py" %*    

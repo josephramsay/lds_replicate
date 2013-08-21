@@ -241,11 +241,16 @@ class LDSControls(QFrame):
         
     def initEPSG(self):
         '''Read GDAL EPSG files, splitting by NZ(RSR) and RestOfTheWorld'''
-        gcs = ConfigInitialiser.readCSV(gdal.FindFile('gdal','gcs.csv'))
-        pcs = ConfigInitialiser.readCSV(gdal.FindFile('gdal','pcs.csv'))
 
-        #gcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'gcs.csv'))
-        #pcs = ConfigInitialiser.readCSV(os.path.join(self.GD_PATH,'pcs.csv'))
+        gcsf = gdal.FindFile('gdal','gcs.csv') 
+        if not gcsf:
+            gcsf = os.path.join(self.GD_PATH,'gcs.csv')
+        pcsf = gdal.FindFile('gdal','pcs.csv') 
+        if not pcsf: 
+            pcsf = os.path.join(self.GD_PATH,'pcs.csv')
+        gcs = ConfigInitialiser.readCSV(gcsf)
+        pcs = ConfigInitialiser.readCSV(pcsf)
+
         self.nzlsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]] \
                    + [e[0]+' - '+e[1] for e in pcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]]
         self.rowsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]] \

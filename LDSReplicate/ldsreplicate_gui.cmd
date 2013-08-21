@@ -1,16 +1,13 @@
 @echo off
 :BEGIN
 
-SET PWD=%~dp0
-
-REM Setup Local Environment
-
-set PATH=%PWD%bin\gdal;%PWD%apps\python27;%PWD%apps\ldsreplicate;%PWD%bin\gdal\bin;%PWD%bin\gdal\gdalplugins;%PWD%bin\gdal\gdal-data
-set GDAL_DATA=%PWD%bin\gdal\gdal-data
-set GDAL_DRIVER_PATH=%PWD%bin\gdal\gdalplugins
+set PATH=%PWD%bin;%PWD%bin\gdal;%PWD%bin\gdal\apps;%PWD%bin\gdal\plugins;%PWD%bin\gdal-data
+set PATH=%PATH%;%PWD%apps\python27;%PWD%apps\ldsreplicate
+set GDAL_DATA=%PWD%bin\gdal-data
+set GDAL_DRIVER_PATH=%PWD%bin\gdal\plugins
 set PYTHONHOME=%PWD%apps\python27
-set PYTHONPATH=%PWD%apps\python27;%PWD%apps\python27\DLLs;%PWD%apps\python27\lib;%PWD%apps\python27\lib\lib-tk;%PWD%apps\python27\lib\site-packages;%PWD%apps\python27\lib\site-packages\osgeo
-set PROJ_LIB=%PWD%bin\GDAL\projlib
+set PYTHONPATH=%PYTHONHOME%;%PYTHONHOME%\DLLs;%PYTHONHOME%\Lib
+set PYTHONPATH=%PYTHONPATH%;%PYTHONHOME%\lib\site-packages;%PYTHONHOME%\lib\site-packages\osgeo
 
 set PSTR=import sys,os;sys.path.append(os.path.join('%PWD:~0,-1%','apps','ldsreplicate'));
 

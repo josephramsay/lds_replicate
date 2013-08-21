@@ -9,6 +9,7 @@ Name "LDS Replicate"
 !define APPNAME $(^Name)
 !define REGKEY "SOFTWARE\${APPNAME}"
 !define VERSION 0.0.9
+!define VIPSFFX 0
 !define PLATFORM "win32"
 !define COMPANY "Land Information New Zealand"
 !define URL https://www.linz.govt.nz/
@@ -43,7 +44,7 @@ Icon F:\git\LDS\LDSReplicate\doc\LINZsmall.ico
 ShowInstDetails show
 AutoCloseWindow false
 LicenseData "F:\git\LDS\license\LDS\linz-license.txt"
-VIProductVersion 0.0.9.0
+VIProductVersion "${VERSION}.${VIPSFFX}"
 VIAddVersionKey ProductName "LDS Replicate"
 VIAddVersionKey ProductVersion "${VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
