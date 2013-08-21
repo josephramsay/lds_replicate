@@ -1,5 +1,6 @@
 @echo off
 :BEGIN
+SET PWD=%~dp0
 
 set PATH=%PWD%bin;%PWD%bin\gdal;%PWD%bin\gdal\apps;%PWD%bin\gdal\plugins;%PWD%bin\gdal-data
 set PATH=%PATH%;%PWD%apps\python27;%PWD%apps\ldsreplicate
@@ -19,7 +20,6 @@ IF '%1'=='L' GOTO LWIZZ
 REM ----------------------------------------------------------------------------
 :GUI
 echo Starting LDS Replicate GUI
-
 "%PWD%apps\python27\python.exe" -c "%PSTR%from ldsreplicate_gui import main; main()"
 
 GOTO END
@@ -34,7 +34,6 @@ GOTO END
 REM ----------------------------------------------------------------------------
 :LWIZZ
 echo Starting Layer Configuration Selector
-REM cd %PWD%\apps\ldsreplicate
 "%PWD%apps\python27\python.exe" -c "%PSTR%from ldsreplicate_gui import lconf; lconf()"
 
 GOTO END

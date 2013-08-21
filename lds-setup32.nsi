@@ -146,9 +146,9 @@ Section "Python 2.7" SEC0002
 SectionEnd
 
 Section GDAL SEC0003
-    SetOutPath $INSTDIR\bin\gdal
+    SetOutPath $INSTDIR\bin
     SetOverwrite on
-    File /r F:\temp\ldsreplicate_builddir\32\bin\gdal\*
+    File /r F:\temp\ldsreplicate_builddir\32\bin\*
     WriteRegStr HKLM "${REGKEY}\Components" GDAL 1
 SectionEnd
 
@@ -310,36 +310,34 @@ Function EnvReqLeave
     ;system path
     ${NSD_GetState} $CheckBox1 $CheckBox1_State
     ${If} $CheckBox1_State == ${BST_CHECKED}
-    	StrCpy $evChanged "TRUE"
-        ${EnvVarUpdate} $0 "PATH" "P" "HKLM" "$INSTDIR"
-        ${EnvVarUpdate} $0 "PATH" "P" "HKLM" "$INSTDIR\bin\gdal"
-        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\apps\python27"
-        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\apps\ldsreplicate"
-        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\gdal\bin"
-        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\gdal\gdalplugins"
-        ${EnvVarUpdate} $0 "PATH" "A" "HKLM" "$INSTDIR\gdal\gdal-data"  
+    	StrCpy $evChanged "TRUE"   
+        ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR"
+        ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin"
+        ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal"
+        ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal\apps"
+        ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal\plugins"
+        ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\python27"
+        ${EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\ldsreplicate"
     ${EndIf}
     
     ;pythonpath
     ${NSD_GetState} $CheckBox2 $CheckBox2_State
     ${If} $CheckBox2_State == ${BST_CHECKED}
-       StrCpy $evChanged "TRUE"
-       ${EnvVarUpdate} $0 "PYTHONHOME" "A" "HKLM" "$INSTDIR\python27"
-       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\python27"
-       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\DLLs"
-       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\lib"
-       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\lib\lib-tk"
-       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\lib\site-packages"
-       ${EnvVarUpdate} $0 "PYTHONPATH" "A" "HKLM" "$INSTDIR\apps\python27\lib\site-packages\osgeo" 
+    	StrCpy $evChanged "TRUE"
+        ${EnvVarUpdate} $0 "PYTHONHOME" "R" "HKLM" "$INSTDIR\apps\python27"
+        ${EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27"
+        ${EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\DLLs"
+        ${EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\Lib"
+        ${EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\Lib\site-packages"
+        ${EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\Lib\site-packages\osgeo" 
     ${EndIf}
    
     ;gdal
     ${NSD_GetState} $CheckBox3 $CheckBox3_State
     ${If} $CheckBox3_State == ${BST_CHECKED}
-       StrCpy $evChanged "TRUE"
-       ${EnvVarUpdate} $0 "GDAL_DATA" "A" "HKLM" "$INSTDIR\bin\gdal\gdal-data"
-       ${EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "A" "HKLM" "$INSTDIR\bin\gdal\gdalplugins"
-       ${EnvVarUpdate} $0 "PROJ_LIB" "A" "HKLM" "$INSTDIR\bin\gdal\projlib"
+    	StrCpy $evChanged "TRUE"
+        ${EnvVarUpdate} $0 "GDAL_DATA" "R" "HKLM" "$INSTDIR\bin\gdal-data"
+        ${EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "R" "HKLM" "$INSTDIR\bin\gdal\plugins"
     ${EndIf}
     
     ${If} $evChanged == "TRUE"
@@ -412,31 +410,29 @@ Function un.EnvReqUninstall
     ${NSD_GetState} $CheckBox1 $CheckBox1_State
     ${If} $CheckBox1_State == ${BST_CHECKED}
         ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin"
         ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal\apps"
+        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\bin\gdal\plugins"
         ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\python27"
         ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\apps\ldsreplicate"
-        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\bin"
-        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\gdalplugins"
-        ${un.EnvVarUpdate} $0 "PATH" "R" "HKLM" "$INSTDIR\gdal\gdal-data"  
     ${EndIf}
 
 
     ${NSD_GetState} $CheckBox2 $CheckBox2_State
     ${If} $CheckBox2_State == ${BST_CHECKED}
-        ${un.EnvVarUpdate} $0 "PYTHONHOME" "R" "HKLM" "$INSTDIR\python27"
-        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\python27"
+        ${un.EnvVarUpdate} $0 "PYTHONHOME" "R" "HKLM" "$INSTDIR\apps\python27"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27"
         ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\DLLs"
-        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib"
-        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\lib-tk"
-        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\site-packages"
-        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\lib\site-packages\osgeo" 
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\Lib"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\Lib\site-packages"
+        ${un.EnvVarUpdate} $0 "PYTHONPATH" "R" "HKLM" "$INSTDIR\apps\python27\Lib\site-packages\osgeo" 
     ${EndIf}
 
     ${NSD_GetState} $CheckBox3 $CheckBox3_State
     ${If} $CheckBox3_State == ${BST_CHECKED}
-        ${un.EnvVarUpdate} $0 "GDAL_DATA" "R" "HKLM" "$INSTDIR\bin\gdal\gdal-data"
-        ${un.EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "R" "HKLM" "$INSTDIR\bin\gdal\gdalplugins"
-        ${un.EnvVarUpdate} $0 "PROJ_LIB" "R" "HKLM" "$INSTDIR\bin\gdal\projlib"
+        ${un.EnvVarUpdate} $0 "GDAL_DATA" "R" "HKLM" "$INSTDIR\bin\gdal-data"
+        ${un.EnvVarUpdate} $0 "GDAL_DRIVER_PATH" "R" "HKLM" "$INSTDIR\bin\gdal\plugins"
     ${EndIf}
     
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
