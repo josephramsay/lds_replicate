@@ -131,9 +131,9 @@ class SpatiaLiteDataStore(DataStore):
     def buildIndex(self,lce,dst_layer_name):
         '''Builds an index creation string for a new full replicate in PG format'''
         tableonly = dst_layer_name.split('.')[-1]
-        ALLOWS_CONSTRAINT_CREATION=False
+        ALLOW_CONSTRAINT_CREATION=False
         #SpatiaLite doesnt have a unique constraint but since we're using a pk might a well declare it as such
-        if ALLOWS_CONSTRAINT_CREATION and LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
+        if ALLOW_CONSTRAINT_CREATION and LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
             #spatialite won't do post create constraint additions (could to a re-create?)
             cmd = 'ALTER TABLE {0} ADD PRIMARY KEY {1}_{2}_PK ({2})'.format(dst_layer_name,tableonly,lce.pkey)
             try:

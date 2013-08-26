@@ -463,11 +463,12 @@ class DataStore(object):
                 (dst_layer,is_new) = self.buildNewDestinationLayer(self.dst_info,src_info,dst_ds)
                 
 
-            if  dst_layer.TestCapability('Transactions') and self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+            if  self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:# and dst_layer.TestCapability(ogr.OLCTransactions):
                 dst_layer.StartTransaction()
+                ldslog.debug('FC Start Transaction '+str(self.attempts))
             else:
                 transaction_flag = False
-                ldslog.warn('Transactions Disabled')
+                ldslog.warn('FC Transactions Disabled '+str(self.attempts))
                 
             #add/copy features
             #src_layer.ResetReading()
@@ -587,11 +588,12 @@ class DataStore(object):
                     raise LayerCreateException('Unable to initialise a new Layer on destination')
                 
             #dont bother with transactions if they're failing > N times
-            if dst_layer.TestCapability('Transactions') and self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:# and dst_layer.TestCapability(ogr.OLCTransactions):
                 dst_layer.StartTransaction()
+                ldslog.debug('FCI Start Transaction '+str(self.attempts))
             else:
                 transaction_flag = False
-                ldslog.warn('Attempting replicate without transactions')
+                ldslog.warn('FCI Transactions Disabled '+str(self.attempts))
 
             #add/copy features
             insert_count, delete_count, update_count = 0,0,0
@@ -618,22 +620,31 @@ class DataStore(object):
                 
             #loop till break on next feat is none
             self.dst_change_count = 0
-            e = 0
+            e = 0   
+            
+            src_array = []
+            change_map = {'update':1,'delete':2,'insert':3}
             while src_feat:
+                change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+                src_array += [(change_map.get(change),src_feat),]
+                src_feat = src_layer.GetNextFeature()
+                
+            
+            for (changeval,src_feat) in sorted(src_array,key=lambda cf: cf[0]):
+                
                 self.dst_change_count += 1
                 '''identify the change in the WFS doc (INS,UPD,DEL)'''
-                change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+                
                 '''not just copy but possubly delete or update a feature on the DST layer'''
                 #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
-                
                 try:
-                    if change == 'insert': 
+                    if changeval == 3:#'insert': 
                         e = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                         insert_count += 1
-                    elif change == 'delete': 
+                    elif changeval == 2:#'delete': 
                         e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
                         delete_count += 1
-                    elif change == 'update': 
+                    elif changeval == 1:#'update': 
                         e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                         update_count += 1
                     else:
@@ -646,7 +657,7 @@ class DataStore(object):
                     
                 if e != 0:                  
                     ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-                    if change == 'update':
+                    if changeval == 1:#'update':
                         ldslog.warn('Update failed on SetFeature, attempting delete+insert')
                         #let delete and insert error handlers take care of any further exceptions
                         e1 = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
@@ -665,7 +676,7 @@ class DataStore(object):
                 #else:
                 #    src_feat = next_feat
                 #    self.dst_change_count += 1
-                src_feat = src_layer.GetNextFeature()
+                #<<<src_feat = src_layer.GetNextFeature()
                 
             if self.src_feat_count != self.dst_change_count:
                 if transaction_flag:
@@ -1078,8 +1089,8 @@ class DataStore(object):
         try:
             lref = ds.GetLayerByName(name)
             if lref: 
-                feat_delete_capable = lref.TestCapability('DeleteFeature')
-                layer_delete_capable = ds.TestCapability('DeleteLayer')
+                feat_delete_capable = lref.TestCapability(ogr.OLCDeleteFeature)
+                layer_delete_capable = ds.TestCapability(ogr.ODsCDeleteLayer)
             
                 if truncate:
                     if feat_delete_capable and lref.GetFeatureCount():
@@ -1124,7 +1135,7 @@ class DataStore(object):
                                 keep_trying = False
                                 ds.DeleteLayer(name)
                             except Exception as e: 
-                                '''for SL trial and error shows that, if we get a db locked error the db unlocks on delete but then loses the
+                                '''for SL, trial-and-error shows that, if we get a db locked error the db unlocks on delete but then loses the
                                 layer being deleted returning a not found error. This repeats until we re-init the ds and delete again''' 
                                 if re.search('database table is locked',str(e)):
                                     pass
@@ -1228,7 +1239,7 @@ class DataStore(object):
             search_layer.SetAttributeFilter(where)
             #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error". 
             #NB. Since we're resetting the DST layer it has no affect on the SRC read order, just starts the FID search from the beginning  
-            search_layer.ResetReading()
+            search_layer.ResetReading()#commenting this out seems to make no difference to fgdb speed
             matching_feature = search_layer.GetNextFeature()
         except RuntimeError as rte:
             ldslog.error('Cant find matching feature using '+str(where)+'. '+str(rte))

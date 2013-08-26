@@ -500,7 +500,7 @@ class MainFileReader(object):
                 return None
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
-            ldslog.warn("Cannot find requested driver/key ("+str(driver)+"/"+str(key)+")combo")
+            ldslog.warn("Cannot find requested driver/key; self.cp.get("+str(driver)+","+str(key)+") combo")
             return None
         return value
     
@@ -815,7 +815,7 @@ class LayerDSReader(LayerReader):
             #in the feature defn, define a new field
             feat_def.AddFieldDefn(fld_def)
             #also add a field to the table definition, i.e. column
-            if config_layer.TestCapability('CreateField'):
+            if config_layer.TestCapability(ogr.OLCCreateField):
                 config_layer.CreateField(fld_def,True)
               
         

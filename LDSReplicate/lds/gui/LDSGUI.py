@@ -79,6 +79,7 @@ class LDSMain(QMainWindow):
         
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
+        self.setWindowIcon(QIcon('img/linz_static.png'))
         
         self.statusbar = self.statusBar()
         self.statusbar.showMessage('Ready')
@@ -545,7 +546,11 @@ class LDSControls(QFrame):
         #Config File
         confindex = 0
         if LDSUtilities.mightAsWellBeNone(ruconf):
-            confindex = self.cflist.index(ruconf.split('.')[0])
+            ruconf = ruconf.split('.')[0]
+            if ruconf not in self.cflist:
+                self.cflist += [ruconf,]
+                self.confcombo.addItem(ruconf)
+            confindex = self.cflist.index(ruconf)
         self.confcombo.setCurrentIndex(confindex)
         #self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
         

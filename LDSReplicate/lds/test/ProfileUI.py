@@ -101,6 +101,8 @@ def selectProcess(processor,procname):
     return processor.processLDS(processor.initDestination(procname)) 
          
         
+        
+
 CONN_STR = ''
 CONF = 'ldsincr.lnx.conf'
 PATH = '.'
@@ -108,16 +110,21 @@ OUTP = ['pg']
 
 def profile01AutoFillLayer(conf=CONF):
     '''Simple layer populate'''
-    
+     
     for o in OUTP:
         #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc)
         tp1 = TransferProcessor(self,'v:x785', None, None, None, None, None, None, None, conf)
         selectProcess(tp1,o)
         
+def profile02FGDBUpdateSpeedTest(conf=CONF):
+    '''Simple layer populate'''
+    todate = None
+    tp = TransferProcessor(None,'v:x784',None,None,todate,None,None,None,'fgx.conf')
+    selectProcess(tp,'FileGDB')
         
 def main():
     setUp()
-    cProfile.run('profile01AutoFillLayer()','temp')
+    cProfile.run('profile02FGDBUpdateSpeedTest()','temp')
 
     
     

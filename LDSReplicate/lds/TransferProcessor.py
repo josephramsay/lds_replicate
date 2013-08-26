@@ -15,7 +15,6 @@ Created on 26/07/2012
 @author: jramsay
 '''
 
-import logging
 import re
 import gdal
 

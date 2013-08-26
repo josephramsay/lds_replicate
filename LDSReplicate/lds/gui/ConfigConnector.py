@@ -57,7 +57,7 @@ class ConfigConnector(object):
             self.destname = destname
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
             self.src = ConfigConnector.initSrc(self.tp)
-            self.dst = ConfigConnector.initDst(self.tp,self.destname)
+            self.dst = ConfigConnector.initDst(self.tp, self.destname)
             #print 'CCt',self.tp
             #print 'CCd',self.dst
             if not self.vlayers:

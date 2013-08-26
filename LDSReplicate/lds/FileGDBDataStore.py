@@ -90,25 +90,56 @@ class FileGDBDataStore(ESRIDataStore):
         dsql = "alter table "+layer.GetName()+" drop column "+field_name
         self.executeSQL(dsql)
         
-    def buildIndex(self,lce,dst_layer_name):
+    def _buildIndex(self,lce,dst_layer_name):
         ldslog.warn('Table indexing not supported by '+self.DRIVER_NAME+' at present')
         return
     
+    def buildIndex(self,lce,dst_layer_name):
+        '''Builds an index creation string for a new full replicate in PG format'''
+        tableonly = dst_layer_name.split('.')[-1]
+        ALLOW_TABLE_INDEX_CREATION=True
+        #SpatiaLite doesnt have a unique constraint but since we're using a pk might a well declare it as such
+        if ALLOW_TABLE_INDEX_CREATION and LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
+            #spatialite won't do post create constraint additions (could to a re-create?)
+            cmd = 'CREATE INDEX {0}_{1}_PK ON {0}({1})'.format(tableonly,lce.pkey)
+            try:
+                self.executeSQL(cmd)
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.pkey,cmd))
+            except RuntimeError as rte:
+                if re.search('already exists', str(rte)): 
+                    ldslog.warn(rte)
+                else:
+                    raise        
+        
+        #Unless we select SPATIAL_INDEX=no as a Layer option this should never be needed
+        #because gcol is also used to determine whether a layer is spatial still do this check   
+        if LDSUtilities.mightAsWellBeNone(lce.gcol):
+            #untested and unlikely to work
+            cmd = "CREATE INDEX {0}_{1}_SK ON {0}({1})".format(dst_layer_name,lce.gcol)
+            try:
+                self.executeSQL(cmd)
+                ldslog.info("Index = {}({}). Execute = {}.".format(tableonly,lce.gcol,cmd))
+            except RuntimeError as rte:
+                if re.search('already exists', str(rte)): 
+                    ldslog.warn(rte)
+                else:
+                    raise
+    
     def getConfigOptions(self):
         '''FGDB doesn't have any dataset creation options'''
-        local_opts = ['FGDB_BULK_LOAD='+str(self.FGDB_BULK_LOAD)]        
-        return super(FileGDBDataStore,self).getConfigOptions() + local_opts    
+        self.fg_local_copts = ['FGDB_BULK_LOAD='+str(self.FGDB_BULK_LOAD)]        
+        return super(FileGDBDataStore,self).getConfigOptions() + self.fg_local_copts    
     
     def getLayerOptions(self,layer_id):
         '''Adds FileGDB options for GEOMETRY_NAME'''
         #FEATURE_DATASET, GEOMETRY_NAME, OID_NAME, XYTOLERANCE, ZTOLERANCE, XORIGIN, YORIGIN, ZORIGIN, XYSCALE, ZSCALE, XML_DEFINITION 
-        local_opts = []
+        self.fg_local_lopts = []
         gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
         if gname is not None:
-            local_opts += ['GEOMETRY_NAME='+gname]
+            self.fg_local_lopts += ['GEOMETRY_NAME='+gname]
         
-        return super(FileGDBDataStore,self).getLayerOptions(layer_id) + local_opts
+        return super(FileGDBDataStore,self).getLayerOptions(layer_id) + self.fg_local_lopts
     
 #    def selectValidGeom(self,geom):
 #        '''Override for wkbNone'''
