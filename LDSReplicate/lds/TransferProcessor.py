@@ -351,7 +351,6 @@ class TransferProcessor(object):
                 
             self.layer_count += 1
             self.dst.src_feat_count = 0
-            self.dst.dst_change_count = 0
             
         self.closeConnections()
         

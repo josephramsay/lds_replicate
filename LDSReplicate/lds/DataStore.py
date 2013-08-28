@@ -144,7 +144,6 @@ class DataStore(object):
         self.optcols = set(['__change__','gml_id'])
         
         self.src_feat_count = 0
-        self.dst_change_count = 0
 
     #incr flag copied straight from Datastore
     #def setIncremental(self,itype):
@@ -472,7 +471,7 @@ class DataStore(object):
                 
             #add/copy features
             #src_layer.ResetReading()
-            self.dst_change_count = 0
+            self.change_count = {'insert':0}
             try:
                 #self.src_feat_count = src_layer.GetFeatureCount()
                 self.src_feat_count = self.getFeatureCount()
@@ -495,22 +494,22 @@ class DataStore(object):
                 raise InaccessibleFeatureException('Error attempting to access Feature ('+str(self.src_feat_count)+' available)')
                 
             while src_feat is not None:
-                self.dst_change_count += 1
+                self.change_count['insert'] += 1
                 #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
                 self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                 
                 src_feat = src_layer.GetNextFeature()
             
-            if self.src_feat_count is not None and self.src_feat_count != self.dst_change_count:
+            if self.src_feat_count is not None and self.src_feat_count != sum(self.change_count.values()):
                 if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
                     dst_layer.RollbackTransaction()
-                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_count)+']')
+                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
             
             
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has replicated at least 1 feat'''
             #May need to be pushed out to subclasses depending on syntax differences
-            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and self.dst_change_count>0:
+            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and sum(self.change_count.values())>0:
                 self.buildIndex(layerconfentry,self.dst_info.layer_name)
                 
             if transaction_flag:
@@ -596,8 +595,6 @@ class DataStore(object):
                 ldslog.warn('FCI Transactions Disabled '+str(self.attempts))
 
             #add/copy features
-            insert_count, delete_count, update_count = 0,0,0
-            self.dst_change_count = 0
             try:
                 #self.src_feat_count = src_layer.GetFeatureCount()
                 self.src_feat_count = self.getFeatureCount()
@@ -619,76 +616,54 @@ class DataStore(object):
                 raise InaccessibleFeatureException('Error attempting to access Feature ('+str(self.src_feat_count)+' available)')
                 
             #loop till break on next feat is none
-            self.dst_change_count = 0
-            e = 0   
+            e = 0
+
+            #key order here is important
+            src_array = {'delete':(),'update':(),'insert':()}    
+            change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
+            self.change_count = {'delete':0,'update':0,'insert':0}
             
-            src_array = []
-            change_map = {'update':1,'delete':2,'insert':3}
+            ldslog.info('Pre-Fetch Layer')
             while src_feat:
                 change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
-                src_array += [(change_map.get(change),src_feat),]
+                src_array[change] += (src_feat,)
                 src_feat = src_layer.GetNextFeature()
                 
-            
-            for (changeval,src_feat) in sorted(src_array,key=lambda cf: cf[0]):
-                
-                self.dst_change_count += 1
-                '''identify the change in the WFS doc (INS,UPD,DEL)'''
-                
-                '''not just copy but possubly delete or update a feature on the DST layer'''
-                #self.copyFeature(change,src_feat,dst_layer,ref_pkey,new_feat_def,ref_gcol)
-                try:
-                    if changeval == 3:#'insert': 
-                        e = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-                        insert_count += 1
-                    elif changeval == 2:#'delete': 
-                        e = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
-                        delete_count += 1
-                    elif changeval == 1:#'update': 
-                        e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-                        update_count += 1
-                    else:
-                        ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
-                    #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
-                except InvalidFeatureException as ife:
-                    ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
-                #except Exception as e:
-                #    ldslog.error('trap new errors here... '+str(e))
+            ldslog.info('Processing Layer')            
+            for change in src_array.keys():
+                for src_feat in src_array[change]:
                     
-                if e != 0:                  
-                    ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-                    if changeval == 1:#'update':
-                        ldslog.warn('Update failed on SetFeature, attempting delete+insert')
-                        #let delete and insert error handlers take care of any further exceptions
-                        e1 = self.deleteFeature(dst_layer,src_feat,             layerconfentry.pkey)
-                        e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-                        if e1+e2 != 0:
-                            raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
-                
-                #final pk no longer needed so switch to simple while src_feat
-                #next_feat = src_layer.GetNextFeature()
-                ##On no-new-features grab the last primary key index and break
-                #if next_feat is None:
-                #    #if hasattr(self.src_link, 'pkey'):
-                #    #    #this of course assumes the layer is correctly sorted in pkey
-                #    #    src_feat.GetField(layerconfentry.pkey)
-                #    break
-                #else:
-                #    src_feat = next_feat
-                #    self.dst_change_count += 1
-                #<<<src_feat = src_layer.GetNextFeature()
-                
-            if self.src_feat_count != self.dst_change_count:
+                    try:
+                        e = change_op[change](dst_layer,src_feat,new_feat_def,layerconfentry.pkey) 
+                        self.change_count[change] +=1
+
+                        #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
+                    except InvalidFeatureException as ife:
+                        ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+                    #except Exception as e:
+                    #    ldslog.error('trap new errors here... '+str(e))
+                        
+                    if e != 0:                  
+                        ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
+                        if change == 'update':
+                            ldslog.warn('Update failed on SetFeature, attempting delete+insert')
+                            #let delete and insert error handlers take care of any further exceptions
+                            e1 = self.deleteFeature(dst_layer,src_feat,None,        layerconfentry.pkey)
+                            e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                            if e1+e2 != 0:
+                                raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
+                    
+            if self.src_feat_count != sum(self.change_count.values()):
                 if transaction_flag:
                     dst_layer.RollbackTransaction()
-                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_count)+']')
+                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
                 
             #self._showLayerData(dst_layer)
             
             '''Builds an index on a newly created layer if; 
             1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
             #Ordinarily pushed out to subclasses depending on syntax differences
-            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and self.dst_change_count>0:
+            if is_new and (layerconfentry.gcol or layerconfentry.pkey) and sum(self.change_count.values())>0:
                 self.buildIndex(layerconfentry,self.dst_info.layer_name)
                 
             if transaction_flag:
@@ -704,7 +679,7 @@ class DataStore(object):
                 finally:
                     ogr.UseExceptions()
                 
-            ldslog.info('Inserts={0}, Deletes={1}, Updates={2}'.format(insert_count,delete_count,update_count))
+            ldslog.info('Inserts={0}, Deletes={1}, Updates={2}'.format(self.change_count['insert'],self.change_count['delete'],self.change_count['update']))
             
             src_layer.ResetReading()
             dst_layer.ResetReading()
@@ -763,7 +738,7 @@ class DataStore(object):
         
         return e
     
-    def deleteFeature(self,dst_layer,src_feat,ref_pkey): 
+    def deleteFeature(self,dst_layer,src_feat,_,ref_pkey): 
         '''lookup and delete using fid matching ID of feature being deleted'''
         #naive first implementation, might/will be slow 
         if ref_pkey is None:

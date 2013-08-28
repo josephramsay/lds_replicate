@@ -37,6 +37,7 @@ Page custom ConfigWizzCreate ConfigWizzLeave
 
 # Installer attributes
 OutFile C:\data\lds-replicate-setup-${PLATFORM}-r${VERSION}.exe
+#OutFile F:\temp\lds-replicate-setup-${PLATFORM}-r${VERSION}.exe
 InstallDir "$PROGRAMFILES\LDS Replicate"
 CRCCheck on
 XPStyle on

@@ -249,10 +249,11 @@ class ProgressTimer(QThread):
         if self.tp.layer_total:
             layer_part = 100*float(self.tp.layer_count)/float(self.tp.layer_total)
             if hasattr(self.tp.dst,'src_feat_count') and self.tp.dst.src_feat_count:
-                feat_part = 100*float(self.tp.dst.dst_change_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.layer_total))
+                dst_count = sum(self.tp.dst.change_count.values())
+                feat_part = 100*float(dst_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.layer_total))
         if hasattr(self.tp.dst,'dst_info'):
             layer_name = self.tp.dst.dst_info.layer_name
-        #ldslog.debug('fc={}/{} lc={}/{}'.format(str(self.tp.dst.dst_change_count),str(self.tp.dst.src_feat_count),str(self.tp.layer_count),str(self.tp.layer_total)))
+        #ldslog.debug('fc={}/{} lc={}/{}'.format(str(dst_count),str(self.tp.dst.src_feat_count),str(self.tp.layer_count),str(self.tp.layer_total)))
         #ldslog.debug('fp={} lp={}'.format(str(feat_part),str(layer_part)))
         self.report(int(feat_part+layer_part),layer_name)
 
