@@ -76,6 +76,8 @@ class DataStore(object):
     MAXIMUM_WFS_ATTEMPTS = 5
     #Number of retry attempts before abandoning transactions (slower but more likely to succeed)
     TRANSACTION_THRESHOLD_WFS_ATTEMPTS = 3
+    #Number of records to prefetch before writing output
+    MAX_PREFETCH = 100000
     
     DRIVER_NAME = '<init in subclass>'
     
@@ -124,6 +126,8 @@ class DataStore(object):
         self.sixtyfour = None
         self.conn_str = None
         
+        self.prefetchsize = None
+        
         #self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"#we use just 'file' or 'json' now
          
         if LDSUtilities.mightAsWellBeNone(conn_str) is not None:
@@ -156,11 +160,20 @@ class DataStore(object):
     def clearIncremental(self):
         self.incremental = False
             
-    def setIncremental(self):
+    def setIncremental(self,prefetchsize=None):
+        self.prefetchsize = prefetchsize
         self.incremental = True
          
     def getIncremental(self):
         return self.incremental 
+    
+    def setPrefetchSize(self,prefetchsize=None):
+        self.prefetchsize = prefetchsize
+        
+    def getPrefetchSize(self):
+        '''returns prefetch is available but defaults to partitionsize which is set in ReadConfig'''
+        return self.prefetchsize if self.prefetchsize else self.MAX_PREFETCH
+            
      
     def applyConfigOptions(self):
         for opt in self.getConfigOptions():
@@ -462,7 +475,7 @@ class DataStore(object):
                 (dst_layer,is_new) = self.buildNewDestinationLayer(self.dst_info,src_info,dst_ds)
                 
 
-            if  self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:# and dst_layer.TestCapability(ogr.OLCTransactions):
+            if  self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
                 dst_layer.StartTransaction()
                 ldslog.debug('FC Start Transaction '+str(self.attempts))
             else:
@@ -587,7 +600,8 @@ class DataStore(object):
                     raise LayerCreateException('Unable to initialise a new Layer on destination')
                 
             #dont bother with transactions if they're failing > N times
-            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:# and dst_layer.TestCapability(ogr.OLCTransactions):
+            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
+                #NB. Jeremy. TestCap for transactions is needed for FileGDB since rollback throws exception if attempted
                 dst_layer.StartTransaction()
                 ldslog.debug('FCI Start Transaction '+str(self.attempts))
             else:
@@ -620,39 +634,28 @@ class DataStore(object):
 
             #key order here is important
             src_array = {'delete':(),'update':(),'insert':()}    
-            change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
+            self.change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
             self.change_count = {'delete':0,'update':0,'insert':0}
             
-            ldslog.info('Pre-Fetch Layer')
+            ldslog.info('Begin Pre-Fetch with {} Features'.format(self.MAX_PREFETCH))
+            feat_count = 0
+            proc_count = 0
             while src_feat:
+                feat_count += 1
                 change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
                 src_array[change] += (src_feat,)
+                if feat_count>=self.getPrefetchSize():
+                    ldslog.info('Loading Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.getPrefetchSize()*(proc_count+1)))
+                    self.processFetchedIncrement(src_array,dst_layer,new_feat_def,layerconfentry)
+                    feat_count = 0
+                    proc_count += 1
+                    src_array = {'delete':(),'update':(),'insert':()}
+                
                 src_feat = src_layer.GetNextFeature()
                 
-            ldslog.info('Processing Layer')            
-            for change in src_array.keys():
-                for src_feat in src_array[change]:
-                    
-                    try:
-                        e = change_op[change](dst_layer,src_feat,new_feat_def,layerconfentry.pkey) 
-                        self.change_count[change] +=1
-
-                        #    raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
-                    except InvalidFeatureException as ife:
-                        ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
-                    #except Exception as e:
-                    #    ldslog.error('trap new errors here... '+str(e))
-                        
-                    if e != 0:                  
-                        ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-                        if change == 'update':
-                            ldslog.warn('Update failed on SetFeature, attempting delete+insert')
-                            #let delete and insert error handlers take care of any further exceptions
-                            e1 = self.deleteFeature(dst_layer,src_feat,None,        layerconfentry.pkey)
-                            e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-                            if e1+e2 != 0:
-                                raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
-                    
+            ldslog.info('Loading remaining Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.src_feat_count))
+            self.processFetchedIncrement(src_array,dst_layer,new_feat_def,layerconfentry)
+            
             if self.src_feat_count != sum(self.change_count.values()):
                 if transaction_flag:
                     dst_layer.RollbackTransaction()
@@ -687,6 +690,30 @@ class DataStore(object):
         #returning nothing disables manual paging    
         #return max_index          
 
+    def processFetchedIncrement(self, src_array, dst_layer, new_feat_def, layerconfentry):
+        '''Process current feature pool'''          
+        for change in src_array.keys():
+            for src_feat in src_array[change]:
+                try:
+                    e = self.change_op[change](dst_layer, src_feat, new_feat_def, layerconfentry.pkey) 
+                    self.change_count[change] += 1
+
+                except InvalidFeatureException as ife:
+                    ldslog.error("Invalid Feature Exception during " + change + " operation on dest. " + str(ife), exc_info=1)
+                # except Exception as e:
+                #    ldslog.error('trap new errors here... '+str(e))
+                    
+                if e != 0:                  
+                    ldslog.error("Driver Error [" + str(e) + "] on " + change, exc_info=1)
+                    if change == 'update':
+                        ldslog.warn('Update failed on SetFeature, attempting delete+insert')
+                        # let delete and insert error handlers take care of any further exceptions
+                        e1 = self.deleteFeature(dst_layer, src_feat, None, layerconfentry.pkey)
+                        e2 = self.insertFeature(dst_layer, src_feat, new_feat_def, layerconfentry.pkey)
+                        if e1 + e2 != 0:
+                            raise InvalidFeatureException("Driver Error [d=" + str(e1) + ",i=" + str(e2) + "] on " + change)
+        
+        
     def transformSRS(self,src_layer_sref):
         '''Defines the transform from one SRS to another. Doesn't actually do the transformation, just defines the transformation needed.
         Requires the supplied EPSG be correct and coordinates that can be transformed'''

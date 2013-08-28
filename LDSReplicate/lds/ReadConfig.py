@@ -457,8 +457,7 @@ class MainFileReader(object):
         sixtyfourlayers = None
         partitionlayers = None
         #NB. for v:x772 ps=1000000 is too small, 100000-1999999 returns None but ps=10000000 is too large, hangs or quits on XML parse fail
-        partitionsize = None
-        temptable = None
+        partitionsize = 100000
         
         try: 
             #sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
@@ -484,13 +483,15 @@ class MainFileReader(object):
             ldslog.warn("Misc: No Partition Size specified. Default = 'Memory'. NB. 'partitionsize'")
             
         try: 
-            temptable = self.cp.get(self.MISC, 'temptable')
+            prefetchsize = self.cp.get(self.MISC, 'prefetchsize')
         except NoSectionError:
-            ldslog.warn("Misc: No Misc section detected looking for Temporary Table type. Default = "+str(temptable)+". NB. 'temptable'")
+            ldslog.warn("Misc: No Misc section detected looking for incremental Prefetch Size. Default (partitionsize) = "+str(partitionsize))
+            prefetchsize = partitionsize
         except NoOptionError:
-            ldslog.warn("Misc: No Temporary Table type specified. Default = 'Memory'. NB. 'temptable'")
+            ldslog.warn("Misc: No incremental Prefetch Size specified. Default (partitionsize) = "+str(partitionsize))
+            prefetchsize = partitionsize
         
-        return (sixtyfourlayers,partitionlayers,partitionsize,temptable)
+        return (sixtyfourlayers,partitionlayers,partitionsize,prefetchsize)
         
     
     def readMainProperty(self,driver,key):

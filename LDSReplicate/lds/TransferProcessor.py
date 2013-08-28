@@ -78,7 +78,7 @@ class TransferProcessor(object):
         self.partitionlayers = None
         self.partitionsize = None
         self.sixtyfourlayers = None
-        self.temptable = None
+        self.prefetchsize = None
         
         self.layer = None
         self.layer_total = 0
@@ -231,7 +231,7 @@ class TransferProcessor(object):
         
         self.dst.versionCheck()
         
-        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.temptable) = self.dst.mainconf.readDSParameters('Misc')
+        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.prefetchsize) = self.dst.mainconf.readDSParameters('Misc')
         
         capabilities = self.src.getCapabilities()
                 
@@ -326,6 +326,7 @@ class TransferProcessor(object):
                     self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
                     if self.readLayer():
                         self.dst.setIncremental()    
+                        self.dst.setPrefetchSize(self.prefetchsize)
                         self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
                         self.dst.setLastModified(each_layer,final_td)
                     else:
