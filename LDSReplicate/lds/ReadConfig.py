@@ -53,6 +53,7 @@ class MainFileReader(object):
         
         self.cp = None
         self.initMainFile()
+        self.fn = re.search('(.+)\.conf',os.path.basename(self.filename)).group(1)
         
     def initMainFile(self,template=''):
         '''Open and populate a new config file with 'template' else just touch it. Then call the reader'''
@@ -81,6 +82,7 @@ class MainFileReader(object):
         '''PostgreSQL specific config file reader'''            
         from PostgreSQLDataStore import PostgreSQLDataStore as PG
         
+        ref = self.fn+':PG. '
         usr = None
         pwd = None
         over = None
@@ -104,57 +106,57 @@ class MainFileReader(object):
         try:
             host = self.cp.get(PG.DRIVER_NAME, 'host')
         except NoSectionError:
-            ldslog.warn("No PostgreSQL section")
+            ldslog.warn(ref+"No PostgreSQL section")
             return (None,)*10
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             port = self.cp.get(PG.DRIVER_NAME, 'port')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             dbname = self.cp.get(PG.DRIVER_NAME, 'dbname')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             schema = self.cp.get(PG.DRIVER_NAME, 'schema')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             usr = self.cp.get(PG.DRIVER_NAME, 'user')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             pwd = self.cp.get(PG.DRIVER_NAME, 'pass')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             config = self.cp.get(PG.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warn("PostgreSQL: No config preference specified, default to "+str(config))
+            ldslog.warn(ref+"No config preference specified, default to "+str(config))
         
         try:
             over = self.cp.get(PG.DRIVER_NAME, 'overwrite')
         except NoOptionError:
-            ldslog.warn("PG: Overwrite not specified, Setting to True")
+            ldslog.warn(ref+"Overwrite not specified, Setting to True")
             over = True
             
         try:
             epsg = self.cp.get(PG.DRIVER_NAME, 'epsg')
         except NoOptionError:
-            ldslog.warn("PG: EPSG not specified, default to none keeping existing SRS")
+            ldslog.warn(ref+"EPSG not specified, default to none keeping existing SRS")
             epsg = True
             
         try: 
             cql = self.cp.get(PG.DRIVER_NAME, 'cql')
         except NoOptionError:
-            ldslog.warn("PG: No CQL Filter specified, fetching all results")
+            ldslog.warn(ref+"No CQL Filter specified, fetching all results")
             cql = None
         
         return (host,port,dbname,schema,usr,pwd,over,config,epsg,cql)
@@ -164,6 +166,7 @@ class MainFileReader(object):
         
         from MSSQLSpatialDataStore import MSSQLSpatialDataStore as MS
         
+        ref = self.fn+':MS. '
         usr = None
         pwd = None
         epsg = None
@@ -190,60 +193,60 @@ class MainFileReader(object):
         try:
             odbc = self.cp.get(MS.DRIVER_NAME, 'odbc')
         except NoSectionError:
-            ldslog.warn("No MSSQLSpatial section")
+            ldslog.warn(ref+"No MSSQLSpatial section")
             return (None,)*11
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             server = self.cp.get(MS.DRIVER_NAME, 'server')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             dsn = self.cp.get(MS.DRIVER_NAME, 'dsn')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             trust = self.cp.get(MS.DRIVER_NAME, 'trust')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             dbname = self.cp.get(MS.DRIVER_NAME, 'dbname')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             schema = self.cp.get(MS.DRIVER_NAME, 'schema')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             usr = self.cp.get(MS.DRIVER_NAME, 'user')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
             
         try:
             pwd = self.cp.get(MS.DRIVER_NAME, 'pass')
         except NoOptionError as noe:
-            ldslog.warn(noe)
+            ldslog.warn(ref+str(noe))
         
         try:
             config = self.cp.get(MS.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warn("MSSQL: No config preference specified, default to "+str(config))
+            ldslog.warn(ref+"No config preference specified, default to "+str(config))
             
         try:
             epsg = self.cp.get(MS.DRIVER_NAME, 'epsg')
         except NoOptionError:
-            ldslog.warn("MSSQL: EPSG not specified, default to None keeping existing SRS")
+            ldslog.warn(ref+"EPSG not specified, default to None keeping existing SRS")
             
         try: 
             cql = self.cp.get(MS.DRIVER_NAME, 'cql')
         except NoOptionError:
-            ldslog.warn("MSSQL: No CQL Filter specified, fetching all results")
+            ldslog.warn(ref+"No CQL Filter specified, fetching all results")
             cql = None
         
         return (odbc,server,dsn,trust,dbname,schema,usr,pwd,config,epsg,cql)
@@ -252,6 +255,7 @@ class MainFileReader(object):
         '''SpatiaLite specific config file reader'''
         from SpatiaLiteDataStore import SpatiaLiteDataStore as SL
 
+        ref = self.fn+':SL. '
         epsg = None
         cql = None
         
@@ -265,25 +269,25 @@ class MainFileReader(object):
         try:
             fname = self.cp.get(SL.DRIVER_NAME, 'file')
         except NoSectionError:
-            ldslog.warn("No SpatiaLite section")
+            ldslog.warn(ref+"No SpatiaLite section")
             return (None,)*4
         except NoOptionError:
-            ldslog.warn("SpatiaLite: No DB name provided, default to "+str(fname))
+            ldslog.warn(ref+"No DB name provided, default to "+str(fname))
             
         try:
             config = self.cp.get(SL.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warn("SpatiaLite: No config preference specified, default to "+str(config))
+            ldslog.warn(ref+"No config preference specified, default to "+str(config))
             
         try:
             epsg = self.cp.get(SL.DRIVER_NAME, 'epsg')
         except NoOptionError:
-            ldslog.warn("SL: EPSG not specified, default to "+str(epsg)+" keeping existing SRS")
+            ldslog.warn(ref+"EPSG not specified, default to "+str(epsg)+" keeping existing SRS")
             
         try: 
             cql = self.cp.get(SL.DRIVER_NAME, 'cql')
         except NoOptionError:
-            ldslog.warn("SL: No CQL Filter specified, fetching all results")
+            ldslog.warn(ref+"No CQL Filter specified, fetching all results")
         
         return (fname,config,epsg,cql)
     
@@ -291,6 +295,7 @@ class MainFileReader(object):
         '''FileGDB specific config file reader'''
         from FileGDBDataStore import FileGDBDataStore as FG
         
+        ref = self.fn+':FG. '
         epsg = None
         cql = None
         
@@ -305,25 +310,25 @@ class MainFileReader(object):
         try:
             fname = self.cp.get(FG.DRIVER_NAME, 'file')
         except NoSectionError:
-            ldslog.warn("No FileGDB section")
+            ldslog.warn(ref+"No FileGDB section")
             return (None,)*4
         except NoOptionError:
-            ldslog.warn("FileGDB: No DB name provided, default to "+str(fname))
+            ldslog.warn(ref+"No DB name provided, default to "+str(fname))
             
         try:
             config = self.cp.get(FG.DRIVER_NAME, 'config')
         except NoOptionError:
-            ldslog.warn("FileGDB: No config preference specified, default to "+str(config))
+            ldslog.warn(ref+"No config preference specified, default to "+str(config))
             
         try:
             epsg = self.cp.get(FG.DRIVER_NAME, 'epsg')
         except NoOptionError:
-            ldslog.warn("FileGDB: EPSG not specified, default to "+str(epsg)+" none keeping existing SRS")
+            ldslog.warn(ref+"EPSG not specified, default to "+str(epsg)+" none keeping existing SRS")
             
         try: 
             cql = self.cp.get(FG.DRIVER_NAME, 'cql')
         except NoOptionError:
-            ldslog.warn("FileGDB: No CQL Filter specified, fetching all results")
+            ldslog.warn(ref+"No CQL Filter specified, fetching all results")
         
         return (fname,config,epsg,cql)
         
@@ -339,6 +344,7 @@ class MainFileReader(object):
         from ConfigParser import NoSectionError as NSE
         #use_defaults determines whether we use default values. For a user config this may not be wise
         #since a user config is a custom file relying on the main config for absent values not last-resort defaults
+        ref = self.fn+':LDS. '
         cql = None
         key = None
         
@@ -357,37 +363,37 @@ class MainFileReader(object):
             url = self.cp.get(self.LDSN, 'url')
         #for some reason we cant use global NoSectionError in this function (even though its fine everywhere else) 
         except NSE:
-            ldslog.warn("LDS: No LDS Section")
+            ldslog.warn(ref+"LDS: No LDS Section")
             return (None,)*6
         except NoOptionError:
-            ldslog.warn("LDS: Default URL assumed ")
+            ldslog.warn(ref+"Default URL assumed ")
 
         
             
         try:   
             key = self.cp.get(self.LDSN, 'key') 
         except NoOptionError, NoSectionError:
-            ldslog.warn("LDS: Key required to connect to LDS...")
+            ldslog.warn(ref+"Key required to connect to LDS...")
             
         try: 
             fmt = self.cp.get(self.LDSN, 'fmt')
         except NoOptionError:
-            ldslog.warn("LDS: No output format specified")
+            ldslog.warn(ref+"No output format specified")
         
         try: 
             svc = self.cp.get(self.LDSN, 'svc')
         except NoOptionError:
-            ldslog.warn("LDS: No service type specified, default to "+str(svc))
+            ldslog.warn(ref+"No service type specified, default to "+str(svc))
         
         try: 
             ver = self.cp.get(self.LDSN, 'ver')
         except NoOptionError:
-            ldslog.warn("LDS: No Version specified, assuming WFS and default to version "+str(ver))        
+            ldslog.warn(ref+"No Version specified, assuming WFS and default to version "+str(ver))        
             
         try: 
             cql = self.cp.get(self.LDSN, 'cql')
         except NoOptionError:
-            ldslog.warn("LDS: No CQL Filter specified, fetching all results")
+            ldslog.warn(ref+"No CQL Filter specified, fetching all results")
             
 
         
@@ -398,6 +404,7 @@ class MainFileReader(object):
         
         #use_defaults determines whether we use default values. For a user config this may not be wise
         #since a user config is a custom file relying on the main config for absent values not last-resort defaults
+        ref = self.fn+':Proxy. '
         
         host = None
         port = None
@@ -415,80 +422,82 @@ class MainFileReader(object):
         try:
             type = self.cp.get(self.PROXY, 'type')
         except NoSectionError:
-            ldslog.warn("No Proxy section")
+            ldslog.warn(ref+"No Proxy section")
             return (type,)+(None,)*5
         except NoOptionError:
-            ldslog.warn("Proxy: Type not defined, Direct assumed ")
+            ldslog.warn(ref+"Type not defined, Direct assumed ")
             
             
         try:
             host = self.cp.get(self.PROXY, 'host')
         except NoSectionError:
-            ldslog.warn("No Proxy section")
+            ldslog.warn(ref+"No Proxy section")
             return (None,)*6
         except NoOptionError:
-            ldslog.warn("Proxy: Host not defined, no-Proxy assumed ")
+            ldslog.warn(ref+"Host not defined, no-Proxy assumed ")
             
         try:
             port = self.cp.get(self.PROXY, 'port')
         except NoOptionError:
-            ldslog.warn("Proxy: Port not defined, no-Proxy assumed")
+            ldslog.warn(ref+"Port not defined, no-Proxy assumed")
             
         try:
             auth = self.cp.get(self.PROXY, 'auth')
         except NoOptionError:
-            ldslog.warn("Proxy: Auth not defined, NTLM assumed")
+            ldslog.warn(ref+"Auth not defined, NTLM assumed")
 
         try:
             usr = self.cp.get(self.PROXY, 'user')
         except NoOptionError:
-            ldslog.warn("Proxy: No user defined")        
+            ldslog.warn(ref+"No user defined")        
         
         try:
             pwd = self.cp.get(self.PROXY, 'pass')
         except NoOptionError:
-            ldslog.warn("Proxy: No pass defined") 
+            ldslog.warn(ref+"No pass defined") 
             
 
         return (type,host,port,auth,usr,pwd)
     
     def readMiscConfig(self):
+        ref = self.fn+':Misc. '
+
         
         sixtyfourlayers = None
         partitionlayers = None
         #NB. for v:x772 ps=1000000 is too small, 100000-1999999 returns None but ps=10000000 is too large, hangs or quits on XML parse fail
-        partitionsize = 100000
+        partitionsize = None
         
         try: 
             #sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
             sixtyfourlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
         except NoSectionError:
-            ldslog.warn("Misc: No Misc section detected looking for 64bit Layer specification")
+            ldslog.warn(ref+"No Misc section detected looking for 64bit Layer specification")
         except NoOptionError:
-            ldslog.warn("Misc: No 64bit Layers specified. NB. '64bitlayers'")
+            ldslog.warn(ref+"No 64bit Layers specified. NB. '64bitlayers'")
             
         try: 
             #partitionlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
             partitionlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
         except NoSectionError:
-            ldslog.warn("Misc: No Misc section detected looking for Problem Layer specification")
+            ldslog.warn(ref+"No Misc section detected looking for Problem Layer specification")
         except NoOptionError:
-            ldslog.warn("Misc: No Partition Layers specified. NB. 'partitionlayers'")
+            ldslog.warn(ref+"No Partition Layers specified. NB. 'partitionlayers'")
             
         try: 
             partitionsize = self.cp.get(self.MISC, 'partitionsize')
         except NoSectionError:
-            ldslog.warn("Misc: No Misc section detected looking for Partition Size specification. Default = "+str(partitionsize)+". NB. 'partitionsize'")
+            ldslog.warn(ref+"No Misc section detected looking for Partition Size specification. Default = "+str(partitionsize)+". NB. 'partitionsize'")
         except NoOptionError:
-            ldslog.warn("Misc: No Partition Size specified. Default = 'Memory'. NB. 'partitionsize'")
+            ldslog.warn(ref+"No Partition Size specified. Default = 'Memory'. NB. 'partitionsize'")
             
         try: 
             prefetchsize = self.cp.get(self.MISC, 'prefetchsize')
         except NoSectionError:
-            ldslog.warn("Misc: No Misc section detected looking for incremental Prefetch Size. Default (partitionsize) = "+str(partitionsize))
+            ldslog.warn(ref+"No Misc section detected looking for incremental Prefetch Size. Default (partitionsize) = "+str(partitionsize))
             prefetchsize = partitionsize
         except NoOptionError:
-            ldslog.warn("Misc: No incremental Prefetch Size specified. Default (partitionsize) = "+str(partitionsize))
+            ldslog.warn(ref+"No incremental Prefetch Size specified. Default (partitionsize) = "+str(partitionsize))
             prefetchsize = partitionsize
         
         return (sixtyfourlayers,partitionlayers,partitionsize,prefetchsize)

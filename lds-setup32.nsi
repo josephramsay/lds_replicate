@@ -67,6 +67,7 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
+    File F:\git\LDS\LDSReplicate\LDS32.exe
     File F:\git\LDS\LDSReplicate\ldsreplicate.cmd
     File F:\git\LDS\LDSReplicate\ldsreplicate_gui.cmd
     File F:\git\LDS\LDSReplicate\setup_vars.cmd
