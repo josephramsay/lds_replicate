@@ -67,7 +67,7 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
-    File F:\git\LDS\LDSReplicate\LDS32.exe
+    File C:\temp\LDS32.exe
     File F:\git\LDS\LDSReplicate\ldsreplicate.cmd
     File F:\git\LDS\LDSReplicate\ldsreplicate_gui.cmd
     File F:\git\LDS\LDSReplicate\setup_vars.cmd
@@ -138,6 +138,18 @@ Section "LDS Replicate" SEC0001
     File /a /oname=debug.log F:\git\LDS\LDSReplicate\log\empty.debug.log
     SetOutPath $INSTDIR
     WriteRegStr HKLM "${REGKEY}\Components" "LDS Replicate" 1
+    
+    ;Write directly to file, ensuring sufficient whitespace at top of file to prevent valid content being overwritten
+    FileOpen $4 "$INSTDIR\ldsreplicate_gui.cmd" a
+    FileSeek $4 0 SET
+    FileWrite $4 "@echo off"
+    FileWrite $4 "$\r$\n"
+    FileWrite $4 ":BEGIN"
+    FileWrite $4 "$\r$\n"
+    FileWrite $4 "SET PWD=$INSTDIR\"
+    FileWrite $4 "$\r$\n"
+    FileClose $4
+
 SectionEnd
 
 Section "Python 2.7" SEC0002

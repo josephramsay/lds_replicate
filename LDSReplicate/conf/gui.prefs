@@ -7,7 +7,7 @@ td = None
 
 [FileGDB]
 uconf = fgx
-lgvalue = v:x782
+lgvalue = FGMULTI
 epsg = None
 fd = None
 td = 2013-01-01
