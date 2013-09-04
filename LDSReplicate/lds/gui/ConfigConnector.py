@@ -57,6 +57,7 @@ class ConfigConnector(object):
             self.destname = destname
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
             self.src = ConfigConnector.initSrc(self.tp)
+            self.svp = self.readProtocolVersion()
             self.dst = ConfigConnector.initDst(self.tp, self.destname)
             #print 'CCt',self.tp
             #print 'CCd',self.dst
@@ -66,8 +67,13 @@ class ConfigConnector(object):
             self.setupComplete()
             self.setupAssigned()
             self.buildLGList()
-            self.inclayers = ['v:x'+x[0] for x in ConfigInitialiser.readCSV()]
+            self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
+            
   
+    def readProtocolVersion(self):
+        '''Get WFS/WMS, version and prefix from the Source'''
+        return {'svc':self.tp.src.svc,'ver':self.tp.src.ver,'idp':self.tp.src.idp}
+    
     @staticmethod
     def initSrc(tp):
         '''aesthetics!?'''
@@ -96,7 +102,7 @@ class ConfigConnector(object):
     def initLayerConfig(tp,dst=None):
         '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
         #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst if dst else self.dst,self.tp.src.pxy)
-        tp.initLayerConfig(tp.src.getCapabilities(),dst,tp.src.pxy)
+        tp.initLayerConfig(tp.src.getCapabilities(),dst,tp.src.pxy,tp.src.idp)
         
     def setupComplete(self):
         '''Reads a reduced lconf from file/table as a Nx3 array'''

@@ -5,6 +5,13 @@
   xmlns:wfs="http://www.opengis.net/wfs"
   xmlns:ows="http://www.opengis.net/ows"
 >
+
+<!-- 
+To make WFS2 work, change the namespace declarations to
+xmlns:wfs="http://www.opengis.net/wfs/2.0"
+xmlns:ows="http://www.opengis.net/ows/1.1"
+ -->
+ 
 <xsl:output method="text"/>
 <xsl:strip-space elements="*"/>
 

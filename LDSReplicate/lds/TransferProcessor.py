@@ -122,7 +122,8 @@ class TransferProcessor(object):
         '''Identify whether being passed a layer or a group identifier'''
         #still need to decide the difference between a layer name and a group name e.g. nz_rock_polys vs GROUP_ABC. 
         #For now (and probably better that) we take care of this when we search/match group names 
-        return LORG.LAYER if re.match('^v:x',lg) else LORG.GROUP
+        #return LORG.LAYER if re.match('^'+LDSUtilities.LDS_VX_PREFIX,lg) else LORG.GROUP
+        return LORG.LAYER if [x for x in LDSUtilities.LDS_PREFIXES if re.search(x,lg)] else LORG.GROUP
     
     def parseSourceConfig(self,sc):
         '''If a user supplied their own LDS connection string, parse out relevant values'''
@@ -230,15 +231,14 @@ class TransferProcessor(object):
         self.dst.ds = self.dst.initDS(self.dst.destinationURI(None))#DataStore.LDS_CONFIG_TABLE))
         
         self.dst.versionCheck()
-        
-        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.prefetchsize) = self.dst.mainconf.readDSParameters('Misc')
+        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.prefetchsize) = self.dst.mainconf.readDSParameters('Misc',{'idp':self.src.idp})
         
         capabilities = self.src.getCapabilities()
                 
         self.dst.setLayerConf(TransferProcessor.getNewLayerConf(self.dst))        
         #still used on command line
         if self.getInitConfig():
-            TransferProcessor.initLayerConfig(capabilities,self.dst,self.src.pxy)
+            TransferProcessor.initLayerConfig(capabilities,self.dst,self.src.pxy,self.src.idp)
         
         if self.dst.getLayerConf() is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(dst.getConfInternal()))
@@ -323,7 +323,7 @@ class TransferProcessor(object):
                 final_td = today if td is None else td
           
                 if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
-                    self.src.setURI(self.src.sourceURI_incrd(each_layer,final_fd,final_td))
+                    self.src.setURI(self.src.sourceURIIncremental(each_layer,final_fd,final_td))
                     if self.readLayer():
                         self.dst.setIncremental()    
                         self.dst.setPrefetchSize(self.prefetchsize)
@@ -408,17 +408,17 @@ class TransferProcessor(object):
             
             
     @classmethod
-    def parseCapabilitiesDoc(cls,capabilitiesurl,file_json,pxy):
+    def parseCapabilitiesDoc(cls,capabilitiesurl,file_json,pxy,idp):
         '''Class method returning the capabilities doc as requested, in either JSON or CP format'''
         xml = LDSUtilities.readDocument(capabilitiesurl,pxy)
-        return ConfigInitialiser.buildConfiguration(xml,file_json)
+        return ConfigInitialiser.buildConfiguration(xml,file_json,idp)
   
         
     @classmethod
-    def initLayerConfig(cls,capabilitiesurl,dst,pxy):
+    def initLayerConfig(cls,capabilitiesurl,dst,pxy,idp):
         '''Class method initialising a layer config using the capabilities document'''
         file_json = 'json' if dst.getConfInternal()==DataStore.CONF_INT else 'file'
-        res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json,pxy)
+        res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json,pxy,idp)
         dst.getLayerConf().buildConfigLayer(str(res))
         
 

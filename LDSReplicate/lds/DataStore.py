@@ -55,6 +55,7 @@ class MalformedConnectionString(DSReaderException): pass
 class InaccessibleLayerException(DSReaderException): pass
 class InaccessibleFeatureException(DSReaderException): pass
 class DatasourcePrivilegeException(DSReaderException): pass
+class UnsupportedServiceException(LDSReaderException): pass
 
 
 
@@ -97,7 +98,7 @@ class DataStore(object):
     CONF_EXT = 'external'
     DEFAULT_CONF = CONF_EXT #Definitive default declaration
     
-    ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
+    #ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
     
     CPL_DEBUG = 'OFF'
     
@@ -627,7 +628,12 @@ class DataStore(object):
                 else:
                     raise InaccessibleFeatureException('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
             else:
-                raise InaccessibleFeatureException('Error attempting to access Feature ('+str(self.src_feat_count)+' available)')
+                #if there are no features (likely with small incr)
+                ldslog.info('No features available, returning')
+                src_layer.ResetReading()
+                dst_layer.ResetReading()
+                return
+                #raise InaccessibleFeatureException('Error attempting to access Feature count, ('+str(self.src_feat_count)+' available)')
                 
             #loop till break on next feat is none
             e = 0

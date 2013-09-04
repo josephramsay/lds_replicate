@@ -459,9 +459,8 @@ class MainFileReader(object):
 
         return (type,host,port,auth,usr,pwd)
     
-    def readMiscConfig(self):
+    def readMiscConfig(self,idp):
         ref = self.fn+':Misc. '
-
         
         sixtyfourlayers = None
         partitionlayers = None
@@ -469,16 +468,16 @@ class MainFileReader(object):
         partitionsize = None
         
         try: 
-            #sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
-            sixtyfourlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
+            #sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_VX_PREFIX else LU.LDS_VX_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
+            sixtyfourlayers = [s if s[:3] == idp[:3] else idp+s for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
         except NoSectionError:
             ldslog.warn(ref+"No Misc section detected looking for 64bit Layer specification")
         except NoOptionError:
             ldslog.warn(ref+"No 64bit Layers specified. NB. '64bitlayers'")
             
         try: 
-            #partitionlayers = map(lambda s: s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
-            partitionlayers = [s if s[:3]==LU.LDS_TN_PREFIX else LU.LDS_TN_PREFIX+s for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
+            #partitionlayers = map(lambda s: s if s[:3]==LU.LDS_VX_PREFIX else LU.LDS_VX_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
+            partitionlayers = [s if s[:3]==idp[:3] else idp+s for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
         except NoSectionError:
             ldslog.warn(ref+"No Misc section detected looking for Problem Layer specification")
         except NoOptionError:

@@ -29,22 +29,47 @@ from contextlib import closing
 from StringIO import StringIO
 from lxml import etree
 
-#from lds.LDSUtilities import LDSUtilities
 #ldslog = LDSUtilities.setupLogging()
 ldslog = logging.getLogger('LDS')
 
 class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
     
-    LDS_TN_PREFIX = 'v:x'
-    LDS_TN_VXPATH = '/'+LDS_TN_PREFIX.replace(':','/')
+    
+    LDS_VX_PREFIX = 'v:x'
+    #wfs2.0 prefixes
+    LDS_LL_PREFIX = 'linz:layer-'
+    LDS_ME_PREFIX = 'mfe:layer-'
+    
+    LDS_PREFIXES = (LDS_VX_PREFIX,LDS_LL_PREFIX,LDS_ME_PREFIX)
+    
+    
+    @staticmethod
+    def getLDSIDPrefix(ver,svc):
+        from lds.DataStore import UnsupportedServiceException
+        if svc=='WFS':
+            if ver in ('1.0.0','1.1.0','1.0','1.1'):
+                return LDSUtilities.LDS_VX_PREFIX
+            elif ver in ('2.0.0','2.0'):
+                return LDSUtilities.LDS_LL_PREFIX
+            else:
+                raise UnsupportedServiceException('Only WFS versions 1.0, 1.1 and 2.0 are supported')
+        else:
+            raise UnsupportedServiceException('Only WFS is supported at present')
+    
+
     
     @staticmethod
     def splitLayerName(layername):
         '''Splits a layer name typically in the format v:x### into /v/x### for URI inclusion'''
         #return "/"+"/".join(layername.split(":"))
         return "/"+re.sub(":","/",layername)
-
+    
+    LDS_VXPATH = splitLayerName.__func__(LDS_VX_PREFIX)
+    LDS_LLPATH = splitLayerName.__func__(LDS_LL_PREFIX)#?
+    LDS_MEPATH = splitLayerName.__func__(LDS_ME_PREFIX)#?
+    
+    LDS_IDPATHS = (LDS_VXPATH,LDS_LLPATH,LDS_MEPATH)
     
     @staticmethod
     def cropChangeset(layername):
@@ -69,15 +94,18 @@ class LDSUtilities(object):
     def checkLayerName(lconf,lname):
         '''Makes sure a layer name conforms to v:x format'''
         if type(lname) is str:
-            if re.search('^'+LDSUtilities.LDS_TN_PREFIX+'\d+$',lname):
-                #if its an ID (v:x) and it matches a configured id return it
+            if LDSUtilities.checkLayerNameValidity(lname):
+                #if its an ID (v:x etc) and it matches a configured id return it
                 return lname if lname in lconf.getLayerNames() else None
             else:
                 #if its a name (NZ Special Points) return matching ID
                 return lconf.findLayerIdByName(lname)
         return None
          
-    
+    @staticmethod
+    def checkLayerNameValidity(lname):
+        '''check whether provided layer name is v:x, linz:layer- or mfe:layer-'''
+        return True if [x for x in LDSUtilities.LDS_PREFIXES if re.search('^{}\d+$'.format(x),lname)] else False
     
     
     @staticmethod
@@ -104,8 +132,8 @@ class LDSUtilities(object):
     @staticmethod
     def getLayerNameFromURL(url):
         from DataStore import MalformedConnectionString
-        l1 = re.search(LDSUtilities.LDS_TN_VXPATH+'(\d+)',url,flags=re.IGNORECASE)
-        l2 = re.search('typeName='+LDSUtilities.LDS_TN_PREFIX+'(\d+)',url,flags=re.IGNORECASE)
+        l1 = [re.search(x+'(\d+)',url,flags=re.IGNORECASE) for x in LDSUtilities.LDS_IDPATHS if re.search(x+'(\d+)',url,flags=re.IGNORECASE)][0]
+        l2 = [re.search('typeName='+x+'(\d+)',url,flags=re.IGNORECASE) for x in LDSUtilities.LDS_PREFIXES if re.search('typeName='+x+'(\d+)',url,flags=re.IGNORECASE)][0]
         if l1 is None or l2 is None:
             raise MalformedConnectionString('Cannot extract correctly formatted layer strings from URI')
         else:
@@ -113,14 +141,14 @@ class LDSUtilities(object):
             l2 = l2.group(1)
             if l1!=l2:
                 raise MalformedConnectionString('Layer specifications in URI differ; '+str(l1)+'!='+str(l2))
-        return LDSUtilities.LDS_TN_PREFIX+str(l1)
+        pref = [x for x in LDSUtilities.LDS_PREFIXES if re.search('typeName='+x+'(\d+)',url,flags=re.IGNORECASE)][0]
+        return pref+str(l1)
         
     @staticmethod
     def checkHasChangesetIdentifier(url):
         '''Check whether URL contains changeset id'''
-        #yeah thats right, F or T
-        c1 = re.search(LDSUtilities.LDS_TN_VXPATH+'\d+-changeset',url,flags=re.IGNORECASE)
-        c2 = re.search('typeName='+LDSUtilities.LDS_TN_PREFIX+'\d+-changeset',url,flags=re.IGNORECASE)
+        c1 = [x for x in LDSUtilities.LDS_IDPATHS if re.search(x+'\d+-changeset',url,flags=re.IGNORECASE)]
+        c2 = [x for x in LDSUtilities.LDS_PREFIXES if re.search('typeName='+x+'\d+-changeset',url,flags=re.IGNORECASE)]
         return True if c1 and c2 else False#return c1 is not None and c2 is not None
     
     @staticmethod
@@ -430,7 +458,7 @@ class ConfigInitialiser(object):
     '''Initialises configuration, for use at first run'''
 
     @staticmethod
-    def buildConfiguration(xml, fileid):
+    def buildConfiguration(xml, fileid, idp):
         '''Given a destination DS use this to select an XSL transform object and generate an output document that will initialise a new config file/table'''
         xslt = etree.parse(os.path.join(os.path.dirname(__file__), '../conf/getcapabilities.'+fileid+'.xsl'))
         transform = etree.XSLT(xslt)
@@ -438,21 +466,28 @@ class ConfigInitialiser(object):
         res = transform(doc)
         ldslog.info(res)
         hackpk = {'file':ConfigInitialiser._hackPrimaryKeyFieldCP,'json':ConfigInitialiser._hackPrimaryKeyFieldJSON}.get(fileid)
-        return hackpk(str(res))
+        return hackpk(str(res),idp)
     
  
+    @staticmethod 
+    def cleanCP(cp):
+        '''Make sure the ConfigParser is empty'''
+        for sec in cp.sections():
+            cp.remove_section(sec)
+        
     @staticmethod
-    def _hackPrimaryKeyFieldCP(cpdoc,csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
+    def _hackPrimaryKeyFieldCP(cpdoc,idp,csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
         '''temporary hack method to rewrite the layerconf primary key field for ConfigParser file types using Koordinates supplied PK CSV'''
         import io
         from ConfigParser import ConfigParser, NoSectionError
         
         cp = ConfigParser()
+        ConfigInitialiser.cleanCP(cp)
         cp.readfp(io.BytesIO(str(cpdoc)))
 
         for item in ConfigInitialiser.readCSV(csvfile):
             try:
-                cp.set(str(LDSUtilities.LDS_TN_PREFIX+item[0]),'pkey',item[2].replace('"','').lstrip())
+                cp.set(str(idp+item[0]),'pkey',item[2].replace('"','').lstrip())
             except NoSectionError as nse:
                 ldslog.warn('PK hack CP: '+str(nse))
 
@@ -466,7 +501,7 @@ class ConfigInitialiser(object):
         return cps
     
     @staticmethod
-    def _hackPrimaryKeyFieldJSON(jtext,csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
+    def _hackPrimaryKeyFieldJSON(jtext,idp,csvfile=os.path.join(os.path.dirname(__file__),'../conf/ldspk.csv')):
         '''temporary hack method to rewrite the layerconf primary key field in JSON responses'''
         import json
         
@@ -474,7 +509,7 @@ class ConfigInitialiser(object):
 
         for item in ConfigInitialiser.readCSV(csvfile):
             for jline in jdata:
-                if LDSUtilities.LDS_TN_PREFIX+item[0] == str(jline[0]):
+                if idp+item[0] == str(jline[0]):
                     jline[1] = item[2].replace('"','').lstrip()
 
                         

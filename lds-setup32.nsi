@@ -93,6 +93,11 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\doc\LDSReplicate_instructions.pdf
     File F:\git\LDS\LDSReplicate\doc\README
     SetOutPath $INSTDIR\apps\ldsreplicate\img
+    File F:\git\LDS\LDSReplicate\img\open.png
+    File F:\git\LDS\LDSReplicate\img\exit.png
+    File F:\git\LDS\LDSReplicate\img\help.png
+    File F:\git\LDS\LDSReplicate\img\uc.png
+    File F:\git\LDS\LDSReplicate\img\lc.png
     File F:\git\LDS\LDSReplicate\img\linz_static.png
     File F:\git\LDS\LDSReplicate\img\busy_static.png
     File F:\git\LDS\LDSReplicate\img\clean_static.png

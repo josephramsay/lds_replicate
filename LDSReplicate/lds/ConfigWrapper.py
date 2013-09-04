@@ -60,7 +60,7 @@ class ConfigWrapper(object):
 #    #==============MAINCONFIG===========================================================
 
 
-    def readDSParameters(self,drv):
+    def readDSParameters(self,drv,params=None):
         '''Returns the datasource parameters. By request updated to let users override parts of the basic config file'''
         from DataStore import DataStore
         ul = ()
@@ -92,14 +92,14 @@ class ConfigWrapper(object):
                 ul = self.userconfig.readProxyConfig()
         elif drv=='Misc':
             '''Misc global parameters'''
-            ml = self.mainconfig.readMiscConfig()
+            ml = self.mainconfig.readMiscConfig(params['idp'])
             if self.userconfig is not None:
-                ul = self.userconfig.readMiscConfig()
+                ul = self.userconfig.readMiscConfig(params['idp'])
         else:
             return None
         
-        params = map(lambda x,y: y if x is None else x,ul,ml)
-        #params = [y if x is None else x for x,y in zip(ul,ml)]  
+        #params = map(lambda x,y: y if x is None else x,ul,ml)
+        params = [x if x else y for x,y in zip(ul,ml)]  
         
         return params
 

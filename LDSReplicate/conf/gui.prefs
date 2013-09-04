@@ -1,31 +1,10 @@
-[MSSQLSpatial]
-uconf = ms
-lgvalue = v:x979
-epsg = None
-fd = None
-td = None
-
 [FileGDB]
 uconf = fgx
-lgvalue = FGMULTI
+lgvalue = RAAA
 epsg = None
 fd = None
 td = 2013-01-01
 
-[PostgreSQL]
-lgvalue = ABROCKS
-uconf = pg
-epsg = None
-fd = None
-td = 2012-01-01
-
 [prefs]
 dest = FileGDB
-
-[SQLite]
-uconf = deletethisone
-lgvalue = MULTILAYERFORSQLITE
-epsg = 4764
-fd = 2000-01-22
-td = None
 

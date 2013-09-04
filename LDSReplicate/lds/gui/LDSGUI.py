@@ -53,6 +53,8 @@ class LDSMain(QMainWindow):
     #destname,lgval,uc,epsg,fd,td
     DEF_RVALS = ('','','','2193','','')
     
+    MAX_WIZARD_ATTEMPTS = 2
+    
     def __init__(self):
         super(LDSMain, self).__init__()
         
@@ -63,23 +65,25 @@ class LDSMain(QMainWindow):
         
         initcc = True
         #if init=False no point reading gpr vals
-        while initcc:
+        wcount = 0
+        while initcc and wcount<self.MAX_WIZARD_ATTEMPTS:
             try:
                 self.initConfigConnector()
                 initcc = False
             except MalformedConnectionString as mcse:
                 ldslog.warn('Connection String malformed or missing. '+str(mcse))
                 self.runWizardDialog(None,None)
+                wcount += 1
             except DriverInitialisationException as die:
                 ldslog.warn('Cannot Initialise selected driver. '+str(die))
                 self.runWizardDialog(None,None)
+                wcount += 1
                 #self.initConfigConnector(self.DEF_RVALS)
                 #initcc = False
 
-        
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
-        self.setWindowIcon(QIcon('img/linz_static.png'))
+        self.setWindowIcon(QIcon('../../img/linz_static.png'))
         
         self.statusbar = self.statusBar()
         self.statusbar.showMessage('Ready')
@@ -88,32 +92,32 @@ class LDSMain(QMainWindow):
         
         self.setCentralWidget(self.controls)
         
-        openUCAction = QAction(QIcon('open.png'), 'Open &User Config', self)        
+        openUCAction = QAction(QIcon('../../img/open.png'), 'Open &User Config', self)        
         openUCAction.setShortcut('Ctrl+U')
         openUCAction.setStatusTip('Open User Preferences Editor')
         openUCAction.triggered.connect(self.launchUCEditor)
         
-        openLCAction = QAction(QIcon('open.png'), 'Open &Layer Config', self)        
+        openLCAction = QAction(QIcon('../../img/open.png'), 'Open &Layer Config', self)        
         openLCAction.setShortcut('Ctrl+L')
         openLCAction.setStatusTip('Open Layer Config File (only applies to external LC storage)')
         openLCAction.triggered.connect(self.launchLCEditor)
         
-        initUCAction = QAction(QIcon('uc.png'), 'Database &Setup Wizard', self)   
+        initUCAction = QAction(QIcon('../../img/uc.png'), 'Database &Setup Wizard', self)   
         initUCAction.setShortcut('Ctrl+S')
         initUCAction.setStatusTip('Open Database Setup Wizard')
         initUCAction.triggered.connect(self.runWizardAction)
         
-        initLCAction = QAction(QIcon('lc.png'), 'Layer &Config Editor', self)   
+        initLCAction = QAction(QIcon('../../img/lc.png'), 'Layer &Config Editor', self)   
         initLCAction.setShortcut('Ctrl+C')
         initLCAction.setStatusTip('Open Layer Config Editor')
         initLCAction.triggered.connect(self.runLayerConfigAction)
         
-        exitAction = QAction(QIcon('exit.png'), '&Exit', self)        
+        exitAction = QAction(QIcon('../../img/exit.png'), '&Exit', self)        
         exitAction.setShortcut('Ctrl+E')
         exitAction.setStatusTip('Exit Application')
         exitAction.triggered.connect(qApp.quit)
         
-        helpAction = QAction(QIcon('help.png'), '&Help', self)        
+        helpAction = QAction(QIcon('../../img/help.png'), '&Help', self)        
         helpAction.setShortcut('Ctrl+H')
         helpAction.setStatusTip('Open Help Document')
         helpAction.triggered.connect(self.launchHelpFile)
