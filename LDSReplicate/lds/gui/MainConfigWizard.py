@@ -112,6 +112,8 @@ class LDSConfigPage(QWizardPage):
         destLabel = QLabel('Output Type')
         internalLabel = QLabel('Save Layer-Config in DB')
         encryptionLabel = QLabel('Enable Password Protection')
+        serviceLabel = QLabel('Service Type')
+        versionLabel = QLabel('Service Version')
         
         
         infoLinkLabel = QLabel('<a href="http://www.linz.govt.nz/about-linz/linz-data-service/features/how-to-use-web-services">LDS API Information Page</a>')
@@ -135,6 +137,19 @@ class LDSConfigPage(QWizardPage):
             self.destSelect.addItem(itemdata, itemindex)
             if itemdata == self.parent.sechint:
                 self.destSelect.setCurrentIndex(itemindex)
+                
+        self.serviceSelect = QComboBox()
+        self.serviceSelect.setToolTip('Choose from WFS (or one day, WMS)')
+        for itemkey in ('','WFS','WMS','WMTS'):
+            self.serviceSelect.addItem(itemkey)
+            self.serviceSelect.setCurrentIndex(0)        
+            
+        self.versionSelect = QComboBox()
+        self.versionSelect.setToolTip('Choose service Version')
+        for itemkey in ('','1.0.0','1.1.0','2.0.0'):
+            self.versionSelect.addItem(itemkey)
+            self.versionSelect.setCurrentIndex(0)
+        
         
         self.keyEdit.setValidator(QRegExpValidator(QRegExp("[a-fA-F0-9]{32}", re.IGNORECASE), self))
         
@@ -171,10 +186,21 @@ class LDSConfigPage(QWizardPage):
         
         grid.addWidget(encryptionLabel, 5, 0)
         grid.addWidget(self.encryptionEnable, 5, 2)
+        
+        svgrid = QGridLayout()
+        svgrid.addWidget(serviceLabel, 0, 0) 
+        svgrid.addWidget(self.serviceSelect, 0, 2) 
+        svgrid.addWidget(versionLabel, 1, 0) 
+        svgrid.addWidget(self.versionSelect, 1, 2)
+        
+        hbox = QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addLayout(svgrid)
 
         #layout       
         vbox = QVBoxLayout()
         vbox.addLayout(grid)
+        #vbox.addLayout(hbox)
         vbox.addStretch(1)
         vbox.addWidget(keyLinkLabel)
         vbox.addWidget(infoLinkLabel)

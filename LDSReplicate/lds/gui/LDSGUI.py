@@ -242,7 +242,7 @@ class LDSControls(QFrame):
         '''Read files in conf dir ending in conf'''
         self.cflist = ConfigInitialiser.getConfFiles()
         #self.imgset = self.STATIC_IMG if ConfigWrapper().readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
-        self.imgset = self.STATIC_IMG if self.parent.confconn.tp.src.mainconf.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
+        self.imgset = self.STATIC_IMG if self.parent.confconn.tp.src.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
         
     def initEPSG(self):
         '''Read GDAL EPSG files, splitting by NZ(RSR) and RestOfTheWorld'''

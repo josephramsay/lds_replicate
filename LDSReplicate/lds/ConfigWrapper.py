@@ -23,7 +23,7 @@ ldslog = LDSUtilities.setupLogging()
 
 class ConfigWrapper(object):
     '''
-    Convenience wrapper class to main and user config-file reader instances. Main function of this class is to 
+    Convenience wrapper class to main and user config-file reader instances. Main purpose of this class is to 
     allow user to override selected portions of the main config file.
     '''
     
@@ -41,9 +41,9 @@ class ConfigWrapper(object):
     def setupMainAndUserConfig(self,inituserconfig):
         '''Sets up a reader to the main configuration file or alternatively, a user specified config file.
         Userconfig is not mean't to replace mainconfig, just overwrite the parts the user has decided to customise'''
-        self.userconfig = None
-        if inituserconfig is not None:
-            self.userconfig = MainFileReader(LDSUtilities.standardiseUserConfigName(inituserconfig),False)
+        #self.userconfig = None
+        #if inituserconfig:
+        self.userconfig = MainFileReader(LDSUtilities.standardiseUserConfigName(inituserconfig),False) if inituserconfig else None
         self.mainconfig = MainFileReader()
         
         
@@ -99,7 +99,7 @@ class ConfigWrapper(object):
             return None
         
         #params = map(lambda x,y: y if x is None else x,ul,ml)
-        params = [x if x else y for x,y in zip(ul,ml)]  
+        params = [x if x else y for x,y in zip(ul if ul else (None,)*len(ml),ml)]  
         
         return params
 

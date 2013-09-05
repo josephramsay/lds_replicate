@@ -140,10 +140,10 @@ class DataStore(object):
         self.setOverwrite()
         
         self.getDriver(self.DRIVER_NAME)
-        #NB. mainconf here isnt the same as the main/user distinction in the ConfigWrapper    
-        self.mainconf = ConfigWrapper(user_config)
+        #NB. confwrap here isnt the same as the main/user distinction in the ConfigWrapper    
+        self.confwrap = ConfigWrapper(user_config)
         
-        self.params = self.mainconf.readDSParameters(self.DRIVER_NAME)
+        self.params = self.confwrap.readDSParameters(self.DRIVER_NAME)
         
         '''set of <potential> columns not needed in final output, global'''
         self.optcols = set(['__change__','gml_id'])
@@ -296,7 +296,7 @@ class DataStore(object):
             ldslog.error('Open '+str(dsn)+' throws '+str(re1),exc_info=1)
                 
             if create: 
-                self.createDS(dsn)
+                ds = self.createDS(dsn)
             else:
                 raise re1
         finally:
@@ -314,10 +314,11 @@ class DataStore(object):
             ldslog.error(ds1,exc_info=1)
             raise
         except RuntimeError as re2:
-            '''this is only caught if ogr.UseExceptions() is enabled (which we done enable since RunErrs thrown even when DS completes)'''
+            '''this is only caught if ogr.UseExceptions() is enabled (which we dont enable since RunErrs thrown even when DS completes)'''
             #print "GDAL RuntimeError. Error creating DS.",rte
             ldslog.error(re2,exc_info=1)
             raise
+        return ds if ds else None
         
     def read(self,dsn,create=True):
         '''Main DS read method'''

@@ -172,7 +172,7 @@ class MSSQLSpatialDataStore(DataStore):
         if gc is not None:
             local_opts += ['GEOM_NAME='+gc]
             
-        schema = self.mainconf.readDSProperty(self.DRIVER_NAME,'schema')
+        schema = self.confwrap.readDSProperty(self.DRIVER_NAME,'schema')
         if schema is None:
             schema = self.schema
         if LDSUtilities.mightAsWellBeNone(schema) is not None and LDSUtilities.containsOnlyAlphaNumeric(schema):

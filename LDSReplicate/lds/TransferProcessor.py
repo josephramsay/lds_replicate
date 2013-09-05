@@ -231,7 +231,7 @@ class TransferProcessor(object):
         self.dst.ds = self.dst.initDS(self.dst.destinationURI(None))#DataStore.LDS_CONFIG_TABLE))
         
         self.dst.versionCheck()
-        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.prefetchsize) = self.dst.mainconf.readDSParameters('Misc',{'idp':self.src.idp})
+        (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.prefetchsize) = self.dst.confwrap.readDSParameters('Misc',{'idp':self.src.idp})
         
         capabilities = self.src.getCapabilities()
                 

@@ -1,6 +1,6 @@
 [FileGDB]
-uconf = fgx
-lgvalue = RAAA
+uconf = fgwint
+lgvalue = v:x104
 epsg = None
 fd = None
 td = 2013-01-01

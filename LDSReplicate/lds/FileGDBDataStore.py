@@ -33,6 +33,7 @@ class FileGDBDataStore(ESRIDataStore):
     DRIVER_NAME = DataStore.DRIVER_NAMES['fg']#"FileGDB"
     
     FGDB_BULK_LOAD = 'YES'
+    SUFFIX = '.gdb'
     
         #wkbNone removed
     ValidGeometryTypes = (ogr.wkbUnknown, ogr.wkbPoint, ogr.wkbLineString,
@@ -50,7 +51,6 @@ class FileGDBDataStore(ESRIDataStore):
         (self.fname,self.config,self.srs,self.cql) = self.params
         #because sometimes ~ (if included) isnt translated to home
         self.fname = os.path.expanduser(self.fname)
-        self.SUFFIX = '.gdb'
         
 
     def clone(self):
@@ -155,7 +155,7 @@ class FileGDBDataStore(ESRIDataStore):
         ldslog.info("Sync DS and Close")
         self.ds.SyncToDisk()
         #FileGDB locks up on destroy, do we even need this? Supposedly for backward compatibility
-        #self.ds.Destroy()  
+        self.ds.Destroy()  
         self.ds = None
         
         
