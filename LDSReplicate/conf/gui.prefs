@@ -8,3 +8,10 @@ td = 2013-01-01
 [prefs]
 dest = FileGDB
 
+[PostgreSQL]
+uconf = pg
+lgvalue = TEST1
+epsg = None
+fd = None
+td = None
+

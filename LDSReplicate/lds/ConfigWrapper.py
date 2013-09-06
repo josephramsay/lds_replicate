@@ -99,9 +99,9 @@ class ConfigWrapper(object):
             return None
         
         #params = map(lambda x,y: y if x is None else x,ul,ml)
-        params = [x if x else y for x,y in zip(ul if ul else (None,)*len(ml),ml)]  
+        rconfdata = [x if x else y for x,y in zip(ul if ul else (None,)*len(ml),ml)]  
         
-        return params
+        return rconfdata
 
 
     def readDSProperty(self,drv,prop):

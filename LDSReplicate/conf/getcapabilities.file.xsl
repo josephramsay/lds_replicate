@@ -28,14 +28,11 @@ xmlns:ows="http://www.opengis.net/ows/1.1"
 		<!-- flags if layer kword is hydro or topo or the title contains zonemap -->
 		<xsl:variable name="kflag">
 			<xsl:if test="contains(normalize-space($title),'ZoneMap')">true</xsl:if>
-			<xsl:for-each select="$keyword">
-				<xsl:if test="contains(normalize-space(.),'Topographic') or contains(normalize-space(.),'Hydrographic')">true</xsl:if>
-			</xsl:for-each>
 		</xsl:variable>
 		
 		<xsl:text>&#xa;[</xsl:text><xsl:value-of select="normalize-space(wfs:Name)"/><xsl:text>]&#xa;</xsl:text>
 		<xsl:text>pkey = </xsl:text>
-		<xsl:if test="not(normalize-space($kflag) != '')">
+		<xsl:if test="normalize-space($kflag)='true'">
 			<xsl:text>id</xsl:text>
 		</xsl:if>
 		<xsl:text>&#xa;</xsl:text>

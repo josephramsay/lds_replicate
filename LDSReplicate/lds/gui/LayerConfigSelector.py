@@ -91,12 +91,13 @@ class LayerConfigSelector(QMainWindow):
         '''Add custom key to the selection_model list of layers (assumes required av->sl transfer completed) not just the transferring entry'''
         layerlist = [ll[0] for ll in self.selection_model.mdata]
         replacementlist = ()
-        categorylist = self.parent.confconn.dst.getLayerConf().readLayerProperty(layerlist, 'category')
+        dst = self.parent.confconn.initDstWrapper()
+        categorylist = dst.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
-        self.parent.confconn.dst.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
+        dst.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
         #new keyword written so re-read complete (LC) and update assigned keys list
-        self.parent.confconn.setupComplete()
+        self.parent.confconn.setupComplete(dst)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()
         #self.refreshLayers(customkey)
@@ -143,7 +144,8 @@ class LayerConfigSelector(QMainWindow):
         lastgroup = str(self.page.keywordcombo.lineEdit().text())
         #self.parent.controls.gpr.writeline('lgvalue',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
-            self.parent.confconn.setupComplete()
+            dst = self.parent.confconn.initDstWrapper()
+            self.parent.confconn.setupComplete(dst)
             self.parent.confconn.setupAssigned()
             self.parent.confconn.buildLGList()
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)

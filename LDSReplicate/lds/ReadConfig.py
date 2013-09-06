@@ -572,7 +572,7 @@ class LayerReader(object):
         pass
     
     @abstractmethod
-    def exists(self):
+    def existsAndIsCurrent(self):
         pass
     
     
@@ -624,7 +624,7 @@ class LayerFileReader(LayerReader):
             
         self._readConfigFile(self.filename)
         
-    def exists(self):
+    def existsAndIsCurrent(self):
         '''TF test to decide whether to init'''
         return self._fileexists() and len(self.cp.sections())>0
     
@@ -788,9 +788,16 @@ class LayerDSReader(LayerReader):
         super(LayerDSReader,self).__init__(fname)
         self.ds = self.fname.ds
         self.namelist = ()
-            
+    
+    
+    #acquire and release DS instance to for each function call to prevent DS locking        
+    def _getDS(self):
+        return self.fname.ds
+    
+    def _releaseDS(self):
+        self.ds = None
 
-    def exists(self):
+    def existsAndIsCurrent(self):
         '''Test for DS table'''
         if self.ds is not None:
             try:
@@ -869,13 +876,17 @@ class LayerDSReader(LayerReader):
         #gdal.SetConfigOption('CPL_LOG_ERRORS','ON')
         if not self.namelist:
             layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
-            layer.SetIgnoredFields(('OGR_GEOMETRY',))
-            layer.ResetReading()
-            feat = layer.GetNextFeature() 
-            while feat is not None:
-                self.namelist += (feat.GetField('id'),)
-                feat = layer.GetNextFeature()
-        
+            if layer:
+                layer.SetIgnoredFields(('OGR_GEOMETRY',))
+                layer.ResetReading()
+                feat = layer.GetNextFeature() 
+                while feat is not None:
+                    print '>>>>> ID',feat.GetField('id')
+                    self.namelist += (feat.GetField('id'),)
+                    feat = layer.GetNextFeature()
+            else:
+                ldslog.error('REMINDER! TRIGGER CONF BUILD')
+        print '>>>>> NAMELIST',self.namelist
         return self.namelist
     
     @override(LayerReader) 

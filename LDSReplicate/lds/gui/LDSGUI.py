@@ -508,8 +508,8 @@ class LDSControls(QFrame):
     def getInitLabel(self,rdest):
         '''Returns a name for the init/layer button.'''
         #for internal DS too much overhead intialising a new data connection so we default to "init"
-        if LDSUtilities.mightAsWellBeNone(rdest) and LayerFileReader(rdest.lower()+TransferProcessor.LP_SUFFIX).exists():
-                    return 'Layer Select'
+        if LDSUtilities.mightAsWellBeNone(rdest) and LayerFileReader(rdest.lower()+TransferProcessor.LP_SUFFIX).existsAndIsCurrent():
+            return 'Layer Select'
         return 'Initalise'
     
     def gprParameters(self,rdest):
@@ -677,10 +677,6 @@ class LDSControls(QFrame):
         elif not MainFileReader(uconf_path).hasSection(destination_driver):
             self.userConfMessage(uconf_path,destination_driver)
             return
-        
-        if not self.parent.confconn.dst.getLayerConf().exists():
-            self.layerConfMessage(destination_path)
-            return
   
         #-----------------------------------------------------
 
@@ -711,6 +707,8 @@ class LDSControls(QFrame):
         #Open ProcessRunner and run with TP(proc)/self(gui) instances
         #HACK temp add of dest_drv to PR call
         self.tpr = ProcessRunner(self,destination_driver)
+        #If PR has been successfully created we must vave a valid dst
+        self.layerConfMessage(destination_path)
         self.tpr.start()
         
     def quitProcessRunner(self):

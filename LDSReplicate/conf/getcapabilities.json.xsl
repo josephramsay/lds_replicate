@@ -5,6 +5,13 @@
   xmlns:wfs="http://www.opengis.net/wfs"
   xmlns:ows="http://www.opengis.net/ows"
 >
+
+<!-- 
+To make WFS2 work, change the namespace declarations to
+xmlns:wfs="http://www.opengis.net/wfs/2.0"
+xmlns:ows="http://www.opengis.net/ows/1.1"
+ -->
+ 
 <xsl:output method="text"/>
 <xsl:strip-space elements="*"/>
 
@@ -21,14 +28,11 @@
 		<!-- flags if layer kword is hydro or topo or the title contains zonemap -->
 		<xsl:variable name="kflag">
 			<xsl:if test="contains(normalize-space($title),'ZoneMap')">true</xsl:if>
-			<xsl:for-each select="$keyword">
-				<xsl:if test="contains(normalize-space(.),'Topographic') or contains(normalize-space(.),'Hydrographic')">true</xsl:if>
-			</xsl:for-each>
 		</xsl:variable>	
 
 		<xsl:text>["</xsl:text><xsl:value-of select="normalize-space(wfs:Name)"/><xsl:text>",</xsl:text>
 		<xsl:choose>
-			<xsl:when test="not(normalize-space($kflag) != '')">
+			<xsl:when test="normalize-space($kflag)='true'">
 				<xsl:text>"id"</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>

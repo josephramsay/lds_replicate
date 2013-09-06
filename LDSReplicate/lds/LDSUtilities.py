@@ -471,7 +471,7 @@ class ConfigInitialiser(object):
  
     @staticmethod 
     def cleanCP(cp):
-        '''Make sure the ConfigParser is empty'''
+        '''Make sure the ConfigParser is empty... even needed?'''
         for sec in cp.sections():
             cp.remove_section(sec)
         
@@ -482,9 +482,10 @@ class ConfigInitialiser(object):
         from ConfigParser import ConfigParser, NoSectionError
         
         cp = ConfigParser()
-        ConfigInitialiser.cleanCP(cp)
+        #read CP from GC doc
         cp.readfp(io.BytesIO(str(cpdoc)))
 
+        #read the PK list writing any PK's found into CP
         for item in ConfigInitialiser.readCSV(csvfile):
             try:
                 cp.set(str(idp+item[0]),'pkey',item[2].replace('"','').lstrip())

@@ -58,13 +58,13 @@ class ConfigConnector(object):
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
             self.src = ConfigConnector.initSrc(self.tp)
             self.svp = self.readProtocolVersion()
-            self.dst = ConfigConnector.initDst(self.tp, self.destname)
+            dst = ConfigConnector.initDst(self.tp, self.destname)
             #print 'CCt',self.tp
             #print 'CCd',self.dst
             if not self.vlayers:
-                self.vlayers = self.getValidLayers(self.dst is not None)
+                self.vlayers = self.getValidLayers(dst)
                 self.setupReserved()
-            self.setupComplete()
+            self.setupComplete(dst)
             self.setupAssigned()
             self.buildLGList()
             self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
@@ -79,6 +79,9 @@ class ConfigConnector(object):
         '''aesthetics!?'''
         return tp.src
     
+    def initDstWrapper(self):
+        return ConfigConnector.initDst(self.tp,self.destname)
+    
     @staticmethod
     def initDst(tp,destname):
         '''Initialises dst objects'''
@@ -91,7 +94,7 @@ class ConfigConnector(object):
                 dst.ds = dst.initDS(dst.destinationURI(None))
             dst.setLayerConf(tp.getNewLayerConf(dst))
             ##if a lconf has not been created build a new one
-            if not dst.getLayerConf().exists():
+            if not dst.getLayerConf().existsAndIsCurrent():
                 #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
                 ConfigConnector.initLayerConfig(tp,dst)
         else:
@@ -104,10 +107,10 @@ class ConfigConnector(object):
         #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst if dst else self.dst,self.tp.src.pxy)
         tp.initLayerConfig(tp.src.getCapabilities(),dst,tp.src.pxy,tp.src.idp)
         
-    def setupComplete(self):
+    def setupComplete(self,dst):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
         #these are all the keywords in the local file. if no dest has been set returns empty
-        self.complete = self.dst.getLayerConf().getLConfAs3Array() if self.dst else []
+        self.complete = dst.getLayerConf().getLConfAs3Array() if dst else []
     
     def setupReserved(self):
         '''Read the capabilities doc (as json) for reserved words'''
@@ -133,13 +136,13 @@ class ConfigConnector(object):
         #HACK
         return set([a for a in alist if not re.search(flt,a)])
     
-    def getValidLayers(self,dest=True):
+    def getValidLayers(self,dst):
         #if dest is true we should have a layerconf so use intersect(read_lc,lds_getcaps)
         capabilities = self.src.getCapabilities()
         self.tp.initCapsDoc(capabilities, self.src)
-        vlayers = self.tp.assembleLayerList(self.dst,intersect=dest)
+        vlayers = self.tp.assembleLayerList(dst,intersect=True)
         #In the case where we are setting up unconfigured (first init) populate the layer list with default/all layers
-        return vlayers if vlayers else self.tp.assembleLayerList(self.dst,intersect=False) 
+        return vlayers if vlayers else self.tp.assembleLayerList(dst,intersect=False) 
     
     def buildLGList(self,groups=None,layers=None):
         '''Sets the values displayed in the Layer/Group combo'''
@@ -190,7 +193,7 @@ class ProcessRunner(QThread):
         #self.tp = controls.parent.confconn.tp.clone()
         
         #original DST
-        self.dst = controls.parent.confconn.dst
+        self.dst = controls.parent.confconn.initDstWrapper()
         #self.dst = controls.parent.confconn.dst.clone()
         #self.dst = ConfigConnector.initDst(self.tp,dd)
         #print 'PRt',self.tp
