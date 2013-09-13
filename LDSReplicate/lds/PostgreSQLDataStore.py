@@ -38,20 +38,20 @@ class PostgreSQLDataStore(DataStore):
     
     SPATIAL_INDEX = 'ON'
     
-    def __init__(self,parent,conn_str=None,user_config=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
         PostgreSQL DataStore constructor
         '''
         
-        super(PostgreSQLDataStore,self).__init__(parent,conn_str,user_config)
+        super(PostgreSQLDataStore,self).__init__(conn_str,user_config)
               
         (self.host,self.port,self.dbname,self.schema,self.usr,self.pwd, self.overwrite,self.config,self.srs,self.cql) = self.params
 
         
-    def clone(self):
-        clone = PostgreSQLDataStore(self.parent,self.conn_str,None)
-        clone.name = str(self.name)+'C'
-        return clone
+#     def clone(self):
+#         clone = PostgreSQLDataStore(self.parent,self.conn_str,None)
+#         clone.name = str(self.name)+'C'
+#         return clone
     
     def sourceURI(self,layer):
         '''URI method returns source DB instance'''

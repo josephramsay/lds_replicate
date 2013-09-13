@@ -36,7 +36,7 @@ class WFSDataStore(DataStore):
     VERSION_COUNT = '1.1.0'
     VERSION_REPLICATE = '1.0.0'
     
-    def __init__(self,parent,conn_str=None,user_config=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
         Init driver, read config and set up proxy data. 
         Notes on Proxies: 
@@ -44,7 +44,7 @@ class WFSDataStore(DataStore):
         SYSTEM explicitly reads reg/env proxy settings and uses them in a ProxyHandler
         '''
         
-        super(WFSDataStore,self).__init__(parent,conn_str,user_config)
+        super(WFSDataStore,self).__init__(conn_str,user_config)
         
         #We set the proxy options here as this is the collection point for all WFS/network requests
         self.PP = LDSUtilities.interceptSystemProxyInfo(self.confwrap.readDSParameters('Proxy'),self.PROXY_TYPE[1])

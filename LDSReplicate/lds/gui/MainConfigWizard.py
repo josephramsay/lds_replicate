@@ -111,6 +111,7 @@ class LDSConfigPage(QWizardPage):
         keyLabel = QLabel('LDS API Key')
         destLabel = QLabel('Output Type')
         internalLabel = QLabel('Save Layer-Config in DB')
+        intwarnLabel = QLabel('(Potential table locking issues when choosing internal config)')
         encryptionLabel = QLabel('Enable Password Protection')
         serviceLabel = QLabel('Service Type')
         versionLabel = QLabel('Service Version')
@@ -155,6 +156,7 @@ class LDSConfigPage(QWizardPage):
         
         #checkbox
         self.internalEnable = QCheckBox()
+        self.internalEnable.setChecked(True)
         self.internalEnable.setToolTip('Enable saving layer-config (per layer config and progress settings) internally')
         
         self.encryptionEnable = QCheckBox()
@@ -183,6 +185,7 @@ class LDSConfigPage(QWizardPage):
         
         grid.addWidget(internalLabel, 4, 0)
         grid.addWidget(self.internalEnable, 4, 2)
+        if self.internalEnable.checked(): grid.addWidget(self.intwarnEnable, 4, 4)
         
         grid.addWidget(encryptionLabel, 5, 0)
         grid.addWidget(self.encryptionEnable, 5, 2)

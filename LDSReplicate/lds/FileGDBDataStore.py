@@ -43,20 +43,19 @@ class FileGDBDataStore(ESRIDataStore):
                       ogr.wkbPolygon25D, ogr.wkbMultiPoint25D, ogr.wkbMultiLineString25D, 
                       ogr.wkbMultiPolygon25D, ogr.wkbGeometryCollection25D)
 
-    def __init__(self,parent,conn_str=None,user_config=None):
-        
-        
-        super(FileGDBDataStore,self).__init__(parent,conn_str,user_config)
+    def __init__(self,conn_str=None,user_config=None):
+
+        super(FileGDBDataStore,self).__init__(conn_str,user_config)
         
         (self.fname,self.config,self.srs,self.cql) = self.params
         #because sometimes ~ (if included) isnt translated to home
         self.fname = os.path.expanduser(self.fname)
         
 
-    def clone(self):
-        clone = FileGDBDataStore(self.parent,self.conn_str,None)
-        clone.name = str(self.name)+'C'
-        return clone
+#     def clone(self):
+#         clone = FileGDBDataStore(self.parent,self.conn_str,None)
+#         clone.name = str(self.name)+'C'
+#         return clone
     
     def sourceURI(self,layer):
         '''URI method returns source file name'''
@@ -150,13 +149,18 @@ class FileGDBDataStore(ESRIDataStore):
         '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 
         self.executeSQL('alter table '+table+' alter '+column+' type varchar')
     
-    def closeDS(self):
-        '''Close a DS with sync and destroy'''
-        ldslog.info("Sync DS and Close")
-        self.ds.SyncToDisk()
-        #FileGDB locks up on destroy, do we even need this? Supposedly for backward compatibility
-        self.ds.Destroy()  
-        self.ds = None
+#     def closeDS(self):
+#         '''Close a DS with sync and destroy'''
+#         ldslog.info("FG Sync DS and Close")
+#         print 'FG CLOSE'
+#         ds = self.getDS()
+#         if ds:
+#             ds.SyncToDisk()
+#             dsrc = ds.GetRefCount()
+#             ldslog.info('FG RefCount '+str(dsrc))
+#             print 'FGRC ',dsrc
+#             if dsrc==1:
+#                 self.getDS().Release()
         
         
 #    def formatWhereClause(self,ref_pkey,key_val):

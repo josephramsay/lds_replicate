@@ -113,22 +113,23 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\DataStore.py
     File F:\git\LDS\LDSReplicate\lds\ESRIDataStore.py
     File F:\git\LDS\LDSReplicate\lds\FileGDBDataStore.py
-    File F:\git\LDS\LDSReplicate\lds\LDSDataStore.py
-    File F:\git\LDS\LDSReplicate\lds\LDSUtilities.py
     File F:\git\LDS\LDSReplicate\lds\MSSQLSpatialDataStore.py
     File F:\git\LDS\LDSReplicate\lds\PostgreSQLDataStore.py
+    File F:\git\LDS\LDSReplicate\lds\LDSDataStore.py
+    File F:\git\LDS\LDSReplicate\lds\LDSUtilities.py
+    File F:\git\LDS\LDSReplicate\lds\RequestBuilder.py
     File F:\git\LDS\LDSReplicate\lds\ProjectionReference.py
     File F:\git\LDS\LDSReplicate\lds\ReadConfig.py
     File F:\git\LDS\LDSReplicate\lds\SpatiaLiteDataStore.py
     File F:\git\LDS\LDSReplicate\lds\TransferProcessor.py
     File F:\git\LDS\LDSReplicate\lds\VersionUtilities.py
     File F:\git\LDS\LDSReplicate\lds\WFSDataStore.py
+    File F:\git\LDS\LDSReplicate\lds\ConfigConnector.py
     SetOutPath $INSTDIR\apps\ldsreplicate\lds\gui
     File F:\git\LDS\LDSReplicate\lds\gui\__init__.py
     File F:\git\LDS\LDSReplicate\lds\gui\LayerConfigSelector.py
     File F:\git\LDS\LDSReplicate\lds\gui\LDSGUI.py
     File F:\git\LDS\LDSReplicate\lds\gui\MainConfigWizard.py
-    File F:\git\LDS\LDSReplicate\lds\gui\ConfigConnector.py
     SetOutPath $INSTDIR\apps\ldsreplicate\lds\test
     File F:\git\LDS\LDSReplicate\lds\test\__init__.py
     File F:\git\LDS\LDSReplicate\lds\test\SuiteRunAllTests.py

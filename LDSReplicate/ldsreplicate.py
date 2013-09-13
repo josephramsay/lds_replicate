@@ -46,6 +46,7 @@ from lds.TransferProcessor import InputMisconfigurationException
 from lds.VersionUtilities import AppVersion, VersionChecker, UnsupportedVersionException
 from lds.DataStore import DSReaderException
 from lds.LDSUtilities import LDSUtilities
+from lds.ConfigConnector import ConfigConnector
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -190,7 +191,12 @@ def main():
     #aggregation point for common LDS errors
     mm = '*** Complete *** '
     try:
-        tp.processLDS(tp.initDestination(pn))
+        proc = ConfigConnector.initDestination(pn)
+        src = ConfigConnector.initSource(sc, uc, None)
+        dst = proc(tp.destination_str,tp.user_config)
+        tp.setSRC(src)
+        tp.setDST(dst)
+        tp.processLDS()
     except HTTPError as he:
         ldslog.error('Error connecting to LDS. '+str(he))
         mm = '*** Failed 1 *** '

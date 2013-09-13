@@ -22,10 +22,11 @@ from datetime import datetime
 
 from lds.DataStore import DataStore, DatasourceOpenException
 from lds.LDSDataStore import LDSDataStore
-from lds.FileGDBDataStore import FileGDBDataStore
-from lds.PostgreSQLDataStore import PostgreSQLDataStore
-from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore
-from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
+#from lds.FileGDBDataStore import FileGDBDataStore
+#from lds.PostgreSQLDataStore import PostgreSQLDataStore
+#from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore
+#from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
+from lds.ConfigConnector import ConfigConnector
 
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.ReadConfig import LayerFileReader, LayerDSReader
@@ -36,7 +37,7 @@ ldslog = LDSUtilities.setupLogging()
 class InputMisconfigurationException(Exception): 
     def __init__(self, msg):
         super(InputMisconfigurationException,self).__init__(msg)
-        ldslog.error('InputMisconfigurationException :: Improperly formatter input argument, '+str(msg))
+        ldslog.error('InputMisconfigurationException :: Improperly formatted input argument, '+str(msg))
         
 class PrimaryKeyUnavailableException(Exception): pass
 class LayerConfigurationException(Exception): pass
@@ -47,15 +48,10 @@ LORG = LDSUtilities.enum('GROUP','LAYER')
 
 class TransferProcessor(object):
     '''Primary class controlling data transfer objects and the parameters for these'''
-    
-    #Hack for testing, these layers that {are too big, dont have PKs} crash the program so we'll just avoid them. Its not definitive, just ones we've come across while testing
-    ###layers_that_crash = map(lambda s: 'v:x'+s, ('772','839','1029','817'))
-    
-    
+
     #Hack. To read 64bit integers we have to translate tables without GDAL's driver copy mechanism. 
-    #Step 1 is to flag using feature-by-feature copy (featureCopy* instead of driverCopy)
-    #Step 2 identify tables where 64 bit ints are used
-    #Step 3 intercept feature build and copy and overwrite with string values
+    #Step 1 identify tables where 64 bit ints are used
+    #Step 2 intercept feature build and copy and overwrite with string values
     #The tables listed below are ASP tables using a sufi number which is 64bit 
     ###layers_with_64bit_ints = map(lambda s: 'v:x'+s, ('1203','1204','1205','1028','1029'))
     #Note. This won't work for any layers that don't have a primary key, i.e. Topo and Hydro. Since feature ids are only used in ASP this shouldnt be a problem
@@ -64,8 +60,16 @@ class TransferProcessor(object):
     DEF_IE = DataStore.CONF_EXT
         
     POLL_INTERVAL = 1
-    
-    def __init__(self,parent,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cql=None,uc=None):
+    #TP Arguments
+    #lg: Layer/Group identifier. eg. v:xNNN|groupname
+    #ep: EPSG reference. eg 2195
+    #fd: From Date. eg 2010-01-02
+    #td: To Date. eg 2010-01-02
+    #sc: Source Config. User provided SRC URL eg. http://wfs.data.linz.govt.nz/.../v/x787/wfs?service=WFS&request=GetFeature&typeName=v:x787
+    #dc: Destination Config. User supplied connection string. eg. PG:"dbname='databasename' host='addr' port='5432' user='x' password='y'"
+    #cq: CQL string, defining a filter. eg. bbox\(shape,164.88,-47.46,169.45,-43.85\)
+    #uc: User Config file identifier (.conf suffix not mandatory). eg. myconfig 
+    def __init__(self,parent,lg=None,ep=None,fd=None,td=None,sc=None,dc=None,cq=None,uc=None):
 
         self.name = 'TP{}'.format(datetime.utcnow().strftime('%y%m%d%H%M%S'))
         self.parent = parent
@@ -100,24 +104,33 @@ class TransferProcessor(object):
         self.source_str = None
         if LDSUtilities.mightAsWellBeNone(sc):
             self.parseSourceConfig(sc)
-            
+        
         self.destination_str = LDSUtilities.mightAsWellBeNone(dc)
-        self.cql = LDSUtilities.mightAsWellBeNone(cql)  
+        self.cql = LDSUtilities.mightAsWellBeNone(cq)
         
         self.setUserConf(uc)
         
         #initialise the data source
-        self.src = self.initSource()
+        #self.src = ConfigConnector.initSourceWrapper()
+        ##\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+        #self.src = ConfigConnector.initSource(self.source_str,self.user_config,self.partitionsize)
 
-    def clone(self):
-        '''Clone self. Parent retained so clone is sib'''
-        clone = TransferProcessor(self.parent,self.lgval,self.epsg,self.fromdate,self.todate,self.source_str,self.destination_str,self.cql,self.user_config)
-        clone.name = str(self.name)+'C'
-        return clone
+#     def clone(self):
+#         '''Clone self. Parent retained so clone is sib'''
+#         clone = TransferProcessor(self.parent,self.lgval,self.epsg,self.fromdate,self.todate,self.source_str,self.destination_str,self.cql,self.user_config)
+#         clone.name = str(self.name)+'C'
+#         return clone
         
     def __str__(self):
         return '{name}: Dst:{ds}, Layer/Group:{lgval}, CQL:{cql}, '.format(name=self.name,ds=self.destination_str,lgval=self.lgval,cql=self.cql)
     
+    
+    def setSRC(self,src):
+        self.src = src
+        
+    def setDST(self,dst):
+        self.dst = dst
+        
     def idLayerOrGroup(self,lg):
         '''Identify whether being passed a layer or a group identifier'''
         #still need to decide the difference between a layer name and a group name e.g. nz_rock_polys vs GROUP_ABC. 
@@ -201,55 +214,52 @@ class TransferProcessor(object):
         '''Reads layer conf pkey identifier. If PK is None or something, use this to decide processing type i.e. no PK = driverCopy'''
         return self.dst.getLayerConf().readLayerProperty(testlayer,'pkey') is not None
     
-    def initDestination(self,dstname):
-        '''Init a new destination using instantiated uconf (and dest str if provided)'''
-        proc = {PostgreSQLDataStore.DRIVER_NAME:PostgreSQLDataStore,
-                MSSQLSpatialDataStore.DRIVER_NAME:MSSQLSpatialDataStore,
-                SpatiaLiteDataStore.DRIVER_NAME:SpatiaLiteDataStore,
-                FileGDBDataStore.DRIVER_NAME:FileGDBDataStore
-                }.get(LDSUtilities.standardiseDriverNames(dstname))
-        return proc(self,self.destination_str,self.user_config)
+#     def initDestination(self,dstname):
+#         '''Init a new destination using instantiated uconf (and dest str if provided)'''
+#         return {PostgreSQLDataStore.DRIVER_NAME:PostgreSQLDataStore,
+#                 MSSQLSpatialDataStore.DRIVER_NAME:MSSQLSpatialDataStore,
+#                 SpatiaLiteDataStore.DRIVER_NAME:SpatiaLiteDataStore,
+#                 FileGDBDataStore.DRIVER_NAME:FileGDBDataStore
+#                 }.get(LDSUtilities.standardiseDriverNames(dstname))
+#         #return proc(self,self.destination_str,self.user_config)
 
 
-    def initSource(self):
-        '''Initialise a new source, LDS nominally'''
-        src = LDSDataStore(self,self.source_str,self.user_config) 
-        src.setPartitionSize(self.partitionsize)#partitionsize may not exist when this is called but thats okay!
-        src.applyConfigOptions()
-        return src                
+#     def initSource(self):
+#         '''Initialise a new source, LDS nominally'''
+#         src = LDSDataStore(self,self.source_str,self.user_config) 
+#         src.setPartitionSize(self.partitionsize)#partitionsize may not exist when this is called but thats okay!
+#         src.applyConfigOptions()
+#         return src                
         
-    def processLDS(self,dst):
+    def processLDS(self):
         '''Process with LDS as a source and the destination supplied as an argument'''
 
         #fname = dst.DRIVER_NAME.lower()+self.LP_SUFFIX
         
-        self.dst = dst
         self.dst.applyConfigOptions()
-        
+
         self.dst.setSRS(self.epsg)
         #might as well initds here, its going to be needed eventually
-        self.dst.ds = self.dst.initDS(self.dst.destinationURI(None))#DataStore.LDS_CONFIG_TABLE))
-        
+        self.dst.setDS(self.dst.initDS(self.dst.destinationURI(None)))#DataStore.LDS_CONFIG_TABLE))
+
         self.dst.versionCheck()
         (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.prefetchsize) = self.dst.confwrap.readDSParameters('Misc',{'idp':self.src.idp})
-        
+
         capabilities = self.src.getCapabilities()
-                
-        self.dst.setLayerConf(TransferProcessor.getNewLayerConf(self.dst))        
+        if not self.dst.getLayerConf():
+            self.dst.setLayerConf(TransferProcessor.getNewLayerConf(self.dst))        
+
         #still used on command line
         if self.getInitConfig():
             TransferProcessor.initLayerConfig(capabilities,self.dst,self.src.pxy,self.src.idp)
-        
+
         if self.dst.getLayerConf() is None:
-            raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(dst.getConfInternal()))
-        
+            raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(self.dst.getConfInternal()))
 
         #------------------------------------------------------------------------------------------
-        
         #Valid layers are those that exist in LDS and are also configured in the LC
         self.initCapsDoc(capabilities, self.src)
         lds_valid = [i[0] for i in self.assembleLayerList(self.dst)]
-        
         
         #if layer provided, check that layer is in valid list
         #else if group then intersect valid and group members
@@ -272,7 +282,7 @@ class TransferProcessor(object):
                 self.lnl = (layer,)
             else:
                 raise InputMisconfigurationException('Layer '+str(layer)+' invalid')
-        
+            
         #override config file dates with command line dates if provided
         ldslog.debug("SelectedLayers={}".format(len(self.lnl)))
         #ldslog.debug("Layer List:"+str(self.lnl))
@@ -284,7 +294,7 @@ class TransferProcessor(object):
             for cleanlayer in self.lnl:
                 self.cleanLayer(cleanlayer,truncate=False)
             return
-                
+
         #build a list of layers with corresponding lastmodified/incremental flags
         fd = LDSUtilities.checkDateFormat(self.fromdate)#if date format wrong treated as None
         td = LDSUtilities.checkDateFormat(self.todate)
@@ -293,13 +303,12 @@ class TransferProcessor(object):
         
         self.layer_total = len(self.lnl)
         self.layer_count = 0
-        
         for each_layer in self.lnl:
             lm = LDSUtilities.checkDateFormat(self.dst.getLayerConf().readLayerProperty(each_layer,'lastmodified'))
             pk = LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(each_layer,'pkey'))
             filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
             srs = self.dst.getLayerConf().readLayerProperty(each_layer,'epsg')
-            
+            print 'el',each_layer
             #Set (cql) filters in URI call using layer picking the one with highest precedence            
             self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),filt))
         
@@ -352,12 +361,12 @@ class TransferProcessor(object):
                 
             self.layer_count += 1
             self.dst.src_feat_count = 0
-            
-        self.closeConnections()
+
+        #self.closeConnections()
         
     def closeConnections(self):
         self.dst.closeDS()
-        self.dst = None
+        #self.dst = None
         #self.src.closeDS()
         #self.src = None
         
@@ -383,16 +392,18 @@ class TransferProcessor(object):
 
     def readLayer(self):
         '''Attempt a read of the configured layer'''
-        self.src.read(self.src.getURI(),False)
-        return self.src.ds is not None
+        return self.src.read(self.src.getURI(),False)
+        
         
 #--------------------------------------------------------------------------------------------------
         
     def cleanLayer(self,layer_i,truncate=False):
         '''clean a selected layer (once the layer conf file has been established)'''
         try:
-            if self.dst._cleanLayerByRef(self.dst.ds,layer_i,truncate):
+            dds = self.dst.getDS()
+            if self.dst._cleanLayerByRef(dds,layer_i,truncate):
                 self.dst.clearLastModified(layer_i)
+            self.dst.closeDS()
         except DatasourceOpenException as dse:
             #if we can't clean it probably doesn't exist so continue with any replication jobs
             ldslog.warn('Attempt to clean a non-existent layer. '+str(dse))                
@@ -402,10 +413,9 @@ class TransferProcessor(object):
     @classmethod
     def getNewLayerConf(cls,dst):
         '''Decide whether to use internal or external layer config and return the appropriate instantiation'''
-        fn = dst.DRIVER_NAME.lower()+cls.LP_SUFFIX  
+        fn = dst.DRIVER_NAME.lower()+cls.LP_SUFFIX
         return LayerDSReader(dst) if dst.getConfInternal()==DataStore.CONF_INT else LayerFileReader(fn)
 
-            
             
     @classmethod
     def parseCapabilitiesDoc(cls,capabilitiesurl,file_json,pxy,idp):

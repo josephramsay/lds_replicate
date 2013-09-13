@@ -46,22 +46,22 @@ class SpatiaLiteDataStore(DataStore):
     
     DEFAULT_GCOL = 'GEOMETRY'
       
-    def __init__(self,parent,conn_str=None,user_config=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
         cons init driver
         '''
 
-        super(SpatiaLiteDataStore,self).__init__(parent,conn_str,user_config)
+        super(SpatiaLiteDataStore,self).__init__(conn_str,user_config)
 
         (self.fname,self.config,self.srs,self.cql) = self.params 
         #because sometimes ~ isnt translated to home
         self.fname = os.path.expanduser(self.fname)
         self.SUFFIX = ['.db','.sqlite','.sqlite3']
         
-    def clone(self):
-        clone = SpatiaLiteDataStore(self.parent,self.conn_str,None)
-        clone.name = str(self.name)+'C'
-        return clone
+#     def clone(self):
+#         clone = SpatiaLiteDataStore(self.parent,self.conn_str,None)
+#         clone.name = str(self.name)+'C'
+#         return clone
         
     def sourceURI(self,layer):
         '''URI method returns source file name'''

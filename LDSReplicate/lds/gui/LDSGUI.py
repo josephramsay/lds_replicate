@@ -36,9 +36,10 @@ from lds.TransferProcessor import TransferProcessor, LORG
 from lds.ReadConfig import GUIPrefsReader, MainFileReader, LayerFileReader,LayerDSReader
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
-from lds.gui.LayerConfigSelector import LayerConfigSelector
-from lds.gui.ConfigConnector import ConfigConnector, ProcessRunner
+from lds.ConfigConnector import ConfigConnector, ProcessRunner
 from lds.ConfigWrapper import ConfigWrapper
+
+from lds.gui.LayerConfigSelector import LayerConfigSelector
 
 from lds.DataStore import DataStore, MalformedConnectionString, DriverInitialisationException
 
@@ -54,6 +55,8 @@ class LDSMain(QMainWindow):
     DEF_RVALS = ('','','','2193','','')
     
     MAX_WIZARD_ATTEMPTS = 2
+    
+    IMG_LOC = '../../img/'
     
     def __init__(self):
         super(LDSMain, self).__init__()
@@ -83,7 +86,7 @@ class LDSMain(QMainWindow):
 
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
-        self.setWindowIcon(QIcon('../../img/linz_static.png'))
+        self.setWindowIcon(QIcon(self.IMG_LOC+'linz_static.png'))
         
         self.statusbar = self.statusBar()
         self.statusbar.showMessage('Ready')
@@ -92,32 +95,32 @@ class LDSMain(QMainWindow):
         
         self.setCentralWidget(self.controls)
         
-        openUCAction = QAction(QIcon('../../img/open.png'), 'Open &User Config', self)        
+        openUCAction = QAction(QIcon(self.IMG_LOC+'open.png'), 'Open &User Config', self)        
         openUCAction.setShortcut('Ctrl+U')
         openUCAction.setStatusTip('Open User Preferences Editor')
         openUCAction.triggered.connect(self.launchUCEditor)
         
-        openLCAction = QAction(QIcon('../../img/open.png'), 'Open &Layer Config', self)        
+        openLCAction = QAction(QIcon(self.IMG_LOC+'open.png'), 'Open &Layer Config', self)        
         openLCAction.setShortcut('Ctrl+L')
         openLCAction.setStatusTip('Open Layer Config File (only applies to external LC storage)')
         openLCAction.triggered.connect(self.launchLCEditor)
         
-        initUCAction = QAction(QIcon('../../img/uc.png'), 'Database &Setup Wizard', self)   
+        initUCAction = QAction(QIcon(self.IMG_LOC+'uc.png'), 'Database &Setup Wizard', self)   
         initUCAction.setShortcut('Ctrl+S')
         initUCAction.setStatusTip('Open Database Setup Wizard')
         initUCAction.triggered.connect(self.runWizardAction)
         
-        initLCAction = QAction(QIcon('../../img/lc.png'), 'Layer &Config Editor', self)   
+        initLCAction = QAction(QIcon(self.IMG_LOC+'lc.png'), 'Layer &Config Editor', self)   
         initLCAction.setShortcut('Ctrl+C')
         initLCAction.setStatusTip('Open Layer Config Editor')
         initLCAction.triggered.connect(self.runLayerConfigAction)
         
-        exitAction = QAction(QIcon('../../img/exit.png'), '&Exit', self)        
+        exitAction = QAction(QIcon(self.IMG_LOC+'exit.png'), '&Exit', self)        
         exitAction.setShortcut('Ctrl+E')
         exitAction.setStatusTip('Exit Application')
         exitAction.triggered.connect(qApp.quit)
         
-        helpAction = QAction(QIcon('../../img/help.png'), '&Help', self)        
+        helpAction = QAction(QIcon(self.IMG_LOC+'help.png'), '&Help', self)        
         helpAction.setShortcut('Ctrl+H')
         helpAction.setStatusTip('Open Help Document')
         helpAction.triggered.connect(self.launchHelpFile)
@@ -242,7 +245,11 @@ class LDSControls(QFrame):
         '''Read files in conf dir ending in conf'''
         self.cflist = ConfigInitialiser.getConfFiles()
         #self.imgset = self.STATIC_IMG if ConfigWrapper().readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
-        self.imgset = self.STATIC_IMG if self.parent.confconn.tp.src.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
+        #self.imgset = self.STATIC_IMG if self.parent.confconn.tp.src.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
+        dn = self.parent.confconn.destname
+        ep = self.parent.confconn.reg.getEndPoint('WFS')
+        self.imgset = self.STATIC_IMG if ep.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
+        self.parent.confconn.reg.closeEndPoint('WFS')
         
     def initEPSG(self):
         '''Read GDAL EPSG files, splitting by NZ(RSR) and RestOfTheWorld'''
@@ -445,7 +452,7 @@ class LDSControls(QFrame):
         self.parent.statusbar.setToolTip(tooltip if tooltip else '')
 
         #progress
-        loc = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/',self.imgset[status]))
+        loc = os.path.abspath(os.path.join(os.path.dirname(__file__),self.parent.IMG_LOC,self.imgset[status]))
         self.progressbar.setVisible(status in (self.STATUS.BUSY, self.STATUS.CLEAN))
         
         #icon
@@ -701,14 +708,20 @@ class LDSControls(QFrame):
         else:
             self.parent.confconn.tp.clearCleanConfig()
             
-        #initialise the data source since uconf may have changed
-        self.parent.confconn.tp.src = self.parent.confconn.tp.initSource()
+        #(re)initialise the data source since uconf may have changed
+        self.parent.confconn.tp.src = self.parent.confconn.initSourceWrapper()
         
         #Open ProcessRunner and run with TP(proc)/self(gui) instances
         #HACK temp add of dest_drv to PR call
-        self.tpr = ProcessRunner(self,destination_driver)
-        #If PR has been successfully created we must vave a valid dst
-        self.layerConfMessage(destination_path)
+        try:
+            #TODO. Test for valid LC first
+            self.tpr = ProcessRunner(self,destination_driver)
+        except Exception as e:
+            ldslog.error('Cannot create ProcessRunner {}. NB Possible missing Layer Config {}'.format(str(e),destination_path))
+            self.layerConfMessage(destination_path)
+            return
+        
+        #If PR has been successfully created we must vave a valid dst    
         self.tpr.start()
         
     def quitProcessRunner(self):

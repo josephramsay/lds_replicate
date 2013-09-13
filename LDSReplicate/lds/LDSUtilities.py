@@ -360,6 +360,10 @@ class LDSUtilities(object):
             return DataStore.DRIVER_NAMES['sl']
         elif re.match('fg|filegdb|esri',dname):
             return DataStore.DRIVER_NAMES['fg']
+        elif re.match('wfs|lds',dname):
+            #since a user could ask for lds meaning wfs though this will have to change if we implement wms etc TODO
+            from lds.WFSDataStore import WFSDataStore
+            return WFSDataStore.DRIVER_NAME
         return None
     
     
@@ -387,7 +391,7 @@ class LDSUtilities(object):
         '''Doesn't cover all possibilities but accounts for most read-from-file (string) problems. Lists treated as ANY(None)->None'''
         #for when integers slip through and zeroes get represented as none
         if isinstance(nstr,int):
-            ldslog.warn('Converting Integer to String for null comparison')
+            ldslog.warn('Converting Integer {} to String for null comparison'.format(nstr))
             return str(nstr)
         if isinstance(nstr,tuple) or isinstance(nstr,list):
             return None if any(not LDSUtilities.mightAsWellBeNone(i) for i in nstr) else nstr

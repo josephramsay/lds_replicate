@@ -21,6 +21,7 @@ import ogr
 import osr
 import gdal
 import re
+import time
 
 #from osr import CoordinateTransformation
 from datetime import datetime
@@ -39,6 +40,7 @@ ogr.UseExceptions()
 #exceptions
 class DSReaderException(Exception): pass
 class LDSReaderException(DSReaderException): pass
+
 class IncompleteWFSRequestException(LDSReaderException): pass
 class DriverInitialisationException(LDSReaderException): pass
 class DatasourceCopyException(LDSReaderException): pass
@@ -50,7 +52,9 @@ class InvalidLayerException(LDSReaderException): pass
 class InvalidFeatureException(LDSReaderException): pass
 class InvalidSQLException(LDSReaderException): pass
 class ASpatialFailureException(LDSReaderException): pass
-class UnknownTemporaryDSType(LDSReaderException): pass
+class UnknownDSVersionException(DSReaderException): pass
+class UnknownDSTypeException(DSReaderException): pass
+class UnknownTemporaryDSTypeException(DSReaderException): pass
 class MalformedConnectionString(DSReaderException): pass
 class InaccessibleLayerException(DSReaderException): pass
 class InaccessibleFeatureException(DSReaderException): pass
@@ -102,14 +106,13 @@ class DataStore(object):
     
     CPL_DEBUG = 'OFF'
     
-    def __init__(self,parent,conn_str=None,user_config=None):
+    def __init__(self,conn_str=None,user_config=None):
         '''
         Constructor inits driver and some date specific settings. Arguments are for config overrides 
         '''
 
         self.name = 'DS{}'.format(datetime.utcnow().strftime('%y%m%d%H%M%S'))
         
-        self.parent = parent
         #PYLINT. Set by TP but defined here. Not sure I agree with this requirement since it enforces specific instantiation order
         self.layer = None
         self.layerconf = None
@@ -131,7 +134,7 @@ class DataStore(object):
         
         #self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"#we use just 'file' or 'json' now
          
-        if LDSUtilities.mightAsWellBeNone(conn_str) is not None:
+        if LDSUtilities.mightAsWellBeNone(conn_str):
             self.conn_str = conn_str
         
         self.setSRS(None)
@@ -149,6 +152,8 @@ class DataStore(object):
         self.optcols = set(['__change__','gml_id'])
         
         self.src_feat_count = 0
+        
+        self.refcount = 0
 
     #incr flag copied straight from Datastore
     #def setIncremental(self,itype):
@@ -157,6 +162,21 @@ class DataStore(object):
             
     def __str__(self):
         return '{name}: URI:{uri}, Layer:{layer}, CQL:{cql} '.format(name=self.name,uri=self.uri,layer=self.layer,cql=self.cql)
+        
+    def setDS(self,ds):
+        self.ds = ds
+        
+    def getDS(self):
+        return self.ds
+    
+    def closeDS(self):
+        '''close a DS with sync and destroy'''
+        self.ds.SyncToDisk()
+        self.ds.Release()
+                    
+    def rebuildDS(self):
+        '''Re read the DS in case there is a failure. Implemented for WFS. Not really necessary here'''
+        self.read(self.getURI(),False)
     
     def clearIncremental(self):
         self.incremental = False
@@ -323,9 +343,11 @@ class DataStore(object):
     def read(self,dsn,create=True):
         '''Main DS read method'''
         ldslog.info("DS read "+dsn)#.split(":")[0])
-        #5050 initDS for consistency and utilise if-ds-is-none check OR quick open and overwrite
-        self.ds = self.initDS(dsn,create)
-        #self.ds = self.driver.Open(dsn)
+        newds = self.initDS(dsn,create)
+        if newds:
+            self.setDS(newds)
+            return True
+        return False
         
     def write(self,src,dsn,sixtyfour):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
@@ -344,10 +366,10 @@ class DataStore(object):
                 if self.getIncremental():
                     # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
                     #gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
-                    self.featureCopyIncremental(self.src_link.ds,self.ds,self.src_link.CHANGE_COL)
+                    self.featureCopyIncremental(self.src_link.getDS(),self.getDS(),self.src_link.CHANGE_COL)
                 else:
                     #gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF') 
-                    self.featureCopy(self.src_link.ds,self.ds)
+                    self.featureCopy(self.src_link.getDS(),self.getDS())
                 
             except (FeatureCopyException, InaccessibleFeatureException, RuntimeError) as rte:
                 em = gdal.GetLastErrorMsg()
@@ -387,16 +409,6 @@ class DataStore(object):
             else:
                 break
         
-    def closeDS(self):
-        '''close a DS with sync and destroy'''
-        ldslog.info("Sync DS and Close")
-        self.ds.SyncToDisk()
-        #FileGDB locks up on destroy/release so FG subclasses this method
-        self.ds.Release()
-                    
-    def rebuildDS(self):
-        '''Re read the DS in case there is a failure. Implemented for WFS. Not really necessary here'''
-        self.read(self.getURI(),False)
         
     def deleteOptionalColumns(self,dst_layer):
         '''Delete unwanted columns from layer'''
@@ -1020,7 +1032,9 @@ class DataStore(object):
         if self._validateSQL(sql):
             try:
                 #cast to STR since unicode raises exception in driver 
-                retval = self.ds.ExecuteSQL(str(sql))
+                dds = self.getDS()
+                retval = dds.ExecuteSQL(str(sql))
+                self.closeDS()
             except RuntimeError as rex:
                 ldslog.error("Runtime Error. Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
                 #this can be a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
@@ -1149,10 +1163,8 @@ class DataStore(object):
                                 if re.search('database table is locked',str(e)):
                                     pass
                                 elif re.search('not found to delete',str(e)):
-                                    ds.SyncToDisk()
-                                    ds.Release()
-                                    ds = self.initDS(self.getURI(), create=False)
-                                    self.ds = ds
+                                    self.closeDS()
+                                    self.setDS(self.initDS(self.getURI(), create=False))
                                 else:
                                     raise
                                 keep_trying = True
@@ -1209,8 +1221,8 @@ class DataStore(object):
     def _clean(self):
         '''Deletes the entire DS layer by layer'''
         #for PG, indices decrement as layers are deleted so delete i=0, N times
-        for li in range(0,self.ds.GetLayerCount()):
-            if self._cleanLayerByIndex(self.ds,0):
+        for li in range(0,self.getDS().GetLayerCount()):
+            if self._cleanLayerByIndex(self.getDS(),0):
                 self.clearLastModified(li)
         
     def _findMatchingFID(self,search_layer,ref_pkey,key_val):

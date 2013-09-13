@@ -72,9 +72,9 @@ class LayerConfigSelector(QMainWindow):
         
     def resetLayers(self):
         '''Rebuilds lconf from scratch'''
-        from lds.gui.ConfigConnector import ConfigConnector
-        ConfigConnector.initLayerConfig(self.parent.confconn.tp,self.parent.confconn.dst)
-        #self.parent.confconn.initLayerConfig(self.parent.confconn.tp,self.parent.confconn.dst)
+        from lds.ConfigConnector import ConfigConnector
+        #ConfigConnector.initLayerConfigWrapper(self.parent.confconn.tp,self.parent.confconn.dst)
+        self.parent.confconn.initLayerConfigWrapper()
         self.refreshLayers()
         
     def refreshLayers(self,customkey=None):
@@ -91,28 +91,37 @@ class LayerConfigSelector(QMainWindow):
         '''Add custom key to the selection_model list of layers (assumes required av->sl transfer completed) not just the transferring entry'''
         layerlist = [ll[0] for ll in self.selection_model.mdata]
         replacementlist = ()
-        dst = self.parent.confconn.initDstWrapper()
-        categorylist = dst.getLayerConf().readLayerProperty(layerlist, 'category')
+        ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp, ep)
+        #dst = self.parent.confconn.initDstWrapper()
+        categorylist = ep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
-        dst.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
+        ep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
         #new keyword written so re-read complete (LC) and update assigned keys list
-        self.parent.confconn.setupComplete(dst)
+        self.parent.confconn.setupComplete(ep)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()
         #self.refreshLayers(customkey)
+        self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
+        ep = None
     
     def deleteKeysFromLayerConfig(self,layerlist,customkey):
         replacementlist = ()
-        categorylist = self.parent.confconn.dst.getLayerConf().readLayerProperty(layerlist, 'category')
+        ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp, ep)
+        categorylist = ep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
-        self.parent.confconn.dst.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
+        ep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
+        self.parent.confconn.reg.closeEndPoint()
         #-----------------------------------
         self.parent.confconn.setupComplete()
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()   
         #self.refreshLayers(customkey)
+        self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
+        ep = None
         return self.selection_model.rowCount()
     
     @staticmethod
@@ -144,13 +153,16 @@ class LayerConfigSelector(QMainWindow):
         lastgroup = str(self.page.keywordcombo.lineEdit().text())
         #self.parent.controls.gpr.writeline('lgvalue',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
-            dst = self.parent.confconn.initDstWrapper()
-            self.parent.confconn.setupComplete(dst)
+            ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+            self.parent.confconn.setupLayerConfig(self.parent.confconn.tp, ep)
+            self.parent.confconn.setupComplete(ep)
             self.parent.confconn.setupAssigned()
             self.parent.confconn.buildLGList()
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
             self.parent.controls.refreshLGCombo()
             self.parent.controls.lgcombo.setCurrentIndex(lgindex)
+            self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
+            ep = None
 
         ##super(LayerConfigSelector,self).closeEvent(event)
         #self.close()

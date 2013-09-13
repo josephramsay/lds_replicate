@@ -31,9 +31,9 @@ class ESRIDataStore(DataStore):
     ESRI Specific superclass primarily used to do OSGEO to ESRI SpatialReference transformations
     '''
 
-    def __init__(self,parent,conn_str=None,user_config=None):
+    def __init__(self,conn_str=None,user_config=None):
 
-        super(ESRIDataStore,self).__init__(parent,conn_str,user_config)
+        super(ESRIDataStore,self).__init__(conn_str,user_config)
         
         
     def sourceURI(self,layer):

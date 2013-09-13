@@ -787,8 +787,7 @@ class LayerDSReader(LayerReader):
         #in the DS context fname refers to a DS object
         super(LayerDSReader,self).__init__(fname)
         self.ds = self.fname.ds
-        self.namelist = ()
-    
+        self.namelist = ()  
     
     #acquire and release DS instance to for each function call to prevent DS locking        
     def _getDS(self):
@@ -881,12 +880,12 @@ class LayerDSReader(LayerReader):
                 layer.ResetReading()
                 feat = layer.GetNextFeature() 
                 while feat is not None:
-                    print '>>>>> ID',feat.GetField('id')
+                    #print '>>>>> ID',feat.GetField('id')
                     self.namelist += (feat.GetField('id'),)
                     feat = layer.GetNextFeature()
             else:
                 ldslog.error('REMINDER! TRIGGER CONF BUILD')
-        print '>>>>> NAMELIST',self.namelist
+            #print '>>>>> NAMELIST',self.namelist
         return self.namelist
     
     @override(LayerReader) 

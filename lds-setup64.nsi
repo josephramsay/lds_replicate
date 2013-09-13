@@ -116,12 +116,12 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\TransferProcessor.py
     File F:\git\LDS\LDSReplicate\lds\VersionUtilities.py
     File F:\git\LDS\LDSReplicate\lds\WFSDataStore.py
+    File F:\git\LDS\LDSReplicate\lds\ConfigConnector.py
     SetOutPath $INSTDIR\apps\ldsreplicate\lds\gui
     File F:\git\LDS\LDSReplicate\lds\gui\__init__.py
     File F:\git\LDS\LDSReplicate\lds\gui\LayerConfigSelector.py
     File F:\git\LDS\LDSReplicate\lds\gui\LDSGUI.py
     File F:\git\LDS\LDSReplicate\lds\gui\MainConfigWizard.py
-    File F:\git\LDS\LDSReplicate\lds\gui\ConfigConnector.py
     SetOutPath $INSTDIR\apps\ldsreplicate\lds\test
     File F:\git\LDS\LDSReplicate\lds\test\__init__.py
     File F:\git\LDS\LDSReplicate\lds\test\SuiteRunAllTests.py
