@@ -358,7 +358,7 @@ class DataStore(object):
         #Clear sufi list between consecutive calls to reinit on different layers
         self.sufi_list = None
         self.attempts = 0
-        
+
         while self.attempts < self.MAXIMUM_WFS_ATTEMPTS:
             try:
                 ldslog.info('PAGING1 = '+str(gdal.GetConfigOption('OGR_WFS_PAGING_ALLOWED')))
@@ -449,17 +449,17 @@ class DataStore(object):
     def featureCopy(self,src_ds,dst_ds):
         '''Feature copy without the change column (and other incremental) overhead. Replacement for driverCopy(cloneDS).''' 
         for li in range(0,src_ds.GetLayerCount()):
+
             is_new = False
             transaction_flag = True
             src_layer = src_ds.GetLayer(li)
             #src_feat_count = None
-            
             src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
-            
+
             '''retrieve per-layer settings from props'''
             #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
             layerconfentry = self.layerconf.readLayerParameters(src_info.layer_id)
-            
+
             self.dst_info = LayerInfo(src_info.layer_id,self.generateLayerName(layerconfentry.name))
             
             ldslog.info("Dest layer: "+self.dst_info.layer_id)
@@ -475,7 +475,7 @@ class DataStore(object):
                 '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
                 ldslog.warning("Runtime Error fetching layer. "+str(rer))
                 dst_layer = None
-  
+                
             #NB. this has been modified since replacing 'clean' with 'truncate' since a layer may now exist when creating a layer from scratch
             if dst_layer is None:
                 ldslog.warning("Non-Incremental layer ["+self.dst_info.layer_id+"] request. Creating layer")
@@ -1034,7 +1034,7 @@ class DataStore(object):
                 #cast to STR since unicode raises exception in driver 
                 dds = self.getDS()
                 retval = dds.ExecuteSQL(str(sql))
-                self.closeDS()
+                #self.closeDS()
             except RuntimeError as rex:
                 ldslog.error("Runtime Error. Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
                 #this can be a bad thing so we want to stop if this occurs e.g. no lds_config -> no layer list etc
@@ -1163,8 +1163,10 @@ class DataStore(object):
                                 if re.search('database table is locked',str(e)):
                                     pass
                                 elif re.search('not found to delete',str(e)):
-                                    self.closeDS()
-                                    self.setDS(self.initDS(self.getURI(), create=False))
+                                    pass
+                                    #TODO. can no longer close/reinit on error. must be done in DREG
+                                    #self.closeDS()
+                                    #self.setDS(self.initDS(self.getURI(), create=False))
                                 else:
                                     raise
                                 keep_trying = True

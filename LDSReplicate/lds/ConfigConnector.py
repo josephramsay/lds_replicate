@@ -68,7 +68,7 @@ class ConfigConnector(object):
             #svp = Service, Version, Prefix
             self.svp = self.readProtocolVersion(self.src)
             dst = self.reg.getEndPoint(self.destname, self.uconf)
-            ConfigConnector.setupLayerConfig(self.tp, dst)
+            self.setupLayerConfig(dst)
             #print 'CCt',self.tp
             #print 'CCd',self.dst
             if not self.vlayers:
@@ -82,54 +82,25 @@ class ConfigConnector(object):
             dst = None
             
     #TODO think about moving this to the register
-    @staticmethod
-    def setupLayerConfig(tp,dst):
-        lc = tp.getNewLayerConf(dst)
+    def setupLayerConfig(self,dst):
+        '''Calls the TP LC setup function'''
+        lc = self.tp.getNewLayerConf(dst)
         dst.setLayerConf(lc)
         ##if a lconf has not been created build a new one
         if not dst.getLayerConf().existsAndIsCurrent():
             #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
-            ConfigConnector.initLayerConfig(tp,dst)
+            ConfigConnector.initLayerConfig(self.tp,dst)
             
     def readProtocolVersion(self,src):
         '''Get WFS/WMS, version and prefix from the Source'''
         return {'svc':src.svc,'ver':src.ver,'idp':src.idp}
     
-    @staticmethod
-    def initSrc(tp):
-        '''aesthetics!?'''
-        return tp.src
-       
-#     def initDstWrapper(self):
-#         return ConfigConnector.initDst(self.tp,self.destname)
-    
 #     @staticmethod
-#     def initDst(tp,destname):
-#         '''Initialises dst objects'''
-#         #initialise layer data using existing source otherwise use the capabilities doc
-#         #if doing a first run there is/may-be no destname
-#         if destname:
-#             #dst = tp.initDestination(destname)
-#             proc = ConfigConnector.initDestination(destname)
-#             dst = proc(tp.destination_str,tp.user_config)
-#             #if internal lconf, need to init the DB
-#             if dst.getConfInternal() == DataStore.CONF_INT:
-#                 dst.setDS(dst.initDS(dst.destinationURI(None)))
-#             dst.setLayerConf(tp.getNewLayerConf(dst))
-#             ##if a lconf has not been created build a new one
-#             if not dst.getLayerConf().existsAndIsCurrent():
-#                 #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
-#                 ConfigConnector.initLayerConfig(tp,dst)
-#         else:
-#             dst = None
-#         return dst
-    
-#     def initLayerConfigWrapper(self):
-#         proc = ConfigConnector.initDestination(self.destname)
-#         dst = proc(self.tp.destination_str,self.tp.user_config)
-#         ConfigConnector.initLayerConfig(self.tp, dst)
-#         dst.closeEndPoint()
-#         
+#     def initSrc(tp):
+#         '''aesthetics!?'''
+#         return tp.src
+       
+        
     @staticmethod
     def initLayerConfig(tp,dst=None):
         '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
@@ -199,26 +170,6 @@ class ConfigConnector(object):
             index = None
         return index
     
-#     @staticmethod
-#     def initDestination(dstname):
-#         '''Init a new destination using instantiated uconf (and dest str if provided)'''
-#         return {PostgreSQLDataStore.DRIVER_NAME:PostgreSQLDataStore,
-#                 MSSQLSpatialDataStore.DRIVER_NAME:MSSQLSpatialDataStore,
-#                 SpatiaLiteDataStore.DRIVER_NAME:SpatiaLiteDataStore,
-#                 FileGDBDataStore.DRIVER_NAME:FileGDBDataStore
-#                 }.get(LDSUtilities.standardiseDriverNames(dstname))
-#         #return proc(self,self.destination_str,self.user_config)
-#         
-#     def initSourceWrapper(self):
-#         return ConfigConnector.initSource(None,self.uconf,None)
-#     
-#     @staticmethod
-#     def initSource(source_str,user_config,partition_size):
-#         '''Initialise a new source, LDS nominally'''
-#         src = LDSDataStore(source_str,user_config) 
-#         #src.setPartitionSize(partition_size)#partitionsize may not exist when this is called but thats okay!
-#         src.applyConfigOptions()
-#         return src      
       
     
 class DatasourceRegister(object):
@@ -298,15 +249,15 @@ class DatasourceRegister(object):
         else:
             pass
         #conn = ep.initDS(uri)
-        self.register[fn]['rc'] += 0
+        self.register[fn]['rc'] += 1
         
     def _disconnect(self,fn):
         '''Decrement reference to the DS and delete it entirely if its the last one'''
         endpoint = self.register[fn]['ds']
-        if self.register[fn]['rc'] == 1:
-            endpoint.closeDS()
         self.register[fn]['rc'] -= 1
-        
+        if self.register[fn]['rc'] <= 0:
+            ldslog.info('Release EP '+str(fn))
+            endpoint.closeDS()  
         
     #---------------------
         
@@ -314,10 +265,13 @@ class DatasourceRegister(object):
         return self.register[fn]['rc']
     
     def getEndPoint(self,name,uri=None,req=None):
+        #print 'GEP',name,uri,req
         '''Gets a named EP incrementing a refcount or registers a new one as needed'''
         fn = LDSUtilities.standardiseDriverNames(name)
-        if (not self.register.has_key(fn) or (uri and self.register[fn]['uri']!=uri)) \
-            and (fn and (fn in DataStore.DRIVER_NAMES.values() or name == WFSDataStore.DRIVER_NAME)):
+        #if fn+uri exist AND fn is valid AND (fn not prev registered OR the saved URI != uri) 
+        if (fn and uri)\
+        and (fn in DataStore.DRIVER_NAMES.values() or fn == WFSDataStore.DRIVER_NAME) \
+        and (not self.register.has_key(fn) or self.register[fn]['uri']!=uri):
             self._register(fn,uri)
         self._connect(fn,req)
         return self.register[fn]['ds']
@@ -328,8 +282,8 @@ class DatasourceRegister(object):
         if self.register.has_key(fn):
             self._disconnect(fn)   
             if self.register[fn]['rc'] == 0:
-                self._deregister(fn)
-
+                self._deregister(fn)     
+    
     def _newDST(self,fn):
         '''Init a new destination using instantiated uconf (and dest str if provided)'''
         dest = {PostgreSQLDataStore.DRIVER_NAME:PostgreSQLDataStore,
@@ -362,6 +316,9 @@ class ProcessRunner(QThread):
     status = QtCore.pyqtSignal(int,str,str)
     enable = QtCore.pyqtSignal(bool)
     
+    sn = 'WFS'
+    #NB PR gets called from the 'controls' widget and keeps this link to report status etc
+    #it also pulls   
     def __init__(self,controls,dd):
         QThread.__init__(self)
         self.controls = controls
@@ -369,11 +326,11 @@ class ProcessRunner(QThread):
         self.tp = controls.parent.confconn.tp
         #self.tp = controls.parent.confconn.tp.clone()
         
-        #original DST
-        #self.dst = ConfigConnector.initDstWrapper()
-        self.dst = controls.parent.confconn.initDstWrapper()
-        #self.dst = ConfigConnector.initDst(self.tp,dd)
-        self._repthr()
+        #connect to dsregister
+        self.reg = controls.parent.confconn.reg
+        self.dn = controls.parent.confconn.destname
+        self.uc = controls.parent.confconn.uconf
+        #self._repthr()
         
         #error notification
         self.status.connect(self.controls.setStatus, Qt.QueuedConnection)
@@ -385,7 +342,11 @@ class ProcessRunner(QThread):
             try:
                 pt.start()
                 self.enable.emit(False)
-                self.tp.setDST(self.dst)
+                src = self.reg.getEndPoint(self.sn)
+                dst = self.reg.getEndPoint(self.dn,self.uc)
+                self.controls.parent.confconn.setupLayerConfig(dst)
+                self.tp.setSRC(src)
+                self.tp.setDST(dst)
                 self.tp.processLDS()
             except Exception as e1:
                 ldslog.error('Error running PT thread, '+str(e1))
@@ -393,26 +354,19 @@ class ProcessRunner(QThread):
             finally:
                 #die progress counter
                 self.enable.emit(True)
-                print 'PR FINALLY'
+                self.reg.closeEndPoint(self.dn)
+                self.reg.closeEndPoint(self.sn)
                 pt.join()
                 pt = None
-                self.join()
         except Exception as e:
             self.status.emit(0,'Error. Halting Processing',str(e))
+        finally:
+            self.join()
         
-        self.quit()
         
     def join(self,timeout=None):
         #QThread.join(self,timeout)
-        self.dst.closeDS()
-        self._repthr()
         self.quit()
-        
-    def _repthr(self):
-        #check thread creation and destruction
-        print 'PRtp',self.tp
-        print 'PRdst',self.dst
-        #print 'PRsrc',self.src
         
         
 #can't imprt enum directly!? have to refer to them by index
@@ -464,5 +418,5 @@ class ProgressTimer(QThread):
         #QThread.join(self,timeout)
         self.stopped = True
         self.status.emit(1,'Finished','')
-        self.tp.dst.closeDS()
+        #self.tp.dst.closeDS()
         self.quit()

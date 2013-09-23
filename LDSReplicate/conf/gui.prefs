@@ -1,6 +1,6 @@
 [FileGDB]
-uconf = fglint
-lgvalue = OLDONE
+uconf = fgwint
+lgvalue = NEWONE
 epsg = None
 fd = None
 td = 2012-01-01

@@ -240,7 +240,9 @@ class TransferProcessor(object):
 
         self.dst.setSRS(self.epsg)
         #might as well initds here, its going to be needed eventually
-        self.dst.setDS(self.dst.initDS(self.dst.destinationURI(None)))#DataStore.LDS_CONFIG_TABLE))
+        if not self.dst.getDS():
+            ldslog.info('Initialising absent DST.DS. This is not recommended in GUI/threaded mode')
+            self.dst.setDS(self.dst.initDS(self.dst.destinationURI(None)))#DataStore.LDS_CONFIG_TABLE))
 
         self.dst.versionCheck()
         (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.prefetchsize) = self.dst.confwrap.readDSParameters('Misc',{'idp':self.src.idp})
@@ -308,7 +310,7 @@ class TransferProcessor(object):
             pk = LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(each_layer,'pkey'))
             filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
             srs = self.dst.getLayerConf().readLayerProperty(each_layer,'epsg')
-            print 'el',each_layer
+
             #Set (cql) filters in URI call using layer picking the one with highest precedence            
             self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),filt))
         
@@ -325,7 +327,7 @@ class TransferProcessor(object):
                 gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF')
                 
             #check dates -> check incr read -> incr or non
-            
+
             nonincr = False                
             if any(i is not None for i in [lm, fd, td]):
                 final_fd = (early if lm is None else lm) if fd is None else fd
@@ -347,6 +349,7 @@ class TransferProcessor(object):
             else:
                 nonincr = True
             #--------------------------------------------------    
+
             if nonincr:                
                 self.src.setURI(self.src.sourceURI(each_layer))
                 if self.readLayer():
@@ -365,7 +368,8 @@ class TransferProcessor(object):
         #self.closeConnections()
         
     def closeConnections(self):
-        self.dst.closeDS()
+        pass
+        #self.dst.closeDS()
         #self.dst = None
         #self.src.closeDS()
         #self.src = None
@@ -403,7 +407,7 @@ class TransferProcessor(object):
             dds = self.dst.getDS()
             if self.dst._cleanLayerByRef(dds,layer_i,truncate):
                 self.dst.clearLastModified(layer_i)
-            self.dst.closeDS()
+            #self.dst.closeDS()#Open/close now controlled by DREG
         except DatasourceOpenException as dse:
             #if we can't clean it probably doesn't exist so continue with any replication jobs
             ldslog.warn('Attempt to clean a non-existent layer. '+str(dse))                

@@ -892,7 +892,6 @@ class LayerDSReader(LayerReader):
     def readLayerParameters(self,pkey):
         '''Full Layer config reader'''
         from DataStore import InaccessibleFeatureException
-
         layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
         feat = self.fname._findMatchingFeature(layer, 'id', pkey)

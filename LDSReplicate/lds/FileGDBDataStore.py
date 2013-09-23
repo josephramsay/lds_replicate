@@ -149,18 +149,16 @@ class FileGDBDataStore(ESRIDataStore):
         '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 
         self.executeSQL('alter table '+table+' alter '+column+' type varchar')
     
-#     def closeDS(self):
-#         '''Close a DS with sync and destroy'''
-#         ldslog.info("FG Sync DS and Close")
-#         print 'FG CLOSE'
-#         ds = self.getDS()
-#         if ds:
-#             ds.SyncToDisk()
-#             dsrc = ds.GetRefCount()
-#             ldslog.info('FG RefCount '+str(dsrc))
-#             print 'FGRC ',dsrc
-#             if dsrc==1:
-#                 self.getDS().Release()
+    def closeDS(self):
+        '''Close a DS with sync and destroy'''
+        ldslog.info("FG Sync DS and Close")
+        self.ds.SyncToDisk()
+
+        dsrc = self.ds.GetRefCount()
+        ldslog.info('FG RefCount '+str(dsrc))
+        if dsrc<=1:
+            self.ds = None
+            #self.ds.Release()#CRASH!!!
         
         
 #    def formatWhereClause(self,ref_pkey,key_val):

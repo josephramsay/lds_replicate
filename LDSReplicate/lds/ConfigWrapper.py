@@ -35,7 +35,7 @@ class ConfigWrapper(object):
 
         self.setupMainAndUserConfig(config_file)
         #dont set up layerconfig by default. Wait till we know whether we want a new build (initconfig) 
-        #self.setupLayerConfig()
+        #self._setupLayerConfig()
 
 
     def setupMainAndUserConfig(self,inituserconfig):
@@ -47,7 +47,7 @@ class ConfigWrapper(object):
         self.mainconfig = MainFileReader()
         
         
-#    def setupLayerConfig(self,filename):
+#    def _setupLayerConfig(self,filename):
 #        '''Adds a layerconfig file object which will be requested if external sepcified in main config'''
 #        self.layerconfig = LayerFileReader(filename)
 #        

@@ -21,12 +21,14 @@ import re
 import logging
 
 from contextlib import closing
+
 from lxml import etree
 from lxml.etree import XMLSyntaxError
 
+from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
+
 from lds.WFSDataStore import WFSDataStore
 from lds.RequestBuilder import RequestBuilder
-from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
 from lds.LDSUtilities import LDSUtilities
 from lds.DataStore import MalformedConnectionString
 from lds.VersionUtilities import AppVersion

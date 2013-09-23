@@ -709,8 +709,12 @@ class LDSControls(QFrame):
             self.parent.confconn.tp.clearCleanConfig()
             
         #(re)initialise the data source since uconf may have changed
-        self.parent.confconn.tp.src = self.parent.confconn.initSourceWrapper()
+        #>>#self.parent.confconn.tp.src = self.parent.confconn.initSourceWrapper()
+        #--------------------------
+        ###ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         
+        ###self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
+        ###ep = None
         #Open ProcessRunner and run with TP(proc)/self(gui) instances
         #HACK temp add of dest_drv to PR call
         try:

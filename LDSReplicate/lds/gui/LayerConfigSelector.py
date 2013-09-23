@@ -74,7 +74,8 @@ class LayerConfigSelector(QMainWindow):
         '''Rebuilds lconf from scratch'''
         from lds.ConfigConnector import ConfigConnector
         #ConfigConnector.initLayerConfigWrapper(self.parent.confconn.tp,self.parent.confconn.dst)
-        self.parent.confconn.initLayerConfigWrapper()
+        #self.parent.confconn.initLayerConfigWrapper()
+        self.parent.confconn.initLayerConfig(self.parent.confconn.tp,self.parent.confconn.dst)
         self.refreshLayers()
         
     def refreshLayers(self,customkey=None):
@@ -92,7 +93,7 @@ class LayerConfigSelector(QMainWindow):
         layerlist = [ll[0] for ll in self.selection_model.mdata]
         replacementlist = ()
         ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp, ep)
+        self.parent.confconn.setupLayerConfig(ep)
         #dst = self.parent.confconn.initDstWrapper()
         categorylist = ep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
@@ -109,7 +110,7 @@ class LayerConfigSelector(QMainWindow):
     def deleteKeysFromLayerConfig(self,layerlist,customkey):
         replacementlist = ()
         ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp, ep)
+        self.parent.confconn.setupLayerConfig(ep)
         categorylist = ep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
@@ -154,7 +155,7 @@ class LayerConfigSelector(QMainWindow):
         #self.parent.controls.gpr.writeline('lgvalue',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
             ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-            self.parent.confconn.setupLayerConfig(self.parent.confconn.tp, ep)
+            self.parent.confconn.setupLayerConfig(ep)
             self.parent.confconn.setupComplete(ep)
             self.parent.confconn.setupAssigned()
             self.parent.confconn.buildLGList()
