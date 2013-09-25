@@ -29,7 +29,7 @@ class PostgreSQLDataStore(DataStore):
     '''
     
     DRIVER_NAME = DataStore.DRIVER_NAMES['pg']#PostgreSQL"
-    PG_USE_COPY = "NO"
+    PG_USE_COPY = "YES"
     PG_USE_BASE64 = "YES"
     
     PGSQL_OGR_FID = "ID"  

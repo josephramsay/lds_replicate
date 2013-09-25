@@ -347,9 +347,7 @@ class ProcessRunner(QThread):
                 pt.start()
                 self.enable.emit(False)
                 src = self.reg.openEndPoint(self.sn,self.uc)
-                print self.reg.register
                 dst = self.reg.openEndPoint(self.dn,self.uc)
-                print self.reg.register
                 self.controls.parent.confconn.setupLayerConfig(dst)
                 self.tp.setSRC(src)
                 self.tp.setDST(dst)
@@ -372,7 +370,6 @@ class ProcessRunner(QThread):
         
     def join(self,timeout=None):
         #QThread.join(self,timeout)
-        print self.reg.register
         self.quit()
         
         

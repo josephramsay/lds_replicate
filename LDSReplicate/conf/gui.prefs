@@ -1,6 +1,6 @@
 [FileGDB]
-uconf = fgwint
-lgvalue = NEWONE
+uconf = fifth
+lgvalue = NEWTHREE
 epsg = None
 fd = None
 td = 2012-01-01

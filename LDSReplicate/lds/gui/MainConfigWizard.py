@@ -16,11 +16,11 @@ Created on 13/02/2013
 '''
 
 
-from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel,
+from PyQt4.QtGui import (QApplication, QWizard, QWizardPage, QLabel, 
                          QVBoxLayout, QHBoxLayout, QGridLayout, QRadioButton,
                          QRegExpValidator, QCheckBox, QMessageBox, QGroupBox,
                          QLineEdit,QToolTip, QFont, QComboBox, QPushButton, QFileDialog)
-from PyQt4.QtCore import (QRegExp)
+from PyQt4.QtCore import (QRegExp,QCoreApplication)
 
 import re
 import sys
@@ -111,7 +111,7 @@ class LDSConfigPage(QWizardPage):
         keyLabel = QLabel('LDS API Key')
         destLabel = QLabel('Output Type')
         internalLabel = QLabel('Save Layer-Config in DB')
-        intwarnLabel = QLabel('(Potential table locking issues when choosing internal config)')
+        self.warnLabel = QLabel('!!!')
         encryptionLabel = QLabel('Enable Password Protection')
         serviceLabel = QLabel('Service Type')
         versionLabel = QLabel('Service Version')
@@ -156,8 +156,10 @@ class LDSConfigPage(QWizardPage):
         
         #checkbox
         self.internalEnable = QCheckBox()
-        self.internalEnable.setChecked(True)
         self.internalEnable.setToolTip('Enable saving layer-config (per layer config and progress settings) internally')
+        self.internalEnable.toggle()
+        self.internalEnable.setChecked(True)
+        self.internalEnable.stateChanged.connect(self.setWarn)
         
         self.encryptionEnable = QCheckBox()
         self.encryptionEnable.setToolTip('Encrypt any passwords saved to user config file')
@@ -185,7 +187,7 @@ class LDSConfigPage(QWizardPage):
         
         grid.addWidget(internalLabel, 4, 0)
         grid.addWidget(self.internalEnable, 4, 2)
-        if self.internalEnable.checked(): grid.addWidget(self.intwarnEnable, 4, 4)
+        #if self.internalEnable.checkState(): grid.addWidget(intwarnLabel, 4, 4)
         
         grid.addWidget(encryptionLabel, 5, 0)
         grid.addWidget(self.encryptionEnable, 5, 2)
@@ -205,6 +207,7 @@ class LDSConfigPage(QWizardPage):
         vbox.addLayout(grid)
         #vbox.addLayout(hbox)
         vbox.addStretch(1)
+        vbox.addWidget(self.warnLabel)
         vbox.addWidget(keyLinkLabel)
         vbox.addWidget(infoLinkLabel)
         
@@ -218,6 +221,16 @@ class LDSConfigPage(QWizardPage):
         return self.parent.plist.get('proxy')[0]
         #return int(self.field(self.key+"dest").toString())
         
+    def setWarn(self):
+        if self.internalEnable.checkState(): 
+            ldslog.warn('Warning, Internal config selected')
+            self.warnLabel.setText('!!!')
+            QApplication.processEvents()
+        else:
+            ldslog.warn('External config selected')
+            self.warnLabel.setText('^_^')
+            QApplication.processEvents()
+    
 class ProxyConfigPage(QWizardPage):
     def __init__(self, parent=None,key=None):
         super(ProxyConfigPage, self).__init__(parent)
@@ -440,7 +453,7 @@ class PostgreSQLConfigPage(QWizardPage):
             return False
         cs = PostgreSQLDataStore.buildConnStr(self.hostEdit.text(),self.portEdit.text(),self.dbnameEdit.text(),
                             self.schemaEdit.text(),self.usrEdit.text(),self.pwdEdit.text())
-        pg = PostgreSQLDataStore(None,cs)
+        pg = PostgreSQLDataStore(cs,None)
         pg.applyConfigOptions()
         try:
             pg.ds = pg.initDS(pg.destinationURI(None),False)
@@ -627,7 +640,8 @@ class FileGDBConfigPage(QWizardPage):
         if not self.fileEdit.isModified() and not self.text_entered:
             return False
         
-        fg = FileGDBDataStore(None,str(self.fileEdit.text()))
+        fn = str(self.fileEdit.text())
+        fg = FileGDBDataStore(fn,None)
         fg.applyConfigOptions()
         try:
             fg.initDS(fg.destinationURI(None),True)
@@ -704,7 +718,8 @@ class SpatiaLiteConfigPage(QWizardPage):
         if not self.fileEdit.isModified() and not self.text_entered:
             return False
         
-        sl = SpatiaLiteDataStore(None,str(self.fileEdit.text()))
+        sn = str(self.fileEdit.text())
+        sl = SpatiaLiteDataStore(sn,None)
         sl.applyConfigOptions()
         try:
             sl.initDS(sl.destinationURI(None),True)
