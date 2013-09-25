@@ -147,6 +147,12 @@ class LDSDataStore(WFSDataStore):
         self.setURI(LDSUtilities.reVersionURL(self.getURI(),LDSDataStore.VERSION_COUNT))
         self.read(self.getURI(),False)  
     
+    def closeDS(self):
+        '''Close a DS with sync and destroy'''
+        #probably not needed. prefer use superclass close()
+        ldslog.info("WFS DS close. Ignoring")
+
+        
     @classmethod
     def fetchLayerInfo(cls,url,proxy=None):
         '''Non-GDAL static method for fetching LDS layer ID's using etree parser.'''

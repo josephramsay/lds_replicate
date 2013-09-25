@@ -64,23 +64,27 @@ class ConfigConnector(object):
             self.uconf = uconf
             self.destname = destname
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
-            self.src = self.reg.getEndPoint('WFS', self.uconf)
+            src = self.reg.openEndPoint('WFS', self.uconf)
             #svp = Service, Version, Prefix
-            self.svp = self.readProtocolVersion(self.src)
-            dst = self.reg.getEndPoint(self.destname, self.uconf)
+            self.svp = self.readProtocolVersion(src)
+            dst = self.reg.openEndPoint(self.destname, self.uconf)
             self.setupLayerConfig(dst)
             #print 'CCt',self.tp
             #print 'CCd',self.dst
             if not self.vlayers:
-                self.vlayers = self.getValidLayers(dst)
+                self.vlayers = self.getValidLayers(src,dst)
                 self.setupReserved()
             self.setupComplete(dst)
             self.setupAssigned()
             self.buildLGList()
             self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
             self.reg.closeEndPoint(self.destname)
+            self.reg.closeEndPoint('WFS')
             dst = None
             
+    def checkChanges(self,destname,uconf):
+        return (uconf,destname)!=(self.uconf,self.destname)
+    
     #TODO think about moving this to the register
     def setupLayerConfig(self,dst):
         '''Calls the TP LC setup function'''
@@ -136,10 +140,10 @@ class ConfigConnector(object):
         #HACK
         return set([a for a in alist if not re.search(flt,a)])
     
-    def getValidLayers(self,dst):
+    def getValidLayers(self,src,dst):
         #if dest is true we should have a layerconf so use intersect(read_lc,lds_getcaps)
-        capabilities = self.src.getCapabilities()
-        self.tp.initCapsDoc(capabilities, self.src)
+        capabilities = src.getCapabilities()
+        self.tp.initCapsDoc(capabilities, src)
         vlayers = self.tp.assembleLayerList(dst,intersect=True)
         #In the case where we are setting up unconfigured (first init) populate the layer list with default/all layers
         return vlayers if vlayers else self.tp.assembleLayerList(dst,intersect=False) 
@@ -192,14 +196,14 @@ class DatasourceRegister(object):
         if fn:
             type = self._type(fn)
             if type == self.TYPE.SOURCE:
-                ds = self._newSRC()
+                ep = self._newSRC()
             else:
-                ds = self._newDST(fn)
+                ep = self._newDST(fn)
             self.register[fn] = {}
             self.register[fn]['rc'] = 0
             self.register[fn]['type'] = type
             self.register[fn]['uri'] = uri
-            self.register[fn]['ds'] = ds
+            self.register[fn]['ep'] = ep
             
         else:
             raise UnknownDSTypeException('Unknown DS requested, '+str(fn))
@@ -224,7 +228,7 @@ class DatasourceRegister(object):
         
     def _connect(self,fn,req=None):
         '''Initialise an OGR datasource on the DST/SRC object or just return note the existing and increment count'''
-        endpoint = self.register[fn]['ds']
+        endpoint = self.register[fn]['ep']
         if not endpoint.getDS():
             if self.register[fn]['type']==self.TYPE.SOURCE:
                 self._connectSRC(fn,req)
@@ -232,14 +236,14 @@ class DatasourceRegister(object):
                 self._connectDST(fn)
         
     def _connectDST(self,fn):
-        ep = self.register[fn]['ds']
+        ep = self.register[fn]['ep']
         uri = ep.destinationURI(None)
         conn = ep.initDS(uri)
         ep.setDS(conn)
         self.register[fn]['rc'] += 1
         
     def _connectSRC(self,fn,req=None):#layername=None,fromdate=None,todate=None): 
-        ep = self.register[fn]['ds']
+        ep = self.register[fn]['ep']
         if req and req['type']==self.REQ.INCR and (req['fromdate'] or req['todate']):
             uri = ep.sourceURIIncremental(req['layername'],req['fromdate'],req['todate'])
         elif req and req['type'] == self.REQ.FEAT:
@@ -253,7 +257,7 @@ class DatasourceRegister(object):
         
     def _disconnect(self,fn):
         '''Decrement reference to the DS and delete it entirely if its the last one'''
-        endpoint = self.register[fn]['ds']
+        endpoint = self.register[fn]['ep']
         self.register[fn]['rc'] -= 1
         if self.register[fn]['rc'] <= 0:
             ldslog.info('Release EP '+str(fn))
@@ -264,7 +268,7 @@ class DatasourceRegister(object):
     def refCount(self,fn):
         return self.register[fn]['rc']
     
-    def getEndPoint(self,name,uri=None,req=None):
+    def openEndPoint(self,name,uri=None,req=None):
         #print 'GEP',name,uri,req
         '''Gets a named EP incrementing a refcount or registers a new one as needed'''
         fn = LDSUtilities.standardiseDriverNames(name)
@@ -274,7 +278,7 @@ class DatasourceRegister(object):
         and (not self.register.has_key(fn) or self.register[fn]['uri']!=uri):
             self._register(fn,uri)
         self._connect(fn,req)
-        return self.register[fn]['ds']
+        return self.register[fn]['ep']
     
     def closeEndPoint(self,name):
         '''Closes the DS is a named EP or deletes the EP completely if not needed'''
@@ -342,8 +346,10 @@ class ProcessRunner(QThread):
             try:
                 pt.start()
                 self.enable.emit(False)
-                src = self.reg.getEndPoint(self.sn)
-                dst = self.reg.getEndPoint(self.dn,self.uc)
+                src = self.reg.openEndPoint(self.sn,self.uc)
+                print self.reg.register
+                dst = self.reg.openEndPoint(self.dn,self.uc)
+                print self.reg.register
                 self.controls.parent.confconn.setupLayerConfig(dst)
                 self.tp.setSRC(src)
                 self.tp.setDST(dst)
@@ -366,6 +372,7 @@ class ProcessRunner(QThread):
         
     def join(self,timeout=None):
         #QThread.join(self,timeout)
+        print self.reg.register
         self.quit()
         
         

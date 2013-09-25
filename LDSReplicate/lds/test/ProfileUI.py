@@ -26,26 +26,10 @@ import cProfile
 import pstats
 
 from lds.LDSUtilities import LDSUtilities
+from lds.TransferProcessor import TransferProcessor
+from lds.gui.LayerConfigSelector import LayerConfigSelector
 
 ldslog = LDSUtilities.setupLogging()
-
-#ldslog = logging.getLogger('LDS')
-#ldslog.setLevel(logging.DEBUG)
-#
-#path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../log/"))
-#if not os.path.exists(path):
-#    os.mkdir(path)
-#df = os.path.join(path,"debug.log")
-#
-#fh = logging.FileHandler(df,'a')
-#fh.setLevel(logging.DEBUG)
-#
-#formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(message)s')
-#fh.setFormatter(formatter)
-#ldslog.addHandler(fh)
-
-from lds.TransferProcessor import TransferProcessor
-
     
 #        WACA,    land-dist, name-assoc, antarctic (non-NZ sref, RSRGD)
 LAYER = ('v:x836','v:x785',  'v:x1203',  'v:x789')
@@ -104,7 +88,7 @@ def selectProcess(processor,procname):
         
 
 CONN_STR = ''
-CONF = 'ldsincr.lnx.conf'
+CONF = 'fglint.conf'
 PATH = '.'
 OUTP = ['pg']
 
@@ -113,7 +97,7 @@ def profile01AutoFillLayer(conf=CONF):
      
     for o in OUTP:
         #tp = TransferProcessor(ly,gp,   ep,   fd,   td,   sc,   dc,   cq,   uc)
-        tp1 = TransferProcessor(self,'v:x785', None, None, None, None, None, None, None, conf)
+        tp1 = TransferProcessor(None,'v:x785', None, None, None, None, None, None, None, conf)
         selectProcess(tp1,o)
         
 def profile02FGDBUpdateSpeedTest(conf=CONF):
@@ -121,10 +105,15 @@ def profile02FGDBUpdateSpeedTest(conf=CONF):
     todate = None
     tp = TransferProcessor(None,'v:x784',None,None,todate,None,None,None,'fgx.conf')
     selectProcess(tp,'FileGDB')
+    
+def profile03FGDBLayerConfigSpeed(conf=CONF):
+    '''Simple layer populate'''
+    lcs = LayerConfigSelector()
+    lcs.main()
         
 def main():
     setUp()
-    cProfile.run('profile02FGDBUpdateSpeedTest()','temp')
+    cProfile.run('profile03FGDBLayerConfigSpeed()','temp')
 
     
     

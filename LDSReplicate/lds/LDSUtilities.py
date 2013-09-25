@@ -291,6 +291,12 @@ class LDSUtilities(object):
         '''Not strictly independent but common and potentially used by a number of other classes'''
         
         try:
+            id =  feat.GetField('ID')
+        except:
+            ldslog.debug("LayerSchema: Can't read Feature ID")
+            pkey = None
+            
+        try:
             pkey =  feat.GetField('PKEY')
         except:
             ldslog.debug("LayerSchema: No Primary Key Column defined, default to 'ID'")
@@ -345,7 +351,7 @@ class LDSUtilities(object):
             cql = None
             
         
-        return LayerConfEntry(pkey,name,group,gcol,epsg,lmod,disc,cql)
+        return LayerConfEntry(id,pkey,name,group,gcol,epsg,lmod,disc,cql)
     
     @staticmethod
     def standardiseDriverNames(dname=''):
@@ -618,7 +624,8 @@ class Encrypt(object):
 #this is the only class that emits LCE objects and a a utility module we don't want to be adding dependencies so LCE belongs here        
 class LayerConfEntry(object):
     '''Storage class for layer config info'''
-    def __init__(self,pkey,name,group,gcol,epsg,lmod,disc,cql):
+    def __init__(self,id,pkey,name,group,gcol,epsg,lmod,disc,cql):
+        self.id = id
         self.pkey = pkey
         self.name = name
         self.group = group

@@ -560,6 +560,10 @@ class LayerReader(object):
         pass
     
     @abstractmethod
+    def readAllLayerParameters(self,layer):
+        pass
+    
+    @abstractmethod
     def findLayerIdByName(self,lname):
         pass
     
@@ -602,12 +606,16 @@ class LayerReader(object):
     def getLConfAsArray(self):
         '''Returns a read lconf as an array'''
         lca = []
-        for layer in self.getLayerNames():
-            lce = self.readLayerParameters(layer)
-            #pkey,name,group,gcol,epsg,lmod,disc,cq
+#         for layer in self.getLayerNames():
+#             lce = self.readLayerParameters(layer)
+#             #pkey,name,group,gcol,epsg,lmod,disc,cq
+#             groups = [g.strip() for g in lce.group.split(',')]
+#             lca.append((lce.id,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
+        for lce in self.readAllLayerParameters():
             groups = [g.strip() for g in lce.group.split(',')]
-            lca.append((layer,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
+            lca.append((lce.id,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
         return lca
+            
     
 #--------------------------------------------------------------------------------------------------
     
@@ -696,7 +704,7 @@ class LayerFileReader(LayerReader):
             ldslog.warn('Problem writing LM date to layer config file. '+str(e))
             
     @override(LayerReader)
-    def readLayerParameters(self,layer):
+    def readLayerParameters(self,id):
     #def readLayerSchemaConfig(self,layer):
         '''Full Layer config reader. Returns the config values for the whole layer or makes sensible guesses for defaults'''
         from LDSUtilities import LayerConfEntry
@@ -707,34 +715,34 @@ class LayerFileReader(LayerReader):
 #            return (defn,None,None,None,None,None,None,None,None)
 #        except:
 #            pass
-        
+            
         '''optional but one way to record the type and name of a column is to save a string tuple (name,type) and parse this at build time'''
         try:
-            pkey = self.cp.get(layer, 'pkey')
+            pkey = self.cp.get(id, 'pkey')
         except NoOptionError:
             ldslog.warn("LayerSchema: No Primary Key Column defined, default to 'ID'")
             pkey = 'ID'
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
-            name = self.cp.get(layer, 'name')
+            name = self.cp.get(id, 'name')
         except NoOptionError:
             ldslog.warn("LayerSchema: No Name saved in config for this layer, returning ID")
-            name = layer
+            name = id
             
         if name is None:
-            name = layer
+            name = id
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
-            group = self.cp.get(layer, 'category')
+            group = self.cp.get(id, 'category')
         except NoOptionError:
             ldslog.warn("Group List: No Groups defined for this layer")
             group = None
             
             
         try:
-            gcol = self.cp.get(layer, 'geocolumn')
+            gcol = self.cp.get(id, 'geocolumn')
         except NoOptionError:
             ldslog.warn("LayerSchema: No Geo Column defined, default to 'SHAPE'")
             gcol = 'SHAPE'
@@ -747,28 +755,37 @@ class LayerFileReader(LayerReader):
 #            index = None
             
         try:
-            epsg = self.cp.get(layer, 'epsg')
+            epsg = self.cp.get(id, 'epsg')
         except NoOptionError:
             #print "No Projection Transformation defined"#don't really need to state the default occurance
             epsg = None
             
         try:
-            lmod = self.cp.get(layer, 'lastmodified')
+            lmod = self.cp.get(id, 'lastmodified')
         except NoOptionError:
             ldslog.warn("LayerSchema: No Last-Modified date recorded, successful update will write current time here")
             lmod = None
             
         try:
-            disc = self.cp.get(layer, 'discard')
+            disc = self.cp.get(id, 'discard')
         except NoOptionError:
             disc = None 
             
         try:
-            cql = self.cp.get(layer, 'cql')
+            cql = self.cp.get(id, 'cql')
         except NoOptionError:
             cql = None
             
-        return LayerConfEntry(pkey,name,group,gcol,epsg,lmod,disc,cql)
+        return LayerConfEntry(id,pkey,name,group,gcol,epsg,lmod,disc,cql)
+    
+    @override(LayerReader)
+    def readAllLayerParameters(self):
+        '''Gets all LC entries as a list of LCEs using readLayerParameters'''
+        lcel = []
+        for id in self.getLayerNames():
+            lcel += [self.readLayerParameters(id),]
+        return lcel
+            
         
 #--------------------------------------------------------------------------------------------------            
             
@@ -889,15 +906,28 @@ class LayerDSReader(LayerReader):
         return self.namelist
     
     @override(LayerReader) 
-    def readLayerParameters(self,pkey):
-        '''Full Layer config reader'''
+    def readLayerParameters(self,id):
+        '''Full Feature config reader'''
         from DataStore import InaccessibleFeatureException
         layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
-        feat = self.fname._findMatchingFeature(layer, 'id', pkey)
+        feat = self.fname._findMatchingFeature(layer, 'id', id)
         if feat is None:
-            InaccessibleFeatureException('Cannot access feature with id='+str(pkey)+' in layer '+str(layer.GetName()))
+            InaccessibleFeatureException('Cannot access feature with id='+str(id)+' in layer '+str(layer.GetName()))
         return LU.extractFields(feat)
+    
+    @override(LayerReader) 
+    def readAllLayerParameters(self):
+        '''Full Layer config reader'''
+        lcel = []
+        layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+        layer.ResetReading()
+        feat = layer.GetNextFeature()
+        while feat:
+            lcel += [LU.extractFields(feat),]
+            feat = layer.GetNextFeature()
+        return lcel 
+        
     
     @override(LayerReader)     
     def readLayerProperty(self,pkey,field):

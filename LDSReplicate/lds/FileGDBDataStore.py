@@ -125,7 +125,7 @@ class FileGDBDataStore(ESRIDataStore):
                     raise
     
     def getConfigOptions(self):
-        '''FGDB doesn't have any dataset creation options'''
+        '''Config opts for FileGDB. NB There are no dataset creation options'''
         self.fg_local_copts = ['FGDB_BULK_LOAD='+str(self.FGDB_BULK_LOAD)]        
         return super(FileGDBDataStore,self).getConfigOptions() + self.fg_local_copts    
     
@@ -157,8 +157,13 @@ class FileGDBDataStore(ESRIDataStore):
         dsrc = self.ds.GetRefCount()
         ldslog.info('FG RefCount '+str(dsrc))
         if dsrc<=1:
+            self.ds.layerconf = None    
+            #HACK
+            if os.name == 'nt':
+                #Release() crashes Linux OS but this should be okay since in most cases we won't need 
+                #synchronous access to a FileGDB generated on Linux and opened using ArcMap on Windows
+                self.ds.Release()
             self.ds = None
-            #self.ds.Release()#CRASH!!!
         
         
 #    def formatWhereClause(self,ref_pkey,key_val):

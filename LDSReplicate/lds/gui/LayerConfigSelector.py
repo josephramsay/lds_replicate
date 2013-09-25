@@ -92,7 +92,7 @@ class LayerConfigSelector(QMainWindow):
         '''Add custom key to the selection_model list of layers (assumes required av->sl transfer completed) not just the transferring entry'''
         layerlist = [ll[0] for ll in self.selection_model.mdata]
         replacementlist = ()
-        ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         self.parent.confconn.setupLayerConfig(ep)
         #dst = self.parent.confconn.initDstWrapper()
         categorylist = ep.getLayerConf().readLayerProperty(layerlist, 'category')
@@ -108,16 +108,17 @@ class LayerConfigSelector(QMainWindow):
         ep = None
     
     def deleteKeysFromLayerConfig(self,layerlist,customkey):
+        '''Remove custom keys from selected layers'''
         replacementlist = ()
-        ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         self.parent.confconn.setupLayerConfig(ep)
         categorylist = ep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
         ep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
-        self.parent.confconn.reg.closeEndPoint()
+
         #-----------------------------------
-        self.parent.confconn.setupComplete()
+        self.parent.confconn.setupComplete(ep)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()   
         #self.refreshLayers(customkey)
@@ -154,7 +155,7 @@ class LayerConfigSelector(QMainWindow):
         lastgroup = str(self.page.keywordcombo.lineEdit().text())
         #self.parent.controls.gpr.writeline('lgvalue',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
-            ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+            ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
             self.parent.confconn.setupLayerConfig(ep)
             self.parent.confconn.setupComplete(ep)
             self.parent.confconn.setupAssigned()

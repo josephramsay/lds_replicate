@@ -51,8 +51,8 @@ class LDSMain(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
     
     HELPFILE = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
-    #destname,lgval,uc,epsg,fd,td
-    DEF_RVALS = ('','','','2193','','')
+    #            destname,lgval,uc, epsg, fd,td
+    DEF_RVALS = ('',      '',   '','2193','','')
     
     MAX_WIZARD_ATTEMPTS = 2
     
@@ -200,9 +200,10 @@ class LDSMain(QMainWindow):
             return
             
         if self.confconn is None:
-            #if any parameters have changed, re-initialise
+            #build a new confconn
             self.confconn = ConfigConnector(uconf,lgval,dest)
         else:
+            #if any parameters have changed, re-initialise
             self.confconn.initConnections(uconf,lgval,dest)
             
         self.runLayerConfigDialog()
@@ -246,8 +247,7 @@ class LDSControls(QFrame):
         self.cflist = ConfigInitialiser.getConfFiles()
         #self.imgset = self.STATIC_IMG if ConfigWrapper().readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
         #self.imgset = self.STATIC_IMG if self.parent.confconn.tp.src.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
-        dn = self.parent.confconn.destname
-        ep = self.parent.confconn.reg.getEndPoint('WFS')
+        ep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
         self.imgset = self.STATIC_IMG if ep.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
         self.parent.confconn.reg.closeEndPoint('WFS')
         
@@ -483,12 +483,10 @@ class LDSControls(QFrame):
             self.epsgcombo.setEnabled(False)
             self.fromdateedit.setEnabled(False)
             self.todateedit.setEnabled(False)
-            
-            
+   
         QApplication.restoreOverrideCursor() if enable else QApplication.setOverrideCursor(QCursor(Qt.WaitCursor)) 
 
-                
-            
+
     def refreshLGCombo(self):
         self.lgcombo.clear()
         self.lgcombo.addItems([i[2] for i in self.parent.confconn.lglist])
@@ -511,13 +509,6 @@ class LDSControls(QFrame):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
         
-  
-    def getInitLabel(self,rdest):
-        '''Returns a name for the init/layer button.'''
-        #for internal DS too much overhead intialising a new data connection so we default to "init"
-        if LDSUtilities.mightAsWellBeNone(rdest) and LayerFileReader(rdest.lower()+TransferProcessor.LP_SUFFIX).existsAndIsCurrent():
-            return 'Layer Select'
-        return 'Initalise'
     
     def gprParameters(self,rdest):
         '''Zip default and GPR values'''
@@ -551,8 +542,7 @@ class LDSControls(QFrame):
         self.destcombo.setCurrentIndex(destindex)
         
         #InitButton
-        #ilabel = self.getInitLabel(selecteddest)
-        self.initbutton.setText('Layer Select')#ilabel)
+        self.initbutton.setText('Layer Select')
         
         #Config File
         confindex = 0
@@ -711,7 +701,7 @@ class LDSControls(QFrame):
         #(re)initialise the data source since uconf may have changed
         #>>#self.parent.confconn.tp.src = self.parent.confconn.initSourceWrapper()
         #--------------------------
-        ###ep = self.parent.confconn.reg.getEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        ###ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         
         ###self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
         ###ep = None
