@@ -263,10 +263,10 @@ class LDSControls(QFrame):
         gcs = ConfigInitialiser.readCSV(gcsf)
         pcs = ConfigInitialiser.readCSV(pcsf)
 
-        self.nzlsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]] \
-                   + [e[0]+' - '+e[1] for e in pcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]]
-        self.rowsr = [e[0]+' - '+e[3] for e in gcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]] \
-                   + [e[0]+' - '+e[1] for e in pcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]]
+        self.nzlsr = [(e[0],e[0]+' - '+e[3]) for e in gcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]] \
+                   + [(e[0],e[0]+' - '+e[1]) for e in pcs if 'NZGD'     in e[1] or  'RSRGD'     in e[1]]
+        self.rowsr = [(e[0],e[0]+' - '+e[3]) for e in gcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]] \
+                   + [(e[0],e[0]+' - '+e[1]) for e in pcs if 'NZGD' not in e[1] and 'RSRGD' not in e[1]]
                    
                    
     def initUI(self):
@@ -303,16 +303,15 @@ class LDSControls(QFrame):
         #self.lgcombo.setInsertPolicy(QComboBox.InsertAlphabetically)#?doesnt seem to work
         self.lgcombo.setToolTip('Select either Layer or Group entry')
         self.lgcombo.setEditable(False)
-        #self.lgcombo.currentIndexChanged.connect(self.doLGEditUpdate)
         self.sepindex = None
         #self.updateLGValues()
         
         self.epsgcombo = QComboBox(self)
         self.epsgcombo.setMaximumWidth(self.MAX_WD)
         self.epsgcombo.setToolTip('Setting an EPSG number here determines the output SR of the layer')  
-        self.epsgcombo.addItems(self.nzlsr)
+        self.epsgcombo.addItems([i[1] for i in self.nzlsr])
         self.epsgcombo.insertSeparator(len(self.nzlsr))
-        self.epsgcombo.addItems(self.rowsr)
+        self.epsgcombo.addItems([i[1] for i in self.rowsr])
         self.epsgcombo.setEditable(True)
         self.epsgcombo.setEnabled(False)
         
@@ -374,6 +373,7 @@ class LDSControls(QFrame):
         #set onchange here otherwise we get circular initialisation
         self.destcombo.currentIndexChanged.connect(self.doDestChanged)
         self.confcombo.currentIndexChanged.connect(self.doConfChanged)
+        self.lgcombo.currentIndexChanged.connect(self.doLGComboChanged)
 
         self.setStatus(self.STATUS.IDLE)
         
@@ -514,6 +514,14 @@ class LDSControls(QFrame):
         '''Zip default and GPR values'''
         return [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.parent.gpr.readsec(rdest),self.parent.DEF_RVALS[1:])]
     
+    def getLCE(self,ln):
+        '''Read layer parameters'''
+        ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        self.parent.confconn.setupLayerConfig(ep)
+        lce = ep.getLayerConf().readLayerParameters(ln)
+        self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
+        return lce
+    
     def doDestChanged(self):
         '''Read the destname parameter and fill dialog with matching GPR values'''
         rdest = str(self.destlist[self.destcombo.currentIndex()])
@@ -521,17 +529,39 @@ class LDSControls(QFrame):
         self.updateGUIValues([rdest]+rvals)    
         
     def doConfChanged(self):
-        '''Read the destname parameter and fill dialog with matching GPR values'''
+        '''Read the user conf parameter and fill dialog with matching GPR values'''
         rdest = str(self.destlist[self.destcombo.currentIndex()])
         rlg,_,rep,rfd,rtd = self.gprParameters(rdest)
         ruc = str(self.cflist[self.confcombo.currentIndex()])
         self.updateGUIValues((rdest,rlg,ruc,rep,rfd,rtd))
         
+    def doLGComboChanged(self):
+        '''Read the layer/group value and change epsg to layer or gpr match'''
+        #get a matching LG entry and test whether its a layer or group
+        lgi = self.parent.confconn.getLGIndex(str(self.lgcombo.currentText()))
+        #lgi can be none if we init a new group, in which case we use the GPR value
+        if lgi:
+            lge = self.parent.confconn.lglist[lgi]
+            lce = self.getLCE(lge[1]) if lge[0]==LORG.LAYER else None
+        else:
+            lce = None
+        
+        #look for filled layer conf epsg OR use prefs stored in gpr
+        if lce and LDSUtilities.mightAsWellBeNone(lce.epsg):
+            epsgval = lce.epsg
+        else:
+            rdest = str(self.destlist[self.destcombo.currentIndex()])
+            _,_,epsgval,_,_ = self.gprParameters(rdest)
+        epsgindex = [i[0] for i in self.nzlsr+[(0,0)]+self.rowsr].index(epsgval)
+        self.epsgcombo.setCurrentIndex(int(epsgindex))
+
+        
     def updateGUIValues(self,readlist):
         '''Fill dialog values from provided list'''
-        #Note. rlgval must be an object var since its used in doaction function
+        #Read user input
         rdest,self.rlgval,ruconf,repsg,rfd,rtd = readlist
         
+        #--------------------------------------------------------------------
         
         #Destination Menu
         selecteddest = LDSUtilities.standardiseDriverNames(rdest)
@@ -556,10 +586,10 @@ class LDSControls(QFrame):
         #self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
         
         #Layer/Group Selection
-        
         self.updateLGValues(ruconf,self.rlgval,rdest)
         lgindex = None
         if LDSUtilities.mightAsWellBeNone(self.rlgval):
+            #index of list value
             lgindex = self.parent.confconn.getLGIndex(self.rlgval,col=1)
             
         if lgindex:
@@ -572,9 +602,15 @@ class LDSControls(QFrame):
         #self.doLGEditUpdate()
         
         #EPSG
-        if LDSUtilities.mightAsWellBeNone(repsg)!=None:
-            epsgedit = self.epsgcombo.lineEdit()
-            epsgedit.setText([e for e in self.nzlsr+self.rowsr if re.match('^\s*(\d+).*',e).group(1)==repsg][0])
+        #                                user > layerconf
+        #useepsg = LDSUtilities.precedence(repsg, lce.epsg if lce else None, None)
+        epsgindex = [i[0] for i in self.nzlsr+[(None,None)]+self.rowsr].index(repsg)
+        self.epsgcombo.setCurrentIndex(epsgindex)
+            
+        #epsgedit = self.epsgcombo.lineEdit()
+        #epsgedit.setText([e[1] for e in self.nzlsr+self.rowsr if e[0]==repsg][0])
+        
+        #epsgedit.setText([e for e in self.nzlsr+self.rowsr if re.match('^\s*(\d+).*',e).group(1)==repsg][0])
         
         #To/From Dates
         if LDSUtilities.mightAsWellBeNone(rfd) is not None:
@@ -691,6 +727,8 @@ class LDSControls(QFrame):
         self.parent.confconn.tp.setFromDate(fd)
         self.parent.confconn.tp.setToDate(td)
         self.parent.confconn.tp.setUserConf(uconf)
+        
+        self.parent.confconn.tp.setEPSG(epsg)
         
         #because clean state persists in TP
         if clean:

@@ -527,9 +527,9 @@ class MainFileReader(object):
         except Exception as e:
             ldslog.warn('Problem writing to config file. '+str(e))
     
-    # Functions above relate to connection config info
-    #----------------------------------------------------------------------------------------------
-    # Functions [4] below relate to layer config data
+# Functions above relate to connection config info
+#----------------------------------------------------------------------------------------------------------------------
+# Functions [4] below relate to layer config data
     
 from abc import ABCMeta, abstractmethod    
 
@@ -560,7 +560,7 @@ class LayerReader(object):
         pass
     
     @abstractmethod
-    def readAllLayerParameters(self,layer):
+    def readAllLayerParameters(self):
         pass
     
     @abstractmethod

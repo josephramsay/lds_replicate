@@ -338,8 +338,14 @@ class TransferProcessor(object):
                     if self.readLayer():
                         self.dst.setIncremental()    
                         self.dst.setPrefetchSize(self.prefetchsize)
+                        ldslog.info('Layer='+str(each_layer)+' lastmodified='+str(final_td))
+                        ldslog.info('Layer='+str(each_layer)+' epsg='+str(self.dst.getSRS()))
                         self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
-                        self.dst.setLastModified(each_layer,final_td)
+                        #----------------------------------------------------------
+                        self.dst.getLayerConf().writeLayerProperty(each_layer,'lastmodified',final_td)
+                        self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
+                        #self.dst.setLastModified(each_layer,final_td)
+                        #self.dst.saveEPSGConversion(each_layer,self.epsg)
                     else:
                         ldslog.warn('Incremental Read failed. Switching to Non-Incremental')
                         nonincr = True
@@ -355,9 +361,12 @@ class TransferProcessor(object):
                 if self.readLayer():
                     self.dst.clearIncremental()
                     self.cleanLayer(each_layer,truncate=True)
+                    ldslog.info('Layer='+str(each_layer)+' epsg='+str(self.dst.getSRS()))
                     self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
                     #since no date provided defaults to current 
-                    self.dst.setLastModified(each_layer)
+                    self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
+                    #self.dst.setLastModified(each_layer)
+                    #self.dst.saveEPSGConversion(each_layer,self.epsg)
                 else:
                     ldslog.warn('Non-Incremental Read failed')
                     raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())

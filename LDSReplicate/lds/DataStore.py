@@ -986,25 +986,46 @@ class DataStore(object):
                 fout_def.AddFieldDefn(fin_field_def)
                 
         return fout_def
-      
+    
+    #----------------------------------------------------------------------------------------------
+    
     def getLastModified(self,layer):
         '''Gets the last modification time of a layer to use for incremental "fromdate" calls. This is intended to be run 
         as a destination method since the destination is the DS being modified i.e. dst.getLastModified'''
         lmd = self.layerconf.readLastModified(layer)
-        if lmd is None or lmd == '':
+        if not LDSUtilities.mightAsWellBeNone(lmd):
             lmd = self.EARLIEST_INIT_DATE
         return lmd
         #return lm.strftime(self.DATE_FORMAT)
         
     def setLastModified(self,layer,newdate=None):
-        '''Sets the last modification time of a layer following a successful incremental copy operation'''
+        '''Sets the last modification time of a layer following a successful copy operation'''
         if newdate is None:
             newdate=self.getCurrent()
         self.layerconf.writeLayerProperty(layer, 'lastmodified', newdate)  
         
     def clearLastModified(self,layer):
         '''Clears the last modification time of a layer following a successful clean operation'''
-        self.layerconf.writeLayerProperty(layer, 'lastmodified', None)  
+        self.layerconf.writeLayerProperty(layer, 'lastmodified', None)
+        
+    #----------------------------------------------------------------------------------------------
+    
+    def getEPSGConversion(self,layer):
+        '''Gets the saved EPSG for the layer'''
+        lmd = self.layerconf.readLastModified(layer)
+        if not LDSUtilities.mightAsWellBeNone(lmd):
+            lmd = self.EARLIEST_INIT_DATE
+        return lmd
+    
+    def saveEPSGConversion(self,layer,newepsg=None):
+        '''Sets the user requested EPSG for this layer following a successful copy operation'''
+        self.layerconf.writeLayerProperty(layer, 'epsg', newepsg)  
+        
+    def clearEPSGConversion(self,layer):
+        '''Clears the last modification time of a layer following a successful clean operation'''
+        self.layerconf.writeLayerProperty(layer, 'epsg', None)
+        
+    #----------------------------------------------------------------------------------------------
     
     @classmethod
     def getCurrent(cls):

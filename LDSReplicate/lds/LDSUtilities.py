@@ -273,16 +273,16 @@ class LDSUtilities(object):
             return ""
         
     @staticmethod    
-    def precedence(cmdline_arg,config_arg,layer_arg):
+    def precedence(first,second,third):
         '''Decide which CQL filter to apply based on scope and availability'''
-        '''Currently we have; CommandLine > Config-File > Layer-Properties but maybe its better for individual layers to override a global setting... '''
+        '''Generally assume; CommandLine > Config-File > Layer-Properties but maybe its better for individual layers to override a global setting... '''
         
-        if LDSUtilities.mightAsWellBeNone(cmdline_arg) is not None:
-            return cmdline_arg
-        elif LDSUtilities.mightAsWellBeNone(config_arg) is not None:
-            return config_arg
-        elif LDSUtilities.mightAsWellBeNone(layer_arg) is not None:
-            return layer_arg
+        if LDSUtilities.mightAsWellBeNone(first) is not None:
+            return first
+        elif LDSUtilities.mightAsWellBeNone(second) is not None:
+            return second
+        elif LDSUtilities.mightAsWellBeNone(third) is not None:
+            return third
         return None
     
     @staticmethod

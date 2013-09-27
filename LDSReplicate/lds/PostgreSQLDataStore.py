@@ -29,7 +29,11 @@ class PostgreSQLDataStore(DataStore):
     '''
     
     DRIVER_NAME = DataStore.DRIVER_NAMES['pg']#PostgreSQL"
-    PG_USE_COPY = "YES"
+    
+    #ERROR 1: COPY statement failed.
+    #ERROR:  invalid input syntax for type double precision: "None"
+    #CONTEXT:  COPY beacon_special_purpose_general_points_hydro_1_350k_1_1_500k, line 1, column convis: "None"
+    PG_USE_COPY = "NO"
     PG_USE_BASE64 = "YES"
     
     PGSQL_OGR_FID = "ID"  

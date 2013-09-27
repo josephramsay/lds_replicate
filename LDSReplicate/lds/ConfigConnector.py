@@ -159,6 +159,9 @@ class ConfigConnector(object):
         for l in sorted(layers if layers else self.vlayers):
             self.lglist += ((LORG.LAYER,l[0],'{} ({})'.format(l[1],l[0])),)
         
+    def getLGEntry(self,dispval):
+        '''Finds a matching group/layer entry from its displayed name'''
+        return self.lglist[self.getLGIndex(dispval)]
     
     def getLGIndex(self,dispval,col=2):
         '''Finds a matching group/layer entry from its displayed name'''

@@ -555,7 +555,7 @@ class MSSQLSpatialConfigPage(QWizardPage):
             return False
         cs = MSSQLSpatialDataStore.buildConnStr(self.serverEdit.text(),self.dbnameEdit.text(),self.schemaEdit.text(),
                             'yes' if self.trustCheckBox.isChecked() else 'no',self.usrEdit.text(),self.pwdEdit.text())
-        ms = MSSQLSpatialDataStore(None,cs)
+        ms = MSSQLSpatialDataStore(cs,None)
         ms.applyConfigOptions()
         try:
             ms.initDS(ms.destinationURI(None),False)

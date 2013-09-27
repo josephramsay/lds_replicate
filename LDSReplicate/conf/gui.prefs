@@ -6,12 +6,12 @@ fd = None
 td = 2012-01-01
 
 [prefs]
-dest = FileGDB
+dest = PostgreSQL
 
 [PostgreSQL]
-uconf = pg
-lgvalue = TEST1
-epsg = None
+uconf = sixth
+lgvalue = v:x1089
+epsg = 4167
 fd = None
 td = None
 
