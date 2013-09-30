@@ -992,7 +992,7 @@ class DataStore(object):
     def getLastModified(self,layer):
         '''Gets the last modification time of a layer to use for incremental "fromdate" calls. This is intended to be run 
         as a destination method since the destination is the DS being modified i.e. dst.getLastModified'''
-        lmd = self.layerconf.readLastModified(layer)
+        lmd = self.layerconf.readLayerProperty(layer,'lastmodified')
         if not LDSUtilities.mightAsWellBeNone(lmd):
             lmd = self.EARLIEST_INIT_DATE
         return lmd
@@ -1012,10 +1012,7 @@ class DataStore(object):
     
     def getEPSGConversion(self,layer):
         '''Gets the saved EPSG for the layer'''
-        lmd = self.layerconf.readLastModified(layer)
-        if not LDSUtilities.mightAsWellBeNone(lmd):
-            lmd = self.EARLIEST_INIT_DATE
-        return lmd
+        return self.layerconf.readLayerProperty(layer,'epsg')
     
     def saveEPSGConversion(self,layer,newepsg=None):
         '''Sets the user requested EPSG for this layer following a successful copy operation'''
@@ -1268,6 +1265,8 @@ class DataStore(object):
         search_layer.SetAttributeFilter(' and '.join(qt).replace("''","'"))
         #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error"  
         search_layer.ResetReading()
+        #HACK. Need to call GFC on win7 to prevent crash!?!
+        search_layer.GetFeatureCount()
         return search_layer.GetNextFeature()
            
     def formatWhereClause(self,ref_pkey,key_val):
@@ -1284,6 +1283,8 @@ class DataStore(object):
             #ResetReading to fix MSSQL ODBC bug, "Function Sequence Error". 
             #NB. Since we're resetting the DST layer it has no affect on the SRC read order, just starts the FID search from the beginning  
             search_layer.ResetReading()#commenting this out seems to make no difference to fgdb speed
+            #HACK. Need to call GFC on win7 to prevent crash!?!
+            search_layer.GetFeatureCount()
             matching_feature = search_layer.GetNextFeature()
         except RuntimeError as rte:
             ldslog.error('Cant find matching feature using '+str(where)+'. '+str(rte))
@@ -1330,6 +1331,8 @@ class DataStore(object):
         '''Prints layer and embedded feature data. Useful for debugging'''
         ldslog.debug("Layer:Name:"+layer.GetName())
         layer.ResetReading()
+        #HACK Win7
+        layer.GetFeatureCount()
         feat = layer.GetNextFeature()
         while feat is not None:
             DataStore._showFeatureData(feat)

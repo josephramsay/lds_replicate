@@ -115,7 +115,7 @@ class ConfigWrapper(object):
     def buildNewUserConfig(cls,ucfilename,uctriples):
         '''Class method to initialise a user config from an array of parameters'''
         uc = MainFileReader(ucfilename,False)
-        #uc.initMainFile(os.path.join(os.path.dirname(__file__), '../conf/ldsincr.conf'))
+        #uc.initMainFile(os.path.join(os.path.dirname(__file__), '../conf/template.conf'))
         uc.initMainFile()
         cls.writeUserConfigData(uc,uctriples)
 

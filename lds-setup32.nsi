@@ -84,7 +84,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\conf\getcapabilities.file.xsl
     File F:\git\LDS\LDSReplicate\conf\getcapabilities.json.xsl
     File /a /oname=gui.prefs F:\git\LDS\LDSReplicate\conf\empty.gui.prefs
-    File F:\git\LDS\LDSReplicate\conf\ldsincr.conf
+    File F:\git\LDS\LDSReplicate\conf\template.conf
     File F:\git\LDS\LDSReplicate\conf\ldspk.csv
     File F:\git\LDS\LDSReplicate\conf\sufiselector.xsl
     File F:\git\LDS\LDSReplicate\conf\featurecounter.xsl

@@ -516,9 +516,11 @@ class LDSControls(QFrame):
     
     def getLCE(self,ln):
         '''Read layer parameters'''
-        ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(ep)
-        lce = ep.getLayerConf().readLayerParameters(ln)
+        dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+        self.parent.confconn.setupLayerConfig(sep,dep)
+        lce = dep.getLayerConf().readLayerParameters(ln)
+        self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
         return lce
     
@@ -724,11 +726,11 @@ class LDSControls(QFrame):
         #----------don't need lorg in TP anymore but it is useful for sorting/counting groups
         #self.parent.confconn.tp.setLayerOrGroup(lorg)
         self.parent.confconn.tp.setLayerGroupValue(lgval)
-        self.parent.confconn.tp.setFromDate(fd)
-        self.parent.confconn.tp.setToDate(td)
+        if self.fromdateenable: self.parent.confconn.tp.setFromDate(fd)
+        if self.todateenable: self.parent.confconn.tp.setToDate(td)
         self.parent.confconn.tp.setUserConf(uconf)
         
-        self.parent.confconn.tp.setEPSG(epsg)
+        if self.epsgenable: self.parent.confconn.tp.setEPSG(epsg)
         
         #because clean state persists in TP
         if clean:

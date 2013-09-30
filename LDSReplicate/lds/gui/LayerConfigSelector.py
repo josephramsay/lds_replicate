@@ -92,36 +92,40 @@ class LayerConfigSelector(QMainWindow):
         '''Add custom key to the selection_model list of layers (assumes required av->sl transfer completed) not just the transferring entry'''
         layerlist = [ll[0] for ll in self.selection_model.mdata]
         replacementlist = ()
-        ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(ep)
+        dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+        self.parent.confconn.setupLayerConfig(sep,dep)
         #dst = self.parent.confconn.initDstWrapper()
-        categorylist = ep.getLayerConf().readLayerProperty(layerlist, 'category')
+        categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
-        ep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
+        dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
         #new keyword written so re-read complete (LC) and update assigned keys list
-        self.parent.confconn.setupComplete(ep)
+        self.parent.confconn.setupComplete(dep)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()
         #self.refreshLayers(customkey)
+        self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
         ep = None
     
     def deleteKeysFromLayerConfig(self,layerlist,customkey):
         '''Remove custom keys from selected layers'''
         replacementlist = ()
-        ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(ep)
-        categorylist = ep.getLayerConf().readLayerProperty(layerlist, 'category')
+        dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+        self.parent.confconn.setupLayerConfig(sep,dep)
+        categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
-        ep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
+        dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
 
         #-----------------------------------
-        self.parent.confconn.setupComplete(ep)
+        self.parent.confconn.setupComplete(dep)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()   
         #self.refreshLayers(customkey)
+        self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
         ep = None
         return self.selection_model.rowCount()
@@ -155,14 +159,16 @@ class LayerConfigSelector(QMainWindow):
         lastgroup = str(self.page.keywordcombo.lineEdit().text())
         #self.parent.controls.gpr.writeline('lgvalue',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
-            ep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-            self.parent.confconn.setupLayerConfig(ep)
-            self.parent.confconn.setupComplete(ep)
+            dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+            sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+            self.parent.confconn.setupLayerConfig(sep,dep)
+            self.parent.confconn.setupComplete(dep)
             self.parent.confconn.setupAssigned()
             self.parent.confconn.buildLGList()
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
             self.parent.controls.refreshLGCombo()
             self.parent.controls.lgcombo.setCurrentIndex(lgindex)
+            self.parent.confconn.reg.closeEndPoint('WFS')
             self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
             ep = None
 

@@ -306,16 +306,17 @@ class TransferProcessor(object):
         self.layer_total = len(self.lnl)
         self.layer_count = 0
         for each_layer in self.lnl:
-            lm = LDSUtilities.checkDateFormat(self.dst.getLayerConf().readLayerProperty(each_layer,'lastmodified'))
+            lm = LDSUtilities.checkDateFormat(self.dst.getLastModified(each_layer))
+            srs = self.dst.getEPSGConversion(each_layer)
             pk = LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(each_layer,'pkey'))
             filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
-            srs = self.dst.getLayerConf().readLayerProperty(each_layer,'epsg')
 
             #Set (cql) filters in URI call using layer picking the one with highest precedence            
             self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),filt))
         
-            #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy
-            self.dst.setSRS(LDSUtilities.precedence(self.epsg,self.dst.getSRS(),srs))
+            #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy 
+            #print 'tp.epsg=',self.epsg,'srs=',srs,'!getsrs=',self.dst.getSRS()
+            self.dst.setSRS(LDSUtilities.precedence(self.epsg,srs,None))
 
             #Destination URI won't change because of incremental so set it here
             self.dst.setURI(self.dst.destinationURI(each_layer))
@@ -342,10 +343,10 @@ class TransferProcessor(object):
                         ldslog.info('Layer='+str(each_layer)+' epsg='+str(self.dst.getSRS()))
                         self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
                         #----------------------------------------------------------
-                        self.dst.getLayerConf().writeLayerProperty(each_layer,'lastmodified',final_td)
-                        self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
-                        #self.dst.setLastModified(each_layer,final_td)
-                        #self.dst.saveEPSGConversion(each_layer,self.epsg)
+                        #self.dst.getLayerConf().writeLayerProperty(each_layer,'lastmodified',final_td)
+                        #self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
+                        self.dst.setLastModified(each_layer,final_td)
+                        self.dst.saveEPSGConversion(each_layer,self.dst.getSRS())
                     else:
                         ldslog.warn('Incremental Read failed. Switching to Non-Incremental')
                         nonincr = True
@@ -364,9 +365,9 @@ class TransferProcessor(object):
                     ldslog.info('Layer='+str(each_layer)+' epsg='+str(self.dst.getSRS()))
                     self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
                     #since no date provided defaults to current 
-                    self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
-                    #self.dst.setLastModified(each_layer)
-                    #self.dst.saveEPSGConversion(each_layer,self.epsg)
+                    #self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
+                    self.dst.setLastModified(each_layer)
+                    self.dst.saveEPSGConversion(each_layer,self.dst.getSRS())
                 else:
                     ldslog.warn('Non-Incremental Read failed')
                     raise DatasourceInitialisationException('Unable to read from data source with URI '+self.src.getURI())
@@ -416,6 +417,7 @@ class TransferProcessor(object):
             dds = self.dst.getDS()
             if self.dst._cleanLayerByRef(dds,layer_i,truncate):
                 self.dst.clearLastModified(layer_i)
+                self.dst.clearEPSGConversion(layer_i)
             #self.dst.closeDS()#Open/close now controlled by DREG
         except DatasourceOpenException as dse:
             #if we can't clean it probably doesn't exist so continue with any replication jobs
@@ -441,6 +443,7 @@ class TransferProcessor(object):
     def initLayerConfig(cls,capabilitiesurl,dst,pxy,idp):
         '''Class method initialising a layer config using the capabilities document'''
         file_json = 'json' if dst.getConfInternal()==DataStore.CONF_INT else 'file'
+        #print 'capabilitiesurl',capabilitiesurl,'fj',file_json,'pxy',pxy,'idp',idp
         res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json,pxy,idp)
         dst.getLayerConf().buildConfigLayer(str(res))
         

@@ -35,7 +35,7 @@ class MainFileReader(object):
     PROXY = 'Proxy'
     MISC = 'Misc'
     
-    DEFAULT_MF = 'ldsincr.conf'
+    DEFAULT_MF = 'template.conf'
 
 
     def __init__(self,cfpath=None,use_defaults=True):
@@ -88,6 +88,7 @@ class MainFileReader(object):
         over = None
         epsg = None
         cql = None
+        schema = None
         
         if self.use_defaults:
             host = "127.0.0.1"
@@ -99,7 +100,6 @@ class MainFileReader(object):
             host = None
             port = None
             dbname = None
-            schema = None
             config = None
         
         
@@ -187,9 +187,7 @@ class MainFileReader(object):
             trust = None
             dsn = None
             config = None
-        
-        
-        
+             
         try:
             odbc = self.cp.get(MS.DRIVER_NAME, 'odbc')
         except NoSectionError:
@@ -822,6 +820,8 @@ class LayerDSReader(LayerReader):
             except RuntimeError as rte:
                 if not re.search('No table/field definitions found for',str(rte)): 
                     ldslog.warn('Unable to open '+str(self.fname.LDS_CONFIG_TABLE))#raise
+                else:#gets raised anyway
+                    raise
         return False
         
     def buildConfigLayer(self,res):
@@ -878,6 +878,8 @@ class LayerDSReader(LayerReader):
         '''Reverse lookup of section by associated name, finds first occurance only'''
         layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
+        #HACK Win7
+        layer.GetFeatureCount()
         feat = layer.GetNextFeature() 
         while feat is not None:
             if lname == feat.GetField('name'):
@@ -911,6 +913,8 @@ class LayerDSReader(LayerReader):
         from DataStore import InaccessibleFeatureException
         layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
+        #HACK Win7
+        layer.GetFeatureCount()
         feat = self.fname._findMatchingFeature(layer, 'id', id)
         if feat is None:
             InaccessibleFeatureException('Cannot access feature with id='+str(id)+' in layer '+str(layer.GetName()))
@@ -922,6 +926,8 @@ class LayerDSReader(LayerReader):
         lcel = []
         layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
+        #HACK Win7
+        layer.GetFeatureCount()
         feat = layer.GetNextFeature()
         while feat:
             lcel += [LU.extractFields(feat),]
@@ -935,6 +941,8 @@ class LayerDSReader(LayerReader):
         plist = ()
         layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
+        #HACK Win7
+        layer.GetFeatureCount()
         if isinstance(pkey,tuple) or isinstance(pkey,list):
             for p in pkey:
                 f = self.fname._findMatchingFeature(layer, 'id', p)

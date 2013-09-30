@@ -68,7 +68,7 @@ class ConfigConnector(object):
             #svp = Service, Version, Prefix
             self.svp = self.readProtocolVersion(src)
             dst = self.reg.openEndPoint(self.destname, self.uconf)
-            self.setupLayerConfig(dst)
+            self.setupLayerConfig(src,dst)
             #print 'CCt',self.tp
             #print 'CCd',self.dst
             if not self.vlayers:
@@ -86,30 +86,25 @@ class ConfigConnector(object):
         return (uconf,destname)!=(self.uconf,self.destname)
     
     #TODO think about moving this to the register
-    def setupLayerConfig(self,dst):
+    def setupLayerConfig(self,src,dst):
         '''Calls the TP LC setup function'''
         lc = self.tp.getNewLayerConf(dst)
         dst.setLayerConf(lc)
         ##if a lconf has not been created build a new one
         if not dst.getLayerConf().existsAndIsCurrent():
             #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
-            ConfigConnector.initLayerConfig(self.tp,dst)
+            ConfigConnector.initLayerConfig(self.tp,src,dst)
             
     def readProtocolVersion(self,src):
         '''Get WFS/WMS, version and prefix from the Source'''
         return {'svc':src.svc,'ver':src.ver,'idp':src.idp}
     
-#     @staticmethod
-#     def initSrc(tp):
-#         '''aesthetics!?'''
-#         return tp.src
-       
-        
     @staticmethod
-    def initLayerConfig(tp,dst=None):
+    def initLayerConfig(tp,src,dst=None):
         '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
         #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst if dst else self.dst,self.tp.src.pxy)
-        tp.initLayerConfig(tp.src.getCapabilities(),dst,tp.src.pxy,tp.src.idp)
+        #print 'src',src,'src.gc',src.getCapabilities(),'dst',dst,'src.pxy',src.pxy,'src.idp',src.idp
+        tp.initLayerConfig(src.getCapabilities(),dst,src.pxy,src.idp)
         
     def setupComplete(self,dst):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
@@ -306,7 +301,13 @@ class DatasourceRegister(object):
         #src.setPartitionSize(partition_size)#partitionsize may not exist when this is called but thats okay!
         src.applyConfigOptions()
         return src    
-
+ 
+    def __str__(self):
+        s = ''
+        for k in self.register.keys():
+            r = self.register[k]
+            s += 'key='+k+': rc='+str(r['rc'])+' uri='+str(r['uri'])+': type='+str(r['type'])+': ep='+str(r['ep'])+'\n'
+        return s
 
 #import pydevd
 #pydevd.settrace(suspend=False)
@@ -349,11 +350,11 @@ class ProcessRunner(QThread):
             try:
                 pt.start()
                 self.enable.emit(False)
-                src = self.reg.openEndPoint(self.sn,self.uc)
-                dst = self.reg.openEndPoint(self.dn,self.uc)
-                self.controls.parent.confconn.setupLayerConfig(dst)
-                self.tp.setSRC(src)
-                self.tp.setDST(dst)
+                sep = self.reg.openEndPoint(self.sn,self.uc)
+                dep = self.reg.openEndPoint(self.dn,self.uc)
+                self.controls.parent.confconn.setupLayerConfig(sep,dep)
+                self.tp.setSRC(sep)
+                self.tp.setDST(dep)
                 self.tp.processLDS()
             except Exception as e1:
                 ldslog.error('Error running PT thread, '+str(e1))

@@ -151,7 +151,7 @@ def main():
             "-s (--source) Connection string for source DS," \
             "-d (--destination) Connection string for destination DS," \
             "-c (--cql) Filter definition in CQL format," \
-            "-u (--user) User defined config file used as partial override for ldsincr.conf," \
+            "-u (--user) User defined config file used as partial override for template.conf," \
             "-h (--help) Display this message"
             sys.exit(2)
 

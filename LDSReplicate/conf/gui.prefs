@@ -1,17 +1,24 @@
 [FileGDB]
-uconf = fifth
-lgvalue = NEWTHREE
+uconf = fglint
+lgvalue = v:x102
 epsg = None
 fd = None
 td = 2012-01-01
 
 [prefs]
-dest = PostgreSQL
+dest = FileGDB
 
 [PostgreSQL]
 uconf = sixth
-lgvalue = v:x1089
-epsg = 4167
+lgvalue = EPSGMIX
+epsg = 4272
+fd = None
+td = None
+
+[MSSQLSpatial]
+uconf = ms
+lgvalue = 
+epsg = 
 fd = None
 td = None
 

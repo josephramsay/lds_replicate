@@ -541,7 +541,8 @@ class ConfigInitialiser(object):
         
     @staticmethod
     def getConfFiles(confdir=os.path.join(os.path.dirname(__file__),'../conf/')):
-        return sorted([f.split('.')[0] for f in os.listdir(confdir) if re.search('.+\.conf$',f)]) 
+        from lds.ReadConfig import MainFileReader as MF
+        return sorted([f.split('.')[0] for f in os.listdir(confdir) if re.search('(?!^'+MF.DEFAULT_MF+'$)^.+\.conf$',f)]) 
         
         
     
