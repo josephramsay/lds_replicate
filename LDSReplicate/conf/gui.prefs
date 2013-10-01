@@ -6,11 +6,11 @@ fd = None
 td = 2012-01-01
 
 [prefs]
-dest = FileGDB
+dest = PostgreSQL
 
 [PostgreSQL]
 uconf = sixth
-lgvalue = EPSGMIX
+lgvalue = v:x772
 epsg = 4272
 fd = None
 td = None
