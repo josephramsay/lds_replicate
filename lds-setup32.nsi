@@ -130,14 +130,6 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\gui\LayerConfigSelector.py
     File F:\git\LDS\LDSReplicate\lds\gui\LDSGUI.py
     File F:\git\LDS\LDSReplicate\lds\gui\MainConfigWizard.py
-    SetOutPath $INSTDIR\apps\ldsreplicate\lds\test
-    File F:\git\LDS\LDSReplicate\lds\test\__init__.py
-    File F:\git\LDS\LDSReplicate\lds\test\SuiteRunAllTests.py
-    File F:\git\LDS\LDSReplicate\lds\test\TestDemo1.py
-    File F:\git\LDS\LDSReplicate\lds\test\TestDemo2.py
-    File F:\git\LDS\LDSReplicate\lds\test\TestSize.py
-    File F:\git\LDS\LDSReplicate\lds\test\TestUI.py
-    File F:\git\LDS\LDSReplicate\lds\test\TestURL.py
     SetOutPath $INSTDIR\apps\ldsreplicate\log
     AccessControl::GrantOnFile "$INSTDIR\apps\ldsreplicate\log" "(S-1-5-32-545)" "FullAccess"
     ;Makes sure we aren't leaking test logs in installer. Instead use touched empty file with RW attributes

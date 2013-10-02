@@ -161,7 +161,7 @@ class LDSUtilities(object):
 
     @staticmethod
     def xmlEscape(url):
-        '''Simple XML escaping regex used to properly format WFS URLS (wfs specs as for it but it doesn't seem to be needed)'''
+        '''Simple XML escaping regex used to properly format WFS URLS (wfs specs ask for it but it doesn't seem to be needed)'''
         #first 4, simple replace: "=&quot; '=&apos; <=&lt; >=&gt; &=&amp;
         url = re.sub('"','&quot;',url)
         url = re.sub('\'','&apos;',url)
@@ -200,7 +200,7 @@ class LDSUtilities(object):
     @staticmethod
     def checkCQL(cql):
         '''Since CQL commands are freeform strings we need to try and validate at least the most basic errors. This is very simple
-        RE matcher that just looks for valid predicates... for now
+        RE matcher that just looks for valid predicates... for now. Won't stop little Bobby Tables
         
         <predicate> ::= <comparison predicate> | <text predicate> | <null predicate> | <temporal predicate> | <classification predicate> | <existence_predicate> | <between predicate> | <include exclude predicate>
         

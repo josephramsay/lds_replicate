@@ -83,6 +83,8 @@ class LDSMain(QMainWindow):
                 wcount += 1
                 #self.initConfigConnector(self.DEF_RVALS)
                 #initcc = False
+            except Exception as e:
+                ldslog.error(e)
 
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
@@ -118,7 +120,7 @@ class LDSMain(QMainWindow):
         exitAction = QAction(QIcon(self.IMG_LOC+'exit.png'), '&Exit', self)        
         exitAction.setShortcut('Ctrl+E')
         exitAction.setStatusTip('Exit Application')
-        exitAction.triggered.connect(qApp.quit)
+        exitAction.triggered.connect(self.close)#qApp.quit)
         
         helpAction = QAction(QIcon(self.IMG_LOC+'help.png'), '&Help', self)        
         helpAction.setShortcut('Ctrl+H')
@@ -147,7 +149,11 @@ class LDSMain(QMainWindow):
         
     def initConfigConnector(self,gvs=None):
         self.gvs = gvs if gvs else self.updateFromGPR()
-        self.confconn = ConfigConnector(self,self.gvs[2],self.gvs[1],self.gvs[0])
+        try:
+            self.confconn = ConfigConnector(self,self.gvs[2],self.gvs[1],self.gvs[0])
+        except Exception as e:
+            msg = 'Cannot create {} connection using "{}.conf" config file. Please edit or address reported error; {}'.format(self.gvs[0],self.gvs[2],e)
+            self.errorEvent(msg)
         
     def launchUCEditor(self, checked=None):
         fn = LDSUtilities.standardiseUserConfigName(str(self.controls.cflist[self.controls.confcombo.currentIndex()]))
@@ -213,13 +219,20 @@ class LDSMain(QMainWindow):
         ldscs = LayerConfigSelector(self)
         ldscs.show()
         
-    def closeEvent(self, event):
+    def closeEvent(self, event, bypass=False):
+        '''Close confirmation dialog'''
         reply = QMessageBox.question(self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
             event.accept()
         else:
             event.ignore()
+            
+    def errorEvent(self,msg):
+        '''Display error message and close'''
+        ldslog.error(msg)
+        popup = QMessageBox.critical(self, 'Error',msg, QMessageBox.Close)
+        self.close()
         
 class LDSControls(QFrame):
         
@@ -384,9 +397,9 @@ class LDSControls(QFrame):
         
         #placement section ------------------------------------
         #---------+---------+--------+---------+--------
-        # dest LB           | dest DD
-        # grp LB            | grp DD
-        # conf LB           | conf DD
+        # dest LB |         | dest DD
+        # grp LB  |         | grp DD
+        # conf LB |         | conf DD
         # epsg L  | epsg CB | epsg DD
         # f dt L  | f dt CB | f dt DD
         # t td L  | t td CB | t td DD
@@ -518,7 +531,7 @@ class LDSControls(QFrame):
         '''Read layer parameters'''
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(sep,dep)
+        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
         lce = dep.getLayerConf().readLayerParameters(ln)
         self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)

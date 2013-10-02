@@ -64,17 +64,17 @@ class ConfigConnector(object):
             self.uconf = uconf
             self.destname = destname
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
-            src = self.reg.openEndPoint('WFS', self.uconf)
+            sep = self.reg.openEndPoint('WFS', self.uconf)    
             #svp = Service, Version, Prefix
-            self.svp = self.readProtocolVersion(src)
-            dst = self.reg.openEndPoint(self.destname, self.uconf)
-            self.setupLayerConfig(src,dst)
+            self.svp = self.readProtocolVersion(sep)
+            dep = self.reg.openEndPoint(self.destname, self.uconf)
+            self.setupLayerConfig(self.tp,sep,dep)
             #print 'CCt',self.tp
-            #print 'CCd',self.dst
+            #print 'CCd',self.dep
             if not self.vlayers:
-                self.vlayers = self.getValidLayers(src,dst)
+                self.vlayers = self.getValidLayers(sep,dep)
                 self.setupReserved()
-            self.setupComplete(dst)
+            self.setupComplete(dep)
             self.setupAssigned()
             self.buildLGList()
             self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
@@ -85,27 +85,30 @@ class ConfigConnector(object):
     def checkChanges(self,destname,uconf):
         return (uconf,destname)!=(self.uconf,self.destname)
     
-    #TODO think about moving this to the register
-    def setupLayerConfig(self,src,dst):
-        '''Calls the TP LC setup function'''
-        lc = self.tp.getNewLayerConf(dst)
-        dst.setLayerConf(lc)
-        ##if a lconf has not been created build a new one
-        if not dst.getLayerConf().existsAndIsCurrent():
-            #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst,self.tp.src.pxy)
-            ConfigConnector.initLayerConfig(self.tp,src,dst)
             
     def readProtocolVersion(self,src):
         '''Get WFS/WMS, version and prefix from the Source'''
         return {'svc':src.svc,'ver':src.ver,'idp':src.idp}
     
+    #----------------------------------------------------------------------------------
+        
     @staticmethod
     def initLayerConfig(tp,src,dst=None):
         '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
-        #self.tp.initLayerConfig(self.tp.src.getCapabilities(),dst if dst else self.dst,self.tp.src.pxy)
         #print 'src',src,'src.gc',src.getCapabilities(),'dst',dst,'src.pxy',src.pxy,'src.idp',src.idp
         tp.initLayerConfig(src.getCapabilities(),dst,src.pxy,src.idp)
         
+    @staticmethod
+    def setupLayerConfig(tp,src,dst):
+        '''Calls the TP LC setup function'''
+        lc = tp.getNewLayerConf(dst)
+        dst.setLayerConf(lc)
+        ##if a lconf has not been created build a new one
+        if not dst.getLayerConf().existsAndIsCurrent():
+            ConfigConnector.initLayerConfig(tp,src,dst)
+            
+    #----------------------------------------------------------------------------------
+    
     def setupComplete(self,dst):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
         #these are all the keywords in the local file. if no dest has been set returns empty
@@ -352,7 +355,7 @@ class ProcessRunner(QThread):
                 self.enable.emit(False)
                 sep = self.reg.openEndPoint(self.sn,self.uc)
                 dep = self.reg.openEndPoint(self.dn,self.uc)
-                self.controls.parent.confconn.setupLayerConfig(sep,dep)
+                ConfigConnector.setupLayerConfig(self.tp,sep,dep)
                 self.tp.setSRC(sep)
                 self.tp.setDST(dep)
                 self.tp.processLDS()
@@ -394,6 +397,7 @@ class ProgressTimer(QThread):
         #                              cc     gui
         self.pgbar.connect(self.controls.progressbar.setValue, Qt.QueuedConnection)
         self.status.connect(self.controls.setStatus, Qt.QueuedConnection)
+        self.pct = 0
         
     def run(self):
         while not self.stopped:
@@ -414,11 +418,15 @@ class ProgressTimer(QThread):
             layer_name = self.tp.dst.dst_info.layer_name
         #ldslog.debug('fc={}/{} lc={}/{}'.format(str(dst_count),str(self.tp.dst.src_feat_count),str(self.tp.layer_count),str(self.tp.layer_total)))
         #ldslog.debug('fp={} lp={}'.format(str(feat_part),str(layer_part)))
-        self.report(int(feat_part+layer_part),layer_name)
+
+        if int(feat_part+layer_part)!=self.pct:
+            self.pct = int(feat_part+layer_part)
+            self.report(self.pct,layer_name)
 
         
     def report(self,pct,lyr=None):
         #    tp cc     repl   con
+        ldslog.info('Progress: '+str(pct)+'%')
         self.pgbar.emit(pct)
         if lyr: self.status.emit(2,'Replicating Layer '+str(lyr),'')
         

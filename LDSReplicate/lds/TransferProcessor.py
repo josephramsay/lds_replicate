@@ -300,8 +300,6 @@ class TransferProcessor(object):
         #build a list of layers with corresponding lastmodified/incremental flags
         fd = LDSUtilities.checkDateFormat(self.fromdate)#if date format wrong treated as None
         td = LDSUtilities.checkDateFormat(self.todate)
-        today = self.dst.getCurrent()
-        early = DataStore.EARLIEST_INIT_DATE
         
         self.layer_total = len(self.lnl)
         self.layer_count = 0
@@ -331,8 +329,9 @@ class TransferProcessor(object):
 
             nonincr = False                
             if any(i is not None for i in [lm, fd, td]):
-                final_fd = (early if lm is None else lm) if fd is None else fd
-                final_td = today if td is None else td
+                ldslog.debug('lm={}, fd={}, td={}'.format(lm,fd,td))
+                final_fd = (DataStore.EARLIEST_INIT_DATE if lm is None else lm) if fd is None else fd
+                final_td = self.dst.getCurrent() if td is None else td
           
                 if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
                     self.src.setURI(self.src.sourceURIIncremental(each_layer,final_fd,final_td))

@@ -993,9 +993,9 @@ class DataStore(object):
         '''Gets the last modification time of a layer to use for incremental "fromdate" calls. This is intended to be run 
         as a destination method since the destination is the DS being modified i.e. dst.getLastModified'''
         lmd = self.layerconf.readLayerProperty(layer,'lastmodified')
-        if not LDSUtilities.mightAsWellBeNone(lmd):
-            lmd = self.EARLIEST_INIT_DATE
-        return lmd
+        #if not LDSUtilities.mightAsWellBeNone(lmd):
+        #    lmd = self.EARLIEST_INIT_DATE
+        return LDSUtilities.mightAsWellBeNone(lmd)
         #return lm.strftime(self.DATE_FORMAT)
         
     def setLastModified(self,layer,newdate=None):
@@ -1151,7 +1151,7 @@ class DataStore(object):
                             lref.RollbackTransaction()     
                             
                         try:
-                            #General Errors occur on commit even though it succeeds
+                            #OGR General Errors occur on commit even though it succeeds, ignore these
                             if begun: lref.CommitTransaction()
                         except Exception as e:
                             ldslog.error("Error during commit on delete. {}".format(e))

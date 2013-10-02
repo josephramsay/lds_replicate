@@ -73,9 +73,7 @@ class LayerConfigSelector(QMainWindow):
     def resetLayers(self):
         '''Rebuilds lconf from scratch'''
         from lds.ConfigConnector import ConfigConnector
-        #ConfigConnector.initLayerConfigWrapper(self.parent.confconn.tp,self.parent.confconn.dst)
-        #self.parent.confconn.initLayerConfigWrapper()
-        self.parent.confconn.initLayerConfig(self.parent.confconn.tp,self.parent.confconn.dst)
+        self.parent.confconn.initLayerConfig(self.parent.confconn.tp,self.parent.confconn.src,self.parent.confconn.dst)
         self.refreshLayers()
         
     def refreshLayers(self,customkey=None):
@@ -94,8 +92,7 @@ class LayerConfigSelector(QMainWindow):
         replacementlist = ()
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(sep,dep)
-        #dst = self.parent.confconn.initDstWrapper()
+        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
         categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
@@ -114,7 +111,7 @@ class LayerConfigSelector(QMainWindow):
         replacementlist = ()
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(sep,dep)
+        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
         categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
@@ -161,7 +158,7 @@ class LayerConfigSelector(QMainWindow):
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
             dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
             sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-            self.parent.confconn.setupLayerConfig(sep,dep)
+            self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
             self.parent.confconn.setupComplete(dep)
             self.parent.confconn.setupAssigned()
             self.parent.confconn.buildLGList()

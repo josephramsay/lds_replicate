@@ -22,7 +22,6 @@ IF '%1'=='L' GOTO LWIZZ
 REM ----------------------------------------------------------------------------
 :GUI
 echo Starting LDS Replicate GUI
-echo %PWD%
 "%PWD%apps\python27\python.exe" -c "%PSTR%from ldsreplicate_gui import main; main()"
 
 GOTO END

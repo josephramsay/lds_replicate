@@ -46,7 +46,7 @@ from lds.TransferProcessor import InputMisconfigurationException
 from lds.VersionUtilities import AppVersion, VersionChecker, UnsupportedVersionException
 from lds.DataStore import DSReaderException
 from lds.LDSUtilities import LDSUtilities
-from lds.ConfigConnector import ConfigConnector
+from lds.ConfigConnector import ConfigConnector, DatasourceRegister
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -191,11 +191,12 @@ def main():
     #aggregation point for common LDS errors
     mm = '*** Complete *** '
     try:
-        proc = ConfigConnector.initDestination(pn)
-        src = ConfigConnector.initSource(sc, uc, None)
-        dst = proc(tp.destination_str,tp.user_config)
-        tp.setSRC(src)
-        tp.setDST(dst)
+        reg = DatasourceRegister()
+        sep = reg.openEndPoint('WFS',uc)
+        dep = reg.openEndPoint(pn,uc)
+        ConfigConnector.setupLayerConfig(tp,sep,dep)
+        tp.setSRC(sep)
+        tp.setDST(dep)
         tp.processLDS()
     except HTTPError as he:
         ldslog.error('Error connecting to LDS. '+str(he))
@@ -207,6 +208,9 @@ def main():
         #if errors are getting through we catch/report them
     #    ldslog.error("Error! "+str(e))
     #    mm = '*** Failed 3 *** '
+    finally:
+        reg.closeEndPoint(pn)
+        reg.closeEndPoint('WFS')
         
     
     et = datetime.now()

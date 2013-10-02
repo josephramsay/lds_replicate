@@ -45,16 +45,6 @@ class ConfigWrapper(object):
         #if inituserconfig:
         self.userconfig = MainFileReader(LDSUtilities.standardiseUserConfigName(inituserconfig),False) if inituserconfig else None
         self.mainconfig = MainFileReader()
-        
-        
-#    def _setupLayerConfig(self,filename):
-#        '''Adds a layerconfig file object which will be requested if external sepcified in main config'''
-#        self.layerconfig = LayerFileReader(filename)
-#        
-#        
-#    def getLayerNames(self):
-#        '''Returns configured layers for respective layer properties file'''
-#        return self.layerconfig.getSections()
     
         
 #    #==============MAINCONFIG===========================================================
