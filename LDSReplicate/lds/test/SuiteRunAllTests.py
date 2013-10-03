@@ -18,51 +18,23 @@ Created on 24/07/2012
 '''
 import unittest
 
-#from TestTransferTypes import TestIncrementalDates
-#from TestTransferTypes import TestIncrementalDestinations
-#from TestConnectivity import TestConnect
-from TestUI import TestUI
-from TestURL import TestURL
-#from TestLayerTypes import TestLayerTypes
-#from TestInitConfig import TestInitConfig
-#from TestConnectivity import TestConnect
-#from TestTransferTypes import TestTransfer
+#from ConfigConnector_Test import Test_1_DatasourceRegister, Test_2_ConfigConnector
+from LDSDataStore_Test import Test_1_LDSDataStore
 
 from lds.LDSUtilities import LDSUtilities
 
-ldslog = LDSUtilities.setupLogging()
+testlog = LDSUtilities.setupLogging()
 
 class FullSuite(unittest.TestSuite):
 
     def __init__(self):
         pass
     
-    
 #    def suite(self):
 #        '''for greater control... if needed'''
 #        suite = unittest.TestSuite()
 #
 #        suite.addTest(TestConnect('test1LDSRead'))
-#        suite.addTest(TestConnect('test2CSVConnect'))
-#        suite.addTest(TestConnect('test3ShapefileConnect'))
-#        suite.addTest(TestConnect('test3MapinfoFileConnect'))
-#        suite.addTest(TestConnect('test4FileGDBConnect'))
-#        suite.addTest(TestConnect('test5PostgreSQLConnect'))
-#        suite.addTest(TestConnect('test5OracleConnect'))
-#        suite.addTest(TestConnect('test5MSSQLConnect'))
-#        suite.addTest(TestConnect('test6ArcSDEConnect'))
-#        
-#
-#        suite.addTest(TestTransfer('test1LDS2CSVTransfer'))
-#        suite.addTest(TestTransfer('test2LDS2FileGDBTransfer'))
-#        suite.addTest(TestTransfer('test3LDS2ShapefileTransfer'))
-#        suite.addTest(TestTransfer('test3LDS2MapinfoFileTransfer'))
-#        suite.addTest(TestTransfer('test4LDS2PostgreSQLTransfer'))
-#        suite.addTest(TestTransfer('test4LDS2MSSQLTransfer'))
-#        suite.addTest(TestTransfer('test4LDS2OracleTransfer'))
-#        suite.addTest(TestTransfer('test5LDS2ArcSDETransfer'))
-#        
-#        
 #        return suite
 
     
@@ -73,16 +45,13 @@ def main():
     #runner.run(suite)
     
     runner  = unittest.TextTestRunner()
-    s1a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
-    s2a = unittest.TestLoader().loadTestsFromTestCase(TestURL)
-    #s3a = unittest.TestLoader().loadTestsFromTestCase(TestFail)
-    #s3b = unittest.TestLoader().loadTestsFromTestCase(TestIncrementalDestinations) 
-    #s4a = unittest.TestLoader().loadTestsFromTestCase(TestUI)
-    #s5a = unittest.TestLoader().loadTestsFromTestCase(TestLayerTypes)
-    #s6a = unittest.TestLoader().loadTestsFromTestCase(TestInitConfig)
+    #s1a = unittest.TestLoader().loadTestsFromTestCase(Test_1_DatasourceRegister)
+    #s1b = unittest.TestLoader().loadTestsFromTestCase(Test_2_ConfigConnector)
+    s2a = unittest.TestLoader().loadTestsFromTestCase(Test_1_LDSDataStore)
+
 
     
-    ss = unittest.TestSuite([s1a,s2a])
+    ss = unittest.TestSuite([s2a])
     runner.run(ss)
     
 if __name__ == "__main__":

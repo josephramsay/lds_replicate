@@ -416,19 +416,22 @@ class LDSUtilities(object):
         return type('Enum', (), enums)
     
     @staticmethod
-    def setupLogging():
+    def setupLogging(lf='debug.log',ll=logging.DEBUG,ff=1):
+        formats = {1:'%(asctime)s - %(levelname)s - %(module)s %(lineno)d - %(message)s',
+                   2:'TEST %(module)s %(lineno)d - %(message)s',}
+        
         log = logging.getLogger('LDS')
-        log.setLevel(logging.DEBUG)
+        log.setLevel(ll)
         
         path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../log/"))
         if not os.path.exists(path):
             os.mkdir(path)
-        df = os.path.join(path,"debug.log")
+        df = os.path.join(path,lf)
         
         fh = logging.FileHandler(df,'w')
         fh.setLevel(logging.DEBUG)
         
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s %(lineno)d - %(message)s')
+        formatter = logging.Formatter(formats[ff])
         fh.setFormatter(formatter)
         log.addHandler(fh)
         

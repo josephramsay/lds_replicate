@@ -212,6 +212,7 @@ class DatasourceRegister(object):
     def _deregister(self,name):
         fn = LDSUtilities.standardiseDriverNames(name)
         #sync/rel the DS
+        self.register[fn]['ep'] = None
         del self.register[fn]
     
     def _assignRef(self,uri):
