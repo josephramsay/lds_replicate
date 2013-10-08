@@ -62,7 +62,6 @@ class RequestBuilder(object):
     def getInstance(params,cs=None):
         version = params[3]
         if version=='1.0.0' or version=='1.0':
-            #return RequestBuilderWFS100(params,cs)
             return RequestBuilderWFS110(params,cs)
         elif version=='1.1.0':
             return RequestBuilderWFS110(params,cs)
@@ -102,14 +101,12 @@ class RequestBuilder(object):
         return maxfeat+"&cql_filter="+';'.join(cql) if len(cql)>0 else ""    
     
     
-
-class RequestBuilderWFS100(RequestBuilder):
-    pass
-
 class RequestBuilderWFS200(RequestBuilder):
     #example
     #http://data-test.linz.govt.nz/services;key=a3624a518c67440daf97789975cc7d23/wfs?service=WFS&request=GetCapabilities
     #http://data-test.linz.govt.nz/services;key=a3624a518c67440daf97789975cc7d23/wfs?service=WFS&request=GetFeature&typeName=linz:layer-452&count=3
+    def __str__(self):
+        return 'RequestBuilder_WFS-2.0.0'
     
     def getCapabilities(self):
         uri = '{}services;key={}/wfs?service={}&request=GetCapabilities'.format(self.url,self.key,self.svc)
@@ -181,11 +178,28 @@ class RequestBuilderWFS200(RequestBuilder):
         ldslog.debug(uri)
         return uri
     
-    def sourceURIFeature(self,layername):
-        pass
+    def sourceURIFeatureCount(self,layername):
+        '''Endpoint constructor to fetch number of features for a specific layer. for: Trigger manual paging for broken JSON'''
+        #version must be 1.1.0 or > for this to work. NB outputFormat doesn't seem to have any effect here either so its omitted
+        typ = "&typeName="+layername
+        uri = self.url+self.key+"/wfs?service="+self.svc+"&version="+self.ver+"&request=GetFeature&resultType=hits"+typ
+        ldslog.debug(uri)
+        return uri        
+
+class RequestBuilderWFS100(RequestBuilder):
+    
+    @classmethod
+    def new(cls,*args,**kwargs):
+        return RequestBuilderWFS110(*args,**kwargs)
+    
+    def __str__(self):
+        return 'RequestBuilder_WFS-1.0.0'
 
 class RequestBuilderWFS110(RequestBuilder):
-        
+    
+    def __str__(self):
+        return 'RequestBuilder_WFS-1.1.0'
+    
     def getCapabilities(self):
         '''GetCapabilities endpoint constructor'''
         #capabilities doc is fetched using urlopen, not wfs, so escaping isnt needed
@@ -264,7 +278,7 @@ class RequestBuilderWFS110(RequestBuilder):
         ldslog.debug(uri)
         return uri
     
-    def sourceURIFeature(self,layername):
+    def sourceURIFeatureCount(self,layername):
         '''Endpoint constructor to fetch number of features for a specific layer. for: Trigger manual paging for broken JSON'''
         #version must be 1.1.0 or > for this to work. NB outputFormat doesn't seem to have any effect here either so its omitted
         typ = "&typeName="+layername

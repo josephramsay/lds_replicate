@@ -18,8 +18,12 @@ Created on 24/07/2012
 '''
 import unittest
 
-#from ConfigConnector_Test import Test_1_DatasourceRegister, Test_2_ConfigConnector
-from LDSDataStore_Test import Test_1_LDSDataStore
+#from lds.test.ConfigConnector_Test import Test_1_DatasourceRegister as T1
+#from lds.test.ConfigConnector_Test import Test_2_ConfigConnector as T2
+#from lds.test.LDSDataStore_Test import Test_1_LDSDataStore as T3
+#from lds.test.DataStore_Test import Test_1_DataStore as T4
+#from lds.test.RequestBuilder_Test import Test_1_RequestBuilder as T5
+from lds.test.LDSUtilities_Test import Test_1_LDSUtilities as T6
 
 from lds.LDSUtilities import LDSUtilities
 
@@ -30,29 +34,44 @@ class FullSuite(unittest.TestSuite):
     def __init__(self):
         pass
     
-#    def suite(self):
-#        '''for greater control... if needed'''
-#        suite = unittest.TestSuite()
-#
-#        suite.addTest(TestConnect('test1LDSRead'))
-#        return suite
+    def _suite(self):
+        suite = unittest.TestSuite()
+
+        suite.addTest(T1('test_1_openEndPoint'))
+        suite.addTest(T1('test_2_closeEndPoint'))
+        suite.addTest(T1('test_3_multipleReferences'))
+        
+        suite.addTest(T2('test_1_setupComplete'))
+        suite.addTest(T2('test_2_setupReserved'))
+        suite.addTest(T2('test_3_setupAssigned'))
+        
+        suite.addTest(T3('test_1_getLayerOptions'))
+        suite.addTest(T3('test_2_getCapabilities'))
+        suite.addTest(T3('test_3_fetchLayerInfo'))
+        
+        
+        return suite
+    
+    def suite(self):
+        #suite1 = unittest.makeSuite(T1)
+        #suite2 = unittest.makeSuite(T2)
+        #suite3 = unittest.makeSuite(T3)
+        #suite4 = unittest.makeSuite(T4)
+        #suite5 = unittest.makeSuite(T5)
+        suite6 = unittest.makeSuite(T6)
+        
+        return unittest.TestSuite((suite6))
 
     
 def main():
-    #runner  = unittest.TextTestRunner()
-    #f  = FullSuite()
-    #suite = f.suite()    
-    #runner.run(suite)
     
-    runner  = unittest.TextTestRunner()
-    #s1a = unittest.TestLoader().loadTestsFromTestCase(Test_1_DatasourceRegister)
-    #s1b = unittest.TestLoader().loadTestsFromTestCase(Test_2_ConfigConnector)
-    s2a = unittest.TestLoader().loadTestsFromTestCase(Test_1_LDSDataStore)
-
-
+    if True:
+        suite = FullSuite().suite()  
+    else:
+        suite  = unittest.TestSuite()
     
-    ss = unittest.TestSuite([s2a])
-    runner.run(ss)
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
     
 if __name__ == "__main__":
     main()

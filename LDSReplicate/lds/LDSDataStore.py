@@ -138,9 +138,9 @@ class LDSDataStore(WFSDataStore):
         '''Endpoint constructor fetching specific layers with incremental date fields'''
         return self.requestbuilder.sourceURIIncremental(layername, fromdate, todate)
     
-    def sourceURIFeature(self,layername):
+    def sourceURIFeatureCount(self,layername):
         '''Endpoint constructor to fetch number of features for a specific layer. for: Trigger manual paging for broken JSON'''
-        return self.requestbuilder.sourceURIFeature(layername)   
+        return self.requestbuilder.sourceURIFeatureCount(layername)   
                     
     def rebuildDS(self):
         '''Resets the DS. Needed if the URI is edited'''
@@ -150,7 +150,7 @@ class LDSDataStore(WFSDataStore):
     def closeDS(self):
         '''Close a DS with sync and destroy'''
         #probably not needed. prefer use superclass close()
-        ldslog.info("WFS DS close. Ignoring")
+        ldslog.info("WFS DS close")
 
         
     @classmethod

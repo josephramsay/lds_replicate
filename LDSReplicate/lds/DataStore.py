@@ -33,6 +33,7 @@ from lds.ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
 
 ldslog = LDSUtilities.setupLogging()
+timerlog = LDSUtilities.setupLogging(lf='TIMER',ff=3)
 
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
 ogr.UseExceptions()
@@ -154,6 +155,8 @@ class DataStore(object):
         self.src_feat_count = 0
         
         self.refcount = 0
+        
+        self.feat_field_names = None
 
     #incr flag copied straight from Datastore
     #def setIncremental(self,itype):
@@ -520,7 +523,7 @@ class DataStore(object):
             else:
                 raise InaccessibleFeatureException('Error attempting to access Feature ('+str(self.src_feat_count)+' available)')
                 
-            while src_feat is not None:
+            while src_feat:
                 self.change_count['insert'] += 1
                 #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
                 self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
@@ -662,6 +665,47 @@ class DataStore(object):
             while src_feat:
                 feat_count += 1
                 change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+                
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#NON PREFETCH METHOD
+# 
+#                 try:
+#                     if change == 'insert':
+#                         e = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+#                     elif change == 'delete':
+#                         e = self.deleteFeature(dst_layer,src_feat, None, layerconfentry.pkey)
+#                     elif change == 'update':
+#                         e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+#                     else:
+#                         ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
+#                     # raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
+#                 except InvalidFeatureException as ife:
+#                     ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+#                 #except Exception as e:
+#                 # ldslog.error('trap new errors here... '+str(e))
+#                 if e != 0:
+#                     ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
+#                     if change == 'update':
+#                         ldslog.warn('Update failed on SetFeature, attempting delete+insert')
+#                         #let delete and insert error handlers take care of any further exceptions
+#                         e1 = self.deleteFeature(dst_layer,src_feat, None, layerconfentry.pkey)
+#                         e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+#                         if e1+e2 != 0:
+#                             raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
+#                 #testing
+#                 ldslog.info(feat_count) 
+#                 src_feat = src_layer.GetNextFeature()   
+#                 
+#             ##if self.src_feat_count != self.dst_change_count:
+#             #if self.src_feat_count != sum(self.change_count.values()):
+#             #    if transaction_flag:
+#             #        dst_layer.RollbackTransaction()
+#             #    #raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_count)+']')
+#             #    raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
+#                
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#PREFETCH METHOD
+ 
                 src_array[change] += (src_feat,)
                 if feat_count>=self.getPrefetchSize():
                     ldslog.info('Loading Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.getPrefetchSize()*(proc_count+1)))
@@ -669,17 +713,20 @@ class DataStore(object):
                     feat_count = 0
                     proc_count += 1
                     src_array = {'delete':(),'update':(),'insert':()}
-                
+                #testing
+                ldslog.info(feat_count) 
                 src_feat = src_layer.GetNextFeature()
-                
+                 
             ldslog.info('Loading remaining Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.src_feat_count))
             self.processFetchedIncrement(src_array,dst_layer,new_feat_def,layerconfentry)
-            
+             
             if self.src_feat_count != sum(self.change_count.values()):
                 if transaction_flag:
                     dst_layer.RollbackTransaction()
                 raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
-                
+             
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
             #self._showLayerData(dst_layer)
             
             '''Builds an index on a newly created layer if; 
@@ -754,22 +801,29 @@ class DataStore(object):
     
     def insertFeature(self,dst_layer,src_feat,new_feat_def,ref_pkey):
         '''insert a new feature'''
+        st = datetime.now()
         new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_pkey)
         
         e = dst_layer.CreateFeature(new_feat)
 
         #dst_fid = new_feat.GetFID()
         #ldslog.debug("INSERT: "+str(dst_fid))
+        et = datetime.now()
+        timerlog.info('INSERT,'+str(1000*(et-st).total_seconds()))
+        
         return e
     
     def updateFeature(self,dst_layer,src_feat,new_feat_def,ref_pkey):
         '''build new feature, assign it the looked-up matching fid and overwrite on dst'''
-        if ref_pkey is None:
-            ref_pkey = self.getFieldNames(src_feat)
+        st = datetime.now()
+        if not ref_pkey:
+            if not self.feat_field_names:
+                self.feat_field_names = self.getFieldNames(src_feat)
+            ref_pkey = self.feat_field_names
             src_pkey = self.getFieldValues(src_feat)
         else:
             src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
-        
+            
         #ldslog.debug("UPDATE: "+str(src_pkey))
         #if not new_layer_flag: 
         new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_pkey)
@@ -782,13 +836,19 @@ class DataStore(object):
             ldslog.error("No match for FID with ID="+str(src_pkey)+" on update",exc_info=1)
             raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on update")
         
+        et = datetime.now()
+        timerlog.info('UPDATE,'+str(1000*(et-st).total_seconds()))
+        
         return e
     
     def deleteFeature(self,dst_layer,src_feat,_,ref_pkey): 
         '''lookup and delete using fid matching ID of feature being deleted'''
         #naive first implementation, might/will be slow 
-        if ref_pkey is None:
-            ref_pkey = self.getFieldNames(src_feat)
+        st = datetime.now()
+        if not ref_pkey:
+            if not self.feat_field_names:
+                self.feat_field_names = self.getFieldNames(src_feat)
+            ref_pkey = self.feat_field_names
             src_pkey = self.getFieldValues(src_feat)
         else:
             src_pkey = src_feat.GetFieldAsInteger(ref_pkey)
@@ -800,6 +860,9 @@ class DataStore(object):
         else:
             ldslog.error("No match for FID with ID="+str(src_pkey)+" on delete",exc_info=1)
             raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on delete")
+        
+        et = datetime.now()
+        timerlog.info('DELETE,'+str(1000*(et-st).total_seconds()))
         
         return e
         
@@ -1072,6 +1135,7 @@ class DataStore(object):
                 #raise#often misreported, halting may be unnecessary
                 
         return retval
+
             
     def _validateSQL(self,sql):
         '''Validates SQL against a list of allowed queries. Not trying to restrict queries here, rather catch invalid SQL'''
@@ -1256,8 +1320,7 @@ class DataStore(object):
         return newf.GetFID()
     
     def _findMatchingFeature_AllFields(self,search_layer,col_list,row_vals):
-        '''
-        find a feature for a layer with no PK, to do this generically we have to query all fields'''
+        '''Find a feature for a layer with no PK, to do this generically we have to query all fields'''
         qt = ()
         for col,val in zip(col_list,row_vals):
             if col not in self.optcols and val is not '':

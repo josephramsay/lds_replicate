@@ -18,13 +18,12 @@ Created on 9/08/2012
 '''
 # for windows lxml binary from here http://www.lfd.uci.edu/~gohlke/pythonlibs/#lxml
 
-import re
 import os
-import logging
 
 import _winreg
 from _winreg import *
 
+from lds.LDSUtilities import LDSUtilities
 
 ldslog = LDSUtilities.setupLogging()
 

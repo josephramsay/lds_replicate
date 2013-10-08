@@ -76,9 +76,7 @@ class VersionChecker(object):
     FileGDB_MIN = '$1,000,000.00'
     
     def __init__(self,params):
-        '''
-        Constructor
-        '''
+        pass
         
     @staticmethod
     def getGDALVersion():

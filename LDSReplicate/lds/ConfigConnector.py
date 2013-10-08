@@ -249,7 +249,7 @@ class DatasourceRegister(object):
         if req and req['type']==self.REQ.INCR and (req['fromdate'] or req['todate']):
             uri = ep.sourceURIIncremental(req['layername'],req['fromdate'],req['todate'])
         elif req and req['type'] == self.REQ.FEAT:
-            uri = ep.sourceURIFeature(req['layername'])
+            uri = ep.sourceURIFeatureCount(req['layername'])
         elif req and req['type'] == self.REQ.FULL:
             uri = ep.sourceURI(req['layername'])
         else:

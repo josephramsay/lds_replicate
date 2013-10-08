@@ -30,7 +30,8 @@ from StringIO import StringIO
 from lxml import etree
 
 #ldslog = LDSUtilities.setupLogging()
-ldslog = logging.getLogger('LDS')
+mainlog = 'DEBUG'
+ldslog = logging.getLogger(mainlog)
 
 class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
@@ -416,17 +417,18 @@ class LDSUtilities(object):
         return type('Enum', (), enums)
     
     @staticmethod
-    def setupLogging(lf='debug.log',ll=logging.DEBUG,ff=1):
+    def setupLogging(lf=mainlog,ll=logging.DEBUG,ff=1):
         formats = {1:'%(asctime)s - %(levelname)s - %(module)s %(lineno)d - %(message)s',
-                   2:'TEST %(module)s %(lineno)d - %(message)s',}
+                   2:'TEST %(module)s %(lineno)d - %(message)s',
+                   3:'%(asctime)s,%(message)s'}
         
-        log = logging.getLogger('LDS')
+        log = logging.getLogger(lf)
         log.setLevel(ll)
         
         path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../log/"))
         if not os.path.exists(path):
             os.mkdir(path)
-        df = os.path.join(path,lf)
+        df = os.path.join(path,lf.lower()+'.log')
         
         fh = logging.FileHandler(df,'w')
         fh.setLevel(logging.DEBUG)
