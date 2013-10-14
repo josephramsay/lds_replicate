@@ -444,6 +444,9 @@ class TransferProcessor(object):
         file_json = 'json' if dst.getConfInternal()==DataStore.CONF_INT else 'file'
         #print 'capabilitiesurl',capabilitiesurl,'fj',file_json,'pxy',pxy,'idp',idp
         res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json,pxy,idp)
+        if not dst.getLayerConf() or not dst.getLayerConf().existsAndIsCurrent():
+            lc = TransferProcessor.getNewLayerConf(dst)
+            dst.setLayerConf(lc)
         dst.getLayerConf().buildConfigLayer(str(res))
         
 

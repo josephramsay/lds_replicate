@@ -99,20 +99,20 @@ class ConfigConnector(object):
         tp.initLayerConfig(src.getCapabilities(),dst,src.pxy,src.idp)
         
     @staticmethod
-    def setupLayerConfig(tp,src,dst):
+    def setupLayerConfig(tp,sep,dep):
         '''Calls the TP LC setup function'''
-        lc = tp.getNewLayerConf(dst)
-        dst.setLayerConf(lc)
+        lc = tp.getNewLayerConf(dep)
+        dep.setLayerConf(lc)
         ##if a lconf has not been created build a new one
-        if not dst.getLayerConf().existsAndIsCurrent():
-            ConfigConnector.initLayerConfig(tp,src,dst)
+        if not dep.getLayerConf().existsAndIsCurrent():
+            ConfigConnector.initLayerConfig(tp,sep,dep)
             
     #----------------------------------------------------------------------------------
     
-    def setupComplete(self,dst):
+    def setupComplete(self,dep):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
         #these are all the keywords in the local file. if no dest has been set returns empty
-        self.complete = dst.getLayerConf().getLConfAs3Array() if dst else []
+        self.complete = dep.getLayerConf().getLConfAs3Array() if dep else []
     
     def setupReserved(self):
         '''Read the capabilities doc (as json) for reserved words'''
@@ -217,7 +217,7 @@ class DatasourceRegister(object):
     
     def _assignRef(self,uri):
         '''mark ref value as either user config or a connection string based on the assumption conn strings contain certain suff/prefixes...'''
-        self.cs,self.uc = (uri,None) if uri and re.search('PG|MSSQL|\.gdb|\.sqlite|\.db',uri,flags=re.IGNORECASE) else (None,uri) 
+        self.cs,self.uc = (uri,None) if uri and re.search('PG:|MSSQL:|\.gdb|\.sqlite|\.db',uri,flags=re.IGNORECASE) else (None,uri) 
 
     
     def _type(self,fn):

@@ -93,14 +93,19 @@ class LDSUtilities(object):
     
     @staticmethod
     def checkLayerName(lconf,lname):
-        '''Makes sure a layer name conforms to v:x format'''
+        '''Makes sure a layer name conforms to v:x format which exists or matches a layername'''
+        from lds.DataStore import InvalidLayerException
         if type(lname) is str:
-            if LDSUtilities.checkLayerNameValidity(lname):
+            if LDSUtilities.checkLayerNameValidity(lname) and lname in lconf.getLayerNames():
                 #if its an ID (v:x etc) and it matches a configured id return it
-                return lname if lname in lconf.getLayerNames() else None
-            else:
+                return lname
+            elif lconf.findLayerIdByName(lname):
                 #if its a name (NZ Special Points) return matching ID
                 return lconf.findLayerIdByName(lname)
+            else:
+                raise InvalidLayerException('Cannot find Layer, '+str(lname))
+        else: 
+            raise InvalidLayerException('Layer name not a string, '+str(lname))
         return None
          
     @staticmethod
@@ -127,11 +132,12 @@ class LDSUtilities(object):
                 host = rm.group(1)
                 port = rm.group(2)
                 
-        return {'TYPE':ptype, 'HOST':host, 'PORT':port, 'AUTH':auth, 'USR':usr, 'PWD':pwd}
+        return {'TYPE':ptype, 'HOST':host, 'PORT':str(port), 'AUTH':auth, 'USR':usr, 'PWD':pwd}
 
     
     @staticmethod
     def getLayerNameFromURL(url):
+        '''checks for both /v/xNNN and v:xNNN occurrences and whether they're the same'''
         from DataStore import MalformedConnectionString
         l1 = [re.search(x+'(\d+)',url,flags=re.IGNORECASE) for x in LDSUtilities.LDS_IDPATHS if re.search(x+'(\d+)',url,flags=re.IGNORECASE)][0]
         l2 = [re.search('typeName='+x+'(\d+)',url,flags=re.IGNORECASE) for x in LDSUtilities.LDS_PREFIXES if re.search('typeName='+x+'(\d+)',url,flags=re.IGNORECASE)][0]
@@ -186,7 +192,7 @@ class LDSUtilities(object):
         return url
     
     @staticmethod
-    def reVersionURL(url,newversion):
+    def reVersionURL(url,newversion='1.1.0'):
         '''Because there is sometimes a problem with WFS <1.0.0, esp GetFeatureCount, change to WFS 1.1.0'''
         ldslog.warn('Rewriting URI version to '+str(newversion))
         return re.sub('&version=[0-9\.]+','&version='+str(newversion),url)
@@ -203,7 +209,7 @@ class LDSUtilities(object):
         '''Since CQL commands are freeform strings we need to try and validate at least the most basic errors. This is very simple
         RE matcher that just looks for valid predicates... for now. Won't stop little Bobby Tables
         
-        <predicate> ::= <comparison predicate> | <text predicate> | <null predicate> | <temporal predicate> | <classification predicate> | <existence_predicate> | <between predicate> | <include exclude predicate>
+        <predicate> ::= <comparison predicate> | <text predicate> | <null predicate> | <temporal predicate> | timestamp merge<classification predicate> | <existence_predicate> | <between predicate> | <include exclude predicate>
         
         LDS expects the following;
         Was expecting one of:
@@ -419,7 +425,7 @@ class LDSUtilities(object):
     @staticmethod
     def setupLogging(lf=mainlog,ll=logging.DEBUG,ff=1):
         formats = {1:'%(asctime)s - %(levelname)s - %(module)s %(lineno)d - %(message)s',
-                   2:'TEST %(module)s %(lineno)d - %(message)s',
+                   2:':: %(module)s %(lineno)d - %(message)s',
                    3:'%(asctime)s,%(message)s'}
         
         log = logging.getLogger(lf)

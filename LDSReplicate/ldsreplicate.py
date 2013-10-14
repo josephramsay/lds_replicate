@@ -211,6 +211,7 @@ def main():
     finally:
         reg.closeEndPoint(pn)
         reg.closeEndPoint('WFS')
+        sep,dep = None,None
         
     
     et = datetime.now()

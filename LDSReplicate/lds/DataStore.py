@@ -319,6 +319,7 @@ class DataStore(object):
             ldslog.error('Open '+str(dsn)+' throws '+str(re1),exc_info=1)
                 
             if create: 
+                ldslog.info('Create '+str(dsn))
                 ds = self.createDS(dsn)
             else:
                 raise re1
@@ -531,7 +532,7 @@ class DataStore(object):
                 src_feat = src_layer.GetNextFeature()
             
             if self.src_feat_count is not None and self.src_feat_count != sum(self.change_count.values()):
-                if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS:
+                if transaction_flag:
                     dst_layer.RollbackTransaction()
                 raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
             
@@ -808,8 +809,7 @@ class DataStore(object):
 
         #dst_fid = new_feat.GetFID()
         #ldslog.debug("INSERT: "+str(dst_fid))
-        et = datetime.now()
-        timerlog.info('INSERT,'+str(1000*(et-st).total_seconds()))
+        timerlog.info('INSERT,{}'.format(1000*(datetime.now()-st).total_seconds()))
         
         return e
     
@@ -836,8 +836,7 @@ class DataStore(object):
             ldslog.error("No match for FID with ID="+str(src_pkey)+" on update",exc_info=1)
             raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on update")
         
-        et = datetime.now()
-        timerlog.info('UPDATE,'+str(1000*(et-st).total_seconds()))
+        timerlog.info('UPDATE,{}'.format(src_pkey,1000*(datetime.now()-st).total_seconds()))
         
         return e
     
@@ -861,8 +860,7 @@ class DataStore(object):
             ldslog.error("No match for FID with ID="+str(src_pkey)+" on delete",exc_info=1)
             raise InvalidFeatureException("No match for FID with ID="+str(src_pkey)+" on delete")
         
-        et = datetime.now()
-        timerlog.info('DELETE,'+str(1000*(et-st).total_seconds()))
+        timerlog.info('DELETE,{},{}'.format(src_pkey,1000*(datetime.now()-st).total_seconds()))
         
         return e
         

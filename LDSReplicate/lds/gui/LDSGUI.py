@@ -512,7 +512,18 @@ class LDSControls(QFrame):
     def updateLGValues(self,uconf,lgval,dest):
         '''Sets the values displayed in the Layer/Group combo'''
         #because we cant seem to sort combobox entries and want groups at the top, clear and re-add
-        self.parent.confconn.initConnections(uconf,lgval,dest)
+        sf = None
+        try:
+            self.parent.confconn.initConnections(uconf,lgval,dest)
+        except Exception as e:
+            sf=1
+            ldslog.error('Error Updating UC Values. '+str(e))
+            
+        if sf:
+            self.setStatus(self.STATUS.ERROR,'Error Updating UC Values', str(e))
+        else:
+            self.setStatus(self.STATUS.IDLE)
+            
         self.refreshLGCombo()
         
     def centre(self):

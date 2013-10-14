@@ -53,7 +53,8 @@ class Test_1_RequestBuilder(unittest.TestCase):
         w200 = RequestBuilder.getInstance(self.PARAMS200,None)
         
         #since RB is incomplete just test for name string
-        self.assertEqual(w100.__str__(),'RequestBuilder_WFS-1.0.0','str cmp 100')
+        #self.assertEqual(w100.__str__(),'RequestBuilder_WFS-1.0.0','str cmp 100')
+        self.assertEqual(w100.__str__(),'RequestBuilder_WFS-1.1.0','str cmp 100 (subst)')
         self.assertEqual(w110.__str__(),'RequestBuilder_WFS-1.1.0','str cmp 110')
         self.assertEqual(w200.__str__(),'RequestBuilder_WFS-2.0.0','str cmp 200')
 

@@ -72,13 +72,18 @@ class LayerConfigSelector(QMainWindow):
         
     def resetLayers(self):
         '''Rebuilds lconf from scratch'''
-        from lds.ConfigConnector import ConfigConnector
-        self.parent.confconn.initLayerConfig(self.parent.confconn.tp,self.parent.confconn.src,self.parent.confconn.dst)
-        self.refreshLayers()
+        dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+        #self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
+        self.parent.confconn.initLayerConfig(self.parent.confconn.tp,sep,dep)
+        self.refreshLayers(dep)
+        self.parent.confconn.reg.closeEndPoint('WFS')
+        self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
         
-    def refreshLayers(self,customkey=None):
+        
+    def refreshLayers(self,dep,customkey=None):
         '''Refreshes from a reread of the lconf object'''
-        self.parent.confconn.setupComplete()
+        self.parent.confconn.setupComplete(dep)
         
         av_sl = self.splitData(customkey,self.parent.confconn.complete)
         self.signalModels(self.STEP.PRE)
@@ -101,10 +106,10 @@ class LayerConfigSelector(QMainWindow):
         self.parent.confconn.setupComplete(dep)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()
-        #self.refreshLayers(customkey)
+        #self.refreshLayers(dep,customkey)
         self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
-        ep = None
+        sep,dep = None,None
     
     def deleteKeysFromLayerConfig(self,layerlist,customkey):
         '''Remove custom keys from selected layers'''
@@ -121,10 +126,10 @@ class LayerConfigSelector(QMainWindow):
         self.parent.confconn.setupComplete(dep)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()   
-        #self.refreshLayers(customkey)
+        #self.refreshLayers(dep,customkey)
         self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
-        ep = None
+        sep,dep = None,None
         return self.selection_model.rowCount()
     
     @staticmethod
@@ -167,7 +172,7 @@ class LayerConfigSelector(QMainWindow):
             self.parent.controls.lgcombo.setCurrentIndex(lgindex)
             self.parent.confconn.reg.closeEndPoint('WFS')
             self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
-            ep = None
+            sep,dep = None,None
 
         ##super(LayerConfigSelector,self).closeEvent(event)
         #self.close()

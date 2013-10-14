@@ -18,11 +18,11 @@ Created on 24/07/2012
 '''
 import unittest
 
-#from lds.test.ConfigConnector_Test import Test_1_DatasourceRegister as T1
-#from lds.test.ConfigConnector_Test import Test_2_ConfigConnector as T2
-#from lds.test.LDSDataStore_Test import Test_1_LDSDataStore as T3
-#from lds.test.DataStore_Test import Test_1_DataStore as T4
-#from lds.test.RequestBuilder_Test import Test_1_RequestBuilder as T5
+from lds.test.ConfigConnector_Test import Test_1_DatasourceRegister as T1
+from lds.test.ConfigConnector_Test import Test_2_ConfigConnector as T2
+from lds.test.LDSDataStore_Test import Test_1_LDSDataStore as T3
+from lds.test.DataStore_Test import Test_1_DataStore as T4
+from lds.test.RequestBuilder_Test import Test_1_RequestBuilder as T5
 from lds.test.LDSUtilities_Test import Test_1_LDSUtilities as T6
 
 from lds.LDSUtilities import LDSUtilities
@@ -53,14 +53,15 @@ class FullSuite(unittest.TestSuite):
         return suite
     
     def suite(self):
-        #suite1 = unittest.makeSuite(T1)
-        #suite2 = unittest.makeSuite(T2)
-        #suite3 = unittest.makeSuite(T3)
-        #suite4 = unittest.makeSuite(T4)
-        #suite5 = unittest.makeSuite(T5)
-        suite6 = unittest.makeSuite(T6)
+        suites = ()
+        suites += unittest.makeSuite(T1)
+        suites += unittest.makeSuite(T2)
+        suites += unittest.makeSuite(T3)
+        suites += unittest.makeSuite(T4)
+        suites += unittest.makeSuite(T5)
+        suites += unittest.makeSuite(T6)
         
-        return unittest.TestSuite((suite6))
+        return unittest.TestSuite(suites)
 
     
 def main():

@@ -107,7 +107,8 @@ class MainFileReader(object):
             host = self.cp.get(PG.DRIVER_NAME, 'host')
         except NoSectionError:
             ldslog.warn(ref+"No PostgreSQL section")
-            return (None,)*10
+            raise
+            #return (None,)*10
         except NoOptionError as noe:
             ldslog.warn(ref+str(noe))
             
@@ -192,7 +193,8 @@ class MainFileReader(object):
             odbc = self.cp.get(MS.DRIVER_NAME, 'odbc')
         except NoSectionError:
             ldslog.warn(ref+"No MSSQLSpatial section")
-            return (None,)*11
+            raise
+            #return (None,)*11
         except NoOptionError as noe:
             ldslog.warn(ref+str(noe))
             
@@ -268,7 +270,8 @@ class MainFileReader(object):
             fname = self.cp.get(SL.DRIVER_NAME, 'file')
         except NoSectionError:
             ldslog.warn(ref+"No SpatiaLite section")
-            return (None,)*4
+            raise
+            #return (None,)*4
         except NoOptionError:
             ldslog.warn(ref+"No DB name provided, default to "+str(fname))
             
@@ -309,7 +312,8 @@ class MainFileReader(object):
             fname = self.cp.get(FG.DRIVER_NAME, 'file')
         except NoSectionError:
             ldslog.warn(ref+"No FileGDB section")
-            return (None,)*4
+            raise
+            #return (None,)*4
         except NoOptionError:
             ldslog.warn(ref+"No DB name provided, default to "+str(fname))
             

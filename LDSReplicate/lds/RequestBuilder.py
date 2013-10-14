@@ -230,6 +230,7 @@ class RequestBuilderWFS110(RequestBuilder):
     def sourceURI(self,layername):
         '''Basic Endpoint constructor'''
         if not layername:
+            ldslog.warn('No layer name provided to URI generator')
             return None
         
         if self.conn_str:
@@ -240,7 +241,6 @@ class RequestBuilderWFS110(RequestBuilder):
 
         cql = self._buildCQLStr()
         #pql = self._buildPageStr()     
-            
         typ = "##typeName="+layername
         ver = "##version="+self.ver if self.ver else ""
         svc = "##service="+self.svc if self.svc else "##service=WFS"
