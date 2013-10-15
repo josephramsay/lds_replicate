@@ -646,5 +646,8 @@ class LayerConfEntry(object):
         self.lmod = lmod
         self.disc = disc
         self.cql = cql
+        
+    def __str__(self):
+        return 'LCE {}={} - {}'.format(self.pkey if LDSUtilities.mightAsWellBeNone(self.pkey) else '_id', self.id, self.name)
     
         

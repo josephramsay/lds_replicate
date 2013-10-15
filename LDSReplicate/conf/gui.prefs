@@ -1,17 +1,17 @@
 [FileGDB]
-uconf = fglint
-lgvalue = v:x102
+uconf = fg5
+lgvalue = FGAGAIN
 epsg = None
 fd = None
-td = 2012-01-01
+td = 2013-01-01
 
 [prefs]
-dest = PostgreSQL
+dest = SQLite
 
 [PostgreSQL]
-uconf = sixth
-lgvalue = v:x772
-epsg = 4272
+uconf = pg
+lgvalue = EPSGMIX
+epsg = 
 fd = None
 td = None
 
@@ -19,6 +19,13 @@ td = None
 uconf = ms
 lgvalue = 
 epsg = 
+fd = None
+td = None
+
+[SQLite]
+uconf = slxx
+lgvalue = SLXX1
+epsg = None
 fd = None
 td = None
 

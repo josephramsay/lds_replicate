@@ -813,6 +813,7 @@ class LayerDSReader(LayerReader):
         return self.fname.ds
     
     def _releaseDS(self):
+        self.ds.SyncToDisk()
         self.ds = None
 
     def existsAndIsCurrent(self):
@@ -934,8 +935,12 @@ class LayerDSReader(LayerReader):
         layer.GetFeatureCount()
         feat = layer.GetNextFeature()
         while feat:
+            #ii = LU.extractFields(feat)
+            #print '>1>',ii
+            #lcel += [ii,]
             lcel += [LU.extractFields(feat),]
             feat = layer.GetNextFeature()
+            #if feat: print '>2>','fid=',feat.GetFID(),'rc=',layer.GetRefCount(),'fc=',x
         return lcel 
         
     

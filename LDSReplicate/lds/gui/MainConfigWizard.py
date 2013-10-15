@@ -99,7 +99,10 @@ class LDSConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key#'lds'
         
-        (ldsurl,ldskey,ldssvc,ldsver,ldsfmt,ldscql) = self.parent.mfr.readLDSConfig()
+        try:
+            (ldsurl,ldskey,ldssvc,ldsver,ldsfmt,ldscql) = self.parent.mfr.readLDSConfig()
+        except:
+            (ldsurl,ldskey,ldssvc,ldsver,ldsfmt,ldscql) = (None,)*6
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Here you can enter a name for your custom configuration file, your LDS API key and required output. Also select whether you want to configure a proxy or enable password encryption')
@@ -238,8 +241,11 @@ class ProxyConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key
         
-        (pxytype,pxyhost,pxyport,pxyauth,pxyusr,pxypwd) = self.parent.mfr.readProxyConfig()
-        
+        try:
+            (pxytype,pxyhost,pxyport,pxyauth,pxyusr,pxypwd) = self.parent.mfr.readProxyConfig()
+        except:
+            (pxytype,pxyhost,pxyport,pxyauth,pxyusr,pxypwd) = (None,)*6
+            
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the hostname/ip-address, port number and authentication details of your HTTP proxy')
 
@@ -374,7 +380,10 @@ class PostgreSQLConfigPage(QWizardPage):
         self.parent = parent 
         self.key = key
         
-        (pghost,pgport,pgdbname,pgschema,pgusr,pgpwd,pgover,pgconfig,pgepsg,pgcql) = self.parent.mfr.readPostgreSQLConfig()
+        try:
+            (pghost,pgport,pgdbname,pgschema,pgusr,pgpwd,pgover,pgconfig,pgepsg,pgcql) = self.parent.mfr.readPostgreSQLConfig()
+        except:
+            (pghost,pgport,pgdbname,pgschema,pgusr,pgpwd,pgover,pgconfig,pgepsg,pgcql) = (None,)*10
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the hostname/ip-address, port number, name and schema of your PostgreSQL server instance.')
@@ -476,8 +485,11 @@ class MSSQLSpatialConfigPage(QWizardPage):
         
         self.parent = parent 
         self.key = key
-        
-        (msodbc,msserver,msdsn,mstrust,msdbname,msschema,msusr,mspwd,msconfig,msepsg,mscql) = self.parent.mfr.readMSSQLConfig()
+
+        try:
+            (msodbc,msserver,msdsn,mstrust,msdbname,msschema,msusr,mspwd,msconfig,msepsg,mscql) = self.parent.mfr.readMSSQLConfig()
+        except:
+            (msodbc,msserver,msdsn,mstrust,msdbname,msschema,msusr,mspwd,msconfig,msepsg,mscql) = (None,)*11
         
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the server string (host\instance) name and schema of your MSSQL server. Select "Trust" if using trusted authentication')
@@ -660,7 +672,10 @@ class SpatiaLiteConfigPage(QWizardPage):
         self.key = key
         self.text_entered = False
         
-        (slfname,slconfig,slepsg,slcql) = self.parent.mfr.readSpatiaLiteConfig()
+        try:
+            (slfname,slconfig,slepsg,slcql) = self.parent.mfr.readSpatiaLiteConfig()
+        except:
+            (slfname,slconfig,slepsg,slcql) = (None,)*4
         
         self.filter = ".*\.db$|.*\.sqlite\d*$"
         

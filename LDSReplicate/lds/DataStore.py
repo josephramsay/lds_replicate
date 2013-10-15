@@ -1232,7 +1232,7 @@ class DataStore(object):
                         #HACK. Attempt repeated deletes/re-inits until no longer locked
                         i=0
                         keep_trying = True
-                        while keep_trying or i>5:
+                        while keep_trying and i<5:
                             i+=1
                             try:
                                 keep_trying = False

@@ -107,6 +107,15 @@ class ConfigConnector(object):
         if not dep.getLayerConf().existsAndIsCurrent():
             ConfigConnector.initLayerConfig(tp,sep,dep)
             
+    @staticmethod
+    def closeLayerConfig(ep):
+        '''Attempts to release DS resources used by LayerConfig'''
+        lc = ep.getLayerConf()
+        if lc:
+            lc.ds.SyncToDisk()
+            lc.ds = None
+            lc = None
+            
     #----------------------------------------------------------------------------------
     
     def setupComplete(self,dep):
@@ -263,6 +272,7 @@ class DatasourceRegister(object):
         self.register[fn]['rc'] -= 1
         if self.register[fn]['rc'] <= 0:
             ldslog.info('Release EP '+str(fn))
+            ConfigConnector.closeLayerConfig(endpoint)
             endpoint.closeDS()  
         
     #---------------------
