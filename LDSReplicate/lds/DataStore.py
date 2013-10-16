@@ -87,7 +87,7 @@ class DataStore(object):
     
     DRIVER_NAME = '<init in subclass>'
     
-    DEFAULT_IE = 'external'
+    DEFAULT_FETCH_METHOD = 'direct'
     
     CONFIG_COLUMNS = ('id','pkey','name','category','lastmodified','geocolumn','index','epsg','discard','cql')
     #TEMP_DS_TYPES = ('Memory','ESRI Shapefile','Mapinfo File','GeoJSON','GMT','DXF')
@@ -153,6 +153,7 @@ class DataStore(object):
         self.optcols = set(['__change__','gml_id'])
         
         self.src_feat_count = 0
+        self.change_count = {'delete':0,'update':0,'insert':0}
         
         self.refcount = 0
         
@@ -198,7 +199,12 @@ class DataStore(object):
         '''returns prefetch is available but defaults to partitionsize which is set in ReadConfig'''
         return self.prefetchsize if self.prefetchsize else self.MAX_PREFETCH
             
-     
+    def getPrefetchMethod(self):
+        if self.DRIVER_NAME==DataStore.DRIVER_NAMES['fg']:
+            return 'prefetch'
+        else:
+            return self.DEFAULT_FETCH_METHOD
+
     def applyConfigOptions(self):
         for opt in self.getConfigOptions():
             self.applyConfigOptionSingle(opt)
@@ -653,79 +659,108 @@ class DataStore(object):
                 #raise InaccessibleFeatureException('Error attempting to access Feature count, ('+str(self.src_feat_count)+' available)')
                 
             #loop till break on next feat is none
-            e = 0
-
-            #key order here is important
-            src_array = {'delete':(),'update':(),'insert':()}    
-            self.change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
-            self.change_count = {'delete':0,'update':0,'insert':0}
-            
-            ldslog.info('Begin Pre-Fetch with {} Features'.format(self.MAX_PREFETCH))
-            feat_count = 0
-            proc_count = 0
-            while src_feat:
-                feat_count += 1
-                change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
-                
+#             e = 0
+# 
+#             #key order here is important
+#             src_array = {'delete':(),'update':(),'insert':()}    
+#             self.change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
+#             self.change_count = {'delete':0,'update':0,'insert':0}
+#             
+#             ldslog.info('Begin Pre-Fetch with {} Features'.format(self.MAX_PREFETCH))
+#             feat_count = 0
+#             proc_count = 0
+              
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
+            if self.getPrefetchMethod()=='direct':
+                ldslog.info('Direct')
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #NON PREFETCH METHOD
-# 
-#                 try:
-#                     if change == 'insert':
-#                         e = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-#                     elif change == 'delete':
-#                         e = self.deleteFeature(dst_layer,src_feat, None, layerconfentry.pkey)
-#                     elif change == 'update':
-#                         e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-#                     else:
-#                         ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
-#                     # raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
-#                 except InvalidFeatureException as ife:
-#                     ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
-#                 #except Exception as e:
-#                 # ldslog.error('trap new errors here... '+str(e))
-#                 if e != 0:
-#                     ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-#                     if change == 'update':
-#                         ldslog.warn('Update failed on SetFeature, attempting delete+insert')
-#                         #let delete and insert error handlers take care of any further exceptions
-#                         e1 = self.deleteFeature(dst_layer,src_feat, None, layerconfentry.pkey)
-#                         e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
-#                         if e1+e2 != 0:
-#                             raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
-#                 #testing
-#                 ldslog.info(feat_count) 
-#                 src_feat = src_layer.GetNextFeature()   
-#                 
-#             ##if self.src_feat_count != self.dst_change_count:
-#             #if self.src_feat_count != sum(self.change_count.values()):
-#             #    if transaction_flag:
-#             #        dst_layer.RollbackTransaction()
-#             #    #raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_count)+']')
-#             #    raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
-#                
+                #loop till break on next feat is none
+                e = 0
+                feat_count = 0
+                self.change_count = {'delete':0,'update':0,'insert':0}
+    
+                while src_feat:
+                    feat_count += 1
+                    change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+                    
+                    try:
+                        if change == 'insert':
+                            e = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                        elif change == 'delete':
+                            e = self.deleteFeature(dst_layer,src_feat, None, layerconfentry.pkey)
+                        elif change == 'update':
+                            e = self.updateFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                        else:
+                            ldslog.error("Error with Key "+str(change)+" !E {ins,del,upd}")
+                        # raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
+                        self.change_count[change] += 1
+                    except InvalidFeatureException as ife:
+                        ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+                    #except Exception as e:
+                    # ldslog.error('trap new errors here... '+str(e))
+                    if e != 0:
+                        ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
+                        if change == 'update':
+                            ldslog.warn('Update failed on SetFeature, attempting delete+insert')
+                            #let delete and insert error handlers take care of any further exceptions
+                            e1 = self.deleteFeature(dst_layer,src_feat, None, layerconfentry.pkey)
+                            e2 = self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
+                            if e1+e2 != 0:
+                                raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
+                    #testing
+                    #ldslog.info(feat_count) 
+                    src_feat = src_layer.GetNextFeature()   
+                     
+                ##if self.src_feat_count != self.dst_change_count:
+                if self.src_feat_count != sum(self.change_count.values()):
+                    if transaction_flag:
+                        dst_layer.RollbackTransaction()
+                    #raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_count)+']')
+                    raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            elif self.getPrefetchMethod()=='prefetch':
+                ldslog.info('Pre-Fetch')
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #PREFETCH METHOD
- 
-                src_array[change] += (src_feat,)
-                if feat_count>=self.getPrefetchSize():
-                    ldslog.info('Loading Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.getPrefetchSize()*(proc_count+1)))
-                    self.processFetchedIncrement(src_array,dst_layer,new_feat_def,layerconfentry)
-                    feat_count = 0
-                    proc_count += 1
-                    src_array = {'delete':(),'update':(),'insert':()}
-                #testing
-                ldslog.info(feat_count) 
-                src_feat = src_layer.GetNextFeature()
+                #loop till break on next feat is none
+                e = 0
+    
+                #key order here is important
+                src_array = {'delete':(),'update':(),'insert':()}    
+                self.change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
+                self.change_count = {'delete':0,'update':0,'insert':0}
+                
+                ldslog.info('Begin Pre-Fetch with {} Features'.format(self.getPrefetchSize()))
+                feat_count = 0
+                proc_count = 0
+    
+                while src_feat:
+                    feat_count += 1
+                    change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+      
+                    src_array[change] += (src_feat,)
+                    if feat_count>=self.getPrefetchSize():
+                        ldslog.info('Loading Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.getPrefetchSize()*(proc_count+1)))
+                        self.processFetchedIncrement(src_array,dst_layer,new_feat_def,layerconfentry)
+                        feat_count = 0
+                        proc_count += 1
+                        src_array = {'delete':(),'update':(),'insert':()}
+                    #testing
+                    #ldslog.info(feat_count) 
+                    src_feat = src_layer.GetNextFeature()
+                     
+                ldslog.info('Loading remaining Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.src_feat_count))
+                self.processFetchedIncrement(src_array,dst_layer,new_feat_def,layerconfentry)
                  
-            ldslog.info('Loading remaining Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.src_feat_count))
-            self.processFetchedIncrement(src_array,dst_layer,new_feat_def,layerconfentry)
-             
-            if self.src_feat_count != sum(self.change_count.values()):
-                if transaction_flag:
-                    dst_layer.RollbackTransaction()
-                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
-             
+                if self.src_feat_count != sum(self.change_count.values()):
+                    if transaction_flag:
+                        dst_layer.RollbackTransaction()
+                    raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%           
+            else:
+                ldslog.error('Unknown Fetch Method') 
+                raise FeatureCopyException('Unknown Fetch Method')        
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
             #self._showLayerData(dst_layer)

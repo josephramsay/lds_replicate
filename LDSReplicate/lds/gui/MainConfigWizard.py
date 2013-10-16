@@ -586,7 +586,10 @@ class FileGDBConfigPage(QWizardPage):
         self.key = key
         self.text_entered = False
         
-        (fgfname,fgconfig,fgepsg,fgcql) = self.parent.mfr.readFileGDBConfig()
+        try:
+            (fgfname,fgconfig,fgepsg,fgcql) = self.parent.mfr.readFileGDBConfig()
+        except:
+            (fgfname,fgconfig,fgepsg,fgcql) = (None,)*4
         
         self.filter = ".*\.gdb$"
         
