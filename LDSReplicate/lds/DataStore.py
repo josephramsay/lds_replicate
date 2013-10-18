@@ -498,13 +498,6 @@ class DataStore(object):
                 
                 (dst_layer,is_new) = self.buildNewDestinationLayer(self.dst_info,src_info,dst_ds)
                 
-
-            if  self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
-                dst_layer.StartTransaction()
-                ldslog.debug('FC Start Transaction '+str(self.attempts))
-            else:
-                transaction_flag = False
-                ldslog.warn('FC Transactions Disabled '+str(self.attempts))
                 
             #add/copy features
             #src_layer.ResetReading()
@@ -528,8 +521,23 @@ class DataStore(object):
                 else:
                     raise InaccessibleFeatureException('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
             else:
-                raise InaccessibleFeatureException('Error attempting to access Feature ('+str(self.src_feat_count)+' available)')
+                #if there are no features (likely with small incr)
+                ldslog.info('No features available, returning')
+                src_layer.ResetReading()
+                dst_layer.ResetReading()
+                break
+                #no need to raise exception, there are no feats (kinda unlikely) so just return
+                #raise InaccessibleFeatureException('Error attempting to access Feature ('+str(self.src_feat_count)+' available)')
                 
+            #Start Transaction
+            if  self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
+                dst_layer.StartTransaction()
+                ldslog.debug('FC Start Transaction '+str(self.attempts))
+            else:
+                transaction_flag = False
+                ldslog.warn('FC Transactions Disabled '+str(self.attempts))
+            
+            #Loop feats
             while src_feat:
                 self.change_count['insert'] += 1
                 #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
@@ -622,15 +630,7 @@ class DataStore(object):
                 if dst_layer is None:
                     #if its still none, bail (and don't bother with re-attempt)
                     raise LayerCreateException('Unable to initialise a new Layer on destination')
-                
-            #dont bother with transactions if they're failing > N times
-            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
-                #NB. Jeremy. TestCap for transactions is needed for FileGDB since rollback throws exception if attempted
-                dst_layer.StartTransaction()
-                ldslog.debug('FCI Start Transaction '+str(self.attempts))
-            else:
-                transaction_flag = False
-                ldslog.warn('FCI Transactions Disabled '+str(self.attempts))
+            
 
             #add/copy features
             try:
@@ -655,13 +655,21 @@ class DataStore(object):
                 ldslog.info('No features available, returning')
                 src_layer.ResetReading()
                 dst_layer.ResetReading()
-                return
+                break
                 #raise InaccessibleFeatureException('Error attempting to access Feature count, ('+str(self.src_feat_count)+' available)')
 
 
+            #dont bother with transactions if they're failing > N times
+            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
+                #NB. Jeremy. TestCap for transactions is needed for FileGDB since rollback throws exception if attempted
+                dst_layer.StartTransaction()
+                ldslog.debug('FCI Start Transaction '+str(self.attempts))
+            else:
+                transaction_flag = False
+                ldslog.warn('FCI Transactions Disabled '+str(self.attempts))
+            
 
-            #prefetch vs direct 
-                            
+            #prefetch vs direct  
             if self.getPrefetchMethod()=='direct':
                 ldslog.info('Direct')
 
