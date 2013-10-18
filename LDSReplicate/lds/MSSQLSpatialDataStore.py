@@ -85,25 +85,25 @@ class MSSQLSpatialDataStore(DataStore):
     
     def _commonURI(self,layer):
         '''Refers to common connection instance for example in a DB where it doesn't matter whether your reading or writing'''
-        if hasattr(self,'conn_str') and self.conn_str is not None:
+        if hasattr(self,'conn_str') and self.conn_str:
             return self.validateConnStr(self.conn_str)
         #return "MSSQL:server={};database={};trusted_connection={};".format(self.server, self.dbname, self.trust)
-        if LDSUtilities.mightAsWellBeNone(self.pwd) is not None:
+        if LDSUtilities.mightAsWellBeNone(self.pwd):
             if self.pwd.startswith(Encrypt.ENC_PREFIX):
-                pwd = ";PWD='{}'".format(Encrypt.unSecure(self.pwd))
+                pwd = ";PWD={}".format(Encrypt.unSecure(self.pwd))
             else:
-                pwd = ";PWD='{}'".format(self.pwd)
+                pwd = ";PWD={}".format(self.pwd)
         else:
             pwd = ""
             
         sstr = ";Schema={}".format(self.schema) if LDSUtilities.mightAsWellBeNone(self.schema) is not None else ""
-        usr = ";UID='{}'".format(self.usr) if LDSUtilities.mightAsWellBeNone(self.usr) is not None else ""
+        usr = ";UID={}".format(self.usr) if LDSUtilities.mightAsWellBeNone(self.usr) is not None else ""
         drv = ";Driver='{}'".format(self.odbc) if LDSUtilities.mightAsWellBeNone(self.odbc) is not None else ""
-        tcn = ";trusted_connection='{}'".format(self.trust) if LDSUtilities.mightAsWellBeNone(self.trust) is not None else ""
+        tcn = ";trusted_connection={}".format(self.trust) if LDSUtilities.mightAsWellBeNone(self.trust) is not None else ""
         uri = "MSSQL:server={};database={}".format(self.server, self.dbname, self.odbc)+usr+pwd+drv+sstr+tcn
         ldslog.debug(uri)
         return uri
-        
+        #uid/pwd/t_c squotes removed
 
     def generateLayerName(self,ref_name):
         '''compose a layer name with a schema prefix is one exists (has been specified)'''
@@ -204,13 +204,14 @@ class MSSQLSpatialDataStore(DataStore):
     def versionCheck(self):
         '''MSSQL version checker'''
         #Microsoft SQL Server 2008 R2 (RTM) - 10.50.1600.1
+        #Microsoft SQL Server 2008 (SP3) - 10.0.5500.0 (X64)   Sep 21 2011 22:45:45   Copyright (c) 1988-2008 Microsoft Corporation  Standard Edition (64-bit) on Windows NT 5.2 <X64> (Build 3790: Service Pack 2) (VM) 
         from VersionUtilities import VersionChecker,UnsupportedVersionException
 
         msv_cmd = 'SELECT @@version'
 
-        msv_res = re.search('Microsoft SQL Server 2\d{3} \w* \(\w+\) - (\d+\.\d+\.\d+\.*\d*)',self.executeSQL(msv_cmd).GetNextFeature().GetFieldAsString(0))
+        msv_res = re.search('Microsoft SQL Server.+- (\d+\.\d+\.\d+\.*\d*)',self.executeSQL(msv_cmd).GetNextFeature().GetFieldAsString(0))
         
-        if VersionChecker.compareVersions(VersionChecker.MSSQL_MIN, msv_res.group(1) if msv_res is not None else VersionChecker.MSSQL_MIN):
+        if VersionChecker.compareVersions(VersionChecker.MSSQL_MIN, msv_res.group(1) if msv_res else VersionChecker.MSSQL_MIN):
             raise UnsupportedVersionException('MSSQL version '+str(msv_res.group(1))+' does not meet required minumum '+str(VersionChecker.MSSQL_MIN))
         
         ldslog.info(self.DRIVER_NAME+' version '+str(msv_res.group(1)))

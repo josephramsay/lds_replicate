@@ -657,25 +657,14 @@ class DataStore(object):
                 dst_layer.ResetReading()
                 return
                 #raise InaccessibleFeatureException('Error attempting to access Feature count, ('+str(self.src_feat_count)+' available)')
-                
-            #loop till break on next feat is none
-#             e = 0
-# 
-#             #key order here is important
-#             src_array = {'delete':(),'update':(),'insert':()}    
-#             self.change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
-#             self.change_count = {'delete':0,'update':0,'insert':0}
-#             
-#             ldslog.info('Begin Pre-Fetch with {} Features'.format(self.MAX_PREFETCH))
-#             feat_count = 0
-#             proc_count = 0
-              
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%            
+
+
+
+            #prefetch vs direct 
+                            
             if self.getPrefetchMethod()=='direct':
                 ldslog.info('Direct')
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#NON PREFETCH METHOD
-                #loop till break on next feat is none
+
                 e = 0
                 feat_count = 0
                 self.change_count = {'delete':0,'update':0,'insert':0}
@@ -718,14 +707,14 @@ class DataStore(object):
                         dst_layer.RollbackTransaction()
                     #raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_count)+']')
                     raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+            #prefetch results (mandatory for fgdb)
+            
             elif self.getPrefetchMethod()=='prefetch':
                 ldslog.info('Pre-Fetch')
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#PREFETCH METHOD
-                #loop till break on next feat is none
+
+
                 e = 0
-    
                 #key order here is important
                 src_array = {'delete':(),'update':(),'insert':()}    
                 self.change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
@@ -757,11 +746,10 @@ class DataStore(object):
                     if transaction_flag:
                         dst_layer.RollbackTransaction()
                     raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%           
+
             else:
                 ldslog.error('Unknown Fetch Method') 
                 raise FeatureCopyException('Unknown Fetch Method')        
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
             #self._showLayerData(dst_layer)
             
@@ -1099,6 +1087,7 @@ class DataStore(object):
         if newdate is None:
             newdate=self.getCurrent()
         self.layerconf.writeLayerProperty(layer, 'lastmodified', newdate)  
+        ldslog.debug('Setting LM layer={} date={}'.format(layer,newdate))
         
     def clearLastModified(self,layer):
         '''Clears the last modification time of a layer following a successful clean operation'''

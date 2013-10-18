@@ -86,9 +86,9 @@ class SpatiaLiteDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str is not None:
             return self.validateConnStr(self.conn_str)
         #return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
-        file = self.fname+('' if re.search('|'.join(self.SUFFIX)+'$',self.fname,flags=re.IGNORECASE) else self.SUFFIX[0])
+        slfname = self.fname+('' if re.search('|'.join(self.SUFFIX)+'$',self.fname,flags=re.IGNORECASE) else self.SUFFIX[0])
         prag = ';'+self.OGR_SQLITE_PRAGMA
-        return file
+        return slfname
     
         
     def getConfigOptions(self):
@@ -259,7 +259,7 @@ class SpatiaLiteDataStore(DataStore):
         slv_ver = self.executeSQL(slv_cmd).GetFeature(0).GetField(0)
         
         
-        if VersionChecker.compareVersions(VersionChecker.SpatiaLite_MIN, slv_ver if slv_ver is not None else VersionChecker.SpatiaLite_MIN):
+        if VersionChecker.compareVersions(VersionChecker.SpatiaLite_MIN, slv_ver if slv_ver else VersionChecker.SpatiaLite_MIN):
             raise UnsupportedVersionException('SpatiaLite version '+str(slv_ver)+' does not meet required minumum '+str(VersionChecker.SpatiaLite_MIN))
         
         ldslog.info(self.DRIVER_NAME+' version '+str(slv_ver))

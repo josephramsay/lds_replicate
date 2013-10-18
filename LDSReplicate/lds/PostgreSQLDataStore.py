@@ -193,10 +193,10 @@ class PostgreSQLDataStore(DataStore):
         pgv_res = re.search('PostgreSQL\s+(\d+\.\d+\.\d+)',self.executeSQL(pgv_cmd).GetNextFeature().GetFieldAsString(0))
         pgisv_res = re.search('POSTGIS=\"(\d+\.\d+\.\d+)',self.executeSQL(pgisv_cmd).GetNextFeature().GetFieldAsString(0))
         
-        if VersionChecker.compareVersions(VersionChecker.PostgreSQL_MIN, pgv_res.group(1) if pgv_res is not None else VersionChecker.PostgreSQL_MIN):
+        if VersionChecker.compareVersions(VersionChecker.PostgreSQL_MIN, pgv_res.group(1) if pgv_res else VersionChecker.PostgreSQL_MIN):
             raise UnsupportedVersionException('PostgreSQL version '+str(pgv_res.group(1))+' does not meet required minumum '+str(VersionChecker.PostgreSQL_MIN))
         
-        if VersionChecker.compareVersions(VersionChecker.PostGIS_MIN, pgisv_res.group(1) if pgisv_res is not None else VersionChecker.PostGIS_MIN):
+        if VersionChecker.compareVersions(VersionChecker.PostGIS_MIN, pgisv_res.group(1) if pgisv_res else VersionChecker.PostGIS_MIN):
             raise UnsupportedVersionException('PostGIS version '+str(pgisv_res.group(1))+' does not meet required minumum '+str(VersionChecker.PostGIS_MIN))
         
         ldslog.info(self.DRIVER_NAME+' version '+str(pgv_res.group(1)))

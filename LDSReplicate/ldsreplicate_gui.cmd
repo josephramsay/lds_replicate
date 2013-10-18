@@ -16,8 +16,16 @@ set PSTR=import sys,os;sys.path.append(os.path.join('%PWD:~0,-1%','apps','ldsrep
 
 REM Execute LDS Replicate GUI
 
+IF '%1'=='G' GOTO GUI
 IF '%1'=='W' GOTO WIZZ
 IF '%1'=='L' GOTO LWIZZ
+
+echo Select LDS GUI [G], Setup Wizard [W] or Layer Select dialog [L] 
+SET /P ldsw=">"
+
+IF %ldsw%==G GOTO GUI
+IF %ldsw%==W GOTO WIZZ
+IF %ldsw%==L GOTO LWIZZ
 
 REM ----------------------------------------------------------------------------
 :GUI

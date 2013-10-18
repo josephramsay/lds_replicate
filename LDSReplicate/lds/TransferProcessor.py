@@ -43,7 +43,6 @@ class PrimaryKeyUnavailableException(Exception): pass
 class LayerConfigurationException(Exception): pass
 class DatasourceInitialisationException(Exception): pass
 
-#enum((L|G),lgval) to distinguish between v:x, GROUPNAME, nz_layer_name
 LORG = LDSUtilities.enum('GROUP','LAYER')
 
 class TransferProcessor(object):
@@ -109,11 +108,6 @@ class TransferProcessor(object):
         self.cql = LDSUtilities.mightAsWellBeNone(cq)
         
         self.setUserConf(uc)
-        
-        #initialise the data source
-        #self.src = ConfigConnector.initSourceWrapper()
-        ##\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
-        #self.src = ConfigConnector.initSource(self.source_str,self.user_config,self.partitionsize)
 
 #     def clone(self):
 #         '''Clone self. Parent retained so clone is sib'''
@@ -213,23 +207,7 @@ class TransferProcessor(object):
     def hasPrimaryKey(self,testlayer):
         '''Reads layer conf pkey identifier. If PK is None or something, use this to decide processing type i.e. no PK = driverCopy'''
         return self.dst.getLayerConf().readLayerProperty(testlayer,'pkey') is not None
-    
-#     def initDestination(self,dstname):
-#         '''Init a new destination using instantiated uconf (and dest str if provided)'''
-#         return {PostgreSQLDataStore.DRIVER_NAME:PostgreSQLDataStore,
-#                 MSSQLSpatialDataStore.DRIVER_NAME:MSSQLSpatialDataStore,
-#                 SpatiaLiteDataStore.DRIVER_NAME:SpatiaLiteDataStore,
-#                 FileGDBDataStore.DRIVER_NAME:FileGDBDataStore
-#                 }.get(LDSUtilities.standardiseDriverNames(dstname))
-#         #return proc(self,self.destination_str,self.user_config)
-
-
-#     def initSource(self):
-#         '''Initialise a new source, LDS nominally'''
-#         src = LDSDataStore(self,self.source_str,self.user_config) 
-#         src.setPartitionSize(self.partitionsize)#partitionsize may not exist when this is called but thats okay!
-#         src.applyConfigOptions()
-#         return src                
+              
         
     def processLDS(self):
         '''Process with LDS as a source and the destination supplied as an argument'''

@@ -67,7 +67,7 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
-    File C:\temp\LDS32.exe
+    File F:\git\LDS\LDSReplicate\LDS32.exe
     File F:\git\LDS\LDSReplicate\ldsreplicate.cmd
     File F:\git\LDS\LDSReplicate\ldsreplicate_gui.cmd
     File F:\git\LDS\LDSReplicate\setup_vars.cmd
@@ -412,7 +412,7 @@ Function ConfigWizzLeave
     
     ${NSD_GetState} $CheckBox6 $CheckBox6_State
     ${If} $CheckBox6_State == ${BST_CHECKED}
-        Exec '"$INSTDIR\ldsreplicate_gui.cmd"'
+        Exec '"$INSTDIR\ldsreplicate_gui.cmd" G'
     ${EndIf}
 
 FunctionEnd

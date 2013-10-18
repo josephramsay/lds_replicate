@@ -1,2 +1,2 @@
 @echo off
-ldsreplicate_gui.cmd
+ldsreplicate_gui.cmd G
