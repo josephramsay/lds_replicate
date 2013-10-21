@@ -96,8 +96,10 @@ class ConfigWrapper(object):
 
     def _substIDP(self,idp,mul):
         '''add requested prefix to layer list'''
-        m0 = tuple([idp+str(s) for s in mul[0]])
-        m1 = tuple([idp+str(s) for s in mul[1]])
+        #64layers
+        m0 = tuple([idp+str(s) for s in mul[0]]) if mul[0] else (None,)
+        #ptnlayers
+        m1 = tuple([idp+str(s) for s in mul[1]]) if mul[1] else (None,)
         return m0+m1+mul[2:]
 
             

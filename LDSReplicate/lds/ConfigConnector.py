@@ -85,9 +85,9 @@ class ConfigConnector(object):
             self.reg.closeEndPoint(self.destname)
             self.reg.closeEndPoint('WFS')
             dst = None
-        elif destname:
+        elif destname and not uconf:
             raise ConnectionConfigurationException('Missing configuration, "{}.conf"'.format(uconf))
-        elif uconf:
+        elif uconf and not destname:
             raise ConnectionConfigurationException('No driver/dest specified "{}"'.format(destname))
         
     def checkChanges(self,destname,uconf):
@@ -233,7 +233,7 @@ class DatasourceRegister(object):
         del self.register[fn]
     
     def _assignRef(self,uri):
-        '''mark ref value as either user config or a connection string based on the assumption conn strings contain certain suff/prefixes...'''
+        '''mark ref value as either user config or a connection string based on the assumption conn strings contain certain suff/prefixes...'''#TODO Test different sl/fg cases
         self.cs,self.uc = (uri,None) if uri and re.search('PG:|MSSQL:|\.gdb|\.sqlite|\.db',uri,flags=re.IGNORECASE) else (None,uri) 
 
     
@@ -297,6 +297,7 @@ class DatasourceRegister(object):
         and (fn in DataStore.DRIVER_NAMES.values() or fn == WFSDataStore.DRIVER_NAME) \
         and (not self.register.has_key(fn) or self.register[fn]['uri']!=uri):
             self._register(fn,uri)
+            self._connect(fn, req)
         elif fn in self.register: 
             self._connect(fn,req)
         else:

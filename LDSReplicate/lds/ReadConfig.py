@@ -656,7 +656,7 @@ class LayerReader(object):
         return lca
             
     
-#--------------------------------------------------------------------------------------------------
+
     
 class LayerFileReader(LayerReader):
     
@@ -826,7 +826,6 @@ class LayerFileReader(LayerReader):
         return lcel
             
         
-#--------------------------------------------------------------------------------------------------            
             
 class LayerDSReader(LayerReader):
     '''
@@ -1022,10 +1021,8 @@ class LayerDSReader(LayerReader):
         feat.SetField(field,value)
         layer.SetFeature(feat)
         #ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
-         
-#------------------------------------------------------------------------------
-        
-                    
+
+                   
 class GUIPrefsReader(object):
     '''
     Reader for GUI prefs. To save re inputting every time 
