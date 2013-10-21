@@ -316,19 +316,25 @@ class DataStore(object):
             #ogr.DontUseExceptions()
             ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if isinstance(self,WFSDataStore) else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
             #ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
-            if ds is None: raise DatasourceOpenException('Cannot open DS, '+str(dsn))   
+            if ds is None: 
+                raise DatasourceOpenException()   
         except (RuntimeError, DatasourceOpenException) as re1:
             #If its a 404 return for a new URL
             if re.search('HTTP error code : 404',str(re1)):
                 return None
-             
-            ldslog.error('Open '+str(dsn)+' throws '+str(re1),exc_info=1)
                 
             if create: 
                 ldslog.info('Create '+str(dsn))
-                ds = self.createDS(dsn)
+                try:
+                    ds = self.createDS(dsn)
+                except RuntimeError as re2:
+                    e2 = 'Cannot CREATE DS with {}. {}'.format(dsn,re2)
+                    ldslog.error(e2)
+                    raise DatasourceCreateException(e2)
             else:
-                raise re1
+                e1 = 'Cannot OPEN DS with {}. {}'.format(dsn,re1)
+                ldslog.error(e1)
+                raise DatasourceOpenException(e1)
         finally:
             pass
             #ogr.UseExceptions()

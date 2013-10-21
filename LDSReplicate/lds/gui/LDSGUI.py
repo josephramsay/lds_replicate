@@ -36,12 +36,12 @@ from lds.TransferProcessor import TransferProcessor, LORG
 from lds.ReadConfig import GUIPrefsReader, MainFileReader, LayerFileReader,LayerDSReader
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
-from lds.ConfigConnector import ConfigConnector, ProcessRunner
+from lds.ConfigConnector import ConfigConnector, ProcessRunner, EndpointConnectionException, ConnectionConfigurationException
 from lds.ConfigWrapper import ConfigWrapper
 
 from lds.gui.LayerConfigSelector import LayerConfigSelector
 
-from lds.DataStore import DataStore, MalformedConnectionString, DriverInitialisationException
+from lds.DataStore import DataStore, MalformedConnectionString, DriverInitialisationException, DatasourceCreateException, DatasourceOpenException
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -57,6 +57,8 @@ class LDSMain(QMainWindow):
     MAX_WIZARD_ATTEMPTS = 2
     
     IMG_LOC = '../../img/'
+    
+    DUMMY_CONF = '_deleteme'
     
     def __init__(self):
         super(LDSMain, self).__init__()
@@ -148,12 +150,33 @@ class LDSMain(QMainWindow):
         return [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
         
     def initConfigConnector(self,gvs=None):
+        '''Try to initialise the configconnector object'''
         self.gvs = gvs if gvs else self.updateFromGPR()
         try:
-            self.confconn = ConfigConnector(self,self.gvs[2],self.gvs[1],self.gvs[0])
-        except Exception as e:
-            msg = 'Cannot create {} connection using "{}.conf" config file. Please edit or address reported error; {}'.format(self.gvs[0],self.gvs[2],e)
+            uc = self.gvs[2]
+            dst = self.gvs[0]
+            self.confconn = ConfigConnector(self,uc,self.gvs[1],dst)
+        except RuntimeError as rer:
+            msg = 'Runtime error creating {} using "{}.conf" config file. {}'.format(self.gvs[0],uc,rer)
             self.errorEvent(msg)
+        except DatasourceCreateException as dce:
+            msg = 'Cannot create {} connection using "{}.conf" config file. Please edit or address reported error; {}'.format(dst,uc,dce)
+            self.errorEvent(msg)
+        except DatasourceOpenException as doe:
+            msg = 'Cannot open {} connection using "{}.conf" config file. Please edit or address reported error; {}'.format(dst,uc,doe)
+            self.errorEvent(msg)
+        except EndpointConnectionException as ece:
+            msg = 'Cannot open {} connection using "{}.conf" config file. Internal error; {}'.format(dst,uc,ece)
+            self.alertEvent(msg)    
+            self.runWizardDialog(uc if uc else self.DUMMY_CONF,dst)
+            os.remove(os.path.abspath(os.path.join(os.path.dirname(__file__),'../conf/',self.DUMMY_CONF+'.conf')))
+        except ConnectionConfigurationException as cce:
+            msg = 'Cannot open {} connection; {}'.format(dst,cce)
+            self.alertEvent(msg)   
+            self.runWizardDialog(uc if uc else self.DUMMY_CONF,dst)
+            os.remove(os.path.abspath(os.path.join(os.path.dirname(__file__),'../conf/',self.DUMMY_CONF+'.conf')))
+                
+
         
     def launchUCEditor(self, checked=None):
         fn = LDSUtilities.standardiseUserConfigName(str(self.controls.cflist[self.controls.confcombo.currentIndex()]))
@@ -233,6 +256,11 @@ class LDSMain(QMainWindow):
         ldslog.error(msg)
         popup = QMessageBox.critical(self, 'Error',msg, QMessageBox.Close)
         self.close()
+        
+    def alertEvent(self,msg):
+        '''Display message and continue'''
+        ldslog.error(msg)
+        popup = QMessageBox.warning(self, 'Attention',msg, QMessageBox.Ok)
         
 class LDSControls(QFrame):
         

@@ -42,6 +42,12 @@ class MainFileReader(object):
         '''
         Constructor
         '''
+        
+        from lds.DataStore import DataStore
+        self.driverconfig = {}
+        for dn in DataStore.DRIVER_NAMES:
+            self.driverconfig[dn] = ()
+            
         self.use_defaults = use_defaults
         #if we dont give the constructor a file path is uses the template file (which may not be a good idea...)
         if cfpath is None:
@@ -375,7 +381,8 @@ class MainFileReader(object):
         try:   
             key = self.cp.get(self.LDSN, 'key') 
         except NoOptionError, NoSectionError:
-            ldslog.warn(ref+"Key required to connect to LDS...")
+            ldslog.error(ref+"Key required to connect to LDS...")
+            raise
             
         try: 
             fmt = self.cp.get(self.LDSN, 'fmt')
@@ -461,7 +468,7 @@ class MainFileReader(object):
 
         return (type,host,port,auth,usr,pwd)
     
-    def readMiscConfig(self,idp):
+    def readMiscConfig(self):
         ref = self.fn+':Misc. '
         
         sixtyfourlayers = None
@@ -469,9 +476,11 @@ class MainFileReader(object):
         #NB. for v:x772 ps=1000000 is too small, 100000-1999999 returns None but ps=10000000 is too large, hangs or quits on XML parse fail
         partitionsize = None
         
+        #strip off any prefixes, anythingpreceeding - or :
         try: 
             #sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_VX_PREFIX else LU.LDS_VX_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
-            sixtyfourlayers = [s if s[:3] == idp[:3] else idp+s for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
+            #sixtyfourlayers = [s if s[:3] == prefix[:3] else prefix+s for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
+            sixtyfourlayers = [s.split(':layer-')[-1].split(':x')[-1] for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
         except NoSectionError:
             ldslog.warn(ref+"No Misc section detected looking for 64bit Layer specification")
         except NoOptionError:
@@ -479,7 +488,8 @@ class MainFileReader(object):
             
         try: 
             #partitionlayers = map(lambda s: s if s[:3]==LU.LDS_VX_PREFIX else LU.LDS_VX_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
-            partitionlayers = [s if s[:3]==idp[:3] else idp+s for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
+            #partitionlayers = [s if s[:3]==prefix[:3] else prefix+s for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
+            partitionlayers = [s.split(':layer-')[-1].split(':x')[-1] for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
         except NoSectionError:
             ldslog.warn(ref+"No Misc section detected looking for Problem Layer specification")
         except NoOptionError:
@@ -502,6 +512,33 @@ class MainFileReader(object):
             prefetchsize = partitionsize
         
         return (sixtyfourlayers,partitionlayers,partitionsize,prefetchsize)
+        
+        
+    def readConfig(self,dname):
+        from lds.PostgreSQLDataStore import PostgreSQLDataStore as PG
+        from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore as MS
+        from lds.FileGDBDataStore import FileGDBDataStore as FG
+        from lds.SpatiaLiteDataStore import SpatiaLiteDataStore as SL
+        
+        if dname == PG.DRIVER_NAME:
+            return self.readPostgreSQLConfig()
+        elif dname == MS.DRIVER_NAME:
+            return self.readMSSQLConfig()
+        elif dname == FG.DRIVER_NAME:
+            return self.readFileGDBConfig()
+        elif dname == SL.DRIVER_NAME:
+            return self.readSpatiaLiteConfig()
+        elif dname == 'LDS':
+            return self.readLDSConfig()
+        elif dname == 'Misc':
+            return self.readMiscConfig()
+        elif dname == 'Proxy':
+            return self.readProxyConfig()
+            
+    def readAllConfig(self):
+        '''Reads the entire config file. Needed in case of missing config options. eg If guiprefs has MS set but not configured, find the next best one'''
+        for drn in self.driverconfig.keys()+['LDS','Proxy','Misc']:
+            self.driverconfig[drn] = self.readConfig(drn)
         
     
     def readMainProperty(self,driver,key):
@@ -1036,7 +1073,16 @@ class GUIPrefsReader(object):
             return (None,)*(len(self.plist)+1)
         #if dval is okay ret it and res of a read of that sec
         return (self.dvalue,)+self.readsec(self.dvalue)
-
+    
+    
+    def readall(self):
+        '''Reads entire grp into dict'''
+        gpra = {}
+        secs = self.cp.sections()
+        secs.remove(self.PREFS_SEC)
+        for sec in secs:
+            gpra[sec] = self.readsec(sec)
+        return gpra
         
     def getDestinations(self):
         return self.cp.sections()
@@ -1102,7 +1148,7 @@ class GUIPrefsReader(object):
     
     def _initSection(self,section):
         checksec = LU.standardiseDriverNames(section)
-        if checksec is not None:
+        if checksec:
             self.cp.add_section(checksec)
             return True
         elif section == self.PREFS_SEC:

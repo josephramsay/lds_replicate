@@ -28,6 +28,10 @@ from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
 from lds.WFSDataStore import WFSDataStore
 from lds.LDSDataStore import LDSDataStore
 
+
+class EndpointConnectionException(Exception): pass
+class ConnectionConfigurationException(Exception): pass
+
 ldslog = LDSUtilities.setupLogging()
 
 __version__ = AppVersion.getVersion()
@@ -59,7 +63,7 @@ class ConfigConnector(object):
         #lgval isn't used in CC itself but the gui's use it for menu indexing      
         self.lgval = lgval
         #Optimisation. If the uconf or dest type are unchanged don't go through the expensive task of updating TP and the layer lists
-        if ((uconf,destname)!=(self.uconf,self.destname)):
+        if uconf and destname and ((uconf,destname)!=(self.uconf,self.destname)):
             #lgpair = (LORG.LAYER if re.match('^v:x',lgval) else LORG.GROUP,lgval) if lgval else (None,None)
             self.uconf = uconf
             self.destname = destname
@@ -81,7 +85,11 @@ class ConfigConnector(object):
             self.reg.closeEndPoint(self.destname)
             self.reg.closeEndPoint('WFS')
             dst = None
-            
+        elif destname:
+            raise ConnectionConfigurationException('Missing configuration, "{}.conf"'.format(uconf))
+        elif uconf:
+            raise ConnectionConfigurationException('No driver/dest specified "{}"'.format(destname))
+        
     def checkChanges(self,destname,uconf):
         return (uconf,destname)!=(self.uconf,self.destname)
     
@@ -289,7 +297,10 @@ class DatasourceRegister(object):
         and (fn in DataStore.DRIVER_NAMES.values() or fn == WFSDataStore.DRIVER_NAME) \
         and (not self.register.has_key(fn) or self.register[fn]['uri']!=uri):
             self._register(fn,uri)
-        self._connect(fn,req)
+        elif fn in self.register: 
+            self._connect(fn,req)
+        else:
+            raise EndpointConnectionException('Register Entry {} has not been initialised.'.format(fn))
         return self.register[fn]['ep']
     
     def closeEndPoint(self,name):

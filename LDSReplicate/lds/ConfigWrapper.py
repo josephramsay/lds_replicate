@@ -15,6 +15,7 @@ Created on 23/07/2012
 @author: jramsay
 '''
 import logging
+import re
 
 from lds.ReadConfig import MainFileReader#, LayerFileReader
 from lds.LDSUtilities import LDSUtilities
@@ -57,34 +58,34 @@ class ConfigWrapper(object):
 
         if drv==DataStore.DRIVER_NAMES['pg']:
             ml = self.mainconfig.readPostgreSQLConfig()
-            if self.userconfig is not None:
+            if self.userconfig:
                 ul = self.userconfig.readPostgreSQLConfig()
         elif drv==DataStore.DRIVER_NAMES['ms']:
             ml = self.mainconfig.readMSSQLConfig()
-            if self.userconfig is not None:
+            if self.userconfig:
                 ul = self.userconfig.readMSSQLConfig()
         elif drv==DataStore.DRIVER_NAMES['fg']:
             ml = self.mainconfig.readFileGDBConfig()
-            if self.userconfig is not None:
+            if self.userconfig:
                 ul = self.userconfig.readFileGDBConfig()
         elif drv==DataStore.DRIVER_NAMES['sl']:
             ml = self.mainconfig.readSpatiaLiteConfig()
-            if self.userconfig is not None:
+            if self.userconfig:
                 ul = self.userconfig.readSpatiaLiteConfig()
         elif drv=='WFS':
             ml = self.mainconfig.readWFSConfig()
-            if self.userconfig is not None:
+            if self.userconfig:
                 ul = self.userconfig.readWFSConfig()
         elif drv=='Proxy':
             '''Proxy parameters'''
             ml = self.mainconfig.readProxyConfig()
-            if self.userconfig is not None:
+            if self.userconfig:
                 ul = self.userconfig.readProxyConfig()
         elif drv=='Misc':
             '''Misc global parameters'''
-            ml = self.mainconfig.readMiscConfig(params['idp'])
-            if self.userconfig is not None:
-                ul = self.userconfig.readMiscConfig(params['idp'])
+            ml = self._substIDP(params['idp'],self.mainconfig.readMiscConfig())
+            if self.userconfig:
+                ul = self._substIDP(params['idp'],self.userconfig.readMiscConfig())
         else:
             return None
         
@@ -93,7 +94,13 @@ class ConfigWrapper(object):
         
         return rconfdata
 
+    def _substIDP(self,idp,mul):
+        '''add requested prefix to layer list'''
+        m0 = tuple([idp+str(s) for s in mul[0]])
+        m1 = tuple([idp+str(s) for s in mul[1]])
+        return m0+m1+mul[2:]
 
+            
     def readDSProperty(self,drv,prop):
         '''Gets a single property from a selected driver config'''
         #NB uprop can be none if there is no uc object or if the prop isnt listed in the uc
