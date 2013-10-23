@@ -79,6 +79,7 @@ Section "LDS Replicate" SEC0001
     SetOutPath $INSTDIR\apps\ldsreplicate
     File F:\git\LDS\LDSReplicate\ldsreplicate.py
     File F:\git\LDS\LDSReplicate\ldsreplicate_gui.py
+    File F:\git\LDS\README.md
     SetOutPath $INSTDIR\apps\ldsreplicate\conf
     AccessControl::GrantOnFile "$INSTDIR\apps\ldsreplicate\conf" "(S-1-5-32-545)" "FullAccess"
     File F:\git\LDS\LDSReplicate\conf\getcapabilities.file.xsl
@@ -91,7 +92,6 @@ Section "LDS Replicate" SEC0001
     SetOutPath $INSTDIR\apps\ldsreplicate\doc
     File F:\git\LDS\LDSReplicate\doc\demo2_commands.txt
     File F:\git\LDS\LDSReplicate\doc\LDSReplicate_instructions.pdf
-    File F:\git\LDS\LDSReplicate\doc\README
     SetOutPath $INSTDIR\apps\ldsreplicate\img
     File F:\git\LDS\LDSReplicate\img\open.png
     File F:\git\LDS\LDSReplicate\img\exit.png
