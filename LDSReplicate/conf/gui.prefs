@@ -1,30 +1,30 @@
 [FileGDB]
-uconf = fg5
-lgvalue = FGAGAIN
+uconf = fglint
+lgvalue = SIXTYONE
 epsg = None
 fd = None
 td = 2013-01-01
 
 [prefs]
-dest = SQLite
+dest = FileGDB
 
 [PostgreSQL]
-uconf = pg
-lgvalue = EPSGMIX
+uconf = SOMETHINGelse
+lgvalue = v:x1572
 epsg = 
 fd = None
-td = None
+td = 2013-01-01
 
 [MSSQLSpatial]
-uconf = ms
-lgvalue = 
-epsg = 
+lgvalue = None
+uconf = None
+epsg = None
 fd = None
 td = None
 
 [SQLite]
-uconf = slxx
-lgvalue = SLXX1
+lgvalue = NEWNEW
+uconf = SQLITETEST
 epsg = None
 fd = None
 td = None
