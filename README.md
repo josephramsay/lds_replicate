@@ -1,4 +1,4 @@
-#LDS Replicate README
+# LDS Replicate - README
 
 The LDS Replication script replicates data in the LINZ Data Service to a local data store. Currently supported datastores include; PostgreSQL (PostGIS), MSSQL Spatial, FileGDB and SpatiaLite. Support for other outputs is ongoing.
 
@@ -16,24 +16,27 @@ This first dialog sets up LDS and database connections where the user can enter 
 2. Enter your LINZ API key. eg. __1234567890abcdef1234567890abcdef__ Clicking the link titled LDS API Key on this page will take you to the LDS Key page 
 3. Select the type of data output you want to generate. eg. PostgreSQL, MSSQLSpatial, FileGDB, SQLite
 4. Select internal[x] or external[_] eg internal create a file in the conf directory listing layer details. Selecting external creates this same list in table form inside your selected data source
-5. Select encryption if you want your password encrypted before saving. (NB Care with this option as passwords may be corrupted between releases)
+5. Select encryption if you want your password encrypted before saving. (NB Care with this [trial] option as passwords may become corrupted between releases)
   
 ### Proxy Page
-1. Enter Proxy server. (IP or URL) eg. 127.0.0.1
-2. Enter Proxy port. eg. 5432
+1. Enter Proxy server. (IP or URL) eg. 127.0.0.1 or localhost
+2. Enter Proxy port. eg. 3128
 3. Select Proxy authorisation method, Basic, NTLM (Windows NTLM proxy auth), Digest, Any
 4. Enter Username and Password if needed
 	
 ### PostgreSQL Page
-1. Enter Server/Port
-2. Enter DBName/Schema
-3. Enter User/Pass
+1. Enter Server. (IP or URL) eg. 127.0.0.1 or localhost
+1. Enter Port. eg. 5432
+2. Enter DBName
+3. Enter Schema. eg. public
+4. Enter User/Pass
 	
 ### MSSQLSpatial Page
 1. Enter Server\Instance (one string)
-2. Enter DBName/Schema
-3. Select Trusted/Untrusted connection (Use Windows uesr/pass combination)
-4. If Untrusted enter User/Pass
+2. Enter DBName
+3. Enter Schema. eg. dbo
+4. Select Trusted/Untrusted connection (Use Windows uesr/pass combination)
+5. If Untrusted enter User/Pass
 	
 ### FileGDB Page
 Enter filegdb directory location. eg. <path>/dir-name.gdb/
@@ -44,7 +47,7 @@ Enter spatialite file location. eg. <path>/file-name.sqlite
 NB. File name must end with a .db, .sqlite or .sqlite3 suffix. The setup wizard will attempt to initialise a new database for you if the named database doesn't exist
 	
 ### Confirmation Page
-If the connection was successful the final page will be displayed. Confirm the details are correct and click okay.	
+If the connection was successful the final page will be displayed. Confirm the details are correct and click okay.	If this confitmation page fails to appear you may need to edit the connection details you provided in the database page.
 	
 ## LAYER CONFIG
 
@@ -61,27 +64,27 @@ Clicking __Reset__ re-reads the layer information from LDS resetting all previou
    
 ## MAIN GUI
 
-The Main GUI is the primary method to interact with LDS and replicate layers. It displays a number of fields defining the replication to be performed.
+The Main GUI is the primary window where we interact with LDS and replicate layers. It displays a number of fields defining the replication to be performed.
 
-#####Destination. 
-This is the output type to generate loading the correct drivers and initialising any connection parameters.
+##### Destination. 
+This dropdown displays only output types that have been configured by the user. It indicates the output type to generate, indicating to the program which drivers to load and initialising any connection parameters. Running the Main Config Wizard or editing the user config file will expand the selection presented here.
 
-#####Group/Layer.
+##### Group/Layer.
 This selects the Layer or the predefined Group to replicate. To open and (re)define groups click the __Layer Select__ button in the lower left corner.
 
-#####User Config
-This dropdown allows you to shoose the user config file you created in the initial setup. NOTE. Because a user config can contain the connection parameters for a number of connection instances the content of the file must contain a component that corresponds to the Destination selection made above.
+##### User Config
+This dropdown allows you to choose the user config file you created in the initial setup. NOTE. Because a user config can contain the connection parameters for a number of connection instances the content of the file must contain a component that corresponds to the Destination selection made above.
 
-#####EPSG
+##### EPSG
 Enabling this option with the checkbox allows you to select the output spatial reference from the accompanying dropdown. If not enabled the spatial reference of the source is used by default. If you have selected this option in a previous replication the EPSG value is saved to the layer config file and used in all subsequent replications. This applies per layer and does not depend on group memebership. When replicating a group, enabling a destination will force the selected spatial reference across all members of the group overwriting any previously saved assignments. Care needs to be taken here that spatial references are consistent with previous replications. 
 
-#####From Date
+##### From Date
 Enabling this option allows the user to set an incremenmtal start date. No data from before this date will be returned by the subsequent LDS resuest.
 
-#####To Date
+##### To Date
 This option sets the incremental end date. No data from after this date will be returned in subsequent LDS requests. 
 
-######NOTE
+###### NOTE
 Only layers with a valid primary key can will be queried incrementally. Setting dates from layers without a primary key will generate non-incremental queries.
 
 
