@@ -31,7 +31,6 @@ class SpatiaLiteDataStore(DataStore):
     '''
     SpatiaLite  DataStore
     '''
-    #TODO. Figure out why replications fail around the 1M mark with a "Failed Writing body" error
     
     DRIVER_NAME = DataStore.DRIVER_NAMES['sl']#"SQLite"
     

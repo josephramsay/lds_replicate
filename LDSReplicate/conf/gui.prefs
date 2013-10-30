@@ -6,11 +6,11 @@ fd = None
 td = 2013-01-01
 
 [prefs]
-dest = FileGDB
+dest = PostgreSQL
 
 [PostgreSQL]
 uconf = SOMETHINGelse
-lgvalue = v:x1572
+lgvalue = EXTRASPECIAL
 epsg = 
 fd = None
 td = 2013-01-01

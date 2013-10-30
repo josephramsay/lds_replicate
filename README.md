@@ -106,7 +106,7 @@ Only layers with a valid primary key can will be queried incrementally. Setting 
 8. Using command line parameters
 9. From the command line run the command "ldsreplicate -x|-i -s _LDS-URL_ -d _destination-connection-string_ -l _layer-to-replicate_ [_initialise-layer-config-file_] _output-format_"
 
-        python LDSReader/ldsreplicate.py -x -s http://wfs.data.linz.govt.nz/<your-api-key>/v/x785/wfs?service=WFS&request=GetFeature&typeName=v:x785 -d PG:"dbname='<your-db-name>' host='<your-host-name>' port='<your-port-number>' user='<your-user-name>' password='<your-password>'" -l v:x785 init pg
+        python ldsreplicate.py -x -s http://wfs.data.linz.govt.nz/<your-api-key>/v/x785/wfs?service=WFS&request=GetFeature&typeName=v:x785 -d PG:"dbname='<your-db-name>' host='<your-host-name>' port='<your-port-number>' user='<your-user-name>' password='<your-password>'" -l v:x785 init pg
 
 Note. 
 The 'init' command initialises the layer config file, reading settings from the WFS GetCapabilities document. This should be used once, when first running ldsreplicate
@@ -163,38 +163,46 @@ Copy the 'NZ Land Districts' layer into the fileGDB database file somefile.gdb u
 
 # NOTES
 
-1. Connection options can be set up in the config file "ldsincr.conf" but command line options can be used instead and will override 
-configuration file settings. There is only minimal checking done on command line connection strings
+1. Connection options should be set in the user config file overriding defaults in the main config file _template.conf_ . Alternatively, command line parameters can be used instead which will override all config file settings. There is only minimal checking done on command line connection strings
+
 2. A valid layer name is required on the command line to select the desired layer. This is prefixed by the -l option flag. Leaving this option 
 blank selects all layers. (NB. you can avoid this requirements by using a custom LDS URL, which necessarily must contain a layer component) 
-3. Dates are not required. Omitting one date will trigger an auto incremental request based on the lastmodified parameter in the respective 
-destination layer-properties file. Omitting both dates assumes a full update (non incremental) is needed
-4. Dates when provided must be in the format yyyy-mm-dd
-5. Full replication uses a fast driver copy mechanism and ignores discards and filters. Adding discard columns to a fully replicated layer
-would be considered a schema change and potentially fail.
-6. CQL strings are only minimally checked for tokens indicating a predicate. The user is responsible for ensuring they are constructing their
-filter using the correct parameter names, formats and bounds.
-7. CQL filters will override one another (they do not stack) according to; Command Line > configfile (ldsincr.conf) > layer config (___.layer.properties) 
-8. Output names (for DB tables/FileGDB directories etc) are defined in the layer config file, not LDS. Changing this name will trigger the creation
-of a new table.
-9. Adding multiple output on the command line will trigger the copy process for these outputs 
 
-10. The properties files are interchangeable and selected based on their name i.e. postgresql.layer.properties is the layer properties file for the 
-PostgreSQL output. Copying this file to mssql.layer.properties would assign to an MSSQLSpatial output keeping all cql, discarded columns and modification dates.
-11. In the properties files the sections are denoted by the layer id in square brackets eg [v:x111]. In the properties table the id column takes this role.
+3. Dates are not required, using them however, triggers an incremental request using the provided dates. Incremental requests will also occur if a lastmodified property has been saved in the layer config file/table.
+
+4. Dates when provided must be in the format yyyy-mm-dd
+
+5. Incremental requests are generally slower. Because locally saved tables are updated, rather than flushed and rewritten, remediation between primary key fields is necessary between LDS and these saved tables. For each update or delete uses an expensive _attribute filter_ operation is performed. For smaller updates (on large tables) this is more efficient. For large updates (on small tables) it may be faster to flush and rebuild. NOTE. Because a primary key field is needed to match tables, only those that contain a primary key are able to be updated incrementally. Layers labelled in __bold__ in the Layer Selection Dialog have this primary key.
+
+6. CQL strings are only minimally checked for tokens that might indicate a valid predicate. The user is responsible for ensuring they are constructing their filter using the correct parameter names, formats and bounds.
+
+7. CQL filters will override one another (they do not stack) according to; Command Line > configfile (template.conf) > layer config (___.layer.properties/lds_config) 
+
+8. Output names (for DB tables/FileGDB directories etc) are defined in the layer config file, not LDS. Changing this name will trigger the creation of a new table.
+
+9. Adding multiple outputs on the command line will trigger the copy process for these outputs. 
+
+10. The properties files are interchangeable and selected based on their name i.e. postgresql.layer.properties is the layer properties file for the PostgreSQL output. Copying this file to mssql.layer.properties would assign to an MSSQLSpatial output keeping all cql, discarded columns and modification dates.
+
+11. In the properties files the sections are denoted by the layer id in square brackets eg. [v:x111]. In the properties table the ID column takes this role.
+
 12. Beneath the section header property values include {pkey, name, lastmodified, geocolumn, epsg, cql}
-13. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' this may very per layer. Because Topo/Hydro layers dont use a primary key
-this values is not set for these layers.
+
+13. Property 'pkey'. Defines the LDS primary key for this layer. Nominally set to 'id' this may vary per layer. NOTE. The included file, _ldspk.csv_ contains the reference primary keys used by the layer config initialisation script.
+
 14. Property 'name'. Used as the name for the output table/file these are not guaranteed to be unique. Nominally set to LDS layer name.
-15. Property 'lastmodified'. This is a date string (yyyy-mm-dd) indicating the age of the data copied to output. It is used as a start point 
-when doing auto-incremental updates.
-16. Property 'geocolumn'. Used as the name for the output geometry column
-17. Property 'epsg'. Specifies the required EPSG number to affect a projection change. If left blank the source projection will be retained
+
+15. Property 'lastmodified'. This is a date string (yyyy-mm-dd) indicating the age of the data copied to output. It is used as a start point when doing incremental updates.
+
+16. Property 'geocolumn'. Used as the name for the output geometry column nominally set to _shape_.
+
+17. Property 'epsg'. Specifies the required EPSG number to affect a projection change. If left blank the source projection will be retained.
+
 18. Property 'cql'. Sets a cql filter for the layer. 
-> 1. The user is responsible for constructing well-formed CQL filters. 
-> 2. Layer filters will be overriden globally in the config file or on the command line.
+  1. The user is responsible for constructing well-formed CQL filters. 
+  2. Layer filters will be overriden globally in the config file or on the command line.
 
    
-
 19. Write problems in the FileGDB driver are not addressed in GDAL 1.9.1 and full support is only available in nightly builds from July 2012 
-20. Additional fixes implemented in GDAL 1.9.2 including SR handling (for ESRI) and attribute filters
+
+20. Additional fixes are implemented in GDAL 1.9.2 including SR handling (for ESRI) and attribute filters. This is the minimum version tested. Earlier versions may cause problems

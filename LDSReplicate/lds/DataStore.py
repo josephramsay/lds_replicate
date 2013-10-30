@@ -395,8 +395,7 @@ class DataStore(object):
                 #Errors below seem to all indicate server load problems, so we try again
                 if self.attempts < self.MAXIMUM_WFS_ATTEMPTS-1 and ( \
                     re.search(   'Function sequence error',str(rte)) \
-                    or re.search('HTTP error code : 504',str(rte)) \
-                    or re.search('HTTP error code : 502',str(rte)) \
+                    or re.search('HTTP error code : 50[234]',str(rte)) \
                     or re.search('HTTP error code : 404',str(rte)) \
                     or re.search('General Error',str(rte)) \
                     or re.search('Empty content returned by server',str(rte)) \
@@ -411,7 +410,7 @@ class DataStore(object):
                     #self.read(self.getURI(),False)
                     
                     #For 504's also reduce page size
-                    if re.search('HTTP error code : 504',str(rte)):
+                    if re.search('HTTP error code : 50[234]',str(rte)):
                         ps = src.getPartitionSize() if src.getPartitionSize() else src.OGR_WFS_PAGE_SIZE
                         reduction = int(ps*src.PAGE_REDUCTION_STEP)
                         ldslog.warn('Reducing Page Size to '+str(reduction))
@@ -591,7 +590,6 @@ class DataStore(object):
             transaction_flag = True
             src_layer = src_ds.GetLayer(li)
 
-            #TODO. resolve conflict between lastmodified and fdate
             src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
             
             '''retrieve per-layer settings from props'''
@@ -1020,7 +1018,6 @@ class DataStore(object):
       
             '''set Geometry transforming if needed'''
             if hasattr(self,'transform') and self.transform is not None:
-                #TODO check whether this fin_geom needs to be cloned first
                 try:
                     fin_geom.Transform(self.transform)
                 except RuntimeError as rer:
@@ -1140,8 +1137,6 @@ class DataStore(object):
         
     def executeSQL(self,sql):
         '''Executes arbitrary SQL on the datasource'''
-        '''Tagged? private since we only want it called from well controlled methods'''
-        '''TODO. step through multi line queries?'''
         retval = None
         #ogr.UseExceptions()
         ldslog.debug("SQL: "+sql)

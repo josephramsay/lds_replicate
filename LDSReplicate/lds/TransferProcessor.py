@@ -368,7 +368,6 @@ class TransferProcessor(object):
         
     def assembleLayerList(self,dst,intersect=True):
         '''Match the capabilities layer list with the configured layer list'''
-        #TODO Profiler reports slow
         #List of configured layers (from layer-config file/table)
         lds_read = dst.getLayerConf().getLayerNames() if dst else []
         
