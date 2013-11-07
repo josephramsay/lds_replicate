@@ -10,10 +10,10 @@ dest = PostgreSQL
 
 [PostgreSQL]
 uconf = SOMETHINGelse
-lgvalue = EXTRASPECIAL
-epsg = 
+lgvalue = EPSGMIX2
+epsg = 2193
 fd = None
-td = 2013-01-01
+td = 2010-01-01
 
 [MSSQLSpatial]
 lgvalue = None

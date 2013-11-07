@@ -51,7 +51,8 @@ class LDSDataStore(WFSDataStore):
     OGR_WFS_BASE_START_INDEX = 0
     
     GDAL_HTTP_USERAGENT = 'LDSReplicate/'+str(AppVersion.getVersion())    
-
+    GDAL_HTTP_TIMEOUT = 600 #10min. has no affect on 504
+    
     #Namespace declarations
     NS = {'g'    : '{http://data.linz.govt.nz/ns/g}', 
           'gml'  : '{http://www.opengis.net/gml}', 
@@ -93,6 +94,7 @@ class LDSDataStore(WFSDataStore):
         #CPL_CURL_VERBOSE for those ogrerror/generalerror
         #OGR_WFS_PAGING_ALLOWED, OGR_WFS_PAGE_SIZE, OGR_WFS_BASE_START_INDEX
         local_opts  = ['GDAL_HTTP_USERAGENT='+str(self.GDAL_HTTP_USERAGENT)]
+        local_opts  = ['GDAL_HTTP_TIMEOUT='+str(self.GDAL_HTTP_TIMEOUT)]
         local_opts += ['OGR_WFS_PAGING_ALLOWED='+str(self.OGR_WFS_PAGING_ALLOWED)]
         local_opts += ['OGR_WFS_PAGE_SIZE='+str(self.getPartitionSize() if self.getPartitionSize() else self.OGR_WFS_PAGE_SIZE)]
         local_opts += ['OGR_WFS_USE_STREAMING='+str(self.OGR_WFS_USE_STREAMING)]

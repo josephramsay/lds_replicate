@@ -524,6 +524,7 @@ class DataStore(object):
                 if src_feat:
                     new_feat_def = self.partialCloneFeatureDef(src_feat)
                 else:
+                    ldslog.warn('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
                     raise InaccessibleFeatureException('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
             else:
                 #if there are no features (likely with small incr)
@@ -653,6 +654,7 @@ class DataStore(object):
                 if src_feat:
                     new_feat_def = self.partialCloneFeatureDef(src_feat)
                 else:
+                    ldslog.warn('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
                     raise InaccessibleFeatureException('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
             else:
                 #if there are no features (likely with small incr)

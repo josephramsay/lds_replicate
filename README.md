@@ -35,7 +35,7 @@ This first dialog sets up LDS and database connections where the user can enter 
 1. Enter Server\Instance (one string)
 2. Enter DBName
 3. Enter Schema. eg. dbo
-4. Select Trusted/Untrusted connection (Use Windows uesr/pass combination)
+4. Select Trusted/Untrusted connection (Use Windows user/pass combination)
 5. If Untrusted enter User/Pass
 	
 ### FileGDB Page
@@ -79,7 +79,7 @@ This dropdown allows you to choose the user config file you created in the initi
 Enabling this option with the checkbox allows you to select the output spatial reference from the accompanying dropdown. If not enabled the spatial reference of the source is used by default. If you have selected this option in a previous replication the EPSG value is saved to the layer config file and used in all subsequent replications. This applies per layer and does not depend on group memebership. When replicating a group, enabling a destination will force the selected spatial reference across all members of the group overwriting any previously saved assignments. Care needs to be taken here that spatial references are consistent with previous replications. 
 
 ##### From Date
-Enabling this option allows the user to set an incremenmtal start date. No data from before this date will be returned by the subsequent LDS resuest.
+Enabling this option allows the user to set an incremental start date. No data from before this date will be returned by the subsequent LDS resuest.
 
 ##### To Date
 This option sets the incremental end date. No data from after this date will be returned in subsequent LDS requests. 
@@ -196,7 +196,8 @@ blank selects all layers. (NB. you can avoid this requirements by using a custom
 
 16. Property 'geocolumn'. Used as the name for the output geometry column nominally set to _shape_.
 
-17. Property 'epsg'. Specifies the required EPSG number to affect a projection change. If left blank the source projection will be retained.
+17. Property 'epsg'. Specifies the required EPSG number to affect a projection change. If left blank the source projection will be retained. 
+NB. If a new EPSG has been specified the desired projection is stored in the layer config file/table for future reference (This assignment will survive subsequent cleaning). Replicating a layer/group will not rewrite any previous EPSG assignments unless these are explictly requested. If a layer is incrementally capable changing the EPSG will have the affect of creating any new features in the requested SR but leaving existing features in the original. These rules apply to group EPSG assignment
 
 18. Property 'cql'. Sets a cql filter for the layer. 
   1. The user is responsible for constructing well-formed CQL filters. 
