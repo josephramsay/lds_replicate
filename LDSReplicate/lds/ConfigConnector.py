@@ -120,8 +120,9 @@ class ConfigConnector(object):
         '''Attempts to release DS resources used by LayerConfig'''
         lc = ep.getLayerConf()
         if lc:
-            lc.ds.SyncToDisk()
-            lc.ds = None
+            if hasattr(lc,'ds'):
+                lc.ds.SyncToDisk()
+                lc.ds = None
             lc = None
             
     #----------------------------------------------------------------------------------

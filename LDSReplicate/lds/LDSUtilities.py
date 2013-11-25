@@ -420,8 +420,11 @@ class LDSUtilities(object):
     def enum(*sequential, **named):
         #http://stackoverflow.com/questions/36932/how-can-i-represent-an-enum-in-python
         enums = dict(zip(sequential, range(len(sequential))), **named)
+        reverse = dict((value, key) for key, value in enums.iteritems())
+        enums['reverse'] = reverse
         return type('Enum', (), enums)
-    
+
+
     @staticmethod
     def setupLogging(lf=mainlog,ll=logging.DEBUG,ff=1):
         formats = {1:'%(asctime)s - %(levelname)s - %(module)s %(lineno)d - %(message)s',

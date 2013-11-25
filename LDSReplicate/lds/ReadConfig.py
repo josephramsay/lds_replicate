@@ -465,7 +465,6 @@ class MainFileReader(object):
         except NoOptionError:
             ldslog.warn(ref+"No pass defined") 
             
-
         return (type,host,port,auth,usr,pwd)
     
     def readMiscConfig(self):

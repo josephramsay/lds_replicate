@@ -246,6 +246,10 @@ class ProxyConfigPage(QWizardPage):
         except:
             (pxytype,pxyhost,pxyport,pxyauth,pxyusr,pxypwd) = (None,)*6
             
+        #if we use enums for pxy types
+        #pxytype = [a[0] for a in WFSDataStore.PROXY_TYPE.reverse.items() if a[1]==pxytype][0]
+
+            
         self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
         self.setSubTitle('Enter the hostname/ip-address, port number and authentication details of your HTTP proxy')
 
@@ -266,7 +270,7 @@ class ProxyConfigPage(QWizardPage):
         #radio buttons
         self.directradio = QRadioButton()
         self.systemradio = QRadioButton()
-        self.proxyradio = QRadioButton()
+        self.usrdefradio = QRadioButton()
         
         
         #edit boxes
@@ -298,7 +302,7 @@ class ProxyConfigPage(QWizardPage):
         
         self.registerField(self.key+WFSDataStore.PROXY_TYPE[0],self.directradio)
         self.registerField(self.key+WFSDataStore.PROXY_TYPE[1],self.systemradio)
-        self.registerField(self.key+WFSDataStore.PROXY_TYPE[2],self.proxyradio)
+        self.registerField(self.key+WFSDataStore.PROXY_TYPE[2],self.usrdefradio)
 
         #grid
         grid1 = QGridLayout()
@@ -313,35 +317,32 @@ class ProxyConfigPage(QWizardPage):
         grid1.addWidget(directlabel,1,1)
         grid1.addWidget(self.systemradio,2,0)
         grid1.addWidget(systemlabel,2,1)
-        grid1.addWidget(self.proxyradio,3,0)
+        grid1.addWidget(self.usrdefradio,3,0)
         grid1.addWidget(proxylabel,3,1)
         hbox.addLayout(grid1)
         hbox.addStretch(1)
         
         
-        gbox = QGroupBox('Proxy Configuration')
-        gbox.setEnabled(False)
-        
+        self.gbox = QGroupBox('Proxy Configuration')
+
         #dsu
         subs = False
         if pxytype == WFSDataStore.PROXY_TYPE[1]:
+            #system
             self.systemradio.setChecked(True)
         elif pxytype == WFSDataStore.PROXY_TYPE[2]:
-            self.proxyradio.setChecked(True)
-        else:
-            #direct by default
-            self.directradio.setChecked(True)
+            #user_defined
+            self.usrdefradio.setChecked(True)
             subs = True
+        else:
+            #direct (default)
+            self.directradio.setChecked(True)
             
-        self.hostEdit.setEnabled(subs)
-        self.portEdit.setEnabled(subs)
-        self.authSelect.setEnabled(subs)
-        self.usrEdit.setEnabled(subs)
-        self.pwdEdit.setEnabled(subs)
-            
-        self.directradio.clicked.connect(gbox.setDisabled)
-        self.systemradio.clicked.connect(gbox.setDisabled)
-        self.proxyradio.clicked.connect(gbox.setEnabled)
+        self.setUserDefined(subs)
+        
+        self.directradio.clicked.connect(self.disableUserDefined)
+        self.systemradio.clicked.connect(self.disableUserDefined)
+        self.usrdefradio.clicked.connect(self.enableUserDefined)
         
         grid2.addWidget(hostLabel, 1, 0)
         grid2.addWidget(self.hostEdit, 1, 2)
@@ -358,12 +359,12 @@ class ProxyConfigPage(QWizardPage):
         grid2.addWidget(pwdLabel, 5, 0)
         grid2.addWidget(self.pwdEdit, 5, 2)
              
-        gbox.setLayout(grid2)
+        self.gbox.setLayout(grid2)
         
         #layout    
         vbox = QVBoxLayout()
         vbox.addLayout(hbox)
-        vbox.insertWidget(1,gbox)
+        vbox.insertWidget(1,self.gbox)
         self.setLayout(vbox)  
         
     def selectConfFile(self):
@@ -372,6 +373,21 @@ class ProxyConfigPage(QWizardPage):
     def nextId(self):
         #now go to selected dest configger
         return int(self.field("ldsdest").toString())
+    
+    
+    def disableUserDefined(self):
+        self.setUserDefined(False)
+        
+    def enableUserDefined(self):
+        self.setUserDefined(True)
+        
+    def setUserDefined(self,udval):
+        self.gbox.setEnabled(udval)
+        self.hostEdit.setEnabled(udval)
+        self.portEdit.setEnabled(udval)
+        self.authSelect.setEnabled(udval)
+        self.usrEdit.setEnabled(udval)
+        self.pwdEdit.setEnabled(udval)
             
 class PostgreSQLConfigPage(QWizardPage):
     def __init__(self,parent=None,key=None):
@@ -913,7 +929,7 @@ class ConfirmationPage(QWizardPage):
             buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[2]),)
             buildarray += ((MFR.PROXY,'host',str(self.field("proxyhost").toString())),)
             buildarray += ((MFR.PROXY,'port',str(self.field("proxyport").toString())),)
-            buildarray += ((MFR.PROXY,'auth',WFSDataStore.PROXY_AUTH[int(self.field("proxyauth").toString())]),)
+            buildarray += ((MFR.PROXY,'auth',WFSDataStore.PROXY_AUTH[int(self.field("proxyauth").toString())-1]),)
             buildarray += ((MFR.PROXY,'user',str(self.field("proxyusr").toString())),)
             pwd = self.field("proxypwd").toString()
             if encrypt:
