@@ -132,6 +132,9 @@ class LDSDataStore(WFSDataStore):
     def buildIndex(self,lce,dst_layer_name):
         pass
         
+    def destinationURI(self,layername):
+        pass
+    
     def sourceURI(self,layername):
         '''Basic Endpoint constructor'''
         return self.requestbuilder.sourceURI(layername)
@@ -188,7 +191,7 @@ class LDSDataStore(WFSDataStore):
         '''Nothing to check?'''
         #TODO maybe check gdal/wfs/gml etc
         return super(LDSDataStore,self).versioncheck()
-        
+
 
         
         

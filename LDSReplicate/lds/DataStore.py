@@ -62,7 +62,7 @@ class InaccessibleFeatureException(DSReaderException): pass
 class DatasourcePrivilegeException(DSReaderException): pass
 class UnsupportedServiceException(LDSReaderException): pass
 
-
+CREATE_DS_FLAG = True
 
 class DataStore(object):
     '''
@@ -281,7 +281,7 @@ class DataStore(object):
     @abstractmethod
     def sourceURI(self,layer):
         '''Abstract URI method for returning source. Raises NotImplementedError if accessed directly'''
-        raise NotImplementedError("Abstract method sourceURI not implemented")
+        #raise NotImplementedError("Abstract method sourceURI not implemented")
     
 #    @abstractmethod
 #    def sourceURI_incrd(self,layer):
@@ -291,19 +291,19 @@ class DataStore(object):
     @abstractmethod
     def destinationURI(self,layer):
         '''Abstract URI method for returning destination. Raises NotImplementedError if accessed directly'''
-        raise NotImplementedError("Abstract method destinationURI not implemented")
+        #raise NotImplementedError("Abstract method destinationURI not implemented")
     
     
     @abstractmethod
     def validateConnStr(self,conn_str):
         '''Abstract method to check user supplied connection strings. Raises NotImplementedError if accessed directly'''
-        raise NotImplementedError("Abstract method destinationURI not implemented")
+        #raise NotImplementedError("Abstract method destinationURI not implemented")
     
     def testConnection(self):
         '''Test connection to a (typically database) source'''
         return True
     
-    def initDS(self,dsn=None,create=True):
+    def initDS(self,dsn=None,create=CREATE_DS_FLAG):
         '''Initialise the data source calling a provided DSN or self.dsn and a flag to indicate whether we should try and create a DS if none found'''
         #Notes
         #1. FGDB.driver will Open() a directory if its a valid FGDB dir, it will not Open() an empty directory. It will not CreateDataSource() an existing directory, valid or empty
@@ -1438,7 +1438,7 @@ class DataStore(object):
     def versionCheck(self):
         '''A version check to be used once the DS have been initialised... if normal checks cant be established eg psql on w32'''
         #Obviously this returns a default True for any subclasses that dont support it
-        return True
+        #return True
 
 
 class LayerInfo(object):

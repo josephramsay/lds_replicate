@@ -18,6 +18,8 @@ Created on 23/07/2012
 import os 
 import re
 
+from abc import ABCMeta, abstractmethod
+
 from lds.DataStore import DataStore
 from lds.LDSUtilities import LDSUtilities, Encrypt
 
@@ -26,6 +28,8 @@ class WFSDataStore(DataStore):
     WFS DataStore, intended to be overridden by SRC specific implementation
     '''
 
+    __metaclass__ = ABCMeta
+    
     DRIVER_NAME = "WFS"
     PROXY_AUTH = ('BASIC','NTLM','DIGEST','ANY')    
     PROXY_TYPE = ('DIRECT','SYSTEM','USER_DEFINED')
@@ -112,13 +116,10 @@ class WFSDataStore(DataStore):
         fmt = "&outputFormat="+fmt
         return self.uri+key+"/?service="+svc+"&version="+ver+"&request=GetFeature"+typ+fmt
     
-    def destinationURI(self,layername):
-        '''URI method returns destination file name'''
-        return NotImplementedError("No destination for WFS")
+#     @abstractmethod
+#     def destinationURI(self,layername):
+#         '''URI method returns destination file name'''
+#         #return NotImplementedError("No destination for WFS")
         
-        
-    def write(self,src_ds,dsn):
-        '''Write method deliberately raises exception discouraging writing to a WFS source'''
-        return NotImplementedError("No destination for WFS")
         
         

@@ -23,6 +23,7 @@ from lds.DataStore import DataStore
 from lds.ProjectionReference import Projection
 from lds.LDSUtilities import LDSUtilities
 #from osr import SpatialReference 
+from abc import ABCMeta, abstractmethod
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -30,6 +31,8 @@ class ESRIDataStore(DataStore):
     '''
     ESRI Specific superclass primarily used to do OSGEO to ESRI SpatialReference transformations
     '''
+    __metaclass__ = ABCMeta
+
 
     def __init__(self,conn_str=None,user_config=None):
 
@@ -44,8 +47,10 @@ class ESRIDataStore(DataStore):
         '''URI method for returning destination calls private subclass common URI method'''
         return self._commonURI(layer)
         
+    @abstractmethod
     def _commonURI(self,layer):
-        raise NotImplementedError("No common URI method for ESRI stack, implement at type level")
+        '''Use common uri for src and dst'''
+        #raise NotImplementedError("No common URI method for ESRI stack, implement at type level")
         
 
 #    def read(self,dsn):

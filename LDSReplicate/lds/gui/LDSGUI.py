@@ -160,10 +160,12 @@ class LDSMain(QMainWindow):
             msg = 'Runtime error creating {} using "{}.conf" config file. {}'.format(self.gvs[0],uc,rer)
             self.errorEvent(msg)
         except DatasourceCreateException as dce:
-            msg = 'Cannot create {} connection using "{}.conf" config file. Please edit or address reported error; {}'.format(dst,uc,dce)
+            msg = 'Cannot CREATE {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit or address reported error; {}'.format(dst,uc,dce)
+            self.switchDSSelection(dst)
             self.errorEvent(msg)
         except DatasourceOpenException as doe:
-            msg = 'Cannot open {} connection using "{}.conf" config file. Please edit or address reported error; {}'.format(dst,uc,doe)
+            msg = 'Cannot OPEN {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit or address reported error; {}'.format(dst,uc,doe)
+            self.switchDSSelection(dst)
             self.errorEvent(msg)
         except EndpointConnectionException as ece:
             msg = 'Cannot open {} connection using "{}.conf" config file. Internal error; {}'.format(dst,uc,ece)
@@ -177,6 +179,11 @@ class LDSMain(QMainWindow):
             os.remove(os.path.abspath(os.path.join(os.path.dirname(__file__),'../conf/',self.DUMMY_CONF+'.conf')))
                 
 
+    def switchDSSelection(self,disconnected):
+        #check next best configured DS configs
+        trythis = [DataStore.DRIVER_NAMES[i] for i in ('fg','sl','pg','ms') 
+                   if DataStore.DRIVER_NAMES[i] in self.gpr.getDestinations() and DataStore.DRIVER_NAMES[i] != disconnected][0]
+        self.gpr.writesecline('prefs', 'dest', trythis)
         
     def launchUCEditor(self, checked=None):
         fn = LDSUtilities.standardiseUserConfigName(str(self.controls.cflist[self.controls.confcombo.currentIndex()]))
