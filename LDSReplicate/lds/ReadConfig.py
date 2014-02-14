@@ -83,6 +83,15 @@ class MainFileReader(object):
 
     
     #database
+    def readDriverConfig(self,dname):
+        dnd = {'PostgreSQL':self.readPostgreSQLConfig,
+               'MSSQLSpatial':self.readMSSQLConfig,
+               'FileGDB':self.readFileGDBConfig,
+               'SQLite':self.readSpatiaLiteConfig,
+               'WFS':self.readWFSConfig,
+               'Proxy':self.readProxyConfig,
+               'Misc':self.readMiscConfig}
+        return dnd[dname]()
         
     def readPostgreSQLConfig(self):
         '''PostgreSQL specific config file reader'''            
@@ -866,11 +875,7 @@ class LayerDSReader(LayerReader):
         
     def buildConfigLayer(self,res):
         '''Builds the config table into and using the active DS'''
-        #TODO check initds for conf table name
-        #if not hasattr(self.dso,'ds') or self.dso.ds is None:
-        #    self.ds = self.dso.initDS(self.dso.destinationURI(DataStore.LDS_CONFIG_TABLE))  
 
-        #First, try to delete any previous config
         try:
             self.ds.DeleteLayer(self.fname.LDS_CONFIG_TABLE)
         except Exception as e:

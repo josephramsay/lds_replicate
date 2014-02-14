@@ -185,10 +185,13 @@ class LDSUtilities(object):
         #this is the full list but we should only need a small subset of these, i.e. brackets, spaces and commas
         #!     #     $     &     '     (     )     *     +     ,     /     :     ;     =     ?     @     [     ]
         #%21   %23   %24   %26   %27   %28   %29   %2A   %2B   %2C   %2F   %3A   %3B   %3D   %3F   %40   %5B   %5D
-        url = re.sub('\(','%28',url)
-        url = re.sub('\)','%29',url)
-        url = re.sub(',','%2C',url)
-        url = re.sub(' ','%20',url)
+        pe = {'!':'%21','#':'%23','$':'%24','&':'%26',"'":'%27','\(':'%28','\)':'%29','\*':'%2A','\+':'%2B',',':'%2C','/':'%2F',':':'%3A',';':'%3B','=':'%3D','\?':'%3F','@':'%40','\[':'%5B','\]':'%5D'}
+        for k in pe:
+            url = re.sub(k,pe[k],url)
+        #url = re.sub('\(','%28',url)
+        #url = re.sub('\)','%29',url)
+        #url = re.sub(',','%2C',url)
+        #url = re.sub(' ','%20',url)
         return url
     
     @staticmethod
@@ -384,7 +387,7 @@ class LDSUtilities(object):
     def readDocument(url,proxy=None):
         '''Non-Driver method for fetching LDS DS as a document'''
         ldslog.debug("LDS URL "+url)
-        if not LDSUtilities.mightAsWellBeNone(proxy): install_opener(build_opener(ProxyHandler(proxy)))
+        if LDSUtilities.mightAsWellBeNone(proxy): install_opener(build_opener(ProxyHandler(proxy)))
         with closing(urlopen(url)) as lds:
             data = lds.read()
         return data

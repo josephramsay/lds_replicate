@@ -521,6 +521,7 @@ class LayerSelectionPage(QFrame):
         else:
             ldslog.warn('R2L < Transfer action without selection')
         self.selection.clearSelection()
+
                 
     def doRejectAllClickAction(self):
         ktext = str(self.keywordcombo.lineEdit().text())

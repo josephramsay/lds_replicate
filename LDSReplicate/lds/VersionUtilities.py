@@ -103,9 +103,9 @@ class VersionChecker(object):
                 gdal = m4.group(1) if m4 is not None else None
                 
                 m5 = re.search('LIBXML=\"(\d+\.\d+\.\d+)',line)
-                libxml = m5.group(1) if m5 is not None else None
+                lxml = m5.group(1) if m5 is not None else None
             
-        return {'PostGIS':postgis,'GEOS':geos,'PROJ':proj,'GDAL':gdal,'LIBXML':libxml}
+        return {'PostGIS':postgis,'GEOS':geos,'PROJ':proj,'GDAL':gdal,'LIBXML':lxml}
     
     @staticmethod
     def getPostgreSQLVersion():

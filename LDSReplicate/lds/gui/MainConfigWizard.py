@@ -26,8 +26,9 @@ import re
 import sys
 import os
 
-from lds.DataStore import DSReaderException,DatasourcePrivilegeException
+from lds.DataStore import DSReaderException, DatasourceConnectException, DatasourceOpenException, DatasourcePrivilegeException
 from lds.WFSDataStore import WFSDataStore
+from lds.LDSDataStore import LDSDataStore
 from lds.ReadConfig import GUIPrefsReader, MainFileReader
 from lds.LDSUtilities import LDSUtilities
 from lds.VersionUtilities import AppVersion
@@ -372,8 +373,11 @@ class ProxyConfigPage(QWizardPage):
 
     def nextId(self):
         #now go to selected dest configger
-        return int(self.field("ldsdest").toString())
+        #return int(self.field("ldsdest").toString())
     
+        if self.testConnection():
+            return int(self.field("ldsdest").toString())
+        return self.parent.plist.get('proxy')[0]
     
     def disableUserDefined(self):
         self.setUserDefined(False)
@@ -388,6 +392,34 @@ class ProxyConfigPage(QWizardPage):
         self.authSelect.setEnabled(udval)
         self.usrEdit.setEnabled(udval)
         self.pwdEdit.setEnabled(udval)
+        
+    def testConnection(self):
+        if not self.usrdefradio.isChecked(): 
+            return True
+        if not any(f for f in (self.hostEdit.isModified(),self.portEdit.isModified(),
+                               self.usrEdit.isModified(),self.pwdEdit.isModified())):
+            return False
+        proxydata = {'type':'USER','host':str(self.hostEdit.text()),'port':str(self.portEdit.text()),
+                     'auth':str(WFSDataStore.PROXY_AUTH[self.authSelect.currentIndex()-1]),
+                     'user':str(self.usrEdit.text()),'pass':str(self.pwdEdit.text())}
+        wfsdata = {'key':'00112233445566778899aabbccddeeff'}#key not necessary but config tester checks format
+        lds = LDSDataStore(None,{'Proxy':proxydata,'WFS':wfsdata}) 
+        lds.applyConfigOptions()
+        
+        try:
+            #use website likely to be up (that isn't LDS so error is distinct)
+            lds.initDS('http://www.google.com/',False)
+        except DatasourceConnectException as dce:
+            QMessageBox.warning(self, 'Connection Error', 'Cannot connect to network using proxy parameters provided {}'.format(dce), 'OK')
+            return False
+        except DatasourceOpenException as dse:
+            QMessageBox.info(self, 'Connection Warning', 'Connection parameters confirmed, Datasource initialisation untested. Continuing.\n{}'.format(dse), 'OK')
+            return True
+        except RuntimeError as rte:
+            QMessageBox.warning(self, 'RuntimeError', 'Error connecting to network: '+str(rte), 'OK')
+            return False
+        return True
+ 
             
 class PostgreSQLConfigPage(QWizardPage):
     def __init__(self,parent=None,key=None):

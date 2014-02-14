@@ -83,7 +83,7 @@ class LDSDataStore(WFSDataStore):
         self.idp = LDSUtilities.getLDSIDPrefix(self.ver,self.svc)
 #         if self.conn_str:
 #             self.key = self.extractAPIKey(self.conn_str,False)
-            
+        
         self.requestbuilder = RequestBuilder.getInstance(self.params,conn_str)
         
         #we're not going to try and overwrite LDS    
@@ -157,7 +157,8 @@ class LDSDataStore(WFSDataStore):
         #probably not needed. prefer use superclass close()
         ldslog.info("WFS DS close")
 
-        
+    
+    
     @classmethod
     def fetchLayerInfo(cls,url,proxy=None):
         '''Non-GDAL static method for fetching LDS layer ID's using etree parser.'''
@@ -185,12 +186,12 @@ class LDSDataStore(WFSDataStore):
             ldslog.error('Error parsing URL;'+str(url)+' ERR;'+str(xe))
             
         return res
-
-    
+  
     def versionCheck(self):
         '''Nothing to check?'''
         #TODO maybe check gdal/wfs/gml etc
-        return super(LDSDataStore,self).versioncheck()
+        return super(LDSDataStore,self).versionCheck()
+    
 
 
         

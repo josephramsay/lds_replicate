@@ -46,6 +46,7 @@ class IncompleteWFSRequestException(LDSReaderException): pass
 class DriverInitialisationException(LDSReaderException): pass
 class DatasourceCopyException(LDSReaderException): pass
 class DatasourceCreateException(LDSReaderException): pass
+class DatasourceConnectException(DSReaderException): pass
 class DatasourceOpenException(DSReaderException): pass
 class LayerCreateException(LDSReaderException): pass
 class FeatureCopyException(LDSReaderException): pass
@@ -299,9 +300,13 @@ class DataStore(object):
         '''Abstract method to check user supplied connection strings. Raises NotImplementedError if accessed directly'''
         #raise NotImplementedError("Abstract method destinationURI not implemented")
     
-    def testConnection(self):
-        '''Test connection to a (typically database) source'''
-        return True
+#     def testConnection(self):
+#         '''Test connection to a (typically database) source'''
+#         return True
+    
+    def testURL(self,url):
+        '''Empty testURL super classing for WFSDS'''
+        pass
     
     def initDS(self,dsn=None,create=CREATE_DS_FLAG):
         '''Initialise the data source calling a provided DSN or self.dsn and a flag to indicate whether we should try and create a DS if none found'''
@@ -310,19 +315,28 @@ class DataStore(object):
         from WFSDataStore import WFSDataStore
         ds = None
         self.setURI(dsn)
+        
         '''initialise a DS for writing'''
         try:
-            #we turn ogr exceptions off here so reported errors don't kill DS initialisation 
-            #ogr.DontUseExceptions()
-            ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if isinstance(self,WFSDataStore) else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
-            #ds = self.driver.Open(LDSUtilities.percentEncode(dsn) if self.DRIVER_NAME==WFSDataStore.DRIVER_NAME else dsn, update = 1 if self.getOverwrite()=='YES' else 0)
-            if ds is None: 
-                raise DatasourceOpenException()   
-        except (RuntimeError, DatasourceOpenException) as re1:
-            #If its a 404 return for a new URL
+            if isinstance(self,WFSDataStore):
+                dsn = LDSUtilities.percentEncode(dsn)
+                try:
+                    #assumes a urlopen proxy spec will also work for wfs
+                    self.testURL(dsn)
+                except Exception as e:
+                    raise DatasourceConnectException('Cannot connect to {}. Error {}'.format(dsn,e))
+                
+            #we can turn OGR exceptions off here so reported but recoverable errors don't kill DS initialisation 
+            #ogr.DontUseExceptions()    
+            ds = self.driver.Open(dsn, update = 1 if self.getOverwrite()=='YES' else 0)
+            if ds is None:
+                raise DatasourceOpenException('Null DS returned attempting to open {}'.format(dsn))
+        except (RuntimeError, DSReaderException) as re1:
+            #Check for common causes, fail or retry
             if re.search('HTTP error code : 404',str(re1)):
                 return None
                 
+            #Try to create a DS
             if create: 
                 ldslog.info('Create '+str(dsn))
                 try:
@@ -334,7 +348,7 @@ class DataStore(object):
             else:
                 e1 = 'Cannot OPEN DS with {}. {}'.format(dsn,re1)
                 ldslog.error(e1)
-                raise DatasourceOpenException(e1)
+                raise re1
         finally:
             pass
             #ogr.UseExceptions()
@@ -355,7 +369,8 @@ class DataStore(object):
             ldslog.error(re2,exc_info=1)
             raise
         return ds if ds else None
-        
+       
+    #NOTE this got commented out for some supposedly good reason... Something to do with Proxies *Investigate*
     def read(self,dsn,create=True):
         '''Main DS read method'''
         ldslog.info("DS read "+dsn)#.split(":")[0])

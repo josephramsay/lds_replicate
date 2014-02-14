@@ -8,7 +8,7 @@ Name "LDS Replicate"
 # General Symbol Definitions
 !define APPNAME $(^Name)
 !define REGKEY "SOFTWARE\${APPNAME}"
-!define VERSION 0.0.9
+!define VERSION 0.0.10
 !define VIPSFFX 0
 !define PLATFORM "win32"
 !define COMPANY "Land Information New Zealand"
@@ -32,7 +32,8 @@ Page components
 Page directory
 Page custom StartMenuGroupSelect "" ": Start Menu Folder"
 Page instfiles
-Page custom EnvReqCreate EnvReqLeave
+#enable this page to pop up the 'Add ENV Var' dialog (Not required?)
+#Page custom EnvReqCreate EnvReqLeave
 Page custom ConfigWizzCreate ConfigWizzLeave
 
 # Installer attributes
@@ -81,6 +82,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\ldsreplicate_gui.py
     File F:\git\LDS\README.md
     SetOutPath $INSTDIR\apps\ldsreplicate\conf
+    #ExecWait 'Icacls "$INSTDIR\apps\ldsreplicate\conf" /grant Users:(OI)(CI)M'
     AccessControl::GrantOnFile "$INSTDIR\apps\ldsreplicate\conf" "(S-1-5-32-545)" "FullAccess"
     File F:\git\LDS\LDSReplicate\conf\getcapabilities.file.xsl
     File F:\git\LDS\LDSReplicate\conf\getcapabilities.json.xsl
@@ -131,6 +133,7 @@ Section "LDS Replicate" SEC0001
     File F:\git\LDS\LDSReplicate\lds\gui\LDSGUI.py
     File F:\git\LDS\LDSReplicate\lds\gui\MainConfigWizard.py
     SetOutPath $INSTDIR\apps\ldsreplicate\log
+     #ExecWait 'Icacls "$INSTDIR\apps\ldsreplicate\log" /grant Users:(OI)(CI)M'
     AccessControl::GrantOnFile "$INSTDIR\apps\ldsreplicate\log" "(S-1-5-32-545)" "FullAccess"
     ;Makes sure we aren't leaking test logs in installer. Instead use touched empty file with RW attributes
     File /a /oname=debug.log F:\git\LDS\LDSReplicate\log\empty.debug.log
@@ -175,7 +178,7 @@ Section -post SEC0005
     WriteRegStr HKLM "${REGKEY}" Path $INSTDIR
     WriteRegStr HKLM "${REGKEY}" StartMenuGroup $StartMenuGroup
     SetOutPath $INSTDIR
-    createShortcut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\ldsreplicate_gui.cmd" "" "F:\git\LDS\LDSReplicate\doc\LINZsmall.ico"
+    CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\LDS32.exe" "" "F:\git\LDS\LDSReplicate\doc\LINZsmall.ico"
     WriteUninstaller $INSTDIR\uninstall.exe
     !insertmacro CREATE_SMGROUP_SHORTCUT "Uninstall ${APPNAME}" $INSTDIR\uninstall.exe
     WriteRegStr HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" DisplayName "${APPNAME}"

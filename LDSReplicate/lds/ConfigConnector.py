@@ -84,14 +84,11 @@ class ConfigConnector(object):
             self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
             self.reg.closeEndPoint(self.destname)
             self.reg.closeEndPoint('WFS')
-            dst = None
+            sep,dep = None,None
         elif destname and not uconf:
             raise ConnectionConfigurationException('Missing configuration, "{}.conf"'.format(uconf))
         elif uconf and not destname:
             raise ConnectionConfigurationException('No driver/dest specified "{}"'.format(destname))
-        
-    def checkChanges(self,destname,uconf):
-        return (uconf,destname)!=(self.uconf,self.destname)
     
             
     def readProtocolVersion(self,src):
@@ -215,14 +212,14 @@ class DatasourceRegister(object):
         if fn:
             type = self._type(fn)
             if type == self.TYPE.SOURCE:
-                ep = self._newSRC()
+                endpoint = self._newSRC()
             else:
-                ep = self._newDST(fn)
+                endpoint = self._newDST(fn)
             self.register[fn] = {}
             self.register[fn]['rc'] = 0
             self.register[fn]['type'] = type
             self.register[fn]['uri'] = uri
-            self.register[fn]['ep'] = ep
+            self.register[fn]['ep'] = endpoint
             
         else:
             raise UnknownDSTypeException('Unknown DS requested, '+str(fn))
@@ -256,20 +253,20 @@ class DatasourceRegister(object):
                 self._connectDST(fn)
         
     def _connectDST(self,fn):
-        ep = self.register[fn]['ep']
-        uri = ep.destinationURI(None)
-        conn = ep.initDS(uri)
-        ep.setDS(conn)
+        endpoint = self.register[fn]['ep']
+        uri = endpoint.destinationURI(None)
+        conn = endpoint.initDS(uri)
+        endpoint.setDS(conn)
         self.register[fn]['rc'] += 1
         
     def _connectSRC(self,fn,req=None):#layername=None,fromdate=None,todate=None): 
-        ep = self.register[fn]['ep']
+        endpoint = self.register[fn]['ep']
         if req and req['type']==self.REQ.INCR and (req['fromdate'] or req['todate']):
-            uri = ep.sourceURIIncremental(req['layername'],req['fromdate'],req['todate'])
+            uri = endpoint.sourceURIIncremental(req['layername'],req['fromdate'],req['todate'])
         elif req and req['type'] == self.REQ.FEAT:
-            uri = ep.sourceURIFeatureCount(req['layername'])
+            uri = endpoint.sourceURIFeatureCount(req['layername'])
         elif req and req['type'] == self.REQ.FULL:
-            uri = ep.sourceURI(req['layername'])
+            uri = endpoint.sourceURI(req['layername'])
         else:
             pass
         #conn = ep.initDS(uri)

@@ -37,7 +37,6 @@ from lds.ReadConfig import GUIPrefsReader, MainFileReader, LayerFileReader,Layer
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 from lds.ConfigConnector import ConfigConnector, ProcessRunner, EndpointConnectionException, ConnectionConfigurationException
-from lds.ConfigWrapper import ConfigWrapper
 
 from lds.gui.LayerConfigSelector import LayerConfigSelector
 
@@ -108,6 +107,7 @@ class LDSMain(QMainWindow):
         openLCAction.setShortcut('Ctrl+L')
         openLCAction.setStatusTip('Open Layer Config File (only applies to external LC storage)')
         openLCAction.triggered.connect(self.launchLCEditor)
+        #self.enableLCEdit(openLCAction)
         
         initUCAction = QAction(QIcon(self.IMG_LOC+'uc.png'), 'Database &Setup Wizard', self)   
         initUCAction.setShortcut('Ctrl+S')
@@ -160,11 +160,11 @@ class LDSMain(QMainWindow):
             msg = 'Runtime error creating {} using "{}.conf" config file. {}'.format(self.gvs[0],uc,rer)
             self.errorEvent(msg)
         except DatasourceCreateException as dce:
-            msg = 'Cannot CREATE {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit or address reported error; {}'.format(dst,uc,dce)
+            msg = 'Cannot CREATE {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit config or set new datasource; {}'.format(dst,uc,dce)
             self.switchDSSelection(dst)
             self.errorEvent(msg)
         except DatasourceOpenException as doe:
-            msg = 'Cannot OPEN {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit or address reported error; {}'.format(dst,uc,doe)
+            msg = 'Cannot OPEN {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit config or set new datasource; {}'.format(dst,uc,doe)
             self.switchDSSelection(dst)
             self.errorEvent(msg)
         except EndpointConnectionException as ece:
@@ -182,8 +182,16 @@ class LDSMain(QMainWindow):
     def switchDSSelection(self,disconnected):
         #check next best configured DS configs
         trythis = [DataStore.DRIVER_NAMES[i] for i in ('fg','sl','pg','ms') 
-                   if DataStore.DRIVER_NAMES[i] in self.gpr.getDestinations() and DataStore.DRIVER_NAMES[i] != disconnected][0]
+                   if DataStore.DRIVER_NAMES[i] in self.gpr.getDestinations() 
+                   and DataStore.DRIVER_NAMES[i] != disconnected][0]
         self.gpr.writesecline('prefs', 'dest', trythis)
+        
+    def enableLCEdit(self,control):
+        '''Enable User Config read control for external configs'''
+        dst = self.confconn.reg.openEndPoint(self.confconn.destname,self.confconn.uconf)
+        control.setEnabled(dst.confwrap.readDSProperty(self.confconn.destname,'config')=='external')
+        self.confconn.reg.closeEndPoint(self.confconn.destname)
+        dst = None
         
     def launchUCEditor(self, checked=None):
         fn = LDSUtilities.standardiseUserConfigName(str(self.controls.cflist[self.controls.confcombo.currentIndex()]))
@@ -785,8 +793,8 @@ class LDSControls(QFrame):
         #----------don't need lorg in TP anymore but it is useful for sorting/counting groups
         #self.parent.confconn.tp.setLayerOrGroup(lorg)
         self.parent.confconn.tp.setLayerGroupValue(lgval)
-        if self.fromdateenable: self.parent.confconn.tp.setFromDate(fd)
-        if self.todateenable: self.parent.confconn.tp.setToDate(td)
+        if self.fromdateenable.isChecked(): self.parent.confconn.tp.setFromDate(fd)
+        if self.todateenable.isChecked(): self.parent.confconn.tp.setToDate(td)
         self.parent.confconn.tp.setUserConf(uconf)
         
         if self.epsgenable: self.parent.confconn.tp.setEPSG(epsg)
@@ -958,6 +966,7 @@ def main():
     lds = LDSMain()
     lds.show()
     sys.exit(app.exec_())
+
     
     
 if __name__ == '__main__':

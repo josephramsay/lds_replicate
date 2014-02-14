@@ -120,6 +120,17 @@ class WFSDataStore(DataStore):
 #     def destinationURI(self,layername):
 #         '''URI method returns destination file name'''
 #         #return NotImplementedError("No destination for WFS")
+
+    def versionCheck(self):
+        '''Nothing to check?'''
+        #TODO maybe check gdal/wfs/gml etc
+        return super(WFSDataStore,self).versionCheck()
+    
+    
+    def testURL(self,url):
+        '''Connect to a URL using the configured proxy (using urlopen method)'''
+        return LDSUtilities.readDocument(url, self.pxy)
+        
         
         
         

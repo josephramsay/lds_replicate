@@ -1,16 +1,16 @@
 [FileGDB]
 uconf = fglint
-lgvalue = SIXTYONE
+lgvalue = roadbroken
 epsg = None
 fd = None
 td = 2013-01-01
 
 [prefs]
-dest = PostgreSQL
+dest = FileGDB
 
 [PostgreSQL]
-uconf = SOMETHINGelse
-lgvalue = EPSGMIX2
+uconf = tteesstt
+lgvalue = v:x319
 epsg = 2193
 fd = None
 td = 2010-01-01
