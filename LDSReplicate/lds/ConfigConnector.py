@@ -69,9 +69,9 @@ class ConfigConnector(object):
             self.destname = destname
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
             sep = self.reg.openEndPoint('WFS', self.uconf)    
+            dep = self.reg.openEndPoint(self.destname, self.uconf)
             #svp = Service, Version, Prefix
             self.svp = self.readProtocolVersion(sep)
-            dep = self.reg.openEndPoint(self.destname, self.uconf)
             self.setupLayerConfig(self.tp,sep,dep)
             #print 'CCt',self.tp
             #print 'CCd',self.dep
@@ -98,10 +98,10 @@ class ConfigConnector(object):
     #----------------------------------------------------------------------------------
         
     @staticmethod
-    def initLayerConfig(tp,src,dst=None):
+    def initLayerConfig(tp,sep,dep=None):
         '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
         #print 'src',src,'src.gc',src.getCapabilities(),'dst',dst,'src.pxy',src.pxy,'src.idp',src.idp
-        tp.initLayerConfig(src.getCapabilities(),dst,src.pxy,src.idp)
+        tp.initLayerConfig(sep.getCapabilities(),dep,sep.pxy,sep.idp)
         
     @staticmethod
     def setupLayerConfig(tp,sep,dep):
@@ -117,9 +117,8 @@ class ConfigConnector(object):
         '''Attempts to release DS resources used by LayerConfig'''
         lc = ep.getLayerConf()
         if lc:
-            if hasattr(lc,'ds'):
-                lc.ds.SyncToDisk()
-                lc.ds = None
+            if lc.getDS():#hasattr(lc,'ds'):
+                lc.syncDS()
             lc = None
             
     #----------------------------------------------------------------------------------
@@ -303,10 +302,10 @@ class DatasourceRegister(object):
         return self.register[fn]['ep']
     
     def closeEndPoint(self,name):
-        '''Closes the DS is a named EP or deletes the EP completely if not needed'''
+        '''Closes the DS is a named EP or delete the EP completely if not needed'''
         fn = LDSUtilities.standardiseDriverNames(name)
         if self.register.has_key(fn):
-            self._disconnect(fn)   
+            self._disconnect(fn)
             if self.register[fn]['rc'] == 0:
                 self._deregister(fn)     
     
@@ -388,6 +387,7 @@ class ProcessRunner(QThread):
                 self.enable.emit(True)
                 self.reg.closeEndPoint(self.dn)
                 self.reg.closeEndPoint(self.sn)
+                sep,dep = None,None
                 pt.join()
                 pt = None
         except Exception as e:

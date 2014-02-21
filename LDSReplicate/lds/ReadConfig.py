@@ -626,6 +626,12 @@ class LayerReader(object):
     def existsAndIsCurrent(self):
         pass
     
+    #for non in-DB LC's we don't ned to access a DS instance
+    def getDS(self):
+        return False
+     
+    def syncDS(self):
+        pass
     
     def addCustomTag(self,layerlist,tagname):        
         '''Write a keyword to all the layers in the provided list'''
@@ -853,12 +859,12 @@ class LayerDSReader(LayerReader):
         self.namelist = ()  
     
     #acquire and release DS instance to for each function call to prevent DS locking        
-    def _getDS(self):
-        return self.fname.ds
+    def getDS(self):
+        return self.ds
     
-    def _releaseDS(self):
+    def syncDS(self):
         self.ds.SyncToDisk()
-        self.ds = None
+        #self.ds = None #Because this DS is inherited from the parent, don't kill it. Maybe better to cal it syncDS?
 
     def existsAndIsCurrent(self):
         '''Test for DS table'''

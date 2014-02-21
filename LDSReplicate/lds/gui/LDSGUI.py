@@ -188,10 +188,10 @@ class LDSMain(QMainWindow):
         
     def enableLCEdit(self,control):
         '''Enable User Config read control for external configs'''
-        dst = self.confconn.reg.openEndPoint(self.confconn.destname,self.confconn.uconf)
-        control.setEnabled(dst.confwrap.readDSProperty(self.confconn.destname,'config')=='external')
+        dep = self.confconn.reg.openEndPoint(self.confconn.destname,self.confconn.uconf)
+        control.setEnabled(dep.confwrap.readDSProperty(self.confconn.destname,'config')=='external')
         self.confconn.reg.closeEndPoint(self.confconn.destname)
-        dst = None
+        dep = None
         
     def launchUCEditor(self, checked=None):
         fn = LDSUtilities.standardiseUserConfigName(str(self.controls.cflist[self.controls.confcombo.currentIndex()]))
@@ -589,6 +589,7 @@ class LDSControls(QFrame):
         lce = dep.getLayerConf().readLayerParameters(ln)
         self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
+        sep,dep = None,None
         return lce
     
     def doDestChanged(self):

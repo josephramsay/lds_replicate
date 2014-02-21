@@ -1,6 +1,6 @@
 [FileGDB]
 uconf = fglint
-lgvalue = roadbroken
+lgvalue = v:x133
 epsg = None
 fd = None
 td = 2013-01-01
