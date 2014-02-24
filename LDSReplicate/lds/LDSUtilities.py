@@ -388,10 +388,15 @@ class LDSUtilities(object):
     def readDocument(url,proxy=None):
         '''Non-Driver method for fetching LDS DS as a document'''
         ldslog.debug("LDS URL {} Pxy {}".format(url,proxy))
-        if LDSUtilities.mightAsWellBeNone(proxy): install_opener(build_opener(ProxyHandler(proxy)))
+        if LDSUtilities.isProxyValid(proxy): install_opener(build_opener(ProxyHandler(proxy)))
         with closing(urlopen(url)) as lds:
             data = lds.read()
         return data
+    
+    @staticmethod
+    def isProxyValid(pxy):
+        '''Return TF whether the proxy definition is any good. TODO add other conditions'''
+        return LDSUtilities.mightAsWellBeNone(pxy) and pxy.values()!=[':']
     
     @staticmethod
     def convertBool(sbool):
@@ -412,10 +417,13 @@ class LDSUtilities(object):
             return str(nstr)
         if isinstance(nstr,tuple) or isinstance(nstr,list):
             return None if any(not LDSUtilities.mightAsWellBeNone(i) for i in nstr) else nstr
+        elif isinstance(nstr,dict):
+            #Case for dicts that have no valid values, may not be whats wanted
+            return None if any(not LDSUtilities.mightAsWellBeNone(i) for i in nstr.values()) else nstr
         else:
             if isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in whitespace for i in nstr)):
                 return None
-        #if its already none is will return itself
+        #if its already none this will return itself
         return nstr
     
     '''Enumeration method'''
