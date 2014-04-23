@@ -542,8 +542,8 @@ class LDSControls(QFrame):
    
         QApplication.restoreOverrideCursor() if enable else QApplication.setOverrideCursor(QCursor(Qt.WaitCursor)) 
 
-
     def refreshLGCombo(self):
+        '''Re index LG combobox since a refreshLG call (new dest?) will usually mean new groups'''
         self.lgcombo.clear()
         self.lgcombo.addItems([i[2] for i in self.parent.confconn.lglist])
         #NOTE the separator consumes an index, if not clearing the combobox selectively remove the old sepindex (assumes g preceeds l)
@@ -592,11 +592,13 @@ class LDSControls(QFrame):
         sep,dep = None,None
         return lce
     
+    
     def doDestChanged(self):
         '''Read the destname parameter and fill dialog with matching GPR values'''
         rdest = str(self.destlist[self.destcombo.currentIndex()])
         rvals = self.gprParameters(rdest)
         self.updateGUIValues([rdest]+rvals)    
+        
         
     def doConfChanged(self):
         '''Read the user conf parameter and fill dialog with matching GPR values'''
@@ -604,6 +606,7 @@ class LDSControls(QFrame):
         rlg,_,rep,rfd,rtd = self.gprParameters(rdest)
         ruc = str(self.cflist[self.confcombo.currentIndex()])
         self.updateGUIValues((rdest,rlg,ruc,rep,rfd,rtd))
+        
         
     def doLGComboChanged(self):
         '''Read the layer/group value and change epsg to layer or gpr match'''
@@ -623,11 +626,13 @@ class LDSControls(QFrame):
             rdest = str(self.destlist[self.destcombo.currentIndex()])
             _,_,epsgval,_,_ = self.gprParameters(rdest)
         epsgindex = [i[0] for i in self.nzlsr+[(0,0)]+self.rowsr].index(epsgval)
-        self.epsgcombo.setCurrentIndex(int(epsgindex))
+        if self.epsgcombo.currentIndex() != epsgindex:
+            self.epsgcombo.setCurrentIndex(int(epsgindex))
 
         
     def updateGUIValues(self,readlist):
         '''Fill dialog values from provided list'''
+        #TODO. Remove circular references when setCurrentIndex() triggers do###Changed()
         #Read user input
         rdest,self.rlgval,ruconf,repsg,rfd,rtd = readlist
         
@@ -639,7 +644,9 @@ class LDSControls(QFrame):
             self.destlist = self.getConfiguredDestinations()
             self.destcombo.addItem(selecteddest)
         destindex = self.destlist.index(selecteddest) if selecteddest else 0
-        self.destcombo.setCurrentIndex(destindex)
+        
+        if self.destcombo.currentIndex() != destindex:
+            self.destcombo.setCurrentIndex(destindex)
         
         #InitButton
         self.initbutton.setText('Layer Select')
@@ -652,7 +659,9 @@ class LDSControls(QFrame):
                 self.cflist += [ruconf,]
                 self.confcombo.addItem(ruconf)
             confindex = self.cflist.index(ruconf)
-        self.confcombo.setCurrentIndex(confindex)
+            
+        if self.confcombo.currentIndex() != confindex:
+            self.confcombo.setCurrentIndex(confindex)
         #self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
         
         #Layer/Group Selection
@@ -668,14 +677,16 @@ class LDSControls(QFrame):
         else:
             #using the separator index sets the combo to blank
             lgindex = self.sepindex
-        self.lgcombo.setCurrentIndex(lgindex)
+        if self.lgcombo.currentIndex() != lgindex:
+            self.lgcombo.setCurrentIndex(lgindex)
         #self.doLGEditUpdate()
         
         #EPSG
         #                                user > layerconf
         #useepsg = LDSUtilities.precedence(repsg, lce.epsg if lce else None, None)
         epsgindex = [i[0] for i in self.nzlsr+[(None,None)]+self.rowsr].index(repsg)
-        self.epsgcombo.setCurrentIndex(epsgindex)
+        if self.epsgcombo.currentIndex() != epsgindex:
+            self.epsgcombo.setCurrentIndex(epsgindex)
             
         #epsgedit = self.epsgcombo.lineEdit()
         #epsgedit.setText([e[1] for e in self.nzlsr+self.rowsr if e[0]==repsg][0])
@@ -853,7 +864,7 @@ class LDSControls(QFrame):
         if not lcans:
             #Retry
             ldslog.warn('Retry specifying LC')
-            self.destcombo.setCurrentIndex(0)
+            #self.destcombo.setCurrentIndex(0)
             return
         #Init
         ldslog.warn('Reset Layer Config')

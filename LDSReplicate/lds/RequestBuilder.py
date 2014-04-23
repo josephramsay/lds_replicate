@@ -103,8 +103,6 @@ class RequestBuilder(object):
     
 class RequestBuilderWFS200(RequestBuilder):
     #example
-    #http://data-test.linz.govt.nz/services;key=a3624a518c67440daf97789975cc7d23/wfs?service=WFS&request=GetCapabilities
-    #http://data-test.linz.govt.nz/services;key=a3624a518c67440daf97789975cc7d23/wfs?service=WFS&request=GetFeature&typeName=linz:layer-452&count=3
     def __str__(self):
         return 'RequestBuilder_WFS-2.0.0'
     

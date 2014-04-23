@@ -54,15 +54,21 @@ class LDSDataStore(WFSDataStore):
     GDAL_HTTP_TIMEOUT = 600 #10min. has no affect on 504
     
     #Namespace declarations
-    NS = {'g'    : '{http://data.linz.govt.nz/ns/g}', 
-          'gml'  : '{http://www.opengis.net/gml}', 
-          'xlink': '{http://www.w3.org/1999/xlink}', 
-          'r'    : '{http://data.linz.govt.nz/ns/r}', 
-          'ows'  : '{http://www.opengis.net/ows}', 
-          'v'    : '{http://data.linz.govt.nz/ns/v}', 
-          'wfs'  : '{http://www.opengis.net/wfs}', 
-          'xsi'  : '{http://www.w3.org/2001/XMLSchema-instance}', 
-          'ogc'  : '{http://www.opengis.net/ogc}'}
+    NS = {'g'       : '{http://data.linz.govt.nz/ns/g}', 
+          'gml'     : '{http://www.opengis.net/gml}', 
+          'xlink'   : '{http://www.w3.org/1999/xlink}', 
+          'r'       : '{http://data.linz.govt.nz/ns/r}', 
+          'ows'     : '{http://www.opengis.net/ows}', 
+          'v'       : '{http://data.linz.govt.nz/ns/v}', 
+          'wfs'     : '{http://www.opengis.net/wfs}', 
+          'xsi'     : '{http://www.w3.org/2001/XMLSchema-instance}', 
+          'ogc'     : '{http://www.opengis.net/ogc}',
+          'gco'     :'{http://www.isotc211.org/2005/gco}',
+          'gmd'     :'{http://www.isotc211.org/2005/gmd}', 
+          'gmx'     :'{http://www.isotc211.org/2005/gmx}',
+          'gsr'     :'{http://www.isotc211.org/2005/gsr}',
+          'gss'     :'{http://www.isotc211.org/2005/gss}',
+          'gts'     :'{http://www.isotc211.org/2005/gts}'}
 
     def __init__(self,conn_str=None,user_config=None):
         '''

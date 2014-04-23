@@ -17,6 +17,7 @@ Created on 26/07/2012
 
 import re
 import gdal
+import pdb
 
 from datetime import datetime 
 
@@ -204,9 +205,9 @@ class TransferProcessor(object):
         '''Pre check of layer to see if an SRS conversion has been requested. NB Any entry here assumes conversion is needed, doesn't check against existing SRS'''
         return False if self.dst.getSRS() is None else True
     
-    def hasPrimaryKey(self,testlayer):
+    def hasPrimaryKey(self,pklayer):
         '''Reads layer conf pkey identifier. If PK is None or something, use this to decide processing type i.e. no PK = driverCopy'''
-        return self.dst.getLayerConf().readLayerProperty(testlayer,'pkey') is not None
+        return LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(pklayer,'pkey'))
               
         
     def processLDS(self):
@@ -282,9 +283,10 @@ class TransferProcessor(object):
         self.layer_total = len(self.lnl)
         self.layer_count = 0
         for each_layer in self.lnl:
+            pdb.set_trace()
             lm = LDSUtilities.checkDateFormat(self.dst.getLastModified(each_layer))
             srs = self.dst.getEPSGConversion(each_layer)
-            pk = LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(each_layer,'pkey'))
+            pk = self.hasPrimaryKey(each_layer)
             filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
 
             #Set (cql) filters in URI call using layer picking the one with highest precedence            
@@ -305,8 +307,8 @@ class TransferProcessor(object):
                 
             #check dates -> check incr read -> incr or non
 
-            nonincr = False                
-            if any(i is not None for i in [lm, fd, td]):
+            nonincr = False          
+            if any(i is not None for i in [lm, fd, td]) and pk:
                 ldslog.debug('lm={}, fd={}, td={}'.format(lm,fd,td))
                 final_fd = (DataStore.EARLIEST_INIT_DATE if lm is None else lm) if fd is None else fd
                 final_td = self.dst.getCurrent() if td is None else td

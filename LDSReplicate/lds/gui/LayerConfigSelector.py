@@ -27,6 +27,8 @@ import re
 import sys
 import copy
 
+import pdb 
+
 from lds.TransferProcessor import LORG
 from lds.LDSUtilities import LDSUtilities
 from lds.VersionUtilities import AppVersion
@@ -156,6 +158,7 @@ class LayerConfigSelector(QMainWindow):
         
     def closeEvent(self,event):
         '''Intercept close event to signal parent to update status'''
+        pdb.set_trace()
         self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'Done')
         #return last group selection
         lastgroup = str(self.page.keywordcombo.lineEdit().text())

@@ -246,12 +246,17 @@ class SpatiaLiteDataStore(DataStore):
         #slv_cmd = 'sqlite -version'
         #slv_ver = VersionChecker.getVersionFromShell(slv_cmd,'(\d+\.*\d*\.*\d*)')
         
-        slv_cmd = 'select spatialite_version()'
-        slv_ver = self.executeSQL(slv_cmd).GetFeature(0).GetField(0)
-        
+        slv_ver = None
+        try:
+            #http://www.gaia-gis.it/gaia-sins/spatialite-sql-3.0.0.html
+            slv_cmd = 'select spatialite_version()'
+            slv_ver = self.executeSQL(slv_cmd).GetFeature(0).GetField(0)
+        except Exception as e:
+            ldslog.warn('Error reading SpatiaLite version. Check installation. '+str(e))
         
         if VersionChecker.compareVersions(VersionChecker.SpatiaLite_MIN, slv_ver if slv_ver else VersionChecker.SpatiaLite_MIN):
             raise UnsupportedVersionException('SpatiaLite version '+str(slv_ver)+' does not meet required minumum '+str(VersionChecker.SpatiaLite_MIN))
+
         
         ldslog.info(self.DRIVER_NAME+' version '+str(slv_ver))
         return True
