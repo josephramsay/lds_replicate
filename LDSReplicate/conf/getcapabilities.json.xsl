@@ -2,14 +2,14 @@
 <xsl:stylesheet version="1.0" 
   xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
   xmlns="http://www.opengis.net/wfs" 
-  xmlns:wfs="http://www.opengis.net/wfs"
-  xmlns:ows="http://www.opengis.net/ows"
+  xmlns:wfs="http://www.opengis.net/wfs/2.0"
+  xmlns:ows="http://www.opengis.net/ows/1.1"
 >
 
 <!-- 
 To make WFS2 work, change the namespace declarations to
-xmlns:wfs="http://www.opengis.net/wfs/2.0"
-xmlns:ows="http://www.opengis.net/ows/1.1"
+xmlns:wfs="http://www.opengis.net/wfs/2.0" vs ~/wfs
+xmlns:ows="http://www.opengis.net/ows/1.1" vs ~/ows
  -->
  
 <xsl:output method="text"/>

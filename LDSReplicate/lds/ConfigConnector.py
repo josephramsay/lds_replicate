@@ -72,7 +72,7 @@ class ConfigConnector(object):
             dep = self.reg.openEndPoint(self.destname, self.uconf)
             #svp = Service, Version, Prefix
             self.svp = self.readProtocolVersion(sep)
-            self.setupLayerConfig(self.tp,sep,dep)
+            self.reg.setupLayerConfig(self.tp,sep,dep)
             #print 'CCt',self.tp
             #print 'CCd',self.dep
             if not self.vlayers:
@@ -82,6 +82,7 @@ class ConfigConnector(object):
             self.setupAssigned()
             self.buildLGList()
             self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
+            self.reg.closeLayerConfig(dep)
             self.reg.closeEndPoint(self.destname)
             self.reg.closeEndPoint('WFS')
             sep,dep = None,None
@@ -94,32 +95,6 @@ class ConfigConnector(object):
     def readProtocolVersion(self,src):
         '''Get WFS/WMS, version and prefix from the Source'''
         return {'svc':src.svc,'ver':src.ver,'idp':src.idp}
-    
-    #----------------------------------------------------------------------------------
-        
-    @staticmethod
-    def initLayerConfig(tp,sep,dep=None):
-        '''Wraps call to TP initlayerconf resetting LC for the selected dst'''
-        #print 'src',src,'src.gc',src.getCapabilities(),'dst',dst,'src.pxy',src.pxy,'src.idp',src.idp
-        tp.initLayerConfig(sep.getCapabilities(),dep,sep.pxy,sep.idp)
-        
-    @staticmethod
-    def setupLayerConfig(tp,sep,dep):
-        '''Calls the TP LC setup function'''
-        lc = tp.getNewLayerConf(dep)
-        dep.setLayerConf(lc)
-        ##if a lconf has not been created build a new one
-        if not dep.getLayerConf().existsAndIsCurrent():
-            ConfigConnector.initLayerConfig(tp,sep,dep)
-            
-    @staticmethod
-    def closeLayerConfig(ep):
-        '''Attempts to release DS resources used by LayerConfig'''
-        lc = ep.getLayerConf()
-        if lc:
-            if lc.getDS():#hasattr(lc,'ds'):
-                lc.syncDS()
-            lc = None
             
     #----------------------------------------------------------------------------------
     
@@ -130,20 +105,17 @@ class ConfigConnector(object):
     
     def setupReserved(self):
         '''Read the capabilities doc (as json) for reserved words'''
-        #these are all the keywords LDS currently knows about            
-        self.reserved = set()
-        for i in [l[2] for l in self.vlayers]:
-        #for i in [l[3] for l in json.loads(self.tp.parseCapabilitiesDoc(self.src.getCapabilities(),'json',self.src.pxy))]:
-            self.reserved.update(set(i))
+        #these are all the keywords LDS currently knows about         
+        self.reserved = set()   
+        for s in ([l[2] for l in self.vlayers]): self.reserved.update(s)
             
     def setupAssigned(self):
         '''Read the complete config doc for all keywords and diff out reserved. Requires init of complete and reserved'''   
         #these are the difference between saved and LDS-known keywords therefore, the ones the user has saved or LDS has forgotten about 
-        assigned = set() 
-        for i in [x[2] for x in self.complete]:
-            assigned.update(set(i))
+        #NB Dont try to build set from list, get unhashable error
+        assigned = set()
+        for s in [x[2] for x in self.complete]: assigned.update(s)
         assigned.difference_update(self.reserved)
-        
         self.assigned = self.deleteForgotten(assigned)
         
     def deleteForgotten(self,alist,flt='v_\w{8}_wxs_\w{4}'):
@@ -226,6 +198,7 @@ class DatasourceRegister(object):
     def _deregister(self,name):
         fn = LDSUtilities.standardiseDriverNames(name)
         #sync/rel the DS
+        #self.register[fn]['ep'].closeDS()#DS should already have closed
         self.register[fn]['ep'] = None
         del self.register[fn]
     
@@ -277,7 +250,7 @@ class DatasourceRegister(object):
         self.register[fn]['rc'] -= 1
         if self.register[fn]['rc'] <= 0:
             ldslog.info('Release EP '+str(fn))
-            ConfigConnector.closeLayerConfig(endpoint)
+            self.closeLayerConfig(endpoint)
             endpoint.closeDS()  
         
     #---------------------
@@ -289,6 +262,9 @@ class DatasourceRegister(object):
         #print 'GEP',name,uri,req
         '''Gets a named EP incrementing a refcount or registers a new one as needed'''
         fn = LDSUtilities.standardiseDriverNames(name)
+        #%%%delete
+        print 'oep>',fn,uri
+        #%%%delete
         #if fn+uri exist AND fn is valid AND (fn not prev registered OR the saved URI != uri) 
         if (fn and uri)\
         and (fn in DataStore.DRIVER_NAMES.values() or fn == WFSDataStore.DRIVER_NAME) \
@@ -304,10 +280,12 @@ class DatasourceRegister(object):
     def closeEndPoint(self,name):
         '''Closes the DS is a named EP or delete the EP completely if not needed'''
         fn = LDSUtilities.standardiseDriverNames(name)
+        #%%%delete
+        print 'cep>',fn
         if self.register.has_key(fn):
             self._disconnect(fn)
             if self.register[fn]['rc'] == 0:
-                self._deregister(fn)     
+                self._deregister(fn)
     
     def _newDST(self,fn):
         '''Init a new destination using instantiated uconf (and dest str if provided)'''
@@ -332,6 +310,26 @@ class DatasourceRegister(object):
             s += 'key='+k+': rc='+str(r['rc'])+' uri='+str(r['uri'])+': type='+str(r['type'])+': ep='+str(r['ep'])+'\n'
         return s
 
+
+    #----------------------------------------------------------------------------------
+    #This is the Layer Config stuff, its a bit of a mess!    
+        
+    @staticmethod
+    def setupLayerConfig(tp,sep,dep):
+        '''Calls the TP LC setup function'''
+        tp.getLayerConf(sep,dep)
+
+            
+    @staticmethod
+    def closeLayerConfig(ep):
+        '''Attempts to release DS resources used by LayerConfig'''
+        layerconf = ep.getLayerConf()
+        if layerconf:
+            if layerconf.getDS():#hasattr(lc,'ds'):
+                layerconf.syncDS()
+            lc = None
+            
+    #----------------------------------------------------------------------------------
 #import pydevd
 #pydevd.settrace(suspend=False)
 #import threading
@@ -375,7 +373,7 @@ class ProcessRunner(QThread):
                 self.enable.emit(False)
                 sep = self.reg.openEndPoint(self.sn,self.uc)
                 dep = self.reg.openEndPoint(self.dn,self.uc)
-                ConfigConnector.setupLayerConfig(self.tp,sep,dep)
+                self.reg.setupLayerConfig(self.tp,sep,dep)
                 self.tp.setSRC(sep)
                 self.tp.setDST(dep)
                 self.tp.processLDS()

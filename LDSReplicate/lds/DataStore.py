@@ -176,8 +176,10 @@ class DataStore(object):
     
     def closeDS(self):
         '''close a DS with sync and destroy'''
-        self.ds.SyncToDisk()
-        self.ds.Release()
+        ldslog.info("Sync DS and Close")
+        if self.ds:
+            self.ds.SyncToDisk()
+            self.ds.Release()
                     
     def rebuildDS(self):
         '''Re read the DS in case there is a failure. Implemented for WFS. Not really necessary here'''
@@ -318,7 +320,9 @@ class DataStore(object):
         
         '''initialise a DS for writing'''
         try:
+            #We don't init WFS anymore so this has become redundant TODO remove
             if isinstance(self,WFSDataStore):
+                assert('initDS on WFS - Shouldnt be here')
                 dsn = LDSUtilities.percentEncode(dsn)
                 try:
                     #assumes a urlopen proxy spec will also work for wfs

@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<?eclipse-pydev version="1.0"?>
-
-<pydev_project>
+<?eclipse-pydev version="1.0"?><pydev_project>
 <pydev_pathproperty name="org.python.pydev.PROJECT_SOURCE_PATH">
 <path>/LDSReplicate</path>
 </pydev_pathproperty>
 <pydev_property name="org.python.pydev.PYTHON_PROJECT_VERSION">python 2.7</pydev_property>
-<pydev_property name="org.python.pydev.PYTHON_PROJECT_INTERPRETER">/usr/bin/python2.7</pydev_property>
+<pydev_property name="org.python.pydev.PYTHON_PROJECT_INTERPRETER">Default</pydev_property>
 <pydev_pathproperty name="org.python.pydev.PROJECT_EXTERNAL_SOURCE_PATH">
-<path>/usr/share/pyshared/osgeo</path>
-<path>/usr/lib/pyshared/python2.7/osgeo</path>
+<!--<path>/usr/share/pyshared/osgeo</path>
+<path>/usr/lib/pyshared/python2.7/osgeo</path>-->
 </pydev_pathproperty>
 </pydev_project>

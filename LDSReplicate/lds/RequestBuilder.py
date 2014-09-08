@@ -32,12 +32,23 @@ from lds.VersionUtilities import AppVersion
 
 ldslog = LDSUtilities.setupLogging()
 
+URLLIST = {'LDSL1':'wfs.data.linz.govt.nz',
+           'LDSL2':'data.linz.govt.nz',
+           'LDST':'data-test.linz.govt.nz',
+           'MFEL':'data.mfe.govt.nz'        
+           }
+
 class RequestBuilder(object):
     '''
-    LDS DataStore provides standard options and URI methods along with convenience methods for common functions/documents expressed as 
-    URI builders. For incremental specifically the change-column is defined here
+    RB builds WFS urls for versions 100, 110 and 200.
+    Usage:
+    ver = 2.0.0
+    p = (url,key,svc,ver,fmt,cql)
+    rb = RequestBuilder.getInstance(p)
+    u = rb.sourceURI()
     '''
     
+    #LDS supports these formats but only GML is currently parsed
     SUPPORTED_OUTPUT_FORMATS = ('GML2','GML3','JSON')
 
 
@@ -56,16 +67,18 @@ class RequestBuilder(object):
         
     def setParameters(self,params):
         (self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = params
+        
 
             
     @staticmethod
     def getInstance(params,cs=None):
-        version = params[3]
-        if version=='1.0.0' or version=='1.0':
+        '''Select RB based on WFS version as contained in params list'''
+        version = params[3][:3]
+        if version=='1.0':
             return RequestBuilderWFS110(params,cs)
-        elif version=='1.1.0':
+        elif version=='1.1':
             return RequestBuilderWFS110(params,cs)
-        elif version=='2.0.0' or version=='2.0':
+        elif version=='2.0':
             return RequestBuilderWFS200(params,cs)
         else:
             raise UnknownDSVersionException('Cannot decode WFS version '+str(version))
@@ -102,12 +115,20 @@ class RequestBuilder(object):
     
     
 class RequestBuilderWFS200(RequestBuilder):
+    
+    def __init__(self,params,cs):
+        super(RequestBuilderWFS200,self).__init__(params,cs)
+        #HACK. below pulls the wfs prefix off urls implementing WFS2. We used re.sub since may apply to mfe urls as well
+        #no way currently to tell if the url is hardcoded without a bit of a rewrite so user set url might get overwritten! Error message to announce
+        self.url = LDSUtilities.adjustWFS2URL(self.url,self.ver)
+        
+        
     #example
     def __str__(self):
         return 'RequestBuilder_WFS-2.0.0'
     
-    def getCapabilities(self):
-        uri = '{}services;key={}/wfs?service={}&request=GetCapabilities'.format(self.url,self.key,self.svc)
+    def getCapabilities(self):#this is supposed to work ... http://data-test.linz.govt.nz/services;key=fa0f3c256bf349f3ae2102841214cc15/wfs?service=WFS&request=GetFeature&typeName=linz:layer-452&MAXFEATURES=3
+        uri = '{u}services;key={k}/wfs?service={s}&version={v}&request=GetCapabilities'.format(u=self.url,k=self.key,s=self.svc,v=self.ver)
         ldslog.debug(uri)
         return uri
     
@@ -115,8 +136,8 @@ class RequestBuilderWFS200(RequestBuilder):
         '''WFS basic checks. 1 url format,2 api key,3 ask for wfs'''
         if not re.search('^http://',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'http\' declaration required in LDS request')
-        if not re.search('data-test\.linz\.govt\.nz',cs,flags=re.IGNORECASE):
-            raise MalformedConnectionString('Require \'data-test.linz.govt.nz\' in LDS (WFS2.0) address string')
+        #if not re.search('data-test\.linz\.govt\.nz',cs,flags=re.IGNORECASE):
+        #    raise MalformedConnectionString('Require \'data-test.linz.govt.nz\' in LDS (WFS2.0) address string')
         if not re.search('/key=[a-f0-9]{32}/',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('Require API key (32char hex) in LDS address string')
         if not re.search('wfs\?',cs,flags=re.IGNORECASE):
@@ -202,7 +223,7 @@ class RequestBuilderWFS110(RequestBuilder):
         '''GetCapabilities endpoint constructor'''
         #capabilities doc is fetched using urlopen, not wfs, so escaping isnt needed
         #uri = LDSUtilities.xmlEscape(self.url+self.key+"/wfs?service=WFS&version=1.1.0&request=GetCapabilities")
-        uri = '{}{}/wfs?service=WFS&version=1.1.0&request=GetCapabilities'.format(self.url,self.key)
+        uri = '{u}{k}/wfs?service={s}&version={v}&request=GetCapabilities'.format(u=self.url,k=self.key,s=self.svc,v=self.ver)
         ldslog.debug(uri)
         return uri
         
@@ -211,8 +232,8 @@ class RequestBuilderWFS110(RequestBuilder):
         '''WFS basic checks. 1 url format,2 api key,3 ask for wfs'''
         if not re.search('^http://',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('\'http\' declaration required in LDS request')
-        if not re.search('wfs\.data\.linz\.govt\.nz',cs,flags=re.IGNORECASE):
-            raise MalformedConnectionString('Require \'wfs.data.linz.govt.nz\' in LDS address string')
+        #if not re.search('wfs\.data\.linz\.govt\.nz',cs,flags=re.IGNORECASE):
+        #    raise MalformedConnectionString('Require \'wfs.data.linz.govt.nz\' in LDS address string')
         if not re.search('/[a-f0-9]{32}/(v/x|wfs\?)',cs,flags=re.IGNORECASE):
             raise MalformedConnectionString('Require API key (32char hex) in LDS address string')
         if not re.search('wfs\?',cs,flags=re.IGNORECASE):

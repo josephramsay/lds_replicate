@@ -365,6 +365,8 @@ class MainFileReader(object):
         cql = None
         key = None
         
+        #url = "http://data.linz.govt.nz/"
+        #ver = "2.0.0"
         if self.use_defaults:
             url = "http://wfs.data.linz.govt.nz/"
             fmt = "GML2"
@@ -623,7 +625,7 @@ class LayerReader(object):
         pass
     
     @abstractmethod
-    def existsAndIsCurrent(self):
+    def isCurrent(self):
         pass
     
     #for non in-DB LC's we don't ned to access a DS instance
@@ -685,7 +687,7 @@ class LayerFileReader(LayerReader):
             
         self._readConfigFile(self.filename)
         
-    def existsAndIsCurrent(self):
+    def isCurrent(self):
         '''TF test to decide whether to init'''
         return self._fileexists() and len(self.cp.sections())>0
     
@@ -855,22 +857,22 @@ class LayerDSReader(LayerReader):
         '''
         #in the DS context fname refers to a DS object
         super(LayerDSReader,self).__init__(fname)
-        self.ds = self.fname.ds
+        #self.ds = self.fname.ds
         self.namelist = ()  
     
     #acquire and release DS instance to for each function call to prevent DS locking        
     def getDS(self):
-        return self.ds
+        return self.fname.ds
     
     def syncDS(self):
-        self.ds.SyncToDisk()
+        self.fname.ds.SyncToDisk()
         #self.ds = None #Because this DS is inherited from the parent, don't kill it. Maybe better to cal it syncDS?
 
-    def existsAndIsCurrent(self):
+    def isCurrent(self):
         '''Test for DS table'''
-        if self.ds is not None:
+        if self.fname.ds is not None:
             try:
-                if self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE):
+                if self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE):
                     return True
             except RuntimeError as rte:
                 if not re.search('No table/field definitions found for',str(rte)): 
@@ -883,11 +885,11 @@ class LayerDSReader(LayerReader):
         '''Builds the config table into and using the active DS'''
 
         try:
-            self.ds.DeleteLayer(self.fname.LDS_CONFIG_TABLE)
+            self.fname.ds.DeleteLayer(self.fname.LDS_CONFIG_TABLE)
         except Exception as e:
             ldslog.warn("Exception deleting config layer: "+str(e))
         #CreateLayer(self, char name, SpatialReference srs = None, OGRwkbGeometryType geom_type = wkbUnknown, char options = None) -> Layer
-        config_layer = self.ds.CreateLayer(self.fname.LDS_CONFIG_TABLE, None, self.fname.selectValidGeom(ogr.wkbNone), ['OVERWRITE=YES'])
+        config_layer = self.fname.ds.CreateLayer(self.fname.LDS_CONFIG_TABLE, None, self.fname.selectValidGeom(ogr.wkbNone), ['OVERWRITE=YES'])
         if config_layer is None:
             ldslog.error("Cannot create lds config layer: " + self.fname.LDS_CONFIG_TABLE)
         
@@ -927,14 +929,14 @@ class LayerDSReader(LayerReader):
     @override(LayerReader)
     def findLayerIdByName(self,lname):
         '''Reverse lookup of section by associated name, finds first occurance only'''
-        layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+        layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
         #HACK Win7
         layer.GetFeatureCount()
         feat = layer.GetNextFeature() 
         while feat is not None:
-            if lname == feat.GetField('name'):
-                return feat.GetField('id')
+            if lname == feat.GetField('name').encode('utf8'):
+                return feat.GetField('id').encode('utf8')
             feat = layer.GetNextFeature()
         return None
         
@@ -944,14 +946,14 @@ class LayerDSReader(LayerReader):
         #gdal.SetConfigOption('CPL_DEBUG','ON')
         #gdal.SetConfigOption('CPL_LOG_ERRORS','ON')
         if not self.namelist:
-            layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+            layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
             if layer:
                 layer.SetIgnoredFields(('OGR_GEOMETRY',))
                 layer.ResetReading()
                 feat = layer.GetNextFeature() 
                 while feat is not None:
                     #print '>>>>> ID',feat.GetField('id')
-                    self.namelist += (feat.GetField('id'),)
+                    self.namelist += ((feat.GetField('id').encode('utf8'),feat.GetField('name').encode('utf8'),feat.GetField('category').encode('utf8').split(',')),)
                     feat = layer.GetNextFeature()
             else:
                 ldslog.error('REMINDER! TRIGGER CONF BUILD')
@@ -962,7 +964,7 @@ class LayerDSReader(LayerReader):
     def readLayerParameters(self,id):
         '''Full Feature config reader'''
         from DataStore import InaccessibleFeatureException
-        layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+        layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
         #HACK Win7
         layer.GetFeatureCount()
@@ -975,7 +977,7 @@ class LayerDSReader(LayerReader):
     def readAllLayerParameters(self):
         '''Full Layer config reader'''
         lcel = []
-        layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+        layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
         #HACK Win7
         layer.GetFeatureCount()
@@ -994,20 +996,20 @@ class LayerDSReader(LayerReader):
     def readLayerProperty(self,pkey,field):
         '''Single property reader'''
         plist = ()
-        layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+        layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
         layer.ResetReading()
         #HACK Win7
         layer.GetFeatureCount()
         if isinstance(pkey,tuple) or isinstance(pkey,list):
             for p in pkey:
                 f = self.fname._findMatchingFeature(layer, 'id', p)
-                plist += ('' if f is None else f.GetField(field),)
+                plist += ('' if f is None else f.GetField(field).encode('utf8'),)
             return plist
         else:
             feat = self.fname._findMatchingFeature(layer, 'id', pkey)
             if feat is None:
                 return None
-            prop = feat.GetField(field)
+            prop = feat.GetField(field).encode('utf8')
         return None if LU.mightAsWellBeNone(prop) is None else prop
     
     @override(LayerReader)
@@ -1015,7 +1017,7 @@ class LayerDSReader(LayerReader):
         '''Write changes to layer config table. Keyword changes are written as a comma-seperated value '''
         #ogr.UseExceptions()
         try:
-            layer = self.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+            layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
             if (isinstance(pkey,tuple) or isinstance(pkey,list)) and (isinstance(value,tuple) or isinstance(value,list)):
                 for p,v in zip(pkey,value):
                     if v: v = v.strip()

@@ -42,7 +42,7 @@ class Test_2_ConfigConnector(unittest.TestCase):
         testlog.debug('ConfigConnector_Test.setUp')
         self.configconnector = ConfigConnector(None,self.UCONF,self.LGVAL,self.DESTNAME)    
         self.sep,self.dep = self._fetchEPs()
-        self.configconnector.setupLayerConfig(self.configconnector.tp,self.sep,self.dep)
+        self.configconnector.reg.setupLayerConfig(self.configconnector.tp,self.sep,self.dep)
         
     def tearDown(self):
         testlog.debug('ConfigConnector_Test.tearDown')

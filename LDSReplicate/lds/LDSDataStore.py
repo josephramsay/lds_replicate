@@ -58,9 +58,9 @@ class LDSDataStore(WFSDataStore):
           'gml'     : '{http://www.opengis.net/gml}', 
           'xlink'   : '{http://www.w3.org/1999/xlink}', 
           'r'       : '{http://data.linz.govt.nz/ns/r}', 
-          'ows'     : '{http://www.opengis.net/ows}', 
+          'ows'     : '{http://www.opengis.net/ows/1.1}', 
           'v'       : '{http://data.linz.govt.nz/ns/v}', 
-          'wfs'     : '{http://www.opengis.net/wfs}', 
+          'wfs'     : '{http://www.opengis.net/wfs/2.0}', 
           'xsi'     : '{http://www.w3.org/2001/XMLSchema-instance}', 
           'ogc'     : '{http://www.opengis.net/ogc}',
           'gco'     :'{http://www.isotc211.org/2005/gco}',
@@ -162,6 +162,9 @@ class LDSDataStore(WFSDataStore):
         '''Close a DS with sync and destroy'''
         #probably not needed. prefer use superclass close()
         ldslog.info("WFS DS close")
+        if self.ds: 
+            self.ds.Release()
+            self.ds = None
 
     
     
@@ -181,10 +184,9 @@ class LDSDataStore(WFSDataStore):
             with closing(urlopen(url)) as content:
                 tree = etree.parse(content)
                 for ft in tree.findall(ftxp):
-                    name = ft.find(nmxp).text
-                    title = ft.find(ttxp).text
-                    #keys = map(lambda x: x.text, ft.findall(kyxp))
-                    keys = [x.text for x in ft.findall(kyxp)]
+                    name = ft.find(nmxp).text.encode('utf8')
+                    title = ft.find(ttxp).text.encode('utf8')
+                    keys = [x.text.encode('utf8') for x in ft.findall(kyxp)]
                     
                     res += ((name,title,keys),)
                 

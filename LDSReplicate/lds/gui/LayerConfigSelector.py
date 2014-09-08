@@ -76,8 +76,8 @@ class LayerConfigSelector(QMainWindow):
         '''Rebuilds lconf from scratch'''
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        #self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
-        self.parent.confconn.initLayerConfig(self.parent.confconn.tp,sep,dep)
+        #self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
+        self.parent.confconn.reg.initLayerConfig(self.parent.confconn.tp,sep,dep)
         self.refreshLayers(dep)
         self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
@@ -97,10 +97,18 @@ class LayerConfigSelector(QMainWindow):
         '''Add custom key to the selection_model list of layers (assumes required av->sl transfer completed) not just the transferring entry'''
         layerlist = [ll[0] for ll in self.selection_model.mdata]
         replacementlist = ()
+        #%%%delete
+        d1 = self.parent.confconn.destname
+        print d1
+        d2 = self.parent.confconn.uconf
+        print d2
+        #%%%delete
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
+        print 'opening - d',dep
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
-        categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')
+        print 'opening - s',sep
+        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
+        categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')#wtf is going on here FIXME
         for cat in categorylist:
             replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
@@ -110,7 +118,8 @@ class LayerConfigSelector(QMainWindow):
         self.parent.confconn.buildLGList()
         #self.refreshLayers(dep,customkey)
         self.parent.confconn.reg.closeEndPoint('WFS')
-        self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
+        self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)        
+        print 'closing',dep,sep
         sep,dep = None,None
     
     def deleteKeysFromLayerConfig(self,layerlist,customkey):
@@ -118,7 +127,7 @@ class LayerConfigSelector(QMainWindow):
         replacementlist = ()
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
+        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
         categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')
         for cat in categorylist:
             replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
@@ -158,7 +167,7 @@ class LayerConfigSelector(QMainWindow):
         
     def closeEvent(self,event):
         '''Intercept close event to signal parent to update status'''
-        pdb.set_trace()
+        #TRACE#        pdb.set_trace()
         self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'Done')
         #return last group selection
         lastgroup = str(self.page.keywordcombo.lineEdit().text())
@@ -166,7 +175,7 @@ class LayerConfigSelector(QMainWindow):
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
             dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
             sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-            self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
+            self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
             self.parent.confconn.setupComplete(dep)
             self.parent.confconn.setupAssigned()
             self.parent.confconn.buildLGList()

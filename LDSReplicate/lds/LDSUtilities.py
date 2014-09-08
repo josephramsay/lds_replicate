@@ -58,7 +58,12 @@ class LDSUtilities(object):
         else:
             raise UnsupportedServiceException('Only WFS is supported at present')
     
-
+    @staticmethod
+    def adjustWFS2URL(url,ver):
+        if ver == '2.0.0':
+            url = re.sub('wfs.','',url)
+            ldslog.warn('\'wfs.\' deleted from URL to comply with LDS WFS2.0 requirements')
+        return url
     
     @staticmethod
     def splitLayerName(layername):
@@ -305,7 +310,7 @@ class LDSUtilities(object):
             id =  feat.GetField('ID')
         except:
             ldslog.debug("LayerSchema: Can't read Feature ID")
-            pkey = None
+            id = None
             
         try:
             pkey =  feat.GetField('PKEY')
@@ -490,21 +495,47 @@ class LDSUtilities(object):
         upath = cls.standardiseUserConfigName(userprefix)
         return upath if os.path.exists(upath) else None
 
+class FileResolver(etree.Resolver):
+    def resolve(self, url, pubid, context):
+        return self.resolve_filename(url, context)
+    
 class ConfigInitialiser(object):
     '''Initialises configuration, for use at first run'''
 
     @staticmethod
-    def buildConfiguration(xml, fileid, idp):
+    def buildConfiguration(capsurl, wfs_ver,jorf, idp):
         '''Given a destination DS use this to select an XSL transform object and generate an output document that will initialise a new config file/table'''
-        xslt = etree.parse(os.path.join(os.path.dirname(__file__), '../conf/getcapabilities.'+fileid+'.xsl'))
-        transform = etree.XSLT(xslt)
-        doc = etree.parse(StringIO(xml))
-        res = transform(doc)
-        ldslog.info(res)
-        hackpk = {'file':ConfigInitialiser._hackPrimaryKeyFieldCP,'json':ConfigInitialiser._hackPrimaryKeyFieldJSON}.get(fileid)
-        return hackpk(str(res),idp)
+        #file name subst for testing
+        #capsurl='http://data.linz.govt.nz/services;key=<api-key>/wfs?service=WFS&version=2.0.0&request=GetCapabilities'
+        #capsurl='http://data.linz.govt.nz/services;key=<api-key>/wfs?service=WFS&version=1.1.0&request=GetCapabilities'
+        #xslfile='~/git/LDS/LDSReplicate/conf/getcapabilities-wfs2.0.json.xsl'
+        #xslfile='~/git/LDS/LDSReplicate/conf/getcapabilities-wfs1.1.json.xsl'
+        
+        parser = etree.XMLParser(recover=False)
+        parser.resolvers.add(FileResolver())
+        
+        wfspart = '-wfs{}'.format(wfs_ver)
+        jorfpart = 'json' if jorf else 'file'
+        xslfile = os.path.join(os.path.dirname(__file__), '../conf/getcapabilities{}.{}.xsl'.format(wfspart,jorfpart))
+        
+        xml = etree.parse(capsurl,parser)
+        xsl = etree.parse(xslfile,parser)
+        
+        #just to make sure the xsl parser returns valid result trees
+        FT = xml.findall('//{http://www.opengis.net/wfs/2.0}FeatureType')
+        KY = xml.findall('//{http://www.opengis.net/ows/1.1}Keywords/{http://www.opengis.net/ows/1.1}Keyword')
+        TX = xsl.findall('//{http://www.w3.org/1999/XSL/Transform}text')
+        print 'FT',len(FT)#,FT,[l.text for l in FT]
+        print 'KY',len(KY)#,KY,[l.text for l in KY]
+        print 'TX',len(TX)#,TX,[l.text for l in TX]
+        
+        print 'Error occurs here. Transformer isn\'t working in app but works correctly when executed in console'
+        transform = etree.XSLT(xsl)
+        res = transform(xml)
+        print res
+
+        return (ConfigInitialiser._hackPrimaryKeyFieldJSON if jorf else ConfigInitialiser._hackPrimaryKeyFieldCP)(str(res),idp)
     
- 
     @staticmethod 
     def cleanCP(cp):
         '''Make sure the ConfigParser is empty... even needed?'''

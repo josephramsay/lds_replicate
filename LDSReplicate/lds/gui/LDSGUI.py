@@ -86,6 +86,8 @@ class LDSMain(QMainWindow):
                 #initcc = False
             except Exception as e:
                 ldslog.error(e)
+                print 'Unhandled Exception in Config Setup',e
+                wcount += 1
 
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
@@ -159,12 +161,15 @@ class LDSMain(QMainWindow):
         except RuntimeError as rer:
             msg = 'Runtime error creating {} using "{}.conf" config file. {}'.format(self.gvs[0],uc,rer)
             self.errorEvent(msg)
+        except UnicodeEncodeError as uee:
+            msg = 'Unicode Encode Error, encode/sanitise input and try again. {}'.format(uee)
+            self.errorEvent(msg)
         except DatasourceCreateException as dce:
-            msg = 'Cannot CREATE {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit config or set new datasource; {}'.format(dst,uc,dce)
+            msg = 'Cannot DS CREATE {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit config or set new datasource; {}'.format(dst,uc,dce)
             self.switchDSSelection(dst)
             self.errorEvent(msg)
         except DatasourceOpenException as doe:
-            msg = 'Cannot OPEN {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit config or set new datasource; {}'.format(dst,uc,doe)
+            msg = 'Cannot DS OPEN {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit config or set new datasource; {}'.format(dst,uc,doe)
             self.switchDSSelection(dst)
             self.errorEvent(msg)
         except EndpointConnectionException as ece:
@@ -585,7 +590,7 @@ class LDSControls(QFrame):
         '''Read layer parameters'''
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.parent.confconn.setupLayerConfig(self.parent.confconn.tp,sep,dep)
+        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
         lce = dep.getLayerConf().readLayerParameters(ln)
         self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)

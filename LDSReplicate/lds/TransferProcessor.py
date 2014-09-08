@@ -17,7 +17,7 @@ Created on 26/07/2012
 
 import re
 import gdal
-import pdb
+#import pdb
 
 from datetime import datetime 
 
@@ -31,6 +31,7 @@ from lds.ConfigConnector import ConfigConnector
 
 from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
 from lds.ReadConfig import LayerFileReader, LayerDSReader
+from __builtin__ import classmethod
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -232,7 +233,7 @@ class TransferProcessor(object):
 
         #still used on command line
         if self.getInitConfig():
-            TransferProcessor.initLayerConfig(capabilities,self.dst,self.src.pxy,self.src.idp)
+            TransferProcessor.initialiseLayerConfig(capabilities,self.dst,self.src.ver,self.src.pxy,self.src.idp)
 
         if self.dst.getLayerConf() is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(self.dst.getConfInternal()))
@@ -283,7 +284,6 @@ class TransferProcessor(object):
         self.layer_total = len(self.lnl)
         self.layer_count = 0
         for each_layer in self.lnl:
-            pdb.set_trace()
             lm = LDSUtilities.checkDateFormat(self.dst.getLastModified(each_layer))
             srs = self.dst.getEPSGConversion(each_layer)
             pk = self.hasPrimaryKey(each_layer)
@@ -298,6 +298,8 @@ class TransferProcessor(object):
 
             #Destination URI won't change because of incremental so set it here
             self.dst.setURI(self.dst.destinationURI(each_layer))
+            #RB dst (not implemented)
+            #self.dst.setURI(self.dst.requestbuilder.destinationURI(each_layer))
                 
             #if PK is none do paging since page index uses pk (can't lookup matching FIDs for updates/deletes?)
             if pk:
@@ -314,7 +316,9 @@ class TransferProcessor(object):
                 final_td = self.dst.getCurrent() if td is None else td
           
                 if (datetime.strptime(final_td,'%Y-%m-%dT%H:%M:%S')-datetime.strptime(final_fd,'%Y-%m-%dT%H:%M:%S')).days>0:
-                    self.src.setURI(self.src.sourceURIIncremental(each_layer,final_fd,final_td))
+                    #self.src.setURI(self.src.sourceURIIncremental(each_layer,final_fd,final_td))
+                    #RB srci
+                    self.src.setURI(self.src.requestbuilder.sourceURIIncremental(each_layer,final_fd,final_td))
                     if self.readLayer():
                         self.dst.setIncremental()    
                         self.dst.setPrefetchSize(self.prefetchsize)
@@ -337,7 +341,9 @@ class TransferProcessor(object):
             #--------------------------------------------------    
 
             if nonincr:                
-                self.src.setURI(self.src.sourceURI(each_layer))
+                #self.src.setURI(self.src.sourceURI(each_layer))
+                #RB src
+                self.src.setURI(self.src.requestbuilder.sourceURI(each_layer))
                 if self.readLayer():
                     self.dst.clearIncremental()
                     self.cleanLayer(each_layer,truncate=True)
@@ -374,11 +380,11 @@ class TransferProcessor(object):
         lds_read = dst.getLayerConf().getLayerNames() if dst else []
         
         #Valid layers are those that exist in LDS and are also configured in the LC
-        #set(lds_full).intersection(set(lds_read))
+        #prefers lds_full format
         if intersect:
-            return [i for i in self.lds_full if i[0] in lds_read]
+            return [i for i in self.lds_full if i[0] in [j[0] for j in lds_read]]
         else: #union
-            return self.lds_full+[i for i in lds_read if i[0] not in self.lds_full]
+            return self.lds_full+[i for i in lds_read if i[0] not in [j[0] for j in self.lds_full]]
 
 #--------------------------------------------------------------------------------------------------
 
@@ -403,29 +409,42 @@ class TransferProcessor(object):
             
 #--------------------------------------------------------------------------------------------------
 
+    #The init LC stuff can stay here, it belongs to the destination because it can be stored in the dst but
+    #is a common function to dst/src
+    #getLC, ok? of no get new + init + save
     @classmethod
-    def getNewLayerConf(cls,dst):
-        '''Decide whether to use internal or external layer config and return the appropriate instantiation'''
-        fn = dst.DRIVER_NAME.lower()+cls.LP_SUFFIX
-        return LayerDSReader(dst) if dst.getConfInternal()==DataStore.CONF_INT else LayerFileReader(fn)
-
+    def parseCapabilitiesDoc(cls,capabilitiesurl,wfs_ver,file_json,pxy,idp):
+        '''Class method returning the capabilities doc as requested, in either JSON or CP format'''
+        return ConfigInitialiser.buildConfiguration(capabilitiesurl,wfs_ver,file_json,idp)
             
     @classmethod
-    def parseCapabilitiesDoc(cls,capabilitiesurl,file_json,pxy,idp):
-        '''Class method returning the capabilities doc as requested, in either JSON or CP format'''
-        xml = LDSUtilities.readDocument(capabilitiesurl,pxy)
-        return ConfigInitialiser.buildConfiguration(xml,file_json,idp)
+    def getLayerConf(cls,src,dst,initlc=False):
+        '''This is the catchall LC function. Uses SRC info to init from WFS'''
+        layerconf = dst.getLayerConf()
+        if not layerconf or not layerconf.isCurrent():
+            cls.initialiseLayerConfig(src.getCapabilities(), dst, src.ver, src.pxy, src.idp, initlc)
+        return dst.getLayerConf()
   
+    @classmethod
+    def initialiseLayerConfig(cls,capabilitiesurl,dst,wfs_ver,pxy,idp,initlc=True):
+        '''Class method initialising a layer config using the capabilities document'''
+        lc = cls.getNewLayerConf(dst)
+        #if initlc:
+        #indent when test finished
+        res = cls.parseCapabilitiesDoc(capabilitiesurl,cls.parseVersion(wfs_ver),cls.selectJSON(dst),pxy,idp)
+        lc.buildConfigLayer(str(res))
+        #end indent
+        dst.setLayerConf(lc)
         
     @classmethod
-    def initLayerConfig(cls,capabilitiesurl,dst,pxy,idp):
-        '''Class method initialising a layer config using the capabilities document'''
-        file_json = 'json' if dst.getConfInternal()==DataStore.CONF_INT else 'file'
-        #print 'capabilitiesurl',capabilitiesurl,'fj',file_json,'pxy',pxy,'idp',idp
-        res = cls.parseCapabilitiesDoc(capabilitiesurl,file_json,pxy,idp)
-        if not dst.getLayerConf() or not dst.getLayerConf().existsAndIsCurrent():
-            lc = TransferProcessor.getNewLayerConf(dst)
-            dst.setLayerConf(lc)
-        dst.getLayerConf().buildConfigLayer(str(res))
+    def getNewLayerConf(cls,dst):
+        '''Decide whether to use internal/external layer config and return the appropriate DS/File instantiation'''
+        return  LayerDSReader(dst) if cls.selectJSON(dst) else LayerFileReader(dst.DRIVER_NAME.lower()+cls.LP_SUFFIX)
         
-
+    @classmethod
+    def selectJSON(cls,dst):
+        return dst.getConfInternal()==DataStore.CONF_INT
+    
+    @classmethod
+    def parseVersion(cls,ver):
+        return '2.0' if float(ver[:ver.find('.',2)])>1.1 else '1.1'

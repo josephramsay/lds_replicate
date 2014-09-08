@@ -1,6 +1,6 @@
 [FileGDB]
-uconf = fglint
-lgvalue = v:x133
+uconf = nneeww
+lgvalue = data.linz.govt.nz:layer-622
 epsg = None
 fd = None
 td = 2013-01-01
@@ -23,8 +23,8 @@ fd = None
 td = None
 
 [SQLite]
-lgvalue = NEWNEW
-uconf = SQLITETEST
+lgvalue = v:x393
+uconf = ldsdt
 epsg = None
 fd = None
 td = None
