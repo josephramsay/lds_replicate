@@ -40,9 +40,10 @@ class LDSUtilities(object):
     LDS_VX_PREFIX = 'v:x'
     #wfs2.0 prefixes
     LDS_LL_PREFIX = 'linz:layer-'
+    LDS_DL_PREFIX = 'data.linz.govt.nz:layer-'
     LDS_ME_PREFIX = 'mfe:layer-'
     
-    LDS_PREFIXES = (LDS_VX_PREFIX,LDS_LL_PREFIX,LDS_ME_PREFIX)
+    LDS_PREFIXES = (LDS_VX_PREFIX,LDS_LL_PREFIX,LDS_DL_PREFIX,LDS_ME_PREFIX)
     
     
     @staticmethod
@@ -52,7 +53,8 @@ class LDSUtilities(object):
             if ver in ('1.0.0','1.1.0','1.0','1.1'):
                 return LDSUtilities.LDS_VX_PREFIX
             elif ver in ('2.0.0','2.0'):
-                return LDSUtilities.LDS_LL_PREFIX
+                #return LDSUtilities.LDS_LL_PREFIX
+                return LDSUtilities.LDS_DL_PREFIX
             else:
                 raise UnsupportedServiceException('Only WFS versions 1.0, 1.1 and 2.0 are supported')
         else:
@@ -61,7 +63,7 @@ class LDSUtilities(object):
     @staticmethod
     def adjustWFS2URL(url,ver):
         if ver == '2.0.0':
-            url = re.sub('wfs.','',url)
+            url = re.sub('wfs.','',url)+'services;key='
             ldslog.warn('\'wfs.\' deleted from URL to comply with LDS WFS2.0 requirements')
         return url
     
@@ -137,7 +139,7 @@ class LDSUtilities(object):
                 host = rm.group(1)
                 port = rm.group(2)
                 
-        return {'TYPE':ptype, 'HOST':host, 'PORT':str(port), 'AUTH':auth, 'USR':usr, 'PWD':pwd}
+        return {'TYPE':ptype, 'HOST':host, 'PORT':port, 'AUTH':auth, 'USR':usr, 'PWD':pwd}
 
     
     @staticmethod
@@ -521,18 +523,17 @@ class ConfigInitialiser(object):
         xml = etree.parse(capsurl,parser)
         xsl = etree.parse(xslfile,parser)
         
-        #just to make sure the xsl parser returns valid result trees
-        FT = xml.findall('//{http://www.opengis.net/wfs/2.0}FeatureType')
-        KY = xml.findall('//{http://www.opengis.net/ows/1.1}Keywords/{http://www.opengis.net/ows/1.1}Keyword')
-        TX = xsl.findall('//{http://www.w3.org/1999/XSL/Transform}text')
-        print 'FT',len(FT)#,FT,[l.text for l in FT]
-        print 'KY',len(KY)#,KY,[l.text for l in KY]
-        print 'TX',len(TX)#,TX,[l.text for l in TX]
+        #this is a problem that seems to only affect eclipse, running from CL or the final bin is fine
+        #FT = xml.findall('//{http://www.opengis.net/wfs/2.0}FeatureType')
+        #KY = xml.findall('//{http://www.opengis.net/ows/1.1}Keywords/{http://www.opengis.net/ows/1.1}Keyword')
+        #TX = xsl.findall('//{http://www.w3.org/1999/XSL/Transform}text')
+        #print 'FT',len(FT)#,FT,[l.text for l in FT]
+        #print 'KY',len(KY)#,KY,[l.text for l in KY]
+        #print 'TX',len(TX)#,TX,[l.text for l in TX]
         
-        print 'Error occurs here. Transformer isn\'t working in app but works correctly when executed in console'
         transform = etree.XSLT(xsl)
         res = transform(xml)
-        print res
+        #print res
 
         return (ConfigInitialiser._hackPrimaryKeyFieldJSON if jorf else ConfigInitialiser._hackPrimaryKeyFieldCP)(str(res),idp)
     
@@ -547,7 +548,7 @@ class ConfigInitialiser(object):
         '''temporary hack method to rewrite the layerconf primary key field for ConfigParser file types using Koordinates supplied PK CSV'''
         import io
         from ConfigParser import ConfigParser, NoSectionError
-        
+        print 'cpdoc>>>',str(cpdoc)
         cp = ConfigParser()
         #read CP from GC doc
         cp.readfp(io.BytesIO(str(cpdoc)))

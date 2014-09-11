@@ -74,6 +74,7 @@ class RequestBuilder(object):
     def getInstance(params,cs=None):
         '''Select RB based on WFS version as contained in params list'''
         version = params[3][:3]
+        print 'VERSION',version
         if version=='1.0':
             return RequestBuilderWFS110(params,cs)
         elif version=='1.1':
@@ -128,7 +129,7 @@ class RequestBuilderWFS200(RequestBuilder):
         return 'RequestBuilder_WFS-2.0.0'
     
     def getCapabilities(self):#this is supposed to work ... http://data-test.linz.govt.nz/services;key=fa0f3c256bf349f3ae2102841214cc15/wfs?service=WFS&request=GetFeature&typeName=linz:layer-452&MAXFEATURES=3
-        uri = '{u}services;key={k}/wfs?service={s}&version={v}&request=GetCapabilities'.format(u=self.url,k=self.key,s=self.svc,v=self.ver)
+        uri = '{u}{k}/wfs?service={s}&version={v}&request=GetCapabilities'.format(u=self.url,k=self.key,s=self.svc,v=self.ver)
         ldslog.debug(uri)
         return uri
     
@@ -168,7 +169,7 @@ class RequestBuilderWFS200(RequestBuilder):
         #if omitted the outputformat parameter is null and default used, GML2
         fmt = "##outputFormat="+self.fmt if (self.fmt in self.SUPPORTED_OUTPUT_FORMATS) else ""
         uri = re.sub('##','&',re.sub('##','?',self.url+self.key+"/wfs"+svc+ver+req+typ+fmt+cql,1))
-        ldslog.debug(uri)
+        ldslog.debug('wfs200 - {}'.format(uri))
         return uri
     
     def sourceURIIncremental(self,layername,fromdate,todate):

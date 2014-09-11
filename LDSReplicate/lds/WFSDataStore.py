@@ -53,7 +53,7 @@ class WFSDataStore(DataStore):
         #We set the proxy options here as this is the collection point for all WFS/network requests
         self.PP = LDSUtilities.interceptSystemProxyInfo(self.confwrap.readDSParameters('Proxy'),self.PROXY_TYPE[1])
         #convenience proxy map (for urlopen proxyhandler)
-        self.pxy = {'http':self.PP['HOST']+":"+self.PP['PORT']}
+        self.pxy = {'http':'{}:{}'.format(self.PP['HOST'],self.PP['PORT'])}
         
         #(self.url,self.key,self.svc,self.ver,self.fmt,self.cql) = self.params
         

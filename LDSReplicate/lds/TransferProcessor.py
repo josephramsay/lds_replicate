@@ -242,10 +242,10 @@ class TransferProcessor(object):
         #Valid layers are those that exist in LDS and are also configured in the LC
         self.initCapsDoc(capabilities, self.src)
         lds_valid = [i[0] for i in self.assembleLayerList(self.dst)]
-        
         #if layer provided, check that layer is in valid list
         #else if group then intersect valid and group members
         lgid = self.idLayerOrGroup(self.lgval)
+        print 'TP-pLDS-[lgid={},lgval={},lds_valid={}]'.format(lgid,self.lgval,lds_valid)
         if lgid == LORG.GROUP:
             self.lnl = set()
             group = set(self.lgval.split(','))
@@ -382,9 +382,11 @@ class TransferProcessor(object):
         #Valid layers are those that exist in LDS and are also configured in the LC
         #prefers lds_full format
         if intersect:
-            return [i for i in self.lds_full if i[0] in [j[0] for j in lds_read]]
+            #return [i for i in self.lds_full if i[0] in [j[0] for j in lds_read]]
+            return [i for i in self.lds_full if i[0] in lds_read]
         else: #union
-            return self.lds_full+[i for i in lds_read if i[0] not in [j[0] for j in self.lds_full]]
+            #return self.lds_full+[i for i in lds_read if i[0] not in [j[0] for j in self.lds_full]]
+            return lds_read+[i[0] for i in self.lds_full if i[0] not in lds_read]
 
 #--------------------------------------------------------------------------------------------------
 
@@ -429,11 +431,9 @@ class TransferProcessor(object):
     def initialiseLayerConfig(cls,capabilitiesurl,dst,wfs_ver,pxy,idp,initlc=True):
         '''Class method initialising a layer config using the capabilities document'''
         lc = cls.getNewLayerConf(dst)
-        #if initlc:
-        #indent when test finished
-        res = cls.parseCapabilitiesDoc(capabilitiesurl,cls.parseVersion(wfs_ver),cls.selectJSON(dst),pxy,idp)
-        lc.buildConfigLayer(str(res))
-        #end indent
+        if initlc:
+            res = cls.parseCapabilitiesDoc(capabilitiesurl,cls.parseVersion(wfs_ver),cls.selectJSON(dst),pxy,idp)
+            lc.buildConfigLayer(str(res))
         dst.setLayerConf(lc)
         
     @classmethod

@@ -44,9 +44,7 @@ class MainFileReader(object):
         '''
         
         from lds.DataStore import DataStore
-        self.driverconfig = {}
-        for dn in DataStore.DRIVER_NAMES:
-            self.driverconfig[dn] = ()
+        self.driverconfig = {i:() for i in DataStore.DRIVER_NAMES}
             
         self.use_defaults = use_defaults
         #if we dont give the constructor a file path is uses the template file (which may not be a good idea...)
@@ -666,10 +664,13 @@ class LayerReader(object):
 #             #pkey,name,group,gcol,epsg,lmod,disc,cq
 #             groups = [g.strip() for g in lce.group.split(',')]
 #             lca.append((lce.id,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
-        for lce in self.readAllLayerParameters():
-            groups = [g.strip() for g in lce.group.split(',')]
-            lca.append((lce.id,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
-        return lca
+
+#         for lce in self.readAllLayerParameters():
+#             groups = [g.strip() for g in lce.group.split(',')]
+#             lca.append((lce.id,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
+#         return lca
+        return [(lce.id,lce.pkey,lce.name,[g.strip() for g in lce.group.split(',')],lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql) for lce in self.readAllLayerParameters()]
+
             
     
 

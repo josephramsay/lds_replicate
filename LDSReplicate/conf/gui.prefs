@@ -1,31 +1,10 @@
-[FileGDB]
-uconf = nneeww
-lgvalue = data.linz.govt.nz:layer-622
-epsg = None
-fd = None
-td = 2013-01-01
-
 [prefs]
-dest = FileGDB
+dest = PostgreSQL
 
 [PostgreSQL]
-uconf = tteesstt
-lgvalue = v:x319
+uconf = test
+lgvalue = LOL
 epsg = 2193
 fd = None
 td = 2010-01-01
-
-[MSSQLSpatial]
-lgvalue = None
-uconf = None
-epsg = None
-fd = None
-td = None
-
-[SQLite]
-lgvalue = v:x393
-uconf = ldsdt
-epsg = None
-fd = None
-td = None
 

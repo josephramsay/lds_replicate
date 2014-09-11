@@ -77,7 +77,7 @@ class LayerConfigSelector(QMainWindow):
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
         #self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
-        self.parent.confconn.reg.initLayerConfig(self.parent.confconn.tp,sep,dep)
+        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep,initlc=True)
         self.refreshLayers(dep)
         self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)

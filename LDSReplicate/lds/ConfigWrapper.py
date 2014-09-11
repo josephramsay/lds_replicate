@@ -73,11 +73,7 @@ class ConfigWrapper(object):
 
     def readDSParameters(self,drv,params=None):
         '''Returns the datasource parameters. By request updated to let users override parts of the basic config file'''
-        from DataStore import DataStore
         ul = ()
-        
-        #convert from abbrev to full driver name
-        drv = DataStore.DRIVER_NAMES[drv] if drv in DataStore.DRIVER_NAMES else drv
         #read main config
         ml = self.mainconfig.readDriverConfig(drv)        
         if self.confdict.has_key(drv):

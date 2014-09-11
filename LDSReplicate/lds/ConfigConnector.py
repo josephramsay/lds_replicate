@@ -315,9 +315,10 @@ class DatasourceRegister(object):
     #This is the Layer Config stuff, its a bit of a mess!    
         
     @staticmethod
-    def setupLayerConfig(tp,sep,dep):
+    def setupLayerConfig(tp,sep,dep,initlc=None):
         '''Calls the TP LC setup function'''
-        tp.getLayerConf(sep,dep)
+        #...true if true or something, false if false or none or empty?
+        tp.getLayerConf(sep,dep,True if initlc else False)
 
             
     @staticmethod
@@ -327,7 +328,7 @@ class DatasourceRegister(object):
         if layerconf:
             if layerconf.getDS():#hasattr(lc,'ds'):
                 layerconf.syncDS()
-            lc = None
+            layerconf = None
             
     #----------------------------------------------------------------------------------
 #import pydevd
