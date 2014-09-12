@@ -49,11 +49,9 @@ xmlns:ows="http://www.opengis.net/ows/1.1" vs ~/ows
 				<xsl:when test="position() != last()">
 					<xsl:text>",</xsl:text>
 				</xsl:when>
-				<xsl:otherwise>
-					<xsl:text>"],</xsl:text>
-				</xsl:otherwise>
 			</xsl:choose>
 		</xsl:for-each>
+        <xsl:text>"],</xsl:text>
 		<xsl:text>null,</xsl:text>
 		<xsl:choose>
 			<xsl:when test="starts-with(wfs:Title,'ASP')">

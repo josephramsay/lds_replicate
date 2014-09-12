@@ -44,11 +44,9 @@ xmlns:ows="http://www.opengis.net/ows/1.1"
 				<xsl:when test="position() != last()">
 					<xsl:text>,</xsl:text>
 				</xsl:when>
-				<xsl:otherwise>
-					<xsl:text>&#xa;</xsl:text>
-				</xsl:otherwise>
 			</xsl:choose>
 		</xsl:for-each>
+        <xsl:text>&#xa;</xsl:text>
 		<xsl:text>lastmodified = &#xa;</xsl:text>
 		<xsl:choose>
 			<xsl:when test="starts-with(wfs:Title,'ASP')">		

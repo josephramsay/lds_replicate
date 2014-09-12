@@ -250,8 +250,8 @@ class TransferProcessor(object):
             self.lnl = set()
             group = set(self.lgval.split(','))
             for lid in lds_valid:
-                cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
-                if cats is not None and set(cats.split(',')).intersection(group):
+                cats = self.dst.getLayerConf().readLayerProperty(lid,'category').encode('utf8')
+                if cats is not None and set([f.strip() for f in cats.split(',')]).intersection(group):
                     self.lnl.update((lid,))
                 
             if not len(self.lnl):

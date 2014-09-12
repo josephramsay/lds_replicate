@@ -644,7 +644,7 @@ class LayerReader(object):
     def _reTag(self,layerlist,tagname,addtag):        
         '''Add/Delete a keyword from all the layers in the provided list'''
         for layer in layerlist:
-            keywords = set(str(self.readLayerProperty(layer, 'Category')).split(','))
+            keywords = set([f.strip() for f in self.readLayerProperty(layer, 'Category').encode('utf8').split(',')])
             if addtag:
                 keywords.add(tagname)
             else:
@@ -954,7 +954,7 @@ class LayerDSReader(LayerReader):
                 feat = layer.GetNextFeature() 
                 while feat is not None:
                     #print '>>>>> ID',feat.GetField('id')
-                    self.namelist += ((feat.GetField('id').encode('utf8'),feat.GetField('name').encode('utf8'),feat.GetField('category').encode('utf8').split(',')),)
+                    self.namelist += ((feat.GetField('id').encode('utf8'),feat.GetField('name').encode('utf8'),[f.strip() for f in feat.GetField('category').encode('utf8').split(',')]),)
                     feat = layer.GetNextFeature()
             else:
                 ldslog.error('REMINDER! TRIGGER CONF BUILD')

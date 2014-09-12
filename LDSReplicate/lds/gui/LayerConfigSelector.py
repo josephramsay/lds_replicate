@@ -108,7 +108,7 @@ class LayerConfigSelector(QMainWindow):
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
         print 'opening - s',sep
         self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
-        categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')#wtf is going on here FIXME
+        categorylist = [f.strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category').encode('utf8')]#wtf is going on here FIXME
         for cat in categorylist:
             replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
@@ -128,7 +128,7 @@ class LayerConfigSelector(QMainWindow):
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
         self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
-        categorylist = dep.getLayerConf().readLayerProperty(layerlist, 'category')
+        categorylist = [f.strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category').encode('utf8')]
         for cat in categorylist:
             replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)

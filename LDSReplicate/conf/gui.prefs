@@ -3,7 +3,7 @@ dest = PostgreSQL
 
 [PostgreSQL]
 uconf = test
-lgvalue = LOL
+lgvalue = LOL2
 epsg = 2193
 fd = None
 td = 2010-01-01
