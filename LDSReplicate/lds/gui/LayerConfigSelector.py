@@ -97,18 +97,10 @@ class LayerConfigSelector(QMainWindow):
         '''Add custom key to the selection_model list of layers (assumes required av->sl transfer completed) not just the transferring entry'''
         layerlist = [ll[0] for ll in self.selection_model.mdata]
         replacementlist = ()
-        #%%%delete
-        d1 = self.parent.confconn.destname
-        print d1
-        d2 = self.parent.confconn.uconf
-        print d2
-        #%%%delete
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        print 'opening - d',dep
-        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        print 'opening - s',sep
-        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
-        categorylist = [f.strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category').encode('utf8')]#wtf is going on here FIXME
+        #print 'opened dep=',dep,'reg=',self.parent.confconn.reg#DEBUG
+        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,None,dep,initlc=False)
+        categorylist = [f.encode('utf8').strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category') if f]
         for cat in categorylist:
             replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
@@ -117,30 +109,29 @@ class LayerConfigSelector(QMainWindow):
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()
         #self.refreshLayers(dep,customkey)
-        self.parent.confconn.reg.closeEndPoint('WFS')
+        #print 'closing dep=',dep,'reg=',self.parent.confconn.reg#DEBUG
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)        
-        print 'closing',dep,sep
-        sep,dep = None,None
+        dep = None
     
     def deleteKeysFromLayerConfig(self,layerlist,customkey):
         '''Remove custom keys from selected layers'''
         replacementlist = ()
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
-        categorylist = [f.strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category').encode('utf8')]
+        #print 'opening',dep#DEBUG
+        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,None,dep,initlc=False)
+        categorylist = [f.encode('utf8').strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category') if f]
         for cat in categorylist:
             replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
-
+ 
         #-----------------------------------
         self.parent.confconn.setupComplete(dep)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()   
         #self.refreshLayers(dep,customkey)
-        self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
-        sep,dep = None,None
+        #print 'closing', dep,self.parent.confconn.reg#DEBUG
+        dep = None
         return self.selection_model.rowCount()
     
     @staticmethod
@@ -167,22 +158,21 @@ class LayerConfigSelector(QMainWindow):
         
     def closeEvent(self,event):
         '''Intercept close event to signal parent to update status'''
-        #TRACE#        pdb.set_trace()
         self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'Done')
         #return last group selection
         lastgroup = str(self.page.keywordcombo.lineEdit().text())
         #self.parent.controls.gpr.writeline('lgvalue',lastgroup)
         if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
             dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-            sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-            self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
+            #sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+            self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,None,dep)
             self.parent.confconn.setupComplete(dep)
             self.parent.confconn.setupAssigned()
             self.parent.confconn.buildLGList()
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
             self.parent.controls.refreshLGCombo()
             self.parent.controls.lgcombo.setCurrentIndex(lgindex)
-            self.parent.confconn.reg.closeEndPoint('WFS')
+            #self.parent.confconn.reg.closeEndPoint('WFS')
             self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
             sep,dep = None,None
 
@@ -206,10 +196,7 @@ class LayerTableModel(QAbstractTableModel):
         self.ilist = []
         self.ifont = QFont()
         self.ifont.setBold(True)
-        
-        #convenience link
-        #self.confconn_link = self.parent.parent.confconn
-        
+
         
     #abstract subclass funcs
     def rowCount(self, parent=None):
@@ -359,7 +346,7 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.activated.connect(self.doKeyComboChangeAction)
         
         lgindex = self.confconn_link.getLGIndex(self.confconn_link.lgval,col=1)
-        lgentry = self.confconn_link.lglist[lgindex] if LDSUtilities.mightAsWellBeNone(lgindex) is not None else None
+        lgentry = self.confconn_link.lglist[lgindex] if LDSUtilities.mightAsWellBeNone(lgindex) else None
         keywordedit = self.keywordcombo.lineEdit()
         #if no entry or layer indicated then blank 
         keywordedit.setText('' if lgentry is None or lgentry[0]==LORG.LAYER else lgentry[1])#self.confconn_link.lgval)#TODO. group only
@@ -497,7 +484,9 @@ class LayerSelectionPage(QFrame):
             if self.keywordcombo.findText(ktext) == -1:
                 self.keywordcombo.addItem(ktext)
         else:
-            ldslog.warn('L2R > Transfer action without selection')
+            ldslog.warn('L2R > Transfer action without selection')        
+        #TRACE#
+        #pdb.set_trace()
         self.available.clearSelection()
           
         
@@ -532,6 +521,8 @@ class LayerSelectionPage(QFrame):
                 self.keywordcombo.clearEditText()
         else:
             ldslog.warn('R2L < Transfer action without selection')
+        #TRACE#
+        #pdb.set_trace()
         self.selection.clearSelection()
 
                 

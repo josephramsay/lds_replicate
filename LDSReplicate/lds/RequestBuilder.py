@@ -74,7 +74,7 @@ class RequestBuilder(object):
     def getInstance(params,cs=None):
         '''Select RB based on WFS version as contained in params list'''
         version = params[3][:3]
-        print 'VERSION',version
+        #print 'VERSION',version
         if version=='1.0':
             return RequestBuilderWFS110(params,cs)
         elif version=='1.1':

@@ -82,7 +82,7 @@ class ConfigConnector(object):
             self.setupAssigned()
             self.buildLGList()
             self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
-            self.reg.closeLayerConfig(dep)
+            #self.reg.closeLayerConfig(dep)
             self.reg.closeEndPoint(self.destname)
             self.reg.closeEndPoint('WFS')
             sep,dep = None,None
@@ -200,6 +200,8 @@ class DatasourceRegister(object):
         #sync/rel the DS
         #self.register[fn]['ep'].closeDS()#DS should already have closed
         self.register[fn]['ep'] = None
+        self.register[fn]['type'] = None
+        self.register[fn]['uri'] = None
         del self.register[fn]
     
     def _assignRef(self,uri):
@@ -209,15 +211,16 @@ class DatasourceRegister(object):
     
     def _type(self,fn):
         #fn = LDSUtilities.standardiseDriverNames(name)
-        if fn == FileGDBDataStore.DRIVER_NAME:
-            return self.TYPE.TRANSIENT
-        elif fn == WFSDataStore.DRIVER_NAME:
+        #if fn == FileGDBDataStore.DRIVER_NAME:
+        #    return self.TYPE.TRANSIENT
+        if fn == WFSDataStore.DRIVER_NAME:
             return self.TYPE.SOURCE
         return self.TYPE.DESTINATION
         
     def _connect(self,fn,req=None):
         '''Initialise an OGR datasource on the DST/SRC object or just return note the existing and increment count'''
         endpoint = self.register[fn]['ep']
+        self.register[fn]['rc'] += 1
         if not endpoint.getDS():
             if self.register[fn]['type']==self.TYPE.SOURCE:
                 self._connectSRC(fn,req)
@@ -229,7 +232,6 @@ class DatasourceRegister(object):
         uri = endpoint.destinationURI(None)
         conn = endpoint.initDS(uri)
         endpoint.setDS(conn)
-        self.register[fn]['rc'] += 1
         
     def _connectSRC(self,fn,req=None):#layername=None,fromdate=None,todate=None): 
         endpoint = self.register[fn]['ep']
@@ -242,7 +244,6 @@ class DatasourceRegister(object):
         else:
             pass
         #conn = ep.initDS(uri)
-        self.register[fn]['rc'] += 1
         
     def _disconnect(self,fn):
         '''Decrement reference to the DS and delete it entirely if its the last one'''
@@ -250,7 +251,8 @@ class DatasourceRegister(object):
         self.register[fn]['rc'] -= 1
         if self.register[fn]['rc'] <= 0:
             ldslog.info('Release EP '+str(fn))
-            self.closeLayerConfig(endpoint)
+            if self.register[fn]['type'] == self.TYPE.DESTINATION: 
+                self.closeLayerConfig(endpoint)
             endpoint.closeDS()  
         
     #---------------------
@@ -262,9 +264,6 @@ class DatasourceRegister(object):
         #print 'GEP',name,uri,req
         '''Gets a named EP incrementing a refcount or registers a new one as needed'''
         fn = LDSUtilities.standardiseDriverNames(name)
-        #%%%delete
-        print 'oep>',fn,uri
-        #%%%delete
         #if fn+uri exist AND fn is valid AND (fn not prev registered OR the saved URI != uri) 
         if (fn and uri)\
         and (fn in DataStore.DRIVER_NAMES.values() or fn == WFSDataStore.DRIVER_NAME) \
@@ -280,8 +279,9 @@ class DatasourceRegister(object):
     def closeEndPoint(self,name):
         '''Closes the DS is a named EP or delete the EP completely if not needed'''
         fn = LDSUtilities.standardiseDriverNames(name)
-        #%%%delete
-        print 'cep>',fn
+        #<HACK>. Bypass DS closing for FileGDB connections
+        if fn=='FileGDB': return
+        #</HACK>
         if self.register.has_key(fn):
             self._disconnect(fn)
             if self.register[fn]['rc'] == 0:
@@ -318,7 +318,7 @@ class DatasourceRegister(object):
     def setupLayerConfig(tp,sep,dep,initlc=None):
         '''Calls the TP LC setup function'''
         #...true if true or something, false if false or none or empty?
-        tp.getLayerConf(sep,dep,True if initlc else False)
+        tp.getLayerConf(sep,dep,bool(initlc))
 
             
     @staticmethod
@@ -327,8 +327,10 @@ class DatasourceRegister(object):
         layerconf = ep.getLayerConf()
         if layerconf:
             if layerconf.getDS():#hasattr(lc,'ds'):
+                #dont close the DS (lc not owner) just sync so any lc values are saved
                 layerconf.syncDS()
-            layerconf = None
+            layerconf.close()
+            ep.setLayerConf(None)
             
     #----------------------------------------------------------------------------------
 #import pydevd
@@ -369,6 +371,7 @@ class ProcessRunner(QThread):
     def run(self):
         pt = ProgressTimer(self.controls,self.tp)
         try:
+            ldslog.debug('BENCHMARK START')
             try:
                 pt.start()
                 self.enable.emit(False)
@@ -389,6 +392,7 @@ class ProcessRunner(QThread):
                 sep,dep = None,None
                 pt.join()
                 pt = None
+            ldslog.debug('BENCHMARK END')
         except Exception as e:
             self.status.emit(0,'Error. Halting Processing',str(e))
         finally:

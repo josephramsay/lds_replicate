@@ -548,7 +548,6 @@ class ConfigInitialiser(object):
         '''temporary hack method to rewrite the layerconf primary key field for ConfigParser file types using Koordinates supplied PK CSV'''
         import io
         from ConfigParser import ConfigParser, NoSectionError
-        print 'cpdoc>>>',str(cpdoc)
         cp = ConfigParser()
         #read CP from GC doc
         cp.readfp(io.BytesIO(str(cpdoc)))

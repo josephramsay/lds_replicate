@@ -157,8 +157,7 @@ class FileGDBDataStore(ESRIDataStore):
             dsrc = self.ds.GetRefCount()
             ldslog.info('FG RefCount '+str(dsrc))
             if dsrc<=1:
-                self.ds.layerconf = None
-                #HACK
+                #OS version HACK
                 if os.name == 'nt':
                     #Release() crashes Linux OS but this should be okay since in most cases we won't need 
                     #synchronous access to a FileGDB generated on Linux and opened using ArcMap on Windows

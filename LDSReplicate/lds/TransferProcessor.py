@@ -44,6 +44,7 @@ class InputMisconfigurationException(Exception):
 class PrimaryKeyUnavailableException(Exception): pass
 class LayerConfigurationException(Exception): pass
 class DatasourceInitialisationException(Exception): pass
+class IncompleteParametersForInitialisation(Exception): pass
 
 LORG = LDSUtilities.enum('GROUP','LAYER')
 
@@ -233,7 +234,7 @@ class TransferProcessor(object):
 
         #still used on command line
         if self.getInitConfig():
-            TransferProcessor.initialiseLayerConfig(capabilities,self.dst,self.src.ver,self.src.pxy,self.src.idp)
+            TransferProcessor.initialiseLayerConfig(self.src,self.dst)
 
         if self.dst.getLayerConf() is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(self.dst.getConfInternal()))
@@ -245,13 +246,12 @@ class TransferProcessor(object):
         #if layer provided, check that layer is in valid list
         #else if group then intersect valid and group members
         lgid = self.idLayerOrGroup(self.lgval)
-        print 'TP-pLDS-[lgid={},lgval={},lds_valid={}]'.format(lgid,self.lgval,lds_valid)
         if lgid == LORG.GROUP:
             self.lnl = set()
             group = set(self.lgval.split(','))
             for lid in lds_valid:
-                cats = self.dst.getLayerConf().readLayerProperty(lid,'category').encode('utf8')
-                if cats is not None and set([f.strip() for f in cats.split(',')]).intersection(group):
+                cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
+                if cats is not None and set([f.encode('utf8').strip() for f in cats.split(',')]).intersection(group):
                     self.lnl.update((lid,))
                 
             if not len(self.lnl):
@@ -284,6 +284,7 @@ class TransferProcessor(object):
         self.layer_total = len(self.lnl)
         self.layer_count = 0
         for each_layer in self.lnl:
+            ldslog.debug('BENCHMARK '+str(each_layer))
             lm = LDSUtilities.checkDateFormat(self.dst.getLastModified(each_layer))
             srs = self.dst.getEPSGConversion(each_layer)
             pk = self.hasPrimaryKey(each_layer)
@@ -424,15 +425,18 @@ class TransferProcessor(object):
         '''This is the catchall LC function. Uses SRC info to init from WFS'''
         layerconf = dst.getLayerConf()
         if not layerconf or not layerconf.isCurrent():
-            cls.initialiseLayerConfig(src.getCapabilities(), dst, src.ver, src.pxy, src.idp, initlc)
+            if not src and initlc:
+                #we cant initlc without a valid src but we've made src optional/none to save overhead initing a ds
+                raise IncompleteParametersForInitialisation('LayerConf required without valid SRC DS parameter')
+            cls.initialiseLayerConfig(src, dst, initlc)
         return dst.getLayerConf()
   
     @classmethod
-    def initialiseLayerConfig(cls,capabilitiesurl,dst,wfs_ver,pxy,idp,initlc=True):
+    def initialiseLayerConfig(cls,src,dst,initlc=True):
         '''Class method initialising a layer config using the capabilities document'''
         lc = cls.getNewLayerConf(dst)
         if initlc:
-            res = cls.parseCapabilitiesDoc(capabilitiesurl,cls.parseVersion(wfs_ver),cls.selectJSON(dst),pxy,idp)
+            res = cls.parseCapabilitiesDoc(src.getCapabilities(),cls.parseVersion(src.ver),cls.selectJSON(dst),src.pxy,src.idp)
             lc.buildConfigLayer(str(res))
         dst.setLayerConf(lc)
         

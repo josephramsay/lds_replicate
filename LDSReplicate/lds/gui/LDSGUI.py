@@ -26,6 +26,8 @@ from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray
                           QTimer, QEventLoop, QThread, QSize)
 
 
+import pdb 
+
 import os
 import re
 import sys
@@ -85,8 +87,7 @@ class LDSMain(QMainWindow):
                 #self.initConfigConnector(self.DEF_RVALS)
                 #initcc = False
             except Exception as e:
-                ldslog.error(e)
-                print 'Unhandled Exception in Config Setup',e
+                ldslog.error('Unhandled Exception in Config Setup. '+str(e))
                 wcount += 1
 
         self.setGeometry(300, 300, 350, 250)
@@ -308,8 +309,8 @@ class LDSControls(QFrame):
         self.cflist = ConfigInitialiser.getConfFiles()
         #self.imgset = self.STATIC_IMG if ConfigWrapper().readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
         #self.imgset = self.STATIC_IMG if self.parent.confconn.tp.src.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
-        ep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.imgset = self.STATIC_IMG if ep.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
+        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+        self.imgset = self.STATIC_IMG if sep.confwrap.readDSProperty('Misc','indicator')=='static' else self.ANIM_IMG
         self.parent.confconn.reg.closeEndPoint('WFS')
         
     def initEPSG(self):
@@ -560,6 +561,8 @@ class LDSControls(QFrame):
     def updateLGValues(self,uconf,lgval,dest):
         '''Sets the values displayed in the Layer/Group combo'''
         #because we cant seem to sort combobox entries and want groups at the top, clear and re-add
+        #TRACE#        
+        #pdb.set_trace()
         sf = None
         try:
             self.parent.confconn.initConnections(uconf,lgval,dest)
@@ -589,10 +592,10 @@ class LDSControls(QFrame):
     def getLCE(self,ln):
         '''Read layer parameters'''
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
-        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
+        #sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+        self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,None,dep,initlc=False)
         lce = dep.getLayerConf().readLayerParameters(ln)
-        self.parent.confconn.reg.closeEndPoint('WFS')
+        #self.parent.confconn.reg.closeEndPoint('WFS')
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
         sep,dep = None,None
         return lce

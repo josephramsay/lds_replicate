@@ -30,7 +30,7 @@ ldslog = LDSUtilities.setupLogging()
 class ConfigWrapper(object):
     '''
     Convenience wrapper class to main and user config-file reader instances. Main purpose of this class is to 
-    allow user to override selected portions of the main config file.
+    allow user to override selected portions of the main config file. This has nothing 
     '''
     
     def __init__(self,configdata=None):

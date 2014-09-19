@@ -73,11 +73,11 @@ class MainFileReader(object):
         '''List of sections (layernames/datasources)'''
         return self.cp.sections()
         
-    def _readConfigFile(self,fname):
+    def _readConfigFile(self,fn):
         '''Reads named config file'''
         #Split off so you can override the config file on the same reader object if needed
         self.cp = ConfigParser()
-        self.cp.read(fname)
+        self.cp.read(fn)
 
     
     #database
@@ -591,8 +591,8 @@ class LayerReader(object):
 
     __metaclass__ = ABCMeta
     '''abstract super class for holding common functionality'''
-    def __init__(self,fname):
-        self.fname = fname
+    def __init__(self,lcfname):
+        self.lcfname = lcfname
     
     @abstractmethod
     def readLayerProperty(self,layer,key):
@@ -644,7 +644,7 @@ class LayerReader(object):
     def _reTag(self,layerlist,tagname,addtag):        
         '''Add/Delete a keyword from all the layers in the provided list'''
         for layer in layerlist:
-            keywords = set([f.strip() for f in self.readLayerProperty(layer, 'Category').encode('utf8').split(',')])
+            keywords = set([f.encode('utf8').strip() for f in self.readLayerProperty(layer, 'Category').split(',')])
             if addtag:
                 keywords.add(tagname)
             else:
@@ -669,7 +669,7 @@ class LayerReader(object):
 #             groups = [g.strip() for g in lce.group.split(',')]
 #             lca.append((lce.id,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
 #         return lca
-        return [(lce.id,lce.pkey,lce.name,[g.strip() for g in lce.group.split(',')],lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql) for lce in self.readAllLayerParameters()]
+        return [(lce.id,lce.pkey,lce.name,[g.strip() for g in lce.group.split(',')] if lce.group else '',lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql) for lce in self.readAllLayerParameters()]
 
             
     
@@ -677,38 +677,43 @@ class LayerReader(object):
     
 class LayerFileReader(LayerReader):
     
-    def __init__(self,fname):
+    def __init__(self,lcfname):
         '''
         Constructor
         '''
-        super(LayerFileReader,self).__init__(fname)
+        super(LayerFileReader,self).__init__(lcfname)
         
         self.cp = ConfigParser()
-        self.filename = LU.standardiseLayerConfigName(self.fname)
+        self.lcfilename = LU.standardiseLayerConfigName(self.lcfname)
             
-        self._readConfigFile(self.filename)
+        self._readConfigFile(self.lcfilename)
         
     def isCurrent(self):
         '''TF test to decide whether to init'''
-        return self._fileexists() and len(self.cp.sections())>0
+        return self.lcfilename and self._fileexists() and len(self.cp.sections())>0
     
+    def close(self):
+        self.cp = None
+        self.lcfilename = None
+        self.fname = None
+        
     def _fileexists(self):
-        return os.path.exists(self.filename)
+        return os.path.exists(self.lcfilename)
     
     def buildConfigLayer(self,res):
         '''Just write a file in conf with the name <driver>.layer.properties'''
         #open(self.filename,'w').write(str(res))
-        with open(self.filename,'w') as lconf: 
+        with open(self.lcfilename,'w') as lconf: 
             lconf.write(str(res))
-        self._readConfigFile(self.filename)
+        self._readConfigFile(self.lcfilename)
         
-    def _readConfigFile(self,fname):
+    def _readConfigFile(self,fn):
         '''Reads named config file'''
         #Split off so you can override the config file on the same reader object if needed
         try:
-            self.cp.read(fname)
+            self.cp.read(fn)
         except ParsingError as pe:
-            ldslog.error('{0} file corrupt. Please correct the error; {1} OR delete and rebuild'.format(fname,str(pe)))
+            ldslog.error('{0} file corrupt. Please correct the error; {1} OR delete and rebuild'.format(fn,str(pe)))
             raise
     
     @override(LayerReader)
@@ -753,7 +758,7 @@ class LayerFileReader(LayerReader):
                     self.cp.set(l,field,v.strip() if v else '')
             else:
                 self.cp.set(layer,field,value.strip() if value else '')
-            with open(self.filename, 'w') as configfile:
+            with open(self.lcfilename, 'w') as configfile:
                 self.cp.write(configfile)
             #ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
         except Exception as e:
@@ -767,7 +772,7 @@ class LayerFileReader(LayerReader):
 #        
 #        try:
 #            defn = self.cp.get(layer, 'sql')
-#            #not advertised... if the user has gone to the trouble of defining their own schema in SQL just return that
+#            #if the user has gone to the trouble of defining their own schema in SQL just return that
 #            return (defn,None,None,None,None,None,None,None,None)
 #        except:
 #            pass
@@ -791,11 +796,13 @@ class LayerFileReader(LayerReader):
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
-            group = self.cp.get(id, 'category')
+            group = LU.mightAsWellBeNone(self.cp.get(id, 'category'))
         except NoOptionError:
             ldslog.warn("Group List: No Groups defined for this layer")
             group = None
-            
+        
+        if not group:
+           pass     
             
         try:
             gcol = self.cp.get(id, 'geocolumn')
@@ -866,9 +873,14 @@ class LayerDSReader(LayerReader):
         return self.fname.ds
     
     def syncDS(self):
-        self.fname.ds.SyncToDisk()
-        #self.ds = None #Because this DS is inherited from the parent, don't kill it. Maybe better to cal it syncDS?
+        pass
+        #self.fname.ds.SyncToDisk()
+        #self.ds = None #Because this DS is inherited from the parent, don't kill it. Maybe better to call syncDS?
 
+    def close(self):
+        self.namelist = None
+        self.fname = None #i expect this to cause an error
+        
     def isCurrent(self):
         '''Test for DS table'''
         if self.fname.ds is not None:
@@ -953,8 +965,7 @@ class LayerDSReader(LayerReader):
                 layer.ResetReading()
                 feat = layer.GetNextFeature() 
                 while feat is not None:
-                    #print '>>>>> ID',feat.GetField('id')
-                    self.namelist += ((feat.GetField('id').encode('utf8'),feat.GetField('name').encode('utf8'),[f.strip() for f in feat.GetField('category').encode('utf8').split(',')]),)
+                    self.namelist += ((feat.GetField('id').encode('utf8'),feat.GetField('name').encode('utf8'),[f.encode('utf8').strip() for f in feat.GetField('category').split(',')]),)
                     feat = layer.GetNextFeature()
             else:
                 ldslog.error('REMINDER! TRIGGER CONF BUILD')
@@ -1010,8 +1021,8 @@ class LayerDSReader(LayerReader):
             feat = self.fname._findMatchingFeature(layer, 'id', pkey)
             if feat is None:
                 return None
-            prop = feat.GetField(field).encode('utf8')
-        return None if LU.mightAsWellBeNone(prop) is None else prop
+            prop = feat.GetField(field)
+        return None if LU.mightAsWellBeNone(prop) else prop.encode('utf8')
     
     @override(LayerReader)
     def writeLayerProperty(self,pkey,field,value):

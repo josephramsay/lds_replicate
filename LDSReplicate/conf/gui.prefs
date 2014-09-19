@@ -3,7 +3,21 @@ dest = PostgreSQL
 
 [PostgreSQL]
 uconf = test
-lgvalue = LOL2
+lgvalue = sample
+epsg = 2193
+fd = None
+td = 2010-01-01
+
+[FileGDB]
+uconf = test
+lgvalue = nonlol
+epsg = 2193
+fd = None
+td = 2010-01-01
+
+[SQLite]
+uconf = test
+lgvalue = sqtest
 epsg = 2193
 fd = None
 td = 2010-01-01
