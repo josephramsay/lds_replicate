@@ -317,7 +317,6 @@ class DatasourceRegister(object):
     @staticmethod
     def setupLayerConfig(tp,sep,dep,initlc=None):
         '''Calls the TP LC setup function'''
-        #...true if true or something, false if false or none or empty?
         tp.getLayerConf(sep,dep,bool(initlc))
 
             

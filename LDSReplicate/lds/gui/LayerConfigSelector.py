@@ -87,7 +87,7 @@ class LayerConfigSelector(QMainWindow):
         '''Refreshes from a reread of the lconf object'''
         self.parent.confconn.setupComplete(dep)
         
-        av_sl = self.splitData(customkey,self.parent.confconn.complete)
+        av_sl = self.splitData(customkey,self.parent.confconn.complete) if customkey else self.parent.confconn.complete
         self.signalModels(self.STEP.PRE)
         self.available_model.initData(av_sl[0],self.parent.confconn.inclayers)
         self.selection_model.initData(av_sl[1],self.parent.confconn.inclayers)
@@ -141,7 +141,7 @@ class LayerConfigSelector(QMainWindow):
         slist = []
         assert complete
         for dp in complete:
-            if keyword in dp[2]:
+            if keyword and keyword in dp[2]:
                 slist.append(dp)
             else:
                 alist.append(dp)

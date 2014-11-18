@@ -424,7 +424,7 @@ class TransferProcessor(object):
     def getLayerConf(cls,src,dst,initlc=False):
         '''This is the catchall LC function. Uses SRC info to init from WFS'''
         layerconf = dst.getLayerConf()
-        if not layerconf or not layerconf.isCurrent():
+        if not layerconf or not layerconf.isCurrent() or initlc:
             if not src and initlc:
                 #we cant initlc without a valid src but we've made src optional/none to save overhead initing a ds
                 raise IncompleteParametersForInitialisation('LayerConf required without valid SRC DS parameter')
@@ -438,6 +438,7 @@ class TransferProcessor(object):
         if initlc:
             res = cls.parseCapabilitiesDoc(src.getCapabilities(),cls.parseVersion(src.ver),cls.selectJSON(dst),src.pxy,src.idp)
             lc.buildConfigLayer(str(res))
+        print 'LC>>>',[(i[0],i[1]) for i in lc.getLConfAsArray()] 
         dst.setLayerConf(lc)
         
     @classmethod

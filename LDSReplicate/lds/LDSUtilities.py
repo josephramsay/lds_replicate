@@ -41,7 +41,10 @@ class LDSUtilities(object):
     #wfs2.0 prefixes
     LDS_LL_PREFIX = 'linz:layer-'
     LDS_DL_PREFIX = 'data.linz.govt.nz:layer-'
+    LDS_DT_PREFIX = 'data.linz.govt.nz:table-'
+    LDS_DX_PREFIX = 'data.linz.govt.nz:'
     LDS_ME_PREFIX = 'mfe:layer-'
+    LORT = ['table','layer'] #variations on idp for finding layer/table names in LC
     
     LDS_PREFIXES = (LDS_VX_PREFIX,LDS_LL_PREFIX,LDS_DL_PREFIX,LDS_ME_PREFIX)
     
@@ -54,7 +57,7 @@ class LDSUtilities(object):
                 return LDSUtilities.LDS_VX_PREFIX
             elif ver in ('2.0.0','2.0'):
                 #return LDSUtilities.LDS_LL_PREFIX
-                return LDSUtilities.LDS_DL_PREFIX
+                return LDSUtilities.LDS_DX_PREFIX
             else:
                 raise UnsupportedServiceException('Only WFS versions 1.0, 1.1 and 2.0 are supported')
         else:
@@ -512,8 +515,8 @@ class ConfigInitialiser(object):
         #capsurl='http://data.linz.govt.nz/services;key=<api-key>/wfs?service=WFS&version=1.1.0&request=GetCapabilities'
         #xslfile='~/git/LDS/LDSReplicate/conf/getcapabilities-wfs2.0.json.xsl'
         #xslfile='~/git/LDS/LDSReplicate/conf/getcapabilities-wfs1.1.json.xsl'
-        
-        parser = etree.XMLParser(recover=False)
+
+        parser = etree.XMLParser(recover=True, huge_tree=True)
         parser.resolvers.add(FileResolver())
         
         wfspart = '-wfs{}'.format(wfs_ver)
@@ -532,10 +535,10 @@ class ConfigInitialiser(object):
         #print 'TX',len(TX)#,TX,[l.text for l in TX]
         
         transform = etree.XSLT(xsl)
-        res = transform(xml)
-        #print res
+        result = transform(xml,profile_run=True)
+        ldslog.critical('RES>>>'+unicode(result)+'//'+str(result.xslt_profile))
 
-        return (ConfigInitialiser._hackPrimaryKeyFieldJSON if jorf else ConfigInitialiser._hackPrimaryKeyFieldCP)(str(res),idp)
+        return (ConfigInitialiser._hackPrimaryKeyFieldJSON if jorf else ConfigInitialiser._hackPrimaryKeyFieldCP)(str(result),idp)
     
     @staticmethod 
     def cleanCP(cp):
@@ -555,13 +558,22 @@ class ConfigInitialiser(object):
         #read the PK list writing any PK's found into CP
         for item in ConfigInitialiser.readCSV(csvfile):
             try:
-                cp.set(str(idp+item[0]),'pkey',item[2].replace('"','').lstrip())
+                ky = item[2].replace('"','').lstrip()
+                for lt in LDSUtilities.LORT:
+                    ly = str(idp+lt+'-'+item[0])
+                    if cp.has_section(ly):
+                        cp.set(ly,'pkey',ky)
+                        ldslog.debug('Setting PK on layer. '+ly+'//'+ky)
+                        break
+                else:
+                    raise NoSectionError('No section matching '+idp+'|'.join(LDSUtilities.LORT)+'-'+item[0])
             except NoSectionError as nse:
-                ldslog.warn('PK hack CP: '+str(nse))
+                ldslog.warn('PK hack CP: '+str(nse)+ly+'//'+ky)
 
         #CP doesn't have a simple non-file write method?!?
         cps = "# LDS Layer Properties Initialiser - File\n"
         for section in cp.sections():
+            ldslog.critical('writing >>>'+str(section))
             cps += "\n["+str(section)+"]\n"
             for option in cp.options(section):
                 cps += str(option)+": "+str(cp.get(section, option))+"\n"
