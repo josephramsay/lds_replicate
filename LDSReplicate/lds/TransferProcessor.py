@@ -438,7 +438,7 @@ class TransferProcessor(object):
         if initlc:
             res = cls.parseCapabilitiesDoc(src.getCapabilities(),cls.parseVersion(src.ver),cls.selectJSON(dst),src.pxy,src.idp)
             lc.buildConfigLayer(str(res))
-        print 'LC>>>',[(i[0],i[1]) for i in lc.getLConfAsArray()] 
+        #print 'LC>>>',[(i[0],i[1]) for i in lc.getLConfAsArray()] 
         dst.setLayerConf(lc)
         
     @classmethod

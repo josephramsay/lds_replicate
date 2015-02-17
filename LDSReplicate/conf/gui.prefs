@@ -3,14 +3,14 @@ dest = PostgreSQL
 
 [PostgreSQL]
 uconf = test
-lgvalue = sample
+lgvalue = LOL1
 epsg = 2193
 fd = None
 td = 2010-01-01
 
 [FileGDB]
 uconf = test
-lgvalue = nonlol
+lgvalue = data.linz.govt.nz:table-2018
 epsg = 2193
 fd = None
 td = 2010-01-01

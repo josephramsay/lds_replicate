@@ -138,12 +138,7 @@ class FileGDBDataStore(ESRIDataStore):
         if gname is not None:
             self.fg_local_lopts += ['GEOMETRY_NAME='+gname]
         
-        return super(FileGDBDataStore,self).getLayerOptions(layer_id) + self.fg_local_lopts
-    
-#    def selectValidGeom(self,geom):
-#        '''Override for wkbNone'''
-#        return geom if geom in self.ValidGeometryTypes else ogr.wkbPoint
-    
+        return super(FileGDBDataStore,self).getLayerOptions(layer_id) + self.fg_local_lopts    
     
     def changeColumnIntToString(self,table,column):
         '''Default column type changer, to be overriden but works on PG. Used to change 64 bit integer columns to string''' 

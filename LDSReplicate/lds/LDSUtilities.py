@@ -46,7 +46,7 @@ class LDSUtilities(object):
     LDS_ME_PREFIX = 'mfe:layer-'
     LORT = ['table','layer'] #variations on idp for finding layer/table names in LC
     
-    LDS_PREFIXES = (LDS_VX_PREFIX,LDS_LL_PREFIX,LDS_DL_PREFIX,LDS_ME_PREFIX)
+    LDS_PREFIXES = (LDS_VX_PREFIX,LDS_LL_PREFIX,LDS_DL_PREFIX,LDS_DT_PREFIX,LDS_ME_PREFIX)
     
     
     @staticmethod

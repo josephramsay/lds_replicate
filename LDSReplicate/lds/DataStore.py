@@ -64,6 +64,8 @@ class DatasourcePrivilegeException(DSReaderException): pass
 class UnsupportedServiceException(LDSReaderException): pass
 
 CREATE_DS_FLAG = True
+#Triggers feature geometry forcing setting Poly-> MultiPoly and Poly3D -> Poly
+ENABLE_FORCE_GEOMETRY = False
 
 class DataStore(object):
     '''
@@ -519,9 +521,7 @@ class DataStore(object):
                 src_info.layer_defn = src_layer.GetLayerDefn()
                 #transforms from SRC to DST sref if user requests a different EPSG, otherwise SRC returned unchanged
                 self.dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
-                
                 (dst_layer,is_new) = self.buildNewDestinationLayer(self.dst_info,src_info,dst_ds)
-                
                 
             #add/copy features
             #src_layer.ResetReading()
@@ -648,14 +648,12 @@ class DataStore(object):
                 src_info.geometry = src_layer.GetGeomType()
                 src_info.layer_defn = src_layer.GetLayerDefn()
                 self.dst_info.spatial_ref = self.transformSRS(src_info.spatial_ref)
-                
                 (dst_layer,is_new) = self.buildNewDestinationLayer(self.dst_info,src_info,dst_ds)
                 
                 if dst_layer is None:
                     #if its still none, bail (and don't bother with re-attempt)
                     raise LayerCreateException('Unable to initialise a new Layer on destination')
             
-
             #add/copy features
             try:
                 #self.src_feat_count = src_layer.GetFeatureCount()
@@ -946,8 +944,10 @@ class DataStore(object):
         
         #use the field defns to build a schema since this needs to be loaded as a create_layer option
         opts = self.getLayerOptions(src_info.layer_id)
-        #NB wkbPolygon = 3, wkbMultiPolygon = 6
-        dst_info.geometry = ogr.wkbMultiPolygon if src_info.geometry is ogr.wkbPolygon else self.selectValidGeom(src_info.geometry)
+        #NB wkbPolygon = 3, wkbMultiPolygon = 6, wkbPolygon25D = -2147483645
+        #override to force multipoly sometimes needed but also breaks 3D poly inserts which cant be detected from layer def
+        #dst_info.geometry = ogr.wkbMultiPolygon if src_info.geometry is ogr.wkbPolygon and ENABLE_FORCE_GEOMETRY else self.selectValidGeom(src_info.geometry)
+        dst_info.geometry = self.selectValidGeom(src_info.geometry)
         
         '''build layer replacing poly with multi and revert to def if that doesn't work'''
         try:
@@ -1033,9 +1033,14 @@ class DataStore(object):
         fin_geom = fin.GetGeometryRef()
         if fin_geom is not None:
             #absent geom attribute indicates aspatial
-            if fin_geom.GetGeometryType() == ogr.wkbPolygon:
-                fin_geom = ogr.ForceToMultiPolygon(fin_geom)
-                fin.SetGeometryDirectly(fin_geom)
+            if ENABLE_FORCE_GEOMETRY:
+                fin_geotype = fin_geom.GetGeometryType()
+                if fin_geotype == ogr.wkbPolygon:
+                    fin_geom = ogr.ForceToMultiPolygon(fin_geom)
+                    fin.SetGeometryDirectly(fin_geom)
+                elif fin_geotype == ogr.wkbPolygon25D:
+                    fin_geom = ogr.ForceToPolygon(fin_geom)
+                    fin.SetGeometryDirectly(fin_geom)
       
             '''set Geometry transforming if needed'''
             if hasattr(self,'transform') and self.transform is not None:
