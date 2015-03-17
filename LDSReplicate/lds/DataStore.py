@@ -27,13 +27,13 @@ import time
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
 
-from lds.LDSUtilities import LDSUtilities,SUFIExtractor,FeatureCounter
+from lds.LDSUtilities import LDSUtilities as LU,SUFIExtractor,FeatureCounter
 from lds.ProjectionReference import Projection
 from lds.ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
 
-ldslog = LDSUtilities.setupLogging()
-timerlog = LDSUtilities.setupLogging(lf='TIMER',ff=3)
+ldslog = LU.setupLogging()
+timerlog = LU.setupLogging(lf='TIMER',ff=3)
 
 #Enabling exceptions halts program on non critical errors i.e. create DS throws exception but builds valid DS anyway 
 ogr.UseExceptions()
@@ -106,7 +106,7 @@ class DataStore(object):
     CONF_EXT = 'external'
     DEFAULT_CONF = CONF_EXT #Definitive default declaration
     
-    #ITYPES = LDSUtilities.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
+    #ITYPES = LU.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
     
     CPL_DEBUG = 'OFF'
     
@@ -138,7 +138,7 @@ class DataStore(object):
         
         #self.CONFIG_XSL = "getcapabilities."+self.DRIVER_NAME.lower()+".xsl"#we use just 'file' or 'json' now
          
-        if LDSUtilities.mightAsWellBeNone(conn_str):
+        if LU.assessNone(conn_str):
             self.conn_str = conn_str
         
         self.setSRS(None)
@@ -152,8 +152,9 @@ class DataStore(object):
         
         self.params = self.confwrap.readDSParameters(self.DRIVER_NAME)
         
-        '''set of <potential> columns not needed in final output, global'''
-        self.optcols = set(['__change__','gml_id'])
+        '''the set of columns we dont want to copy into the output layer, global'''
+        self.optcols = set(['__change__','gml_id','ogc_fid'])
+        ###added ogc_fid so it doesnt get copied from src but will this prevent it being build by ogr as a serial?
         
         self.src_feat_count = 0
         self.change_count = {'delete':0,'update':0,'insert':0}
@@ -319,21 +320,10 @@ class DataStore(object):
         from WFSDataStore import WFSDataStore
         ds = None
         self.setURI(dsn)
-        
         '''initialise a DS for writing'''
         try:
-            #We don't init WFS anymore so this has become redundant TODO remove
-            if isinstance(self,WFSDataStore):
-                assert('initDS on WFS - Shouldnt be here')
-                dsn = LDSUtilities.percentEncode(dsn)
-                try:
-                    #assumes a urlopen proxy spec will also work for wfs
-                    self.testURL(dsn)
-                except Exception as e:
-                    raise DatasourceConnectException('Cannot connect to {}. Error {}'.format(dsn,e))
-                
             #we can turn OGR exceptions off here so reported but recoverable errors don't kill DS initialisation 
-            #ogr.DontUseExceptions()    
+            #ogr.DontUseExceptions()  #see finally below  
             ds = self.driver.Open(dsn, update = 1 if self.getOverwrite()=='YES' else 0)
             if ds is None:
                 raise DatasourceOpenException('Null DS returned attempting to open {}'.format(dsn))
@@ -456,7 +446,7 @@ class DataStore(object):
             fdef = dst_layer_defn.GetFieldDefn(fi-offset)
             fdef_nm = fdef.GetName()
             #print '>>>>>',fi,fi-offset,fdef_nm
-            if fdef is not None and fdef_nm in self.optcols:
+            if fdef and fdef_nm in self.optcols:
                 self.deleteFieldFromLayer(dst_layer, fi-offset,fdef_nm)
                 offset += 1
                 
@@ -476,8 +466,9 @@ class DataStore(object):
         '''Alternate feature counter by hacking the uri (using wfs version 1.1.0) and asking for a hits result'''
         import WFSDataStore
         append = "&resultType=hits"
-        newurl = LDSUtilities.reVersionURL(self.src_link.getURI(), WFSDataStore.WFSDataStore.VERSION_COUNT)
-        doc = LDSUtilities.readDocument(newurl+append,self.src_link.pxy)
+        newurl = LU.reVersionURL(self.src_link.getURI(), WFSDataStore.WFSDataStore.VERSION_COUNT)
+        doc = LU.timedProcessRunner(LU.readLDS, (newurl+append,self.src_link.pxy), None)
+        #doc = LU.readDocument(newurl+append,self.src_link.pxy)
         fc = FeatureCounter.readCount(doc)
         ldslog.info('Alt FeatureCount '+str(fc))
         return fc
@@ -490,7 +481,7 @@ class DataStore(object):
             transaction_flag = True
             src_layer = src_ds.GetLayer(li)
             #src_feat_count = None
-            src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
+            src_info = LayerInfo(LU.cropChangeset(src_layer.GetName()))
 
             '''retrieve per-layer settings from props'''
             #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
@@ -501,14 +492,14 @@ class DataStore(object):
             ldslog.info("Dest layer: "+self.dst_info.layer_id)
             
             '''parse discard columns'''
-            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
+            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc else [])
 
             #MSSQL doesn't like schema specifiers
             tableonly = self.dst_info.layer_name.split('.')[-1]
             try:
-                dst_layer = dst_ds.GetLayer(tableonly)#dst_info.layer_name)
+                dst_layer = dst_ds.GetLayer(LU.recode(tableonly,uflag='encode'))#dst_info.layer_name)
             except RuntimeError as rer:
-                '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
+                '''Instead of returning none, runtime errors occur if the layer doesn't exist and needs to be created or has no data'''
                 ldslog.warning("Runtime Error fetching layer. "+str(rer))
                 dst_layer = None
                 
@@ -525,11 +516,12 @@ class DataStore(object):
                 
             #add/copy features
             #src_layer.ResetReading()
-            self.change_count = {'insert':0}
+            self.change_count = { 'insert':0 }
             try:
                 #self.src_feat_count = src_layer.GetFeatureCount()
                 self.src_feat_count = self.getFeatureCount()
             except Exception:
+                '''Try to get a feat count one more time'''
                 self.src_link.rebuildDS()
                 src_ds = self.src_link.ds
                 src_layer = src_ds.GetLayer(li)
@@ -539,7 +531,19 @@ class DataStore(object):
 
             '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
             if self.src_feat_count>0:
-                src_feat = src_layer.GetNextFeature()
+                #attempt 1
+                #src_feat = LU.timedProcessRunner(LU.wrapWorker,(src_layer.GetNextFeature,), None)
+                #attempt 2
+                #fc = STObj(src_layer.GetNextFeature,None)
+                #not_src_feat = LU.timedProcessRunner(LU.wrapSTOWorker,fc, None)
+                #src_feat = fc.getResult()
+                #
+                try:
+                    #print 'GNF_1'
+                    src_feat = src_layer.GetNextFeature()
+                except Exception as e:
+                    raise InaccessibleFeatureException('Unable to GetNextFeature 1. {}'.format(LU.errorMessageTranslate(e.__str__)))
+                
                 if src_feat:
                     new_feat_def = self.partialCloneFeatureDef(src_feat)
                 else:
@@ -568,9 +572,13 @@ class DataStore(object):
                 #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
                 self.insertFeature(dst_layer,src_feat,new_feat_def,layerconfentry.pkey)
                 
-                src_feat = src_layer.GetNextFeature()
+                try:
+                    #print 'GNF_2'
+                    src_feat = src_layer.GetNextFeature()
+                except Exception as e:
+                    raise InaccessibleFeatureException('Unable to GetNextFeature 2. {}'.format(LU.errorMessageTranslate(e.__str__)))
             
-            if self.src_feat_count is not None and self.src_feat_count != sum(self.change_count.values()):
+            if self.src_feat_count and self.src_feat_count != sum(self.change_count.values()):
                 if transaction_flag:
                     dst_layer.RollbackTransaction()
                 raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_count.values()))+']')
@@ -610,7 +618,7 @@ class DataStore(object):
             transaction_flag = True
             src_layer = src_ds.GetLayer(li)
 
-            src_info = LayerInfo(LDSUtilities.cropChangeset(src_layer.GetName()))
+            src_info = LayerInfo(LU.cropChangeset(src_layer.GetName()))
             
             '''retrieve per-layer settings from props'''
             #(ref_pkey,ref_name,ref_group,ref_gcol,ref_index,ref_epsg,ref_lmod,ref_disc,ref_cql) = self.layerconf.readLayerParameters(src_layer_name)
@@ -621,13 +629,13 @@ class DataStore(object):
             ldslog.info("Dest layer: "+self.dst_info.layer_id)
             
             '''parse discard columns'''
-            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc is not None else [])
+            self.optcols |= set(layerconfentry.disc.strip('[]{}()').split(',') if layerconfentry.disc else [])
             
             try:
                 tableonly = self.dst_info.layer_name.split('.')[-1]
                 if layerconfentry.lmod:
                     #if the layer conf had a lastmodified don't overwrite
-                    dst_layer = dst_ds.GetLayer(tableonly)#dst_info.layer_name)
+                    dst_layer = dst_ds.GetLayer(LU.recode(tableonly,uflag='encode'))#dst_info.layer_name)
                 else:
                     #with no lastmodified can assume the layer doesnt exist
                     src_info.spatial_ref = src_layer.GetSpatialRef()
@@ -667,7 +675,13 @@ class DataStore(object):
             ldslog.info('Features available = '+str(self.src_feat_count))
             
             if self.src_feat_count>0:
-                src_feat = src_layer.GetNextFeature()
+                #src_feat = LU.timedProcessRunner(LU.wrapWorker,(src_layer.GetNextFeature,), None)
+                try:
+                    #print 'GNFi1'
+                    src_feat = src_layer.GetNextFeature()
+                except Exception as e:
+                    raise InaccessibleFeatureException('Unable to GetNextFeature 1i. {}'.format(LU.errorMessageTranslate(e.__str__)))
+                
                 if src_feat:
                     new_feat_def = self.partialCloneFeatureDef(src_feat)
                 else:
@@ -702,7 +716,8 @@ class DataStore(object):
     
                 while src_feat:
                     feat_count += 1
-                    change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+                    #(src_feat.GetField(changecol) if LU.assessNone(changecol) else "insert").lower()
+                    change =  (src_feat.GetField(changecol) if LU.assessNone(changecol) else 'insert').lower()
                     
                     try:
                         if change == 'insert':
@@ -730,7 +745,11 @@ class DataStore(object):
                                 raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
                     #testing
                     #ldslog.info(feat_count) 
-                    src_feat = src_layer.GetNextFeature()   
+                    try:
+                        #print 'GNFi2'
+                        src_feat = src_layer.GetNextFeature()
+                    except Exception as e:
+                        raise InaccessibleFeatureException('Unable to GetNextFeature 2i. {}'.format(LU.errorMessageTranslate(e.__str__))) 
                      
                 ##if self.src_feat_count != self.dst_change_count:
                 if self.src_feat_count != sum(self.change_count.values()):
@@ -744,7 +763,6 @@ class DataStore(object):
             elif self.getPrefetchMethod()=='prefetch':
                 ldslog.info('Pre-Fetch')
 
-
                 e = 0
                 #key order here is important
                 src_array = {'delete':(),'update':(),'insert':()}    
@@ -757,7 +775,7 @@ class DataStore(object):
     
                 while src_feat:
                     feat_count += 1
-                    change =  (src_feat.GetField(changecol) if LDSUtilities.mightAsWellBeNone(changecol) is not None else "insert").lower()
+                    change =  (src_feat.GetField(changecol) if LU.assessNone(changecol) else "insert").lower()
       
                     src_array[change] += (src_feat,)
                     if feat_count>=self.getPrefetchSize():
@@ -768,7 +786,12 @@ class DataStore(object):
                         src_array = {'delete':(),'update':(),'insert':()}
                     #testing
                     #ldslog.info(feat_count) 
-                    src_feat = src_layer.GetNextFeature()
+                    #print 'GNFi3'
+                    try:
+                        src_feat = src_layer.GetNextFeature()
+                    except Exception as e:
+                        raise InaccessibleFeatureException('Unable to GetNextFeature 3i. {}'.format(LU.errorMessageTranslate(e.__str__))) 
+                    
                      
                 ldslog.info('Loading remaining Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.src_feat_count))
                 self.processFetchedIncrement(src_array,dst_layer,new_feat_def,layerconfentry)
@@ -840,10 +863,10 @@ class DataStore(object):
         Requires the supplied EPSG be correct and coordinates that can be transformed'''
         self.transform = None
         selected_sref = self.getSRS()
-        if LDSUtilities.mightAsWellBeNone(selected_sref) is not None:
+        if LU.assessNone(selected_sref):
             #if the selected SRS fails to validate assume error and flag but dont silently drop back to default
             validated_sref = Projection.validateEPSG(selected_sref)
-            if validated_sref is not None:
+            if validated_sref:
                 self.transform = osr.CoordinateTransformation(src_layer_sref, validated_sref)
                 if self.transform == None:
                     ldslog.warn('Can\'t init coordinatetransformation object with SRS:'+str(validated_sref))
@@ -882,7 +905,7 @@ class DataStore(object):
         #if not new_layer_flag: 
         new_feat = self.partialCloneFeature(src_feat,new_feat_def,ref_pkey)
         dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
-        if dst_fid is not None:
+        if dst_fid:
             new_feat.SetFID(dst_fid)
             e = dst_layer.SetFeature(new_feat)
             
@@ -908,7 +931,7 @@ class DataStore(object):
             
         #ldslog.debug("DELETE: "+str(src_pkey))
         dst_fid = self._findMatchingFID(dst_layer, ref_pkey, src_pkey)
-        if dst_fid is not None:
+        if dst_fid:
             e = dst_layer.DeleteFeature(dst_fid)
         else:
             ldslog.error("No match for FID with ID="+str(src_pkey)+" on delete",exc_info=1)
@@ -950,8 +973,9 @@ class DataStore(object):
         dst_info.geometry = self.selectValidGeom(src_info.geometry)
         
         '''build layer replacing poly with multi and revert to def if that doesn't work'''
+        simplified = str(LU.recode(dst_info.layer_name,uflag='subst'))
         try:
-            dst_layer = dst_ds.CreateLayer(dst_info.layer_name, dst_info.spatial_ref, dst_info.geometry, opts)
+            dst_layer = dst_ds.CreateLayer(simplified, dst_info.spatial_ref, dst_info.geometry, opts)
         except RuntimeError as rer:
             ldslog.error("Cannot create layer. "+str(rer))
             if 'already exists' in str(rer):
@@ -963,7 +987,7 @@ class DataStore(object):
                 #Option 2. Deleting the layer with SQL
                 self.executeSQL('drop table '+dst_info.layer_name)
                 #TODO check this works on non DB DS
-                dst_layer = dst_ds.CreateLayer(dst_info.layer_name,dst_info.spatial_ref,src_info.geometry,opts)
+                dst_layer = dst_ds.CreateLayer(simplified,dst_info.spatial_ref,src_info.geometry,opts)
             elif 'General function failure' in str(rer):
                 ldslog.error('Possible SR problem, continuing. '+str(rer))
                 dst_layer = None
@@ -976,7 +1000,7 @@ class DataStore(object):
             #overwrite the dst_sref if its causing trouble (ie GDAL general function errors)
             dst_info.spatial_ref = Projection.getDefaultSpatialRef()
             ldslog.warning("Could not initialise Layer with specified SRID {"+str(src_info.spatial_ref)+"}.\n\nUsing Default {"+str(dst_info.spatial_ref)+"} instead")
-            dst_layer = dst_ds.CreateLayer(dst_info.layer_name,dst_info.spatial_ref,dst_info.geometry,opts)
+            dst_layer = dst_ds.CreateLayer(simplified,dst_info.spatial_ref,dst_info.geometry,opts)
                 
         #if still failing, give up
         if dst_layer is None:
@@ -1031,7 +1055,7 @@ class DataStore(object):
 
         '''Modify input geometry from P to MP'''
         fin_geom = fin.GetGeometryRef()
-        if fin_geom is not None:
+        if fin_geom:
             #absent geom attribute indicates aspatial
             if ENABLE_FORCE_GEOMETRY:
                 fin_geotype = fin_geom.GetGeometryType()
@@ -1043,7 +1067,7 @@ class DataStore(object):
                     fin.SetGeometryDirectly(fin_geom)
       
             '''set Geometry transforming if needed'''
-            if hasattr(self,'transform') and self.transform is not None:
+            if hasattr(self,'transform') and self.transform:
                 try:
                     fin_geom.Transform(self.transform)
                 except RuntimeError as rer:
@@ -1065,7 +1089,9 @@ class DataStore(object):
                 if self.identify64Bit(fin_field_name) and fin_field_name not in self.sufi_list:
                     if doc is None:
                         #fetch the GC document in GML2 format for column extraction. #TODO JSON extractor
-                        doc = LDSUtilities.readDocument(re.sub('JSON|GML3','GML2',self.src_link.getURI()),self.src_link.pxy)
+                        up = (re.sub('JSON|GML3','GML2',self.src_link.getURI()),self.src_link.pxy)
+                        doc = LU.timedProcessRunner(LU.readLDS, up, None)
+                        #doc = LU.readDocument(re.sub('JSON|GML3','GML2',self.src_link.getURI()),self.src_link.pxy)
                     self.sufi_list[fin_field_name] = SUFIExtractor.readURI(doc,fin_field_name)
             
         '''populate non geometric fields'''
@@ -1114,9 +1140,9 @@ class DataStore(object):
         '''Gets the last modification time of a layer to use for incremental "fromdate" calls. This is intended to be run 
         as a destination method since the destination is the DS being modified i.e. dst.getLastModified'''
         lmd = self.layerconf.readLayerProperty(layer,'lastmodified')
-        #if not LDSUtilities.mightAsWellBeNone(lmd):
+        #if not LU.assessNone(lmd):
         #    lmd = self.EARLIEST_INIT_DATE
-        return LDSUtilities.mightAsWellBeNone(lmd)
+        return LU.assessNone(lmd)
         #return lm.strftime(self.DATE_FORMAT)
         
     def setLastModified(self,layer,newdate=None):
@@ -1171,7 +1197,7 @@ class DataStore(object):
             try:
                 #cast to STR since unicode raises exception in driver 
                 dds = self.getDS()
-                retval = dds.ExecuteSQL(str(sql))
+                retval = dds.ExecuteSQL(LU.recode(sql,uflag='encode'))
                 #self.closeDS()
             except RuntimeError as rex:
                 ldslog.error("Runtime Error. Unable to execute SQL:"+sql+". Get Error "+str(rex),exc_info=1)
@@ -1188,7 +1214,7 @@ class DataStore(object):
                 #Caused by query not matching valid entry
                 ldslog.error("Error executing SQL Command. "+str(ise))
             except Exception as ex:
-                ldslog.error("Exception. Unable to execute SQL:"+sql+". Exception: "+str(ex),exc_info=1)
+                ldslog.error(u"Exception. Unable to execute SQL:"+sql+". Exception: "+str(ex),exc_info=1)
                 #raise#often misreported, halting may be unnecessary
                 
         return retval
@@ -1248,6 +1274,7 @@ class DataStore(object):
         #when the DS is created it uses (PG) the active_schema which is the same as the layername schema.
         #since getlayerX returns all layers in all schemas we ignore the ones with schema prepended since they wont be 'active'
         name = self.generateLayerName(self.layerconf.readLayerProperty(layerid,'name')).split('.')[-1]
+        name = LU.recode(name,uflag='compat')
         try:
             lref = ds.GetLayerByName(name)
             if lref: 
@@ -1317,7 +1344,7 @@ class DataStore(object):
             else:
                 ldslog.warn('Layer {} not found'.format(name))        
                 
-            ldslog.info("DS {} {}".format(msg,str(name)))    
+            ldslog.info(u'DS {} {}'.format(msg,name))
             return True                
             #-----------------------------                             
                    
@@ -1356,7 +1383,7 @@ class DataStore(object):
     def _baseDeleteFeature(self,table,where=None):
         '''Deletion by feature using base methods but intended for truncate operations'''
         #works with PG, MS, SL FG? NB. Not Fully tested...
-        sql_str = "delete * from "+table + " where "+str(where) if where else "delete from "+table
+        sql_str = u"delete * from "+table + " where "+str(where) if where else "delete from "+table
         return self.executeSQL(sql_str)
         
     def _clean(self):
@@ -1454,7 +1481,7 @@ class DataStore(object):
         #HACK Win7
         layer.GetFeatureCount()
         feat = layer.GetNextFeature()
-        while feat is not None:
+        while feat:
             DataStore._showFeatureData(feat)
             feat = layer.GetNextFeature()                
                 

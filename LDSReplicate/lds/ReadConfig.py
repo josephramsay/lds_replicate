@@ -20,8 +20,10 @@ import re
 import logging
 import json
 import ogr
+import codecs
 
-from ConfigParser import ConfigParser, NoSectionError, NoOptionError, ParsingError,  Error
+#from ConfigParser import ConfigParser, NoSectionError, NoOptionError, ParsingError,  Error
+from backports.configparser import ConfigParser, NoSectionError, NoOptionError, ParsingError,  Error
 from lds.LDSUtilities import LDSUtilities as LU
 
 
@@ -62,7 +64,7 @@ class MainFileReader(object):
     def initMainFile(self,template=''):
         '''Open and populate a new config file with 'template' else just touch it. Then call the reader'''
 
-        with file(self.filename,'a' if template is '' else 'w') as f:
+        with codecs.open(self.filename,'a' if template is '' else 'w','utf-8') as f:
             f.write(template)
         self._readConfigFile(self.filename)    
      
@@ -77,7 +79,8 @@ class MainFileReader(object):
         '''Reads named config file'''
         #Split off so you can override the config file on the same reader object if needed
         self.cp = ConfigParser()
-        self.cp.read(fn)
+        with codecs.open(fn,'r','utf-8') as cf:
+            self.cp.readfp(cf)
 
     
     #database
@@ -273,20 +276,20 @@ class MainFileReader(object):
         cql = None
         
         if self.use_defaults:
-            fname = "~/LDSSLITE.sqlite3"
+            lcfname = "~/LDSSLITE.sqlite3"
             config = "external"
         else:
-            fname = None
+            lcfname = None
             config = None
         
         try:
-            fname = self.cp.get(SL.DRIVER_NAME, 'file')
+            lcfname = self.cp.get(SL.DRIVER_NAME, 'file')
         except NoSectionError:
             ldslog.warn(ref+"No SpatiaLite section")
             raise
             #return (None,)*4
         except NoOptionError:
-            ldslog.warn(ref+"No DB name provided, default to "+str(fname))
+            ldslog.warn(ref+"No DB name provided, default to "+str(lcfname))
             
         try:
             config = self.cp.get(SL.DRIVER_NAME, 'config')
@@ -303,7 +306,7 @@ class MainFileReader(object):
         except NoOptionError:
             ldslog.warn(ref+"No CQL Filter specified, fetching all results")
         
-        return (fname,config,epsg,cql)
+        return (lcfname,config,epsg,cql)
     
     def readFileGDBConfig(self):
         '''FileGDB specific config file reader'''
@@ -314,21 +317,21 @@ class MainFileReader(object):
         cql = None
         
         if self.use_defaults:
-            fname = "~/LDSFGDB.gdb"
+            lcfname = "~/LDSFGDB.gdb"
             config = "external"
         else:
-            fname = None
+            lcfname = None
             config = None
 
             
         try:
-            fname = self.cp.get(FG.DRIVER_NAME, 'file')
+            lcfname = self.cp.get(FG.DRIVER_NAME, 'file')
         except NoSectionError:
             ldslog.warn(ref+"No FileGDB section")
             raise
             #return (None,)*4
         except NoOptionError:
-            ldslog.warn(ref+"No DB name provided, default to "+str(fname))
+            ldslog.warn(ref+"No DB name provided, default to "+str(lcfname))
             
         try:
             config = self.cp.get(FG.DRIVER_NAME, 'config')
@@ -345,7 +348,7 @@ class MainFileReader(object):
         except NoOptionError:
             ldslog.warn(ref+"No CQL Filter specified, fetching all results")
         
-        return (fname,config,epsg,cql)
+        return (lcfname,config,epsg,cql)
         
     def readWFSConfig(self):
         '''Generic WFS config file reader'''
@@ -488,7 +491,7 @@ class MainFileReader(object):
         try: 
             #sixtyfourlayers = map(lambda s: s if s[:3]==LU.LDS_VX_PREFIX else LU.LDS_VX_PREFIX+s, self.cp.get(self.MISC, '64bitlayers').split(','))
             #sixtyfourlayers = [s if s[:3] == prefix[:3] else prefix+s for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
-            sixtyfourlayers = [s.split(':layer-')[-1].split(':x')[-1] for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
+            sixtyfourlayers = [s.split(':layer-|:table-')[-1].split(':x')[-1] for s in str(self.cp.get(self.MISC, '64bitlayers')).split(',')]
         except NoSectionError:
             ldslog.warn(ref+"No Misc section detected looking for 64bit Layer specification")
         except NoOptionError:
@@ -497,7 +500,7 @@ class MainFileReader(object):
         try: 
             #partitionlayers = map(lambda s: s if s[:3]==LU.LDS_VX_PREFIX else LU.LDS_VX_PREFIX+s, self.cp.get(self.MISC, 'partitionlayers').split(','))
             #partitionlayers = [s if s[:3]==prefix[:3] else prefix+s for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
-            partitionlayers = [s.split(':layer-')[-1].split(':x')[-1] for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
+            partitionlayers = [s.split(':layer-|:table-')[-1].split(':x')[-1] for s in str(self.cp.get(self.MISC, 'partitionlayers')).split(',')]
         except NoSectionError:
             ldslog.warn(ref+"No Misc section detected looking for Problem Layer specification")
         except NoOptionError:
@@ -552,7 +555,7 @@ class MainFileReader(object):
     def readMainProperty(self,driver,key):
         try:
             value = self.cp.get(driver, key)
-            if LU.mightAsWellBeNone(value) is None:
+            if LU.assessNone(value) is None:
                 return None
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
@@ -567,8 +570,8 @@ class MainFileReader(object):
         try:
             if not self.cp.has_section(section):
                 self.cp.add_section(section)            
-            self.cp.set(section,field,value if value is not None else '')
-            with open(self.filename, 'w') as configfile:
+            self.cp.set(section,field,value if value else '')
+            with codecs.open(self.filename, 'w','utf-8') as configfile:
                 self.cp.write(configfile)
             ldslog.debug("Check "+str(field)+" for section "+str(section)+" is set to "+str(value)+" : GetField="+self.cp.get(section, field))                                                                                        
         except Exception as e:
@@ -644,35 +647,13 @@ class LayerReader(object):
     def _reTag(self,layerlist,tagname,addtag):        
         '''Add/Delete a keyword from all the layers in the provided list'''
         for layer in layerlist:
-            keywords = set([f.encode('utf8').strip() for f in self.readLayerProperty(layer, 'Category').split(',')])
+            keywords = set([LU.recode(f,uflag='encode') for f in self.readLayerProperty(layer, 'Category').split(',')])
             if addtag:
                 keywords.add(tagname)
             else:
                 keywords.remove(tagname)
                 
-            self.writeLayerProperty(layer, 'Category', ','.join(keywords))
-
-    def getLConfAs3Array(self):
-        '''Specialised conversion of the entire lconf to an array of layer-id,name and keys... for GUI menu use'''
-        return [(i[0],i[2],i[3]) for i in self.getLConfAsArray()] 
-    
-    def getLConfAsArray(self):
-        '''Returns a read lconf as an array'''
-        lca = []
-#         for layer in self.getLayerNames():
-#             lce = self.readLayerParameters(layer)
-#             #pkey,name,group,gcol,epsg,lmod,disc,cq
-#             groups = [g.strip() for g in lce.group.split(',')]
-#             lca.append((lce.id,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
-
-#         for lce in self.readAllLayerParameters():
-#             groups = [g.strip() for g in lce.group.split(',')]
-#             lca.append((lce.id,lce.pkey,lce.name,groups,lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql),)
-#         return lca
-        return [(lce.id,lce.pkey,lce.name,[g.strip() for g in lce.group.split(',')] if lce.group else '',lce.gcol,lce.epsg,lce.lmod,lce.disc,lce.cql) for lce in self.readAllLayerParameters()]
-
-            
-    
+            self.writeLayerProperty(layer, 'Category', ','.join(keywords))    
 
     
 class LayerFileReader(LayerReader):
@@ -695,23 +676,25 @@ class LayerFileReader(LayerReader):
     def close(self):
         self.cp = None
         self.lcfilename = None
-        self.fname = None
+        self.lcfname = None
         
     def _fileexists(self):
         return os.path.exists(self.lcfilename)
     
     def buildConfigLayer(self,res):
         '''Just write a file in conf with the name <driver>.layer.properties'''
+        ###This should eb a UTF8 write, but only works as ASCII
         #open(self.filename,'w').write(str(res))
-        with open(self.lcfilename,'w') as lconf: 
-            lconf.write(str(res))
+        with codecs.open(self.lcfilename,'w','utf-8') as lconf: 
+            lconf.write(res)
         self._readConfigFile(self.lcfilename)
         
     def _readConfigFile(self,fn):
         '''Reads named config file'''
         #Split off so you can override the config file on the same reader object if needed
         try:
-            self.cp.read(fn)
+            with codecs.open(fn,'r','utf-8') as cf:
+                self.cp.readfp(cf)
         except ParsingError as pe:
             ldslog.error('{0} file corrupt. Please correct the error; {1} OR delete and rebuild'.format(fn,str(pe)))
             raise
@@ -719,25 +702,30 @@ class LayerFileReader(LayerReader):
     @override(LayerReader)
     def findLayerIdByName(self,name):
         '''Reverse lookup of section by associated name, finds first occurance only'''
-        lid = filter(lambda n: name==self.cp.get(n,'name'),self.getLayerNames())
+        lid = filter(lambda n: name==self.cp.get(n,'name'),self.cp.sections())
         return lid[0] if len(lid)>0 else None
     
     @override(LayerReader)
     def getLayerNames(self):
         '''Returns sections from properties file'''
-        return self.cp.sections()
+        lcnames = []
+        for sec in self.cp.sections():
+            lcn = self.cp.get(sec, 'name')
+            lcc = self.cp.get(sec,'category')
+            lcnames += [(sec if type(sec)==unicode else unicode(sec,'utf8'),
+                         lcn if type(lcn)==unicode else unicode(lcn,'utf8'),
+                        (lcc if type(lcc)==unicode else unicode(lcc,'utf8')).split(',')),]
+        return lcnames
     
     @override(LayerReader)
     def readLayerProperty(self,layer,key):
         try:
-            #HACK. Bad practise to rely on data type check
             if isinstance(layer,tuple) or isinstance(layer,list):
                 value = () 
                 for l in layer:
-                    value += (LU.mightAsWellBeNone(self.cp.get(l, key)),)
+                    value += (LU.assessNone(self.cp.get(l, key)),)
             else:
-                value = LU.mightAsWellBeNone(self.cp.get(layer, key))
-
+                value = LU.assessNone(self.cp.get(layer, key))
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
             #the logic here may be a bit suss, if the property is blank return none but if there is an error assume a default is needed?
@@ -745,7 +733,7 @@ class LayerFileReader(LayerReader):
         return value
     
     def _readSingleLayerProperty(self,layer,key):
-        return LU.mightAsWellBeNone(self.cp.get(layer, key))
+        return LU.assessNone(self.cp.get(layer, key))
         
     
     @override(LayerReader)
@@ -754,11 +742,11 @@ class LayerFileReader(LayerReader):
         #if value: value = value.strip()
         try:    
             if (isinstance(layer,tuple) or isinstance(layer,list)) and (isinstance(value,tuple) or isinstance(value,list)): 
-                for l,v in zip(layer,value):     
+                for l,v in zip(layer,value):
                     self.cp.set(l,field,v.strip() if v else '')
             else:
                 self.cp.set(layer,field,value.strip() if value else '')
-            with open(self.lcfilename, 'w') as configfile:
+            with codecs.open(self.lcfilename, 'w','utf-8') as configfile:
                 self.cp.write(configfile)
             #ldslog.debug("Check "+str(field)+" for layer "+str(layer)+" is set to "+str(value)+" : GetField="+self.cp.get(layer, field))                                                                                        
         except Exception as e:
@@ -796,13 +784,13 @@ class LayerFileReader(LayerReader):
             
         '''names are/can-be stored so we can reverse search by layer name'''
         try:
-            group = LU.mightAsWellBeNone(self.cp.get(id, 'category'))
+            group = LU.assessNone(self.cp.get(id, 'category'))
         except NoOptionError:
             ldslog.warn("Group List: No Groups defined for this layer")
             group = None
         
         if not group:
-           pass     
+            pass     
             
         try:
             gcol = self.cp.get(id, 'geocolumn')
@@ -858,19 +846,18 @@ class LayerDSReader(LayerReader):
     # Ported from DS location so some optimisation needed
 
 
-    def __init__(self,fname):
-        
+    def __init__(self,lcfname):
         '''
         Constructor
         '''
-        #in the DS context fname refers to a DS object
-        super(LayerDSReader,self).__init__(fname)
-        #self.ds = self.fname.ds
+        #in the DS context lcfname refers to a DS object
+        super(LayerDSReader,self).__init__(lcfname)
+        #self.ds = self.lcfname.ds
         self.namelist = ()  
     
     #acquire and release DS instance to for each function call to prevent DS locking        
     def getDS(self):
-        return self.fname.ds
+        return self.lcfname.ds###fname -> lcfname
     
     def syncDS(self):
         pass
@@ -879,17 +866,17 @@ class LayerDSReader(LayerReader):
 
     def close(self):
         self.namelist = None
-        self.fname = None #i expect this to cause an error
+        self.lcfname = None #i expect this to cause an error
         
     def isCurrent(self):
         '''Test for DS table'''
-        if self.fname.ds is not None:
+        if self.lcfname.ds: ###fname -> lcfname
             try:
-                if self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE):
+                if self.lcfname.ds.GetLayer(self.lcfname.LDS_CONFIG_TABLE): ###fname -> lcfname
                     return True
             except RuntimeError as rte:
                 if not re.search('No table/field definitions found for',str(rte)): 
-                    ldslog.warn('Unable to open '+str(self.fname.LDS_CONFIG_TABLE))#raise
+                    ldslog.warn('Unable to open '+str(self.lcfname.LDS_CONFIG_TABLE))#raise###fname -> lcfname
                 else:#gets raised anyway
                     raise
         return False
@@ -898,16 +885,16 @@ class LayerDSReader(LayerReader):
         '''Builds the config table into and using the active DS'''
 
         try:
-            self.fname.ds.DeleteLayer(self.fname.LDS_CONFIG_TABLE)
+            self.lcfname.ds.DeleteLayer(self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
         except Exception as e:
             ldslog.warn("Exception deleting config layer: "+str(e))
         #CreateLayer(self, char name, SpatialReference srs = None, OGRwkbGeometryType geom_type = wkbUnknown, char options = None) -> Layer
-        config_layer = self.fname.ds.CreateLayer(self.fname.LDS_CONFIG_TABLE, None, self.fname.selectValidGeom(ogr.wkbNone), ['OVERWRITE=YES'])
+        config_layer = self.lcfname.ds.CreateLayer(self.lcfname.LDS_CONFIG_TABLE, None, self.lcfname.selectValidGeom(ogr.wkbNone), ['OVERWRITE=YES'])###fname -> lcfname
         if config_layer is None:
-            ldslog.error("Cannot create lds config layer: " + self.fname.LDS_CONFIG_TABLE)
+            ldslog.error("Cannot create lds config layer: " + self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
         
         feat_def = ogr.FeatureDefn()
-        for name in self.fname.CONFIG_COLUMNS:
+        for name in self.lcfname.CONFIG_COLUMNS:###fname -> lcfname
             #create new field defn with name=name and type OFTString
             fld_def = ogr.FieldDefn(name,ogr.OFTString)
             #in the feature defn, define a new field
@@ -922,16 +909,10 @@ class LayerDSReader(LayerReader):
             #HACK
             #if self.DRIVER_NAME == 'MSSQLSpatial':
             #    do something hack-y
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[0],str(row[0]))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[1],str(row[1]))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[2],str(row[2]))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[3],str(','.join(row[3])))#keywords
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[4],str(row[4]))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[5],str(row[5]))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[6],str(row[6]))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[7],str(row[7]))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[8],None if row[8] is None else str(','.join(row[8])))
-            config_feat.SetField(self.fname.CONFIG_COLUMNS[9],str(row[9]))
+            for col in range(0,10):     
+                val = (','.join(row[col]) if row[col] else None) if col in (3,8) else row[col]
+                config_feat.SetField(self.lcfname.CONFIG_COLUMNS[col],val.encode('utf-8') if val else None)
+                #config_feat.SetField(self.lcfname.CONFIG_COLUMNS[col],LU.recodeForDriver(val,self.lcfname.ds.Driver.__name__))
             
             config_layer.CreateFeature(config_feat)
             
@@ -942,14 +923,14 @@ class LayerDSReader(LayerReader):
     @override(LayerReader)
     def findLayerIdByName(self,lname):
         '''Reverse lookup of section by associated name, finds first occurance only'''
-        layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+        layer = self.lcfname.ds.GetLayer(self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
         layer.ResetReading()
         #HACK Win7
         layer.GetFeatureCount()
         feat = layer.GetNextFeature() 
-        while feat is not None:
-            if lname == feat.GetField('name').encode('utf8'):
-                return feat.GetField('id').encode('utf8')
+        while feat:
+            if lname == feat.GetField('name'):#.encode('utf8'):
+                return feat.GetField('id')#.encode('utf8')
             feat = layer.GetNextFeature()
         return None
         
@@ -959,14 +940,25 @@ class LayerDSReader(LayerReader):
         #gdal.SetConfigOption('CPL_DEBUG','ON')
         #gdal.SetConfigOption('CPL_LOG_ERRORS','ON')
         if not self.namelist:
-            layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+            layer = self.lcfname.ds.GetLayer(self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
             if layer:
                 layer.SetIgnoredFields(('OGR_GEOMETRY',))
                 layer.ResetReading()
+                #HACK Win7
+                layer.GetFeatureCount()
                 feat = layer.GetNextFeature() 
-                while feat is not None:
-                    self.namelist += ((feat.GetField('id').encode('utf8'),feat.GetField('name').encode('utf8'),[f.encode('utf8').strip() for f in feat.GetField('category').split(',')]),)
-                    feat = layer.GetNextFeature()
+                while feat:
+                    try:
+                        lcid = feat.GetField('id')
+                        lcname = feat.GetField('name')
+                        lccats = [LU.recode(f) if f else None for f in feat.GetField('category').split(',')]
+                        self.namelist += ((LU.recode(lcid) if lcid else None, LU.recode(lcname) if lcname else None,lccats),) 
+                        #self.namelist += ((feat.GetField('id').encode('utf8'),feat.GetField('name').encode('utf8'),[f.encode('utf8').strip() for f in feat.GetField('category').split(',')]),)
+                        feat = layer.GetNextFeature()
+                    except UnicodeEncodeError as uee:
+                        raise
+                    except UnicodeDecodeError as ude:
+                        raise
             else:
                 ldslog.error('REMINDER! TRIGGER CONF BUILD')
             #print '>>>>> NAMELIST',self.namelist
@@ -976,11 +968,11 @@ class LayerDSReader(LayerReader):
     def readLayerParameters(self,id):
         '''Full Feature config reader'''
         from DataStore import InaccessibleFeatureException
-        layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+        layer = self.lcfname.ds.GetLayer(self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
         layer.ResetReading()
         #HACK Win7
         layer.GetFeatureCount()
-        feat = self.fname._findMatchingFeature(layer, 'id', id)
+        feat = self.lcfname._findMatchingFeature(layer, 'id', id)###fname -> lcfname
         if feat is None:
             InaccessibleFeatureException('Cannot access feature with id='+str(id)+' in layer '+str(layer.GetName()))
         return LU.extractFields(feat)
@@ -989,18 +981,20 @@ class LayerDSReader(LayerReader):
     def readAllLayerParameters(self):
         '''Full Layer config reader'''
         lcel = []
-        layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
-        layer.ResetReading()
-        #HACK Win7
-        layer.GetFeatureCount()
-        feat = layer.GetNextFeature()
-        while feat:
-            #ii = LU.extractFields(feat)
-            #print '>1>',ii
-            #lcel += [ii,]
-            lcel += [LU.extractFields(feat),]
+        layer = self.lcfname.ds.GetLayer(self.lcfname.LDS_CONFIG_TABLE)### fname -> lcfname
+        if layer:
+            layer.SetIgnoredFields(('OGR_GEOMETRY',))
+            layer.ResetReading()
+            #HACK Win7
+            layer.GetFeatureCount()
             feat = layer.GetNextFeature()
-            #if feat: print '>2>','fid=',feat.GetFID(),'rc=',layer.GetRefCount(),'fc=',x
+            while feat:
+                #ii = LU.extractFields(feat)
+                #print '>1>',ii
+                #lcel += [ii,]
+                lcel += [LU.extractFields(feat),]
+                feat = layer.GetNextFeature()
+                #if feat: print '>2>','fid=',feat.GetFID(),'rc=',layer.GetRefCount(),'fc=',x
         return lcel 
         
     
@@ -1008,28 +1002,29 @@ class LayerDSReader(LayerReader):
     def readLayerProperty(self,pkey,field):
         '''Single property reader'''
         plist = ()
-        layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+        layer = self.lcfname.ds.GetLayer(self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
         layer.ResetReading()
         #HACK Win7
         layer.GetFeatureCount()
         if isinstance(pkey,tuple) or isinstance(pkey,list):
             for p in pkey:
-                f = self.fname._findMatchingFeature(layer, 'id', p)
-                plist += ('' if f is None else f.GetField(field).encode('utf8'),)
+                f = self.lcfname._findMatchingFeature(layer, 'id', p)###fname -> lcfname
+                #plist += ('' if f is None else f.GetField(field).encode('utf8'),)
+                plist += ('' if f is None else LU.recode(f.GetField(field)),)
             return plist
         else:
-            feat = self.fname._findMatchingFeature(layer, 'id', pkey)
+            feat = self.lcfname._findMatchingFeature(layer, 'id', pkey)
             if feat is None:
                 return None
             prop = feat.GetField(field)
-        return None if LU.mightAsWellBeNone(prop) else prop.encode('utf8')
+        return LU.recode(prop) if LU.assessNone(prop) else None#.encode('utf8')
     
     @override(LayerReader)
     def writeLayerProperty(self,pkey,field,value):
         '''Write changes to layer config table. Keyword changes are written as a comma-seperated value '''
         #ogr.UseExceptions()
         try:
-            layer = self.fname.ds.GetLayer(self.fname.LDS_CONFIG_TABLE)
+            layer = self.lcfname.ds.GetLayer(self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
             if (isinstance(pkey,tuple) or isinstance(pkey,list)) and (isinstance(value,tuple) or isinstance(value,list)):
                 for p,v in zip(pkey,value):
                     if v: v = v.strip()
@@ -1041,8 +1036,8 @@ class LayerDSReader(LayerReader):
             ldslog.error(e)
             
     def _setFeatureValue(self,layer,p,field,value):
-        feat = self.fname._findMatchingFeature(layer, 'id', p)
-        feat.SetField(field,value)
+        feat = self.lcfname._findMatchingFeature(layer, 'id', p)###fname -> lcfname
+        feat.SetField(field,LU.recode(value,uflag='encode'))
         layer.SetFeature(feat)
         #ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
 
@@ -1053,31 +1048,29 @@ class GUIPrefsReader(object):
     '''
 
     PREFS_SEC = 'prefs'
+    GUI_PREFS = '../conf/gui.prefs'
     
     def __init__(self):
         '''
         Constructor
         '''
-        thisdir = os.path.dirname(__file__)
-        guiprefs = '../conf/gui.prefs'
-        
-        
         self.dvalue = None
-        
         self.dselect = 'dest'
         #v:x111|MYGROUP, myconf.conf, 2193, 2013-01-01, 2013-01-02
         self.plist = ('lgvalue','uconf','epsg','fd','td')
         
         self.cp = ConfigParser()
-        self.fn = os.path.join(thisdir,guiprefs)
-        self.cp.read(self.fn)
+        self.fn = os.path.join(os.path.dirname(__file__),self.GUI_PREFS)
+        with codecs.open(self.fn,'r','utf-8') as cf:
+            self.cp.readfp(cf)
         
     def read(self):
         '''Read stored DS value and return this and its matching params'''
         try:
-            self.cp.read(self.fn)
+            with codecs.open(self.fn, 'r','utf-8') as cf:
+                self.cp.readfp(cf)
             self.dvalue = self.cp.get(self.PREFS_SEC, self.dselect) 
-            if LU.mightAsWellBeNone(self.dvalue) is None:
+            if LU.assessNone(self.dvalue) is None:
                 return (None,)*(len(self.plist)+1)
         except NoSectionError as nse:
             #if no sec init sec and opt and ret nones
@@ -1132,13 +1125,13 @@ class GUIPrefsReader(object):
     
     def writeline(self,field,value):
         #not the best solution since depends on a current gpr and a recent read/write. 
-        if self.dvalue is not None:
+        if self.dvalue:
             self.writesecline(self.dvalue,field,value)
         
     def writesecline(self,section,field,value):
         try:            
             self.cp.set(section,field,value)
-            with open(self.fn, 'w') as configfile:
+            with codecs.open(self.fn, 'w','utf-8') as configfile:
                 self.cp.write(configfile)
             ldslog.debug(str(section)+':'+str(field)+'='+str(value))                                                                                        
         except Exception as e:
@@ -1158,13 +1151,13 @@ class GUIPrefsReader(object):
             if not self.cp.has_section(self.dvalue):
                 self.cp.add_section(self.dvalue)
             try:
-                if LU.mightAsWellBeNone(pr[1]) is not None:         
+                if LU.assessNone(pr[1]):         
                     self.cp.set(self.dvalue,pr[0],pr[1])
-                    with open(self.fn, 'w') as configfile:
-                        self.cp.write(configfile)
-                    ldslog.debug(str(self.dvalue)+':'+str(pr[0])+'='+str(pr[1]))                                                                                        
+                    ldslog.debug(self.dvalue+':'+pr[0]+'='+pr[1])                                                                                        
             except Exception as e:
                 ldslog.warn('Problem writing GUI prefs. '+str(e))
+        with codecs.open(self.fn, 'w','utf-8') as configfile:
+            self.cp.write(configfile)
                       
     
     def _initSection(self,section):

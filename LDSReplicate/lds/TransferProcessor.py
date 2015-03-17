@@ -29,11 +29,11 @@ from lds.LDSDataStore import LDSDataStore
 #from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
 from lds.ConfigConnector import ConfigConnector
 
-from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
+from lds.LDSUtilities import LDSUtilities as LU, ConfigInitialiser
 from lds.ReadConfig import LayerFileReader, LayerDSReader
 from __builtin__ import classmethod
 
-ldslog = LDSUtilities.setupLogging()
+ldslog = LU.setupLogging()
 
 
 class InputMisconfigurationException(Exception): 
@@ -46,7 +46,7 @@ class LayerConfigurationException(Exception): pass
 class DatasourceInitialisationException(Exception): pass
 class IncompleteParametersForInitialisation(Exception): pass
 
-LORG = LDSUtilities.enum('GROUP','LAYER')
+LORG = LU.enum('GROUP','LAYER')
 
 class TransferProcessor(object):
     '''Primary class controlling data transfer objects and the parameters for these'''
@@ -100,15 +100,15 @@ class TransferProcessor(object):
 
         #splitting out group/layer and lgname
         self.lgval = None
-        if LDSUtilities.mightAsWellBeNone(lg):
+        if LU.assessNone(lg):
             self.setLayerGroupValue(lg)
             
         self.source_str = None
-        if LDSUtilities.mightAsWellBeNone(sc):
+        if LU.assessNone(sc):
             self.parseSourceConfig(sc)
         
-        self.destination_str = LDSUtilities.mightAsWellBeNone(dc)
-        self.cql = LDSUtilities.mightAsWellBeNone(cq)
+        self.destination_str = LU.assessNone(dc)
+        self.cql = LU.assessNone(cq)
         
         self.setUserConf(uc)
 
@@ -132,35 +132,35 @@ class TransferProcessor(object):
         '''Identify whether being passed a layer or a group identifier'''
         #still need to decide the difference between a layer name and a group name e.g. nz_rock_polys vs GROUP_ABC. 
         #For now (and probably better that) we take care of this when we search/match group names 
-        #return LORG.LAYER if re.match('^'+LDSUtilities.LDS_VX_PREFIX,lg) else LORG.GROUP
-        return LORG.LAYER if [x for x in LDSUtilities.LDS_PREFIXES if re.search(x,lg)] else LORG.GROUP
+        #return LORG.LAYER if re.match('^'+LU.LDS_VX_PREFIX,lg) else LORG.GROUP
+        return LORG.LAYER if [x for x in LU.LDS_PREFIXES if re.search(x,lg)] else LORG.GROUP
     
     def parseSourceConfig(self,sc):
         '''If a user supplied their own LDS connection string, parse out relevant values'''
 
         self.source_str = sc
         #check for dates to set incr  
-        ufd = LDSUtilities.getDateStringFromURL('from',sc)
-        if ufd is not None:
+        ufd = LU.getDateStringFromURL('from',sc)
+        if ufd:
             ufds = ufd.group(1)
             ldslog.warn("Using 'from:' date string from supplied URL "+str(ufds))
             self.fromdate = ufds
-        utd = LDSUtilities.getDateStringFromURL('to',sc)
-        if utd is not None:
+        utd = LU.getDateStringFromURL('to',sc)
+        if utd:
             utds = utd.group(1)
             ldslog.warn("Using 'to:' date string from supplied URL "+str(utds))
             self.todate = utds
             
         #if doing incremental we also need to check changeset
-        if (utd is not None or ufd is not None) and not LDSUtilities.checkHasChangesetIdentifier(sc):
+        if (utd or ufd) and not LU.checkHasChangesetIdentifier(sc):
             raise InputMisconfigurationException("'changeset' identifier required for incremental LDS query")
         
         #all going well we can now get the layer string. This isn't optional so we just set it
-        self.layer = LDSUtilities.getLayerNameFromURL(sc)
+        self.layer = LU.getLayerNameFromURL(sc)
         ldslog.warn('Using layer selection from supplied URL '+str(self.layer))  
             
     def setUserConf(self,uc):
-        self.user_config = LDSUtilities.mightAsWellBeNone(uc)
+        self.user_config = LU.assessNone(uc)
         
     def setLayerGroupValue(self,lgval):
         self.lgval = lgval    
@@ -169,13 +169,13 @@ class TransferProcessor(object):
         return self.lgval
         
     def setEPSG(self,ep):
-        self.epsg = LDSUtilities.mightAsWellBeNone(ep)
+        self.epsg = LU.assessNone(ep)
         
     def setFromDate(self,fd):
-        self.fromdate = LDSUtilities.mightAsWellBeNone(fd)
+        self.fromdate = LU.assessNone(fd)
         
     def setToDate(self,td):
-        self.todate = LDSUtilities.mightAsWellBeNone(td)
+        self.todate = LU.assessNone(td)
     
     #initilaise config flags
     def setInitConfig(self):
@@ -209,7 +209,7 @@ class TransferProcessor(object):
     
     def hasPrimaryKey(self,pklayer):
         '''Reads layer conf pkey identifier. If PK is None or something, use this to decide processing type i.e. no PK = driverCopy'''
-        return LDSUtilities.mightAsWellBeNone(self.dst.getLayerConf().readLayerProperty(pklayer,'pkey'))
+        return LU.assessNone(self.dst.getLayerConf().readLayerProperty(pklayer,'pkey'))
               
         
     def processLDS(self):
@@ -235,14 +235,13 @@ class TransferProcessor(object):
         #still used on command line
         if self.getInitConfig():
             TransferProcessor.initialiseLayerConfig(self.src,self.dst)
-
         if self.dst.getLayerConf() is None:
             raise LayerConfigurationException("Cannot initialise Layer-Configuration file/table, "+str(self.dst.getConfInternal()))
 
         #------------------------------------------------------------------------------------------
         #Valid layers are those that exist in LDS and are also configured in the LC
-        self.initCapsDoc(capabilities, self.src)
-        lds_valid = [i[0] for i in self.assembleLayerList(self.dst)]
+        self.readCapsDoc(self.src)
+        lds_valid = [i[0] for i in self.assembleLayerList(intersect=True)]
         #if layer provided, check that layer is in valid list
         #else if group then intersect valid and group members
         lgid = self.idLayerOrGroup(self.lgval)
@@ -251,7 +250,8 @@ class TransferProcessor(object):
             group = set(self.lgval.split(','))
             for lid in lds_valid:
                 cats = self.dst.getLayerConf().readLayerProperty(lid,'category')
-                if cats is not None and set([f.encode('utf8').strip() for f in cats.split(',')]).intersection(group):
+                #if cats and set([f.encode('utf8').strip() for f in cats.split(',')]).intersection(group):
+                if cats and set([LU.recode(f) for f in cats.split(',')]).intersection(group):
                     self.lnl.update((lid,))
                 
             if not len(self.lnl):
@@ -259,7 +259,7 @@ class TransferProcessor(object):
                 lgid = LORG.LAYER
                 
         if lgid == LORG.LAYER:
-            layer = LDSUtilities.checkLayerName(self.dst.getLayerConf(),self.lgval) 
+            layer = LU.checkLayerName(self.dst.getLayerConf(),self.lgval) 
             if layer in lds_valid:
                 self.lnl = (layer,)
             else:
@@ -278,24 +278,22 @@ class TransferProcessor(object):
             return
 
         #build a list of layers with corresponding lastmodified/incremental flags
-        fd = LDSUtilities.checkDateFormat(self.fromdate)#if date format wrong treated as None
-        td = LDSUtilities.checkDateFormat(self.todate)
-        
+        fd = LU.checkDateFormat(self.fromdate)#if date format wrong treated as None
+        td = LU.checkDateFormat(self.todate)
         self.layer_total = len(self.lnl)
         self.layer_count = 0
         for each_layer in self.lnl:
-            ldslog.debug('BENCHMARK '+str(each_layer))
-            lm = LDSUtilities.checkDateFormat(self.dst.getLastModified(each_layer))
+            ldslog.debug('BENCHMARK '+each_layer)
+            lm = LU.checkDateFormat(self.dst.getLastModified(each_layer))
             srs = self.dst.getEPSGConversion(each_layer)
             pk = self.hasPrimaryKey(each_layer)
             filt = self.dst.getLayerConf().readLayerProperty(each_layer,'cql')
-
             #Set (cql) filters in URI call using layer picking the one with highest precedence            
-            self.src.setFilter(LDSUtilities.precedence(self.cql,self.dst.getFilter(),filt))
+            self.src.setFilter(LU.precedence(self.cql,self.dst.getFilter(),filt))
         
             #SRS are set in the DST since the conversion takes place during the write process. Needed here to trigger bypass to featureCopy 
             #print 'tp.epsg=',self.epsg,'srs=',srs,'!getsrs=',self.dst.getSRS()
-            self.dst.setSRS(LDSUtilities.precedence(self.epsg,srs,None))
+            self.dst.setSRS(LU.precedence(self.epsg,srs,None))
 
             #Destination URI won't change because of incremental so set it here
             self.dst.setURI(self.dst.destinationURI(each_layer))
@@ -311,7 +309,7 @@ class TransferProcessor(object):
             #check dates -> check incr read -> incr or non
 
             nonincr = False          
-            if any(i is not None for i in [lm, fd, td]) and pk:
+            if any(i for i in [lm, fd, td]) and pk:
                 ldslog.debug('lm={}, fd={}, td={}'.format(lm,fd,td))
                 final_fd = (DataStore.EARLIEST_INIT_DATE if lm is None else lm) if fd is None else fd
                 final_td = self.dst.getCurrent() if td is None else td
@@ -340,7 +338,6 @@ class TransferProcessor(object):
             else:
                 nonincr = True
             #--------------------------------------------------    
-
             if nonincr:                
                 #self.src.setURI(self.src.sourceURI(each_layer))
                 #RB src
@@ -348,7 +345,7 @@ class TransferProcessor(object):
                 if self.readLayer():
                     self.dst.clearIncremental()
                     self.cleanLayer(each_layer,truncate=True)
-                    ldslog.info('Layer='+str(each_layer)+' epsg='+str(self.dst.getSRS()))
+                    ldslog.info('Cleaning Layer='+str(each_layer)+' epsg='+str(self.dst.getSRS()))
                     self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
                     #since no date provided defaults to current 
                     #self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
@@ -370,32 +367,32 @@ class TransferProcessor(object):
         #self.src.closeDS()
         #self.src = None
         
-    def initCapsDoc(self,capabilities,src):
+    def readCapsDoc(self,src):
         '''Fetch, format and store the capabilities document'''
-        if not hasattr(self,'lds_full'):
-            self.lds_full = LDSDataStore.fetchLayerInfo(capabilities,src.pxy)
+        if not hasattr(self,'lds_caps'):
+            self.lds_caps = LU.treeDecode(LDSDataStore.fetchLayerInfo(src.getCapabilities(),src.pxy))
         
-    def assembleLayerList(self,dst,intersect=True):
+    def readConfDoc(self,dst):
+        '''Return a list of the LC names'''
+        #self.lds_conf = LU.treeDecode(dst.getLayerConf().getLayerNames() if dst else [])
+        self.lds_conf = dst.getLayerConf().getLayerNames() if dst else []
+        
+    def assembleLayerList(self,intersect=True):
         '''Match the capabilities layer list with the configured layer list'''
-        #List of configured layers (from layer-config file/table)
-        lds_read = dst.getLayerConf().getLayerNames() if dst else []
-        
-        #Valid layers are those that exist in LDS and are also configured in the LC
-        #prefers lds_full format
+        if not hasattr(self,'lds_conf') or not self.lds_conf: self.readConfDoc(self.dst)
+        if not hasattr(self,'lds_caps') or not self.lds_caps: self.readCapsDoc(self.src)
         if intersect:
-            #return [i for i in self.lds_full if i[0] in [j[0] for j in lds_read]]
-            return [i for i in self.lds_full if i[0] in lds_read]
+            return [i for i in self.lds_caps if i[0] in [j[0] for j in self.lds_conf]]
         else: #union
-            #return self.lds_full+[i for i in lds_read if i[0] not in [j[0] for j in self.lds_full]]
-            return lds_read+[i[0] for i in self.lds_full if i[0] not in lds_read]
+            return self.lds_conf+[i for i in self.lds_caps if i[0] not in [j[0] for j in self.lds_conf]]
+        
 
 #--------------------------------------------------------------------------------------------------
 
     def readLayer(self):
         '''Attempt a read of the configured layer'''
         return self.src.read(self.src.getURI(),False)
-        
-        
+
 #--------------------------------------------------------------------------------------------------
         
     def cleanLayer(self,layer_i,truncate=False):
@@ -435,7 +432,7 @@ class TransferProcessor(object):
     def initialiseLayerConfig(cls,src,dst,initlc=True):
         '''Class method initialising a layer config using the capabilities document'''
         lc = cls.getNewLayerConf(dst)
-        if initlc:
+        if initlc:#OR ls-has-stuff-in-it
             res = cls.parseCapabilitiesDoc(src.getCapabilities(),cls.parseVersion(src.ver),cls.selectJSON(dst),src.pxy,src.idp)
             lc.buildConfigLayer(str(res))
         #print 'LC>>>',[(i[0],i[1]) for i in lc.getLConfAsArray()] 

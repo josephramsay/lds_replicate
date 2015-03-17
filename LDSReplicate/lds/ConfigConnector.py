@@ -18,7 +18,7 @@ Created on 13/02/2013
 import re
 
 from lds.DataStore import DataStore, UnknownDSTypeException
-from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
+from lds.LDSUtilities import LDSUtilities as LU, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 
 from lds.FileGDBDataStore import FileGDBDataStore
@@ -31,8 +31,9 @@ from lds.LDSDataStore import LDSDataStore
 
 class EndpointConnectionException(Exception): pass
 class ConnectionConfigurationException(Exception): pass
+class ConfigLayerInitialisationException(Exception):pass
 
-ldslog = LDSUtilities.setupLogging()
+ldslog = LU.setupLogging()
 
 __version__ = AppVersion.getVersion()
 
@@ -45,7 +46,7 @@ HCOLS = 2
        
 class ConfigConnector(object):
 
-    def __init__(self,parent,uconf,lgval,destname):
+    def __init__(self,parent,uconf,lgval,destname,initlc=None):
         #HACK. Since we can't init an lg list without first intialising read connections must assume lgval is stored in v:x format. 
         #NOTE. This a controlled call to TP and we can't assume in general that TP will be called with a v:x layer/group (since names are allowed)
         #NOTE. Every time a new CC is created we call LDS for a caps doc even though this is mostly invariant
@@ -53,7 +54,8 @@ class ConfigConnector(object):
         self.vlayers = None     
         self.lgval = None
         self.uconf = None
-        self.destname = None   
+        self.destname = None
+        self.initlc = initlc   
         self.reg = DatasourceRegister()
         self.initConnections(uconf,lgval,destname)
         
@@ -70,15 +72,16 @@ class ConfigConnector(object):
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
             sep = self.reg.openEndPoint('WFS', self.uconf)    
             dep = self.reg.openEndPoint(self.destname, self.uconf)
+            self.tp.setSRC(sep)
+            self.tp.setDST(dep)
             #svp = Service, Version, Prefix
             self.svp = self.readProtocolVersion(sep)
-            self.reg.setupLayerConfig(self.tp,sep,dep)
+            self.reg.setupLayerConfig(self.tp,sep,dep,self.initlc)
             #print 'CCt',self.tp
             #print 'CCd',self.dep
             if not self.vlayers:
                 self.vlayers = self.getValidLayers(sep,dep)
                 self.setupReserved()
-            self.setupComplete(dep)
             self.setupAssigned()
             self.buildLGList()
             self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
@@ -97,12 +100,11 @@ class ConfigConnector(object):
         return {'svc':src.svc,'ver':src.ver,'idp':src.idp}
             
     #----------------------------------------------------------------------------------
-    
     def setupComplete(self,dep):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
         #these are all the keywords in the local file. if no dest has been set returns empty
-        self.complete = dep.getLayerConf().getLConfAs3Array() if dep else []
-    
+        self.complete = dep.getLayerConf().getLayerNames() if dep else []
+        
     def setupReserved(self):
         '''Read the capabilities doc (as json) for reserved words'''
         #these are all the keywords LDS currently knows about         
@@ -120,28 +122,30 @@ class ConfigConnector(object):
         
     def deleteForgotten(self,alist,flt='v_\w{8}_wxs_\w{4}'):
         '''Removes keywords with the format v_########_wxs_#### since these are probably not user generated and 
-        because they're used as temporary keys and will eventually be forgotten by LDS'''
+        because they're used as temporary keys and will eventually be forgotten by LDS. Also removes text Nones'''
         #HACK
-        return set([a for a in alist if not re.search(flt,a)])
+        return set([a for a in alist if LU.assessNone(a) and not re.search(flt,a)])
     
     def getValidLayers(self,src,dst):
         #if dest is true we should have a layerconf so use intersect(read_lc,lds_getcaps)
-        capabilities = src.getCapabilities()
-        self.tp.initCapsDoc(capabilities, src)
-        vlayers = self.tp.assembleLayerList(dst,intersect=True)
+        vlayers = self.tp.assembleLayerList(intersect=True)
+        #might as well init self.comp here since a call to assemble will have set lds_conf
+        self.complete = self.tp.lds_conf
         #In the case where we are setting up unconfigured (first init) populate the layer list with default/all layers
-        return vlayers if vlayers else self.tp.assembleLayerList(dst,intersect=False) 
+        return vlayers if vlayers else self.tp.assembleLayerList(intersect=False) 
     
     def buildLGList(self,groups=None,layers=None):
-        '''Sets the values displayed in the Layer/Group combo'''
+        '''Sets the array storing values displayed in the Layer/Group combo; format is ((lyr/grp, name, displaystring),)'''
         from lds.TransferProcessor import LORG
         #self.lgcombo.addItems(('',TransferProcessor.LG_PREFIX['g']))
         self.lglist = []
         #              lorg,value,display
         for g in sorted(groups if groups else self.assigned):
-            self.lglist += ((LORG.GROUP,g.strip(),'{} (group)'.format(g.strip())),)
+            self.lglist += ((LORG.GROUP,LU.recode(g),u'{} (group)'.format(LU.recode(g))),)
         for l in sorted(layers if layers else self.vlayers):
-            self.lglist += ((LORG.LAYER,l[0],'{} ({})'.format(l[1],l[0])),)
+            #if re.search('Electoral',l[0]): 
+            if not isinstance(l,tuple) and not isinstance(l,list): raise ConfigLayerInitialisationException('Layer init value error. {} is not a tuple'.format(l))
+            self.lglist += ((LORG.LAYER,l[0],u'{} ({})'.format(l[1],l[0])),)
         
     def getLGEntry(self,dispval):
         '''Finds a matching group/layer entry from its displayed name'''
@@ -150,14 +154,16 @@ class ConfigConnector(object):
     def getLGIndex(self,dispval,col=2):
         '''Finds a matching group/layer entry from its displayed name'''
         #0=lorg,1=value,2=display 
-        if not LDSUtilities.mightAsWellBeNone(dispval):
-            ldslog.warn('No attempt made to find index for empty group/layer request, "{}"'.format(dispval))
+        compval = LU.recode(dispval)
+        if not LU.assessNone(compval):
+            ldslog.warn('No attempt made to find index for empty group/layer request, "{}"'.format(compval))
             return None# or 0?
             
         try:
-            index = [i[col] for i in self.lglist].index(str(dispval))
+            #print 'lgl',[type(i[1]) for i in self.lglist],'\ncv',type(compval)
+            index = [i[col] for i in self.lglist].index(compval)
         except ValueError as ve:
-            ldslog.warn('Cannot find an index in column {} for the requested group/layer, "{}", from {} layers. Returning None index'.format(col,dispval,len(self.lglist)))
+            ldslog.warn(u'Cannot find an index in column {} for the requested group/layer, "{}", from {} layers. Returning None index'.format(col,compval,len(self.lglist)))
             index = None
         return index
     
@@ -171,8 +177,8 @@ class DatasourceRegister(object):
     #SOURCE=check ref hasn't changed, if it has update the object
     #TRANSIENT=free DB locks by closing as soon as not needed (FileGDB, SQLite)
     #DESTINATION=normal rw access with object kept open
-    TYPE = LDSUtilities.enum('SOURCE','TRANSIENT','DESTINATION')
-    REQ = LDSUtilities.enum('INCR','FEAT','FULL')
+    TYPE = LU.enum('SOURCE','TRANSIENT','DESTINATION')
+    REQ = LU.enum('INCR','FEAT','FULL')
 
     def __init__(self):
         pass
@@ -196,7 +202,7 @@ class DatasourceRegister(object):
             raise UnknownDSTypeException('Unknown DS requested, '+str(fn))
         
     def _deregister(self,name):
-        fn = LDSUtilities.standardiseDriverNames(name)
+        fn = LU.standardiseDriverNames(name)
         #sync/rel the DS
         #self.register[fn]['ep'].closeDS()#DS should already have closed
         self.register[fn]['ep'] = None
@@ -210,7 +216,7 @@ class DatasourceRegister(object):
 
     
     def _type(self,fn):
-        #fn = LDSUtilities.standardiseDriverNames(name)
+        #fn = LU.standardiseDriverNames(name)
         #if fn == FileGDBDataStore.DRIVER_NAME:
         #    return self.TYPE.TRANSIENT
         if fn == WFSDataStore.DRIVER_NAME:
@@ -263,7 +269,7 @@ class DatasourceRegister(object):
     def openEndPoint(self,name,uri=None,req=None):
         #print 'GEP',name,uri,req
         '''Gets a named EP incrementing a refcount or registers a new one as needed'''
-        fn = LDSUtilities.standardiseDriverNames(name)
+        fn = LU.standardiseDriverNames(name)
         #if fn+uri exist AND fn is valid AND (fn not prev registered OR the saved URI != uri) 
         if (fn and uri)\
         and (fn in DataStore.DRIVER_NAMES.values() or fn == WFSDataStore.DRIVER_NAME) \
@@ -278,7 +284,7 @@ class DatasourceRegister(object):
     
     def closeEndPoint(self,name):
         '''Closes the DS is a named EP or delete the EP completely if not needed'''
-        fn = LDSUtilities.standardiseDriverNames(name)
+        fn = LU.standardiseDriverNames(name)
         #<HACK>. Bypass DS closing for FileGDB connections
         if fn=='FileGDB': return
         #</HACK>
@@ -451,7 +457,7 @@ class ProgressTimer(QThread):
         #    tp cc     repl   con
         ldslog.info('Progress: '+str(pct)+'%')
         self.pgbar.emit(pct)
-        if lyr: self.status.emit(2,'Replicating Layer '+str(lyr),'')
+        if lyr: self.status.emit(2,'Replicating Layer '+LU.recode(lyr),'')
         
     def join(self,timeout=None):
         #QThread.join(self,timeout)

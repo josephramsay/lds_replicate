@@ -48,10 +48,6 @@ class ConfigWrapper(object):
             self.setupTempParameters(configdata)
         #else:
             #raise ConfigFormatException('Provided Config specifier is neither a parameter array  or a file path')
-            
-            
-        #dont set up layerconfig by default. Wait till we know whether we want a new build (initconfig) 
-        #self._setupLayerConfig()
 
 
     def setupMainAndUserConfig(self,inituserconfig):
@@ -103,10 +99,11 @@ class ConfigWrapper(object):
     def _substIDP(self,idp,mul):
         '''add requested prefix to layer list. IDP = ID Prefix'''
         #64layers
-        m0 = tuple([idp+str(s) for s in mul[0]]) if mul[0] else (None,)
+        m0 = list([idp+str(s) for s in mul[0]]) if mul[0] else None
         #ptnlayers
-        m1 = tuple([idp+str(s) for s in mul[1]]) if mul[1] else (None,)
-        return m0+m1+mul[2:]
+        m1 = list([idp+str(s) for s in mul[1]]) if mul[1] else None
+        return (m0,m1,mul[2],mul[3])
+    
 
             
     def readDSProperty(self,drv,prop):

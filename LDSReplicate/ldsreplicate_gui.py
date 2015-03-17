@@ -38,7 +38,7 @@ def lconf():
     from lds.gui.LayerConfigSelector import LayerConfigSelector
     from lds.gui.LDSGUI import LDSMain
     app = QApplication(sys.argv)
-    ldsc = LayerConfigSelector(LDSMain())
+    ldsc = LayerConfigSelector(LDSMain(initlc=True))
     ldsc.show()
     sys.exit(app.exec_())        
 
@@ -61,7 +61,7 @@ def main():
     
     
 if __name__ == '__main__':
-    main()
+    lconf()
     
     
    

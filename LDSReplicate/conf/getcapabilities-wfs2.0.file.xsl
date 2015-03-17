@@ -12,7 +12,7 @@ xmlns:wfs="http://www.opengis.net/wfs/2.0"
 xmlns:ows="http://www.opengis.net/ows/1.1"
  -->
  
-<xsl:output method="text"/>
+<xsl:output method="text" encoding="UTF-8"/>
 <xsl:strip-space elements="*"/>
 
 <xsl:template match="wfs:WFS_Capabilities">

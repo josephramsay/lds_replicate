@@ -96,7 +96,7 @@ class RequestBuilder(object):
         srch = re.search('/([a-f0-9]{32})/(v/x|wfs\?)',cs,flags=re.IGNORECASE)
         if srch is None and raise_err:
             raise MalformedConnectionString('Cannot parse API key')
-        return srch.group(1) if srch is not None else None
+        return srch.group(1) if srch else None
     
     def _buildCQLStr(self):
         '''Builds a cql_filter string as set by the user appending an 'id>...' partitioning string if needed. NB. Manual partitioning is accomplished using the parameters, 'maxFeatures' to set feature quantity, a page-by-page recorded 'id' value and a 'sortBy=id' argument'''
@@ -104,7 +104,7 @@ class RequestBuilder(object):
         maxfeat = ""
         
 #         #if implementing pagination in cql      
-#         if self.pstart is not None and self.psize is not None:
+#         if self.pstart and self.psize:
 #             cql += (self.pkey+">"+str(self.pstart),)
 #             #sortBy used so last feature will have the new maximum key, saves a comparison
 #             maxfeat = "&sortBy="+self.pkey+"&maxFeatures="+str(self.psize)            
@@ -177,9 +177,9 @@ class RequestBuilderWFS200(RequestBuilder):
         if self.conn_str:
             valid,urilayer = self.validateConnStr(self.conn_str)
             #I don't know why you would attempt to specify dates in the CL and in the URL as well but we might as well attempt to catch diffs
-            if layername is not None and urilayer!=layername:
+            if layername and urilayer!=layername:
                 raise MalformedConnectionString('Layer specifications in URI differs from selected layer (-l); '+str(layername)+'!='+str(urilayer))
-            if (fromdate is not None and re.search('from:'+fromdate[:10],valid) is None) or (todate is not None and re.search('to:'+todate[:10],valid) is None):
+            if (fromdate and re.search('from:'+fromdate[:10],valid) is None) or (todate and re.search('to:'+todate[:10],valid) is None):
                 raise MalformedConnectionString("Date specifications in URI don't match those referred to with -t|-f "+str(todate)+'/'+str(fromdate)+" not in "+valid)
             return valid
 
@@ -277,9 +277,9 @@ class RequestBuilderWFS110(RequestBuilder):
         if self.conn_str:
             valid,urilayer = self.validateConnStr(self.conn_str)
             #I don't know why you would attempt to specify dates in the CL and in the URL as well but we might as well attempt to catch diffs
-            if layername is not None and urilayer!=layername:
+            if layername and urilayer!=layername:
                 raise MalformedConnectionString('Layer specifications in URI differs from selected layer (-l); '+str(layername)+'!='+str(urilayer))
-            if (fromdate is not None and re.search('from:'+fromdate[:10],valid) is None) or (todate is not None and re.search('to:'+todate[:10],valid) is None):
+            if (fromdate and re.search('from:'+fromdate[:10],valid) is None) or (todate and re.search('to:'+todate[:10],valid) is None):
                 raise MalformedConnectionString("Date specifications in URI don't match those referred to with -t|-f "+str(todate)+'/'+str(fromdate)+" not in "+valid)
             return valid
 

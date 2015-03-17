@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''
 v.0.0.9
 
@@ -20,6 +21,7 @@ Created on 9/08/2012
 
 import re
 import os
+import sys
 import logging
 import ast
 
@@ -28,10 +30,18 @@ from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
 from contextlib import closing
 from StringIO import StringIO
 from lxml import etree
+from multiprocessing import Process, Queue
 
 #ldslog = LDSUtilities.setupLogging()
 mainlog = 'DEBUG'
 ldslog = logging.getLogger(mainlog)
+
+
+LDS_READ_TIMEOUT = 300 # 5min
+MACRON_SUBST = {'ā':'a','ē':'e','ī':'i','ō':'o','ū':'u'}
+
+class ReadTimeoutException(Exception): pass
+
 
 class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
@@ -105,15 +115,14 @@ class LDSUtilities(object):
     def checkLayerName(lconf,lname):
         '''Makes sure a layer name conforms to v:x format which exists or matches a layername'''
         from lds.DataStore import InvalidLayerException
-        if type(lname) is str:
-            if LDSUtilities.checkLayerNameValidity(lname) and lname in lconf.getLayerNames():
-                #if its an ID (v:x etc) and it matches a configured id return it
-                return lname
-            elif lconf.findLayerIdByName(lname):
-                #if its a name (NZ Special Points) return matching ID
-                return lconf.findLayerIdByName(lname)
-            else:
-                raise InvalidLayerException('Cannot find Layer, '+str(lname))
+        if type(lname) in (str,unicode):
+            lname = LDSUtilities.recode(lname)
+            #if its an ID (v:x etc) and it matches a configured id return it
+            if LDSUtilities.checkLayerNameValidity(lname) and lname in [l[0] for l in lconf.getLayerNames()]: return lname
+            #if its a name eg (NZ Special Points) return matching ID
+            lid = lconf.findLayerIdByName(lname)
+            if lid: return lid
+            else: raise InvalidLayerException('Cannot find Layer, '+lname)
         else: 
             raise InvalidLayerException('Layer name not a string, '+str(lname))
         return None
@@ -129,7 +138,7 @@ class LDSUtilities(object):
         
         (ptype, host, port, auth, usr, pwd) = proxyinfo
         
-        if LDSUtilities.mightAsWellBeNone(ptype) == sys_ref:
+        if LDSUtilities.assessNone(ptype) == sys_ref:
             #system, read from env/reg
             if os.name == 'nt':
                 #windows
@@ -166,7 +175,7 @@ class LDSUtilities(object):
         '''Check whether URL contains changeset id'''
         c1 = [x for x in LDSUtilities.LDS_IDPATHS if re.search(x+'\d+-changeset',url,flags=re.IGNORECASE)]
         c2 = [x for x in LDSUtilities.LDS_PREFIXES if re.search('typeName='+x+'\d+-changeset',url,flags=re.IGNORECASE)]
-        return True if c1 and c2 else False#return c1 is not None and c2 is not None
+        return True if c1 and c2 else False#return c1 and c2
     
     @staticmethod
     def getDateStringFromURL(fort,url):
@@ -298,11 +307,11 @@ class LDSUtilities(object):
         '''Decide which CQL filter to apply based on scope and availability'''
         '''Generally assume; CommandLine > Config-File > Layer-Properties but maybe its better for individual layers to override a global setting... '''
         
-        if LDSUtilities.mightAsWellBeNone(first) is not None:
+        if LDSUtilities.assessNone(first):
             return first
-        elif LDSUtilities.mightAsWellBeNone(second) is not None:
+        elif LDSUtilities.assessNone(second):
             return second
-        elif LDSUtilities.mightAsWellBeNone(third) is not None:
+        elif LDSUtilities.assessNone(third):
             return third
         return None
     
@@ -395,18 +404,70 @@ class LDSUtilities(object):
     
     
     @staticmethod
-    def readDocument(url,proxy=None):
-        '''Non-Driver method for fetching LDS DS as a document'''
-        ldslog.debug("LDS URL {} Pxy {}".format(url,proxy))
-        if LDSUtilities.isProxyValid(proxy): install_opener(build_opener(ProxyHandler(proxy)))
-        with closing(urlopen(url)) as lds:
-            data = lds.read()
-        return data
+    def timedProcessRunner(process,args,t):
+        '''For processes that are inclined to hang, stick them in new process and time them out'''
+        timeout = t if t else LDS_READ_TIMEOUT
+        pn = process.__name__
+        #HACK to get around windows no-method-pickling rule 
+        if re.search('readLDS',pn) and re.search('win',sys.platform): process = _readLDS
+        q = Queue()
+        p = Process(name=pn,target=process,args=(args,q))
+        #p.daemon = False
+        p.start()
+        p.join(timeout=timeout)
+        if p.is_alive():
+            p.terminate()
+            q.close()
+            fn = args[0].__name__ if hasattr(args[0], '__call__') else pn
+            raise ReadTimeoutException('No Response from {} with timeout={}s'.format(fn,timeout))
+        else:
+            res = q.get()
+            q.close()
+            if isinstance(res,Exception): 
+                raise ReadTimeoutException(LDSUtilities.errorMessageTranslate(res))
+            return res    
     
+    @staticmethod
+    def wrapWorker(fanda,q):
+        '''Generic wrapper function returning results via queue. Used for system calls
+        1. Calls to wF must provide the function-to-call as the first arg in a tuple, remaining args are funcion args
+        2. Because we cant raise an error to the main thread pass exception back in queue
+        3. Unable to pass back data in queue, cannot Pickle. SwigPy specifically'''
+        #print '>>fanda',fanda
+        try:
+            q.put(fanda[0](*fanda[1:]) if len(fanda)>1 else q.put(fanda[0]()))
+        except Exception as e:
+            q.put(e)
+        return
+    
+    @staticmethod
+    #also thwarted by SwigPy - pickle
+    def wrapSTOWorker(sto,q):
+        '''Generic wrapper function returning results via queue. Used for system calls
+        1. Calls to wF must provide the function-to-call as the first arg in a tuple, second arg is return object, remaining args are funcion args
+        2. Because we cant raise an error to the main thread pass exception back in queue
+        3. Unable to pass back data in queue, cannot Pickle. SwigPy specifically'''
+        #print '>>sto',sto
+        try:
+            sto.setResult(sto.method(*sto.args) if sto.args else sto.method())
+            q.put(sto)
+        except Exception as e:
+            q.put(e)
+        return
+    
+    @staticmethod
+    def readLDS(up,q):
+        '''Simple LDS reader to be used in a timed worker thread context'''
+        (u,p) = up
+        ldslog.debug("LDS URL {} using Proxy {}".format(u,p))
+        if LDSUtilities.isProxyValid(p): install_opener(build_opener(ProxyHandler(p)))
+        with closing(urlopen(u)) as lds:
+            q.put(lds.read())
+            
     @staticmethod
     def isProxyValid(pxy):
         '''Return TF whether the proxy definition is any good. TODO add other conditions'''
-        return LDSUtilities.mightAsWellBeNone(pxy) and pxy.values()!=[':']
+        return LDSUtilities.assessNone(pxy) and pxy.values()!=[':']
     
     @staticmethod
     def convertBool(sbool):
@@ -419,20 +480,21 @@ class LDSUtilities(object):
         return bool(sbool)
     
     @staticmethod
-    def mightAsWellBeNone(nstr):
+    def assessNone(nstr):
         '''Doesn't cover all possibilities but accounts for most read-from-file (string) problems. Lists treated as ANY(None)->None'''
         #for when integers slip through and zeroes get represented as none
         if isinstance(nstr,int):
             ldslog.warn('Converting Integer {} to String for null comparison'.format(nstr))
             return str(nstr)
         if isinstance(nstr,tuple) or isinstance(nstr,list):
-            return None if any(not LDSUtilities.mightAsWellBeNone(i) for i in nstr) else nstr
+            return None if any(not LDSUtilities.assessNone(i) for i in nstr) else nstr
         elif isinstance(nstr,dict):
             #Case for dicts that have no valid values, may not be whats wanted
-            return None if any(not LDSUtilities.mightAsWellBeNone(i) for i in nstr.values()) else nstr
-        else:
-            if isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in whitespace for i in nstr)):
-                return None
+            return None if any(not LDSUtilities.assessNone(i) for i in nstr.values()) else nstr
+        elif isinstance(nstr,str) and (nstr == 'None' or nstr == '' or all(i in whitespace for i in nstr)):
+            return None
+        elif isinstance(nstr,unicode) and (nstr == u'None' or nstr == u'' or all(i in whitespace for i in nstr)):
+            return None
         #if its already none this will return itself
         return nstr
     
@@ -499,7 +561,48 @@ class LDSUtilities(object):
         '''Get standardised user config file name and check if it exists'''
         upath = cls.standardiseUserConfigName(userprefix)
         return upath if os.path.exists(upath) else None
-
+    
+    @staticmethod
+    def errorMessageTranslate(msg):
+        '''Convenience function to provide more informative error messages'''
+        if re.search('Failed\swriting\sbody',msg,re.IGNORECASE): return 'Unable to fetch data over network connection. Possible timeout. ({})'.format(msg)
+        return msg
+    
+    @staticmethod
+    def recodeForDriver(ustr,driver=None,code='decode'):
+        '''Change encoding for drivers that dont support unicode. No used/needed anymore'''
+        if driver=='fg': return ustr.encode('iso-8859-1')
+        if driver=='pg': return ustr.encode('iso-8859-1')
+        return ustr.encode('utf-8')
+    
+    @staticmethod
+    def recode(val,code='utf8',uflag='decode'):
+        tv = type(val)==unicode
+        if val:
+            if uflag == 'decode':
+                return val if tv else val.decode(code)
+            elif uflag == 'encode':
+                return val.encode(code) if tv else val
+            elif uflag=='subst':
+                '''Macron substitutions used in CreateLayer since ogr can't handle unicode'''
+                repx = dict((re.escape(k), v) for k, v in MACRON_SUBST.iteritems())
+                pattern = re.compile("|".join(repx.keys()))
+                return pattern.sub(lambda m: repx[re.escape(m.group(0))], val)
+            elif uflag=='compat':
+                '''Make the string really compatible, substitute macrons and encode'''
+                return str(LDSUtilities.recode(LDSUtilities.recode(val,uflag='subst'),uflag='encode'))
+        return val
+    
+    @staticmethod
+    def treeDecode(lcl,code='utf8',uflag='decode'):
+        '''Convenience list element-by-element decoder'''
+        #return [LDSUtilities.treeDecode(i, code) if isinstance(i,list) or isinstance(i, tuple) else ((i.decode(code) if uflag=='decode' else i.encode(code)) if i else None) for i in lcl]
+        return [LDSUtilities.treeDecode(i,code,uflag) if isinstance(i,list) or isinstance(i, tuple) else (LDSUtilities.recode(i,code,uflag) if i else None) for i in lcl]
+    
+    @staticmethod
+    def treeEncode(lcl,code='utf8',eord=False):
+        return LDSUtilities.treeDecode(lcl, code, eord)
+    
 class FileResolver(etree.Resolver):
     def resolve(self, url, pubid, context):
         return self.resolve_filename(url, context)
@@ -536,9 +639,8 @@ class ConfigInitialiser(object):
         
         transform = etree.XSLT(xsl)
         result = transform(xml,profile_run=True)
-        ldslog.critical('RES>>>'+unicode(result)+'//'+str(result.xslt_profile))
-
-        return (ConfigInitialiser._hackPrimaryKeyFieldJSON if jorf else ConfigInitialiser._hackPrimaryKeyFieldCP)(str(result),idp)
+        ldslog.info('Parsed GC '+unicode(result)+'/'+str(result.xslt_profile))
+        return (ConfigInitialiser._hackPrimaryKeyFieldJSON if jorf else ConfigInitialiser._hackPrimaryKeyFieldCP)(unicode(result),idp)
     
     @staticmethod 
     def cleanCP(cp):
@@ -553,14 +655,15 @@ class ConfigInitialiser(object):
         from ConfigParser import ConfigParser, NoSectionError
         cp = ConfigParser()
         #read CP from GC doc
-        cp.readfp(io.BytesIO(str(cpdoc)))
+        cp.readfp(io.BytesIO(LDSUtilities.recode(cpdoc,uflag='encode')))#str(cpdoc
 
         #read the PK list writing any PK's found into CP
         for item in ConfigInitialiser.readCSV(csvfile):
             try:
-                ky = item[2].replace('"','').lstrip()
+                ky = item[2].replace('ogc_fid','').replace('"','').lstrip()
                 for lt in LDSUtilities.LORT:
                     ly = str(idp+lt+'-'+item[0])
+                    #cant have a pk named ogc_fid since this is created automatically by the database, creating a new one crashes
                     if cp.has_section(ly):
                         cp.set(ly,'pkey',ky)
                         ldslog.debug('Setting PK on layer. '+ly+'//'+ky)
@@ -573,7 +676,7 @@ class ConfigInitialiser(object):
         #CP doesn't have a simple non-file write method?!?
         cps = "# LDS Layer Properties Initialiser - File\n"
         for section in cp.sections():
-            ldslog.critical('writing >>>'+str(section))
+            #ldslog.critical('writing >>>'+str(section))
             cps += "\n["+str(section)+"]\n"
             for option in cp.options(section):
                 cps += str(option)+": "+str(cp.get(section, option))+"\n"
@@ -613,8 +716,8 @@ class ConfigInitialiser(object):
         from lds.ReadConfig import MainFileReader as MF
         return sorted([f.split('.')[0] for f in os.listdir(confdir) if re.search('(?!^'+MF.DEFAULT_MF+'$)^.+\.conf$',f)]) 
         
+
         
-    
 class SUFIExtractor(object):
     '''XSL parser to read big int columns returning a dict of id<->col matches'''
     @staticmethod
@@ -706,6 +809,47 @@ class LayerConfEntry(object):
         self.cql = cql
         
     def __str__(self):
-        return 'LCE {}={} - {}'.format(self.pkey if LDSUtilities.mightAsWellBeNone(self.pkey) else '_id', self.id, self.name)
+        return 'LCE {}={} - {}'.format(self.pkey if LDSUtilities.assessNone(self.pkey) else '_id', self.id, self.name)
     
         
+def _readLDS(up,q):
+    '''Simple LDS reader to be used in a timed worker thread context. 
+    COPY OF LDSU.readLDS METHOD'''
+    (u,p) = up
+    ldslog.debug("LDS URL {} using Proxy {}".format(u,p))
+    if LDSUtilities.isProxyValid(p): install_opener(build_opener(ProxyHandler(p)))
+    with closing(urlopen(u)) as lds:
+        q.put(lds.read())
+        
+# class STObj(object):
+#     def __init__(self,m,a):
+#         self.method = m
+#         self.args = a
+#         self.success = False
+#         
+#     def setResult(self,res):
+#         self.res = res
+#         
+#     def getResult(self):
+#         return self.res
+            
+# def _pickle_method(method):
+#     func_name = method.im_func.__name__
+#     obj = method.im_self
+#     cls = method.im_class
+#     return _unpickle_method, (func_name, obj, cls)
+#  
+# def _unpickle_method(func_name, obj, cls):
+#     for cls in cls.mro():
+#         try:
+#             func = cls.__dict__[func_name]
+#         except KeyError:
+#             pass
+#         else:
+#             break
+#     return func.__get__(obj, cls)
+#  
+# import copy_reg
+# import types
+#  
+# copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)

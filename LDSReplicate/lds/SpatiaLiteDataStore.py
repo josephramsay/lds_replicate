@@ -82,7 +82,7 @@ class SpatiaLiteDataStore(DataStore):
         
     def _commonURI(self,layer):
         '''Since SpatiaLite databases are self contained files this only needs to return a file path'''
-        if hasattr(self,'conn_str') and self.conn_str is not None:
+        if hasattr(self,'conn_str') and self.conn_str:
             return self.validateConnStr(self.conn_str)
         #return self.file #+"SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE"
         slfname = self.fname+('' if re.search('|'.join(self.SUFFIX)+'$',self.fname,flags=re.IGNORECASE) else self.SUFFIX[0])
@@ -117,14 +117,13 @@ class SpatiaLiteDataStore(DataStore):
     def executePragma(self,pragma):
         '''Hack to turn WAL on when OGR version<2.0'''
         rv = self.executeSQL('PRAGMA '+str(pragma))
-        print rv.GetName()
 
     def buildIndex(self,lce,dst_layer_name):
         '''Builds an index creation string for a new full replicate in PG format'''
         tableonly = dst_layer_name.split('.')[-1]
         ALLOW_CONSTRAINT_CREATION=False
         #SpatiaLite doesnt have a unique constraint but since we're using a pk might a well declare it as such
-        if ALLOW_CONSTRAINT_CREATION and LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
+        if ALLOW_CONSTRAINT_CREATION and LDSUtilities.assessNone(lce.pkey):
             #spatialite won't do post create constraint additions (could to a re-create?)
             cmd = 'ALTER TABLE {0} ADD PRIMARY KEY {1}_{2}_PK ({2})'.format(dst_layer_name,tableonly,lce.pkey)
             try:
@@ -138,7 +137,7 @@ class SpatiaLiteDataStore(DataStore):
         
         #Unless we select SPATIAL_INDEX=no as a Layer option this should never be needed
         #because gcol is also used to determine whether a layer is spatial still do this check   
-        if LDSUtilities.mightAsWellBeNone(lce.gcol) is not None and 'SPATIAL_INDEX=NO' in [opt.replace(' ','').upper() for opt in self.sl_local_opts]:
+        if LDSUtilities.assessNone(lce.gcol) and 'SPATIAL_INDEX=NO' in [opt.replace(' ','').upper() for opt in self.sl_local_opts]:
             cmd = "SELECT CreateSpatialIndex('{}','{}')".format(dst_layer_name,self.DEFAULT_GCOL)
             try:
                 self.executeSQL(cmd)

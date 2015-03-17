@@ -179,14 +179,15 @@ class LDSDataStore(WFSDataStore):
         kyxp = "./{0}Keywords/{0}Keyword".format(cls.NS['ows'])
         
         try:            
-            if not LDSUtilities.mightAsWellBeNone(proxy): install_opener(build_opener(ProxyHandler(proxy)))
+            if not LDSUtilities.assessNone(proxy): install_opener(build_opener(ProxyHandler(proxy)))
             #content = urlopen(url)#bug in lxml doesnt close url/files using parse method
             with closing(urlopen(url)) as content:
                 tree = etree.parse(content)
                 for ft in tree.findall(ftxp):
-                    name = ft.find(nmxp).text.encode('utf8')
-                    title = ft.find(ttxp).text.encode('utf8')
-                    keys = [x.text.encode('utf8') for x in ft.findall(kyxp)]
+                    name = ft.find(nmxp).text#.encode('utf8')
+                    title = ft.find(ttxp).text#.encode('utf8')
+                    #keys = [x.text.encode('utf8') for x in ft.findall(kyxp)]
+                    keys = [x.text for x in ft.findall(kyxp)]
                     
                     res += ((name,title,keys),)
                 

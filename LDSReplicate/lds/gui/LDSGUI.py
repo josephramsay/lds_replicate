@@ -22,7 +22,7 @@ from PyQt4.QtGui import (QApplication, QProgressBar, QLabel, QCursor,
                          QMainWindow, QAction, QIcon, qApp, QFrame,
                          QLineEdit,QToolTip, QFont, QComboBox, QDateEdit, 
                          QPushButton, QDesktopWidget, QFileDialog, QTextEdit)
-from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, 
+from PyQt4.QtCore import (QRegExp, QDate, QCoreApplication, QDir, Qt, QByteArray, QString,
                           QTimer, QEventLoop, QThread, QSize)
 
 
@@ -36,7 +36,7 @@ import gdal
 
 from lds.TransferProcessor import TransferProcessor, LORG
 from lds.ReadConfig import GUIPrefsReader, MainFileReader, LayerFileReader,LayerDSReader
-from lds.LDSUtilities import LDSUtilities, ConfigInitialiser
+from lds.LDSUtilities import LDSUtilities as LU, ConfigInitialiser
 from lds.VersionUtilities import AppVersion
 from lds.ConfigConnector import ConfigConnector, ProcessRunner, EndpointConnectionException, ConnectionConfigurationException
 
@@ -44,7 +44,7 @@ from lds.gui.LayerConfigSelector import LayerConfigSelector
 
 from lds.DataStore import DataStore, MalformedConnectionString, DriverInitialisationException, DatasourceCreateException, DatasourceOpenException
 
-ldslog = LDSUtilities.setupLogging()
+ldslog = LU.setupLogging()
 
 __version__ = AppVersion.getVersion()
 
@@ -61,7 +61,7 @@ class LDSMain(QMainWindow):
     
     DUMMY_CONF = '_deleteme'
     
-    def __init__(self):
+    def __init__(self,initlc=False):        ####INITLC FOR TRACING ONLY DELETE IN PRODUCTION
         super(LDSMain, self).__init__()
         
         self.layers = None
@@ -74,8 +74,9 @@ class LDSMain(QMainWindow):
         wcount = 0
         while initcc and wcount<self.MAX_WIZARD_ATTEMPTS:
             try:
-                self.initConfigConnector()
+                self.initConfigConnector(initlc=initlc)
                 initcc = False
+                break
             except MalformedConnectionString as mcse:
                 ldslog.warn('Connection String malformed or missing. '+str(mcse))
                 self.runWizardDialog(None,None)
@@ -89,6 +90,8 @@ class LDSMain(QMainWindow):
             except Exception as e:
                 ldslog.error('Unhandled Exception in Config Setup. '+str(e))
                 wcount += 1
+        else:
+            raise e
 
         self.setGeometry(300, 300, 350, 250)
         self.setWindowTitle('LDS Data Replicator')
@@ -150,21 +153,26 @@ class LDSMain(QMainWindow):
         '''Read GPR file for changes or init'''
         if not self.gpr: 
             self.gpr = GUIPrefsReader()
-        return [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
+        return [x if LU.assessNone(x) else y for x,y in zip(self.gpr.read(),self.DEF_RVALS)]
         
-    def initConfigConnector(self,gvs=None):
+    def initConfigConnector(self,gvs=None,initlc=None):
         '''Try to initialise the configconnector object'''
         self.gvs = gvs if gvs else self.updateFromGPR()
         try:
             uc = self.gvs[2]
             dst = self.gvs[0]
-            self.confconn = ConfigConnector(self,uc,self.gvs[1],dst)
+            self.confconn = ConfigConnector(self,uc,self.gvs[1],dst,initlc)
         except RuntimeError as rer:
             msg = 'Runtime error creating {} using "{}.conf" config file. {}'.format(self.gvs[0],uc,rer)
             self.errorEvent(msg)
         except UnicodeEncodeError as uee:
             msg = 'Unicode Encode Error, encode/sanitise input and try again. {}'.format(uee)
             self.errorEvent(msg)
+            raise
+        except UnicodeDecodeError as ude:
+            msg = 'Unicode Decode Error, stored unicode value not being presented correctly. {}'.format(ude)
+            #self.errorEvent(msg)
+            raise
         except DatasourceCreateException as dce:
             msg = 'Cannot DS CREATE {} connection using "{}.conf" config file. Switching selected config and retrying. Please edit config or set new datasource; {}'.format(dst,uc,dce)
             self.switchDSSelection(dst)
@@ -200,13 +208,13 @@ class LDSMain(QMainWindow):
         dep = None
         
     def launchUCEditor(self, checked=None):
-        fn = LDSUtilities.standardiseUserConfigName(str(self.controls.cflist[self.controls.confcombo.currentIndex()]))
+        fn = LU.standardiseUserConfigName(str(self.controls.cflist[self.controls.confcombo.currentIndex()]))
         prefs = LDSPrefsEditor(fn,self)
         prefs.setWindowTitle('LDS Preferences Editor (User Config)')
         prefs.show()    
         
     def launchLCEditor(self, checked=None):
-        fn = LDSUtilities.standardiseLayerConfigName(str(self.controls.destlist[self.controls.destcombo.currentIndex()]))
+        fn = LU.standardiseLayerConfigName(str(self.controls.destlist[self.controls.destcombo.currentIndex()]))
         prefs = LDSPrefsEditor(fn,self)
         prefs.setWindowTitle('LDS Preferences Editor (Layer Config)')
         prefs.show()
@@ -245,7 +253,8 @@ class LDSMain(QMainWindow):
     def runLayerConfigAction(self):
         '''Arg-less action to open a new layer config dialog'''        
         dest,lgval,uconf,_,_,_,_,_ = self.controls.readParameters()
-        if not LDSUtilities.mightAsWellBeNone(dest):
+        
+        if not LU.assessNone(dest):
             self.controls.setStatus(self.controls.STATUS.IDLE,'Cannot open Layer-Config without defined Destination')
             return
             
@@ -265,7 +274,7 @@ class LDSMain(QMainWindow):
         
     def closeEvent(self, event, bypass=False):
         '''Close confirmation dialog'''
-        reply = QMessageBox.question(self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        reply = QMessageBox.question(self, 'Message', "Are you sure you want to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
             event.accept()
@@ -295,7 +304,7 @@ class LDSControls(QFrame):
     MAX_WD = 450
     
     GD_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../bin/gdal/gdal-data'))
-    STATUS = LDSUtilities.enum('ERROR','IDLE','BUSY','CLEAN')
+    STATUS = LU.enum('ERROR','IDLE','BUSY','CLEAN')
     
     def __init__(self,parent):
         super(LDSControls, self).__init__()
@@ -587,7 +596,7 @@ class LDSControls(QFrame):
     
     def gprParameters(self,rdest):
         '''Zip default and GPR values'''
-        return [x if LDSUtilities.mightAsWellBeNone(x) else y for x,y in zip(self.parent.gpr.readsec(rdest),self.parent.DEF_RVALS[1:])]
+        return [x if LU.assessNone(x) else y for x,y in zip(self.parent.gpr.readsec(rdest),self.parent.DEF_RVALS[1:])]
     
     def getLCE(self,ln):
         '''Read layer parameters'''
@@ -619,7 +628,7 @@ class LDSControls(QFrame):
     def doLGComboChanged(self):
         '''Read the layer/group value and change epsg to layer or gpr match'''
         #get a matching LG entry and test whether its a layer or group
-        lgi = self.parent.confconn.getLGIndex(str(self.lgcombo.currentText()))
+        lgi = self.parent.confconn.getLGIndex(self.lgcombo.currentText().toUtf8().data())
         #lgi can be none if we init a new group, in which case we use the GPR value
         if lgi:
             lge = self.parent.confconn.lglist[lgi]
@@ -628,7 +637,7 @@ class LDSControls(QFrame):
             lce = None
         
         #look for filled layer conf epsg OR use prefs stored in gpr
-        if lce and LDSUtilities.mightAsWellBeNone(lce.epsg):
+        if lce and LU.assessNone(lce.epsg):
             epsgval = lce.epsg
         else:
             rdest = str(self.destlist[self.destcombo.currentIndex()])
@@ -647,7 +656,7 @@ class LDSControls(QFrame):
         #--------------------------------------------------------------------
         
         #Destination Menu
-        selecteddest = LDSUtilities.standardiseDriverNames(rdest)
+        selecteddest = LU.standardiseDriverNames(rdest)
         if selecteddest not in self.destlist:
             self.destlist = self.getConfiguredDestinations()
             self.destcombo.addItem(selecteddest)
@@ -661,7 +670,7 @@ class LDSControls(QFrame):
         
         #Config File
         confindex = 0
-        if LDSUtilities.mightAsWellBeNone(ruconf):
+        if LU.assessNone(ruconf):
             ruconf = ruconf.split('.')[0]
             if ruconf not in self.cflist:
                 self.cflist += [ruconf,]
@@ -670,16 +679,16 @@ class LDSControls(QFrame):
             
         if self.confcombo.currentIndex() != confindex:
             self.confcombo.setCurrentIndex(confindex)
-        #self.confEdit.setText(ruconf if LDSUtilities.mightAsWellBeNone(ruconf) else '')
+        #self.confEdit.setText(ruconf if LU.assessNone(ruconf) else '')
         
         #Layer/Group Selection
         self.updateLGValues(ruconf,self.rlgval,rdest)
         lgindex = None
-        if LDSUtilities.mightAsWellBeNone(self.rlgval):
+        if LU.assessNone(self.rlgval):
             #index of list value
             lgindex = self.parent.confconn.getLGIndex(self.rlgval,col=1)
             
-        if lgindex:
+        if LU.assessNone(lgindex):
             #advance by 1 for sep
             lgindex += 1 if lgindex>self.sepindex else 0 
         else:
@@ -691,7 +700,7 @@ class LDSControls(QFrame):
         
         #EPSG
         #                                user > layerconf
-        #useepsg = LDSUtilities.precedence(repsg, lce.epsg if lce else None, None)
+        #useepsg = LU.precedence(repsg, lce.epsg if lce else None, None)
         epsgindex = [i[0] for i in self.nzlsr+[(None,None)]+self.rowsr].index(repsg)
         if self.epsgcombo.currentIndex() != epsgindex:
             self.epsgcombo.setCurrentIndex(epsgindex)
@@ -702,20 +711,20 @@ class LDSControls(QFrame):
         #epsgedit.setText([e for e in self.nzlsr+self.rowsr if re.match('^\s*(\d+).*',e).group(1)==repsg][0])
         
         #To/From Dates
-        if LDSUtilities.mightAsWellBeNone(rfd) is not None:
+        if LU.assessNone(rfd):
             self.fromdateedit.setDate(QDate(int(rfd[0:4]),int(rfd[5:7]),int(rfd[8:10])))
         else:
             early = DataStore.EARLIEST_INIT_DATE
             self.fromdateedit.setDate(QDate(int(early[0:4]),int(early[5:7]),int(early[8:10])))
             
-        if LDSUtilities.mightAsWellBeNone(rtd) is not None:
+        if LU.assessNone(rtd):
             self.todateedit.setDate(QDate(int(rtd[0:4]),int(rtd[5:7]),int(rtd[8:10]))) 
         else:
             today = DataStore.getCurrent()
             self.todateedit.setDate(QDate(int(today[0:4]),int(today[5:7]),int(today[8:10])))
             
         #Internal/External CheckBox
-#        if LDSUtilities.mightAsWellBeNone(rint) is not None:
+#        if LU.assessNone(rint):
 #            self.internalTrigger.setChecked(rint.lower()==DataStore.CONF_INT)
 #        else:
 #            self.internalTrigger.setChecked(DataStore.DEFAULT_CONF==DataStore.CONF_INT)
@@ -736,11 +745,11 @@ class LDSControls(QFrame):
           
     def readParameters(self):
         '''Read values out of dialogs'''
-        destination = LDSUtilities.mightAsWellBeNone(str(self.destlist[self.destcombo.currentIndex()]))
-        lgindex = self.parent.confconn.getLGIndex(str(self.lgcombo.currentText()))
+        destination = LU.assessNone(str(self.destlist[self.destcombo.currentIndex()]))
+        lgindex = self.parent.confconn.getLGIndex(self.lgcombo.currentText().toUtf8().data())
         #NB need to test for None explicitly since zero is a valid index
-        lgval = self.parent.confconn.lglist[lgindex][1] if LDSUtilities.mightAsWellBeNone(lgindex) is not None else None       
-        #uconf = LDSUtilities.standardiseUserConfigName(str(self.confcombo.lineEdit().text()))
+        lgval = self.parent.confconn.lglist[lgindex][1] if LU.assessNone(lgindex) else None       
+        #uconf = LU.standardiseUserConfigName(str(self.confcombo.lineEdit().text()))
         #uconf = str(self.confcombo.lineEdit().text())
         uconf = str(self.cflist[self.confcombo.currentIndex()])
         ee = self.epsgenable.isChecked()
@@ -762,52 +771,48 @@ class LDSControls(QFrame):
             finally:
                 self.setStatus(self.STATUS.IDLE,'Ready')
         except Exception as e:
-            self.setStatus(self.STATUS.ERROR,'Error in Layer-Config',str(e))
+            self.setStatus(self.STATUS.ERROR,'Error in Layer-Config',str(sys.exc_info()))#e))
         
     def doCleanClickAction(self):
         '''Set clean anim and run clean'''
-        lgo = str(self.lgcombo.currentText())
+        lgo = self.lgcombo.currentText().toUtf8().data()
         
         try:
             self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)
             self.progressbar.setValue(0)
             self.runReplicationScript(True)
         except Exception as e:
-            self.setStatus(self.STATUS.ERROR,'Failed Clean of '+lgo,str(e))
+            self.setStatus(self.STATUS.ERROR,'Failed Clean of '+lgo,str(sys.exc_info()))#e))
         
     def doReplicateClickAction(self):
         '''Set busy anim and run repl'''
-        lgo = str(self.lgcombo.currentText())
+        lgo = self.lgcombo.currentText()#.toUtf8().data()#only used for error messages
         try:
             self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
             self.progressbar.setValue(0)
             self.runReplicationScript(False)
         except Exception as e:
-            self.setStatus(self.STATUS.ERROR,'Failed Replication of '+lgo,str(e))
+            self.setStatus(self.STATUS.ERROR,'Failed Replication of '+lgo,str(sys.exc_info()))#e))
 
     def runReplicationScript(self,clean=False):
         '''Run the layer/group repliction script'''
         destination,lgval,uconf,epsg,fe,te,fd,td = self.readParameters()
+        uconf_path = LU.standardiseUserConfigName(uconf)
+        destination_path = LU.standardiseLayerConfigName(destination)
+        destination_driver = LU.standardiseDriverNames(destination)
 
-        uconf_path = LDSUtilities.standardiseUserConfigName(uconf)
-        destination_path = LDSUtilities.standardiseLayerConfigName(destination)
-        destination_driver = LDSUtilities.standardiseDriverNames(destination)
-        
         if not os.path.exists(uconf_path):
             self.userConfMessage(uconf_path)
             return
         elif not MainFileReader(uconf_path).hasSection(destination_driver):
             self.userConfMessage(uconf_path,destination_driver)
             return
-  
         #-----------------------------------------------------
-
         #'destname','layer','uconf','group','epsg','fd','td','int'
      
         self.parent.gpr.write((destination_driver,lgval,uconf,epsg,fd,td))        
-        ldslog.info('dest={0}, lg={1}, conf={2}, epsg={3}'.format(destination_driver,lgval,uconf,epsg))
-        ldslog.info('fd={0}, td={1}, fe={2}, te={3}'.format(str(fd),str(td),str(fe),str(te)))
-
+        ldslog.info(u'dest={0}, lg={1}, conf={2}, epsg={3}'.format(destination_driver,lgval,uconf,epsg))
+        ldslog.info('fd={0}, td={1}, fe={2}, te={3}'.format(fd,td,fe,te))
         lgindex = self.parent.confconn.getLGIndex(lgval,col=1)
         #lorg = self.parent.confconn.lglist[lgindex][0]
         #----------don't need lorg in TP anymore but it is useful for sorting/counting groups
@@ -816,7 +821,6 @@ class LDSControls(QFrame):
         if self.fromdateenable.isChecked(): self.parent.confconn.tp.setFromDate(fd)
         if self.todateenable.isChecked(): self.parent.confconn.tp.setToDate(td)
         self.parent.confconn.tp.setUserConf(uconf)
-        
         if self.epsgenable: self.parent.confconn.tp.setEPSG(epsg)
         
         #because clean state persists in TP
@@ -824,7 +828,6 @@ class LDSControls(QFrame):
             self.parent.confconn.tp.setCleanConfig()
         else:
             self.parent.confconn.tp.clearCleanConfig()
-            
         #(re)initialise the data source since uconf may have changed
         #>>#self.parent.confconn.tp.src = self.parent.confconn.initSourceWrapper()
         #--------------------------
@@ -841,7 +844,6 @@ class LDSControls(QFrame):
             ldslog.error('Cannot create ProcessRunner {}. NB Possible missing Layer Config {}'.format(str(e),destination_path))
             self.layerConfMessage(destination_path)
             return
-        
         #If PR has been successfully created we must vave a valid dst    
         self.tpr.start()
         

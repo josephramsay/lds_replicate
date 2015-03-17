@@ -30,11 +30,11 @@ import copy
 import pdb 
 
 from lds.TransferProcessor import LORG
-from lds.LDSUtilities import LDSUtilities
+from lds.LDSUtilities import LDSUtilities as LU
 from lds.VersionUtilities import AppVersion
 
 
-ldslog = LDSUtilities.setupLogging()
+ldslog = LU.setupLogging()
 
 __version__ = AppVersion.getVersion()
 
@@ -47,7 +47,7 @@ HCOLS = 2
        
 
 class LayerConfigSelector(QMainWindow):
-    STEP = LDSUtilities.enum('PRE','POST')
+    STEP = LU.enum('PRE','POST')
 
     #def __init__(self,tp,uconf,group,dest='PostgreSQL',parent=None):
     def __init__(self,parent=None):
@@ -56,8 +56,9 @@ class LayerConfigSelector(QMainWindow):
         
         self.parent = parent
         
-        #Build models splitting by keyword if necessary 
-        av_sl = self.splitData(str(self.parent.confconn.lgval),self.parent.confconn.complete)
+        #Build models splitting by keyword if necessary
+        #print 'LGVAL in LCS',self.parent.confconn.lgval
+        av_sl = self.splitData(LU.recode(self.parent.confconn.lgval),self.parent.confconn.complete) if self.parent.confconn.lgval else (list(self.parent.confconn.complete),[])
         
         self.available_model = LayerTableModel('L::available',self)
         self.available_model.initData(av_sl[0],self.parent.confconn.inclayers)
@@ -93,16 +94,18 @@ class LayerConfigSelector(QMainWindow):
         self.selection_model.initData(av_sl[1],self.parent.confconn.inclayers)
         self.signalModels(self.STEP.POST)
         
-    def writeKeysToLayerConfig(self, customkey):
+    def writeKeysToLayerConfig(self, ckey):
         '''Add custom key to the selection_model list of layers (assumes required av->sl transfer completed) not just the transferring entry'''
         layerlist = [ll[0] for ll in self.selection_model.mdata]
         replacementlist = ()
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
         #print 'opened dep=',dep,'reg=',self.parent.confconn.reg#DEBUG
         self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,None,dep,initlc=False)
-        categorylist = [f.encode('utf8').strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category') if f]
+        #categorylist = [f.encode('utf8').strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category') if f]
+        categorylist = [LU.assessNone(f) for f in dep.getLayerConf().readLayerProperty(layerlist, 'category')]
         for cat in categorylist:
-            replacementlist += (cat if re.search(customkey,cat) else cat+","+str(customkey),)
+            replacementlist += ( (cat if ckey in cat.split(',') else cat+','+ckey) if cat else ckey, )
+        #print '>>> writing this replacementlist to LC',replacementlist
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
         #new keyword written so re-read complete (LC) and update assigned keys list
         self.parent.confconn.setupComplete(dep)
@@ -113,7 +116,7 @@ class LayerConfigSelector(QMainWindow):
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)        
         dep = None
     
-    def deleteKeysFromLayerConfig(self,layerlist,customkey):
+    def deleteKeysFromLayerConfig(self,layerlist,ckey):
         '''Remove custom keys from selected layers'''
         replacementlist = ()
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
@@ -121,7 +124,13 @@ class LayerConfigSelector(QMainWindow):
         self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,None,dep,initlc=False)
         categorylist = [f.encode('utf8').strip() for f in dep.getLayerConf().readLayerProperty(layerlist, 'category') if f]
         for cat in categorylist:
-            replacementlist += (re.sub(',+',',',''.join(cat.split(str(customkey))).strip(',')),)    
+            #replacementlist += (re.sub(',+',',',''.join(cat.split(ckey)).strip(',')),)
+            try:  
+                cat = cat.split(',')
+                cat.remove(LU.recode(ckey,uflag='encode'))
+            except ValueError:
+                pass
+            replacementlist += (','.join(cat),)
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
  
         #-----------------------------------
@@ -139,7 +148,7 @@ class LayerConfigSelector(QMainWindow):
         '''Splits up the 'complete' layer list according to whether it has the selection keyword or not'''
         alist = []
         slist = []
-        assert complete
+        assert complete, 'Need complete layerlist to generate selection menu'
         for dp in complete:
             if keyword and keyword in dp[2]:
                 slist.append(dp)
@@ -160,9 +169,9 @@ class LayerConfigSelector(QMainWindow):
         '''Intercept close event to signal parent to update status'''
         self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'Done')
         #return last group selection
-        lastgroup = str(self.page.keywordcombo.lineEdit().text())
+        lastgroup = LU.recode(self.page.keywordcombo.lineEdit().text().toUtf8().data())
         #self.parent.controls.gpr.writeline('lgvalue',lastgroup)
-        if LDSUtilities.mightAsWellBeNone(lastgroup) is not None:
+        if LU.assessNone(lastgroup):
             dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
             #sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
             self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,None,dep)
@@ -171,7 +180,8 @@ class LayerConfigSelector(QMainWindow):
             self.parent.confconn.buildLGList()
             lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
             self.parent.controls.refreshLGCombo()
-            self.parent.controls.lgcombo.setCurrentIndex(lgindex)
+            #current index wont be available in parent if this is the init run
+            self.parent.controls.lgcombo.setCurrentIndex(lgindex if lgindex else 0)
             #self.parent.confconn.reg.closeEndPoint('WFS')
             self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
             sep,dep = None,None
@@ -234,7 +244,7 @@ class LayerTableModel(QAbstractTableModel):
     
     def initData(self,mdata,ilist=None):
         self.mdata = copy.copy(mdata)
-        if ilist is not None:
+        if ilist:
             self.ilist = ilist
         
     def addData(self,additions):
@@ -346,10 +356,10 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.activated.connect(self.doKeyComboChangeAction)
         
         lgindex = self.confconn_link.getLGIndex(self.confconn_link.lgval,col=1)
-        lgentry = self.confconn_link.lglist[lgindex] if LDSUtilities.mightAsWellBeNone(lgindex) else None
-        keywordedit = self.keywordcombo.lineEdit()
+        lgentry = self.confconn_link.lglist[lgindex] if LU.assessNone(lgindex) else None
+        #keywordedit = self.keywordcombo.lineEdit().text().toUtf8().data().decode('utf8')# for writing
         #if no entry or layer indicated then blank 
-        keywordedit.setText('' if lgentry is None or lgentry[0]==LORG.LAYER else lgentry[1])#self.confconn_link.lgval)#TODO. group only
+        self.keywordcombo.lineEdit().setText('' if lgentry is None or lgentry[0]==LORG.LAYER else lgentry[1])#self.confconn_link.lgval)#TODO. group only
         
         #header
         headmodel = QStandardItemModel()
@@ -455,7 +465,7 @@ class LayerSelectionPage(QFrame):
             
     def doChooseAllClickAction(self):
         '''Moves the lot to Selected'''
-        ktext = str(self.keywordcombo.lineEdit().text())
+        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
         if not self.checkKeyword(ktext): return
         #------------------------------
         self.parent.signalModels(self.parent.STEP.PRE)
@@ -471,7 +481,8 @@ class LayerSelectionPage(QFrame):
     
     def doChooseClickAction(self):
         '''Takes available selected and moves to selection'''
-        ktext = str(self.keywordcombo.lineEdit().text())
+        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        #ktext = str(self.keywordcombo.lineEdit().text())
         if not self.checkKeyword(ktext): return
         #------------------------------
         select = self.available.selectionModel()
@@ -502,7 +513,7 @@ class LayerSelectionPage(QFrame):
             
     def doRejectClickAction(self):
         '''Takes available selected and moves to selection'''
-        ktext = str(self.keywordcombo.lineEdit().text())
+        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
         if not self.checkKeyword(ktext): return
         #------------------------------
         select = self.selection.selectionModel()
@@ -527,7 +538,7 @@ class LayerSelectionPage(QFrame):
 
                 
     def doRejectAllClickAction(self):
-        ktext = str(self.keywordcombo.lineEdit().text())
+        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
         if not self.checkKeyword(ktext): return
         #------------------------------
         self.parent.deleteKeysFromLayerConfig([ll[0] for ll in self.parent.selection_model.mdata],ktext)
@@ -550,9 +561,10 @@ class LayerSelectionPage(QFrame):
         #    self.keywordbypass = False
         #    return
         #------------------------------
-        ktext = str(self.keywordcombo.lineEdit().text())
+        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
         #------------------------------
-        av_sl = self.parent.splitData(ktext,self.confconn_link.complete)
+        av_sl = self.parent.splitData(ktext,self.confconn_link.complete) if ktext else self.confconn_link.complete
+        #av_sl = self.parent.splitData(ktext,self.confconn_link.complete)
         self.parent.signalModels(self.parent.STEP.PRE)
         self.parent.available_model.initData(av_sl[0])
         self.parent.selection_model.initData(av_sl[1])
@@ -573,7 +585,7 @@ class LayerSelectionPage(QFrame):
 
     def checkKeyword(self,ktext):
         '''Checks keyword isn't null and isn't part of the LDS supplied keywords'''
-        if LDSUtilities.mightAsWellBeNone(ktext) is None:
+        if LU.assessNone(ktext) is None:
             QMessageBox.about(self, "Keyword Required","Please enter a Keyword to assign Layer(s) to")
             return False
         if ktext in self.confconn_link.reserved:
@@ -593,7 +605,7 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
         self.direction = not self.direction
         
     def setActiveFilter(self,text):
-        self.ftext = str(text)
+        self.ftext = LU.recode(text.toUtf8().data())
         self.invalidateFilter()
         
     def addData(self,sourcedatalist):
@@ -613,9 +625,10 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
     
     def filterAcceptsRow(self,row,parent):
         '''Override for row filter function'''
+        #if not (row>1410 and row<1430): return not self.direction
         for i in range(0,self.sourceModel().columnCount()):
             field = self.sourceModel().data(self.sourceModel().index(row, i, parent),Qt.DisplayRole)
-            #print 'field="',field,'"    search_string="',self.ftext,'"'
+            #if re.search(self.ftext,field,re.IGNORECASE):
             if re.search(self.ftext,field,re.IGNORECASE):
                 return self.direction
         return not self.direction        
@@ -630,9 +643,9 @@ class LDSSFPSelectionModel(LDSSortFilterProxyModel):
         self.regexfilter = None
         self.direction = True # True is 'normal' direction
         
-    def setActiveFilter(self,text):
-        self.ftext = str(text)
-        self.invalidateFilter()
+#     def setActiveFilter(self,text):
+#         self.ftext = text.toUtf8().data()
+#         self.invalidateFilter()
     
 #enable this is we decide to also use the keyword box to filter results (problematic for invalid keywords, new or wrong)
 #    def filterAcceptsRow(self,row,parent):
@@ -655,18 +668,18 @@ class LDSSFPAvailableModel(LDSSortFilterProxyModel):
         self.regexfilter = None
         self.direction = True # True is 'normal' direction
 
-    def setActiveFilter(self,text):
-        self.ftext = str(text)
-        self.invalidateFilter()
+#     def setActiveFilter(self,text):
+#         self.ftext = text.toUtf8().data()
+#         self.invalidateFilter()
     
-    def filterAcceptsRow(self,row,parent):
-        '''Override for row filter function, filter from filteredit box'''
-        for i in range(0,self.sourceModel().columnCount()):
-            field = self.sourceModel().data(self.sourceModel().index(row, i, parent),Qt.DisplayRole)
-            #print 'field="',field,'"    search_string="',self.ftext,'"'
-            if re.search(self.ftext,field,re.IGNORECASE):
-                return self.direction
-        return not self.direction     
+#     def filterAcceptsRow(self,row,parent):
+#         '''Override for row filter function, filter from filteredit box'''
+#         for i in range(0,self.sourceModel().columnCount()):
+#             field = self.sourceModel().data(self.sourceModel().index(row, i, parent),Qt.DisplayRole)
+#             #print 'field="',field,'"    search_string="',self.ftext,'"'
+#             if re.search(self.ftext,field,re.IGNORECASE):
+#                 return self.direction
+#         return not self.direction     
         
     
 def main():
@@ -675,7 +688,7 @@ def main():
     #func to call config wizz
     app = QApplication(sys.argv)
 
-    ldsc = LayerConfigSelector(LDSMain())
+    ldsc = LayerConfigSelector(LDSMain(initlc=True))
     ldsc.show()
     sys.exit(app.exec_()) 
     

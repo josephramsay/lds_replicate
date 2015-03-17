@@ -89,10 +89,10 @@ class PostgreSQLDataStore(DataStore):
             
     def _commonURI(self,layer):
         '''Refers to common connection instance for reading or writing'''
-        if hasattr(self,'conn_str') and self.conn_str is not None:
+        if hasattr(self,'conn_str') and self.conn_str:
             return self.validateConnStr(self.conn_str)
         #can't put schema in quotes, causes error but without quotes tables get created in public anyway, still need schema.table syntax
-        if LDSUtilities.mightAsWellBeNone(self.pwd) is not None:
+        if LDSUtilities.assessNone(self.pwd):
             if self.pwd.startswith(Encrypt.ENC_PREFIX):
                 pwd = " password='{}'".format(Encrypt.unSecure(self.pwd))
             else:
@@ -100,10 +100,10 @@ class PostgreSQLDataStore(DataStore):
         else:
             pwd = ""
         
-        sch = " active_schema={}".format(self.schema) if LDSUtilities.mightAsWellBeNone(self.schema) is not None else ""
-        usr = " user='{}'".format(self.usr) if LDSUtilities.mightAsWellBeNone(self.usr) is not None else ""
-        hst = " host='{}'".format(self.host) if LDSUtilities.mightAsWellBeNone(self.host) is not None else ""
-        prt = " port='{}'".format(self.port) if LDSUtilities.mightAsWellBeNone(self.port) is not None else ""
+        sch = " active_schema={}".format(self.schema) if LDSUtilities.assessNone(self.schema) else ""
+        usr = " user='{}'".format(self.usr) if LDSUtilities.assessNone(self.usr) else ""
+        hst = " host='{}'".format(self.host) if LDSUtilities.assessNone(self.host) else ""
+        prt = " port='{}'".format(self.port) if LDSUtilities.assessNone(self.port) else ""
         uri = "PG:dbname='{}'".format(self.dbname)+hst+prt+usr+pwd+sch
         ldslog.debug(uri)
         return uri
@@ -130,7 +130,7 @@ class PostgreSQLDataStore(DataStore):
         local_opts += ['SPATIAL_INDEX='+str(self.SPATIAL_INDEX)]
         gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
-        if gname is not None:
+        if gname:
             local_opts += ['GEOMETRY_NAME='+gname]
         
         return super(PostgreSQLDataStore,self).getLayerOptions(layer_id) + local_opts
@@ -141,7 +141,7 @@ class PostgreSQLDataStore(DataStore):
         '''Builds an index creation string for a new full replicate in PG format'''
         tableonly = dst_layer_name.split('.')[-1]
         
-        if LDSUtilities.mightAsWellBeNone(lce.pkey):
+        if LDSUtilities.assessNone(lce.pkey):
             cmd = 'ALTER TABLE {0} ADD CONSTRAINT {1}_{2}_PK UNIQUE({2})'.format(dst_layer_name,tableonly,lce.pkey)
             try:
                 self.executeSQL(cmd)
@@ -153,7 +153,7 @@ class PostgreSQLDataStore(DataStore):
                     raise
                         
         #If a spatial index has already been created don't try to create another one
-        if self.SPATIAL_INDEX == 'OFF' and LDSUtilities.mightAsWellBeNone(lce.gcol):
+        if self.SPATIAL_INDEX == 'OFF' and LDSUtilities.assessNone(lce.gcol):
             cmd = 'CREATE INDEX {1}_{2}_GK ON {0} USING GIST({2})'.format(dst_layer_name,tableonly,lce.gcol)
             try:
                 self.executeSQL(cmd)

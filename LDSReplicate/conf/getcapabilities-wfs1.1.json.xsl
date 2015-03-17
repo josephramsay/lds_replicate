@@ -12,7 +12,7 @@ xmlns:wfs="http://www.opengis.net/wfs/2.0" vs ~/wfs
 xmlns:ows="http://www.opengis.net/ows/1.1" vs ~/ows
  -->
  
-<xsl:output method="text"/>
+<xsl:output method="text" encoding="UTF-8"/>
 <xsl:strip-space elements="*"/>
 
 <xsl:template match="wfs:WFS_Capabilities">
@@ -41,13 +41,13 @@ xmlns:ows="http://www.opengis.net/ows/1.1" vs ~/ows
 		</xsl:choose>
 		<xsl:text>,</xsl:text>
 		<xsl:text>"</xsl:text><xsl:value-of select="normalize-space(wfs:Title)"/><xsl:text>",</xsl:text>
-		<xsl:text>[</xsl:text>
+		<xsl:text>["</xsl:text>
 		<xsl:for-each select="$keyword">
-			<xsl:text>"</xsl:text>
+			<!-- <xsl:text>"</xsl:text> -->
 			<xsl:value-of select="normalize-space(.)"/>
 			<xsl:choose>
 				<xsl:when test="position() != last()">
-					<xsl:text>",</xsl:text>
+					<xsl:text>","</xsl:text>
 				</xsl:when>
 			</xsl:choose>
 		</xsl:for-each>

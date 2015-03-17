@@ -79,7 +79,7 @@ class FileGDBDataStore(ESRIDataStore):
         
     def _commonURI(self,layer):
         '''FileGDB organises tables as individual .gdb file/directories into which contents are written. The layer is configured as if it were a file'''
-        if hasattr(self,'conn_str') and self.conn_str is not None:
+        if hasattr(self,'conn_str') and self.conn_str:
             return self.validateConnStr(self.conn_str)
         return self.fname+(''if re.search(self.SUFFIX+'$',self.fname,flags=re.IGNORECASE) else self.SUFFIX)
         
@@ -98,7 +98,7 @@ class FileGDBDataStore(ESRIDataStore):
         tableonly = dst_layer_name.split('.')[-1]
         ALLOW_TABLE_INDEX_CREATION=True
         #SpatiaLite doesnt have a unique constraint but since we're using a pk might a well declare it as such
-        if ALLOW_TABLE_INDEX_CREATION and LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
+        if ALLOW_TABLE_INDEX_CREATION and LDSUtilities.assessNone(lce.pkey):
             #spatialite won't do post create constraint additions (could to a re-create?)
             cmd = 'CREATE INDEX {0}_{1}_PK ON {0}({1})'.format(tableonly,lce.pkey)
             try:
@@ -112,7 +112,7 @@ class FileGDBDataStore(ESRIDataStore):
         
         #Unless we select SPATIAL_INDEX=no as a Layer option this should never be needed
         #because gcol is also used to determine whether a layer is spatial still do this check   
-        if LDSUtilities.mightAsWellBeNone(lce.gcol):
+        if LDSUtilities.assessNone(lce.gcol):
             #untested and unlikely to work
             cmd = "CREATE INDEX {0}_{1}_SK ON {0}({1})".format(dst_layer_name,lce.gcol)
             try:
@@ -135,7 +135,7 @@ class FileGDBDataStore(ESRIDataStore):
         self.fg_local_lopts = []
         gname = self.layerconf.readLayerProperty(layer_id,'geocolumn')
         
-        if gname is not None:
+        if gname:
             self.fg_local_lopts += ['GEOMETRY_NAME='+gname]
         
         return super(FileGDBDataStore,self).getLayerOptions(layer_id) + self.fg_local_lopts    

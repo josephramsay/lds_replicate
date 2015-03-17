@@ -88,7 +88,7 @@ class MSSQLSpatialDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str:
             return self.validateConnStr(self.conn_str)
         #return "MSSQL:server={};database={};trusted_connection={};".format(self.server, self.dbname, self.trust)
-        if LDSUtilities.mightAsWellBeNone(self.pwd):
+        if LDSUtilities.assessNone(self.pwd):
             if self.pwd.startswith(Encrypt.ENC_PREFIX):
                 pwd = ";PWD={}".format(Encrypt.unSecure(self.pwd))
             else:
@@ -96,10 +96,10 @@ class MSSQLSpatialDataStore(DataStore):
         else:
             pwd = ""
             
-        sstr = ";Schema={}".format(self.schema) if LDSUtilities.mightAsWellBeNone(self.schema) is not None else ""
-        usr = ";UID={}".format(self.usr) if LDSUtilities.mightAsWellBeNone(self.usr) is not None else ""
-        drv = ";Driver='{}'".format(self.odbc) if LDSUtilities.mightAsWellBeNone(self.odbc) is not None else ""
-        tcn = ";trusted_connection={}".format(self.trust) if LDSUtilities.mightAsWellBeNone(self.trust) is not None else ""
+        sstr = ";Schema={}".format(self.schema) if LDSUtilities.assessNone(self.schema) else ""
+        usr = ";UID={}".format(self.usr) if LDSUtilities.assessNone(self.usr) else ""
+        drv = ";Driver='{}'".format(self.odbc) if LDSUtilities.assessNone(self.odbc) else ""
+        tcn = ";trusted_connection={}".format(self.trust) if LDSUtilities.assessNone(self.trust) else ""
         uri = "MSSQL:server={};database={}".format(self.server, self.dbname, self.odbc)+usr+pwd+drv+sstr+tcn
         ldslog.debug(uri)
         return uri
@@ -107,7 +107,7 @@ class MSSQLSpatialDataStore(DataStore):
 
     def generateLayerName(self,ref_name):
         '''compose a layer name with a schema prefix is one exists (has been specified)'''
-        return self.schema+"."+self.sanitise(ref_name) if (hasattr(self,'schema') and self.schema is not None and self.schema is not '') else self.sanitise(ref_name)
+        return self.schema+"."+self.sanitise(ref_name) if (hasattr(self,'schema') and self.schema and self.schema is not '') else self.sanitise(ref_name)
 
         
     def deleteOptionalColumns(self,dst_layer):
@@ -120,7 +120,7 @@ class MSSQLSpatialDataStore(DataStore):
             fdef = dst_layer_defn.GetFieldDefn(fi)
             fdef_nm = fdef.GetName()
             #print '>>>>>',fi,fi-offset,fdef_nm
-            if fdef is not None and fdef_nm in self.optcols:
+            if fdef and fdef_nm in self.optcols:
                 self.deleteFieldFromLayer(dst_layer, fi,fdef_nm)
                 
     def deleteFieldFromLayer(self,layer,field_id,field_name):
@@ -133,7 +133,7 @@ class MSSQLSpatialDataStore(DataStore):
         '''Builds an index creation string for a new full replicate'''
         tableonly = dst_layer_name.split('.')[-1]
         
-        if LDSUtilities.mightAsWellBeNone(lce.pkey) is not None:
+        if LDSUtilities.assessNone(lce.pkey):
             cmd = 'ALTER TABLE {0} ADD CONSTRAINT {1}_{2}_PK UNIQUE({2})'.format(dst_layer_name,tableonly,lce.pkey)
             try:
                 self.executeSQL(cmd)
@@ -144,7 +144,7 @@ class MSSQLSpatialDataStore(DataStore):
                 else:
                     raise        
                 
-        if LDSUtilities.mightAsWellBeNone(lce.gcol) is not None:
+        if LDSUtilities.assessNone(lce.gcol):
             cmd = 'CREATE SPATIAL INDEX {1}_{2}_GK ON {0}({2})'.format(dst_layer_name,tableonly,lce.gcol)
             cmd += ' WITH (BOUNDING_BOX = (XMIN = {0},YMIN = {1},XMAX = {2},YMAX = {3}))'.format(self.BBOX['XMIN'],self.BBOX['YMIN'],self.BBOX['XMAX'],self.BBOX['YMAX'])
             #cmd = 'CREATE SPATIAL INDEX ON {}'.format(tableonly)
@@ -169,17 +169,17 @@ class MSSQLSpatialDataStore(DataStore):
         
         local_opts = ['MARS Connection=TRUE']
         gc = self.layerconf.readLayerProperty(layer_id,'geocolumn')
-        if gc is not None:
+        if gc:
             local_opts += ['GEOM_NAME='+gc]
             
         schema = self.confwrap.readDSProperty(self.DRIVER_NAME,'schema')
         if schema is None:
             schema = self.schema
-        if LDSUtilities.mightAsWellBeNone(schema) is not None and LDSUtilities.containsOnlyAlphaNumeric(schema):
+        if LDSUtilities.assessNone(schema) and LDSUtilities.containsOnlyAlphaNumeric(schema):
             local_opts += ['SCHEMA='+schema]
             
         srid = self.layerconf.readLayerProperty(layer_id,'epsg')
-        if srid is not None:
+        if srid:
             local_opts += ['SRID='+srid]
         
         return super(MSSQLSpatialDataStore,self).getLayerOptions(layer_id) + local_opts

@@ -2,23 +2,9 @@
 dest = PostgreSQL
 
 [PostgreSQL]
-uconf = test
-lgvalue = LOL1
-epsg = 2193
+uconf = kudu
+lgvalue = banana
+epsg = None
 fd = None
-td = 2010-01-01
-
-[FileGDB]
-uconf = test
-lgvalue = data.linz.govt.nz:table-2018
-epsg = 2193
-fd = None
-td = 2010-01-01
-
-[SQLite]
-uconf = test
-lgvalue = sqtest
-epsg = 2193
-fd = None
-td = 2010-01-01
+td = None
 

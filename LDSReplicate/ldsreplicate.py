@@ -194,7 +194,7 @@ def main():
         reg = DatasourceRegister()
         sep = reg.openEndPoint('WFS',uc)
         dep = reg.openEndPoint(pn,uc)
-        reg.setupLayerConfig(tp,sep,dep)
+        reg.setupLayerConfig(tp,sep,dep, tp.getInitConfig())
         tp.setSRC(sep)
         tp.setDST(dep)
         tp.processLDS()

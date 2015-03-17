@@ -65,11 +65,11 @@ class WFSDataStore(DataStore):
         proxyconfigoptions = []
         #(type, host, port, auth, usr, pwd) = self.PP
         
-        type2 = LDSUtilities.mightAsWellBeNone(self.PP['TYPE'])
+        type2 = LDSUtilities.assessNone(self.PP['TYPE'])
         if type2 == self.PROXY_TYPE[1]:
-            if LDSUtilities.mightAsWellBeNone(self.PP['HOST']):
+            if LDSUtilities.assessNone(self.PP['HOST']):
                 hp = 'GDAL_HTTP_PROXY='+str(self.PP['HOST'])
-                if LDSUtilities.mightAsWellBeNone(self.PP['PORT']):
+                if LDSUtilities.assessNone(self.PP['PORT']):
                     hp += ':'+str(self.PP['PORT'])
                 proxyconfigoptions += [hp] 
                 #if no h/p no point doing u/p
@@ -78,21 +78,21 @@ class WFSDataStore(DataStore):
         
         if type2 == self.PROXY_TYPE[2]:
             #user difined, expect all fields filled
-            if LDSUtilities.mightAsWellBeNone(self.PP['HOST']):
+            if LDSUtilities.assessNone(self.PP['HOST']):
                 hp = 'GDAL_HTTP_PROXY='+str(self.PP['HOST'])
-                if LDSUtilities.mightAsWellBeNone(self.PP['PORT']):
+                if LDSUtilities.assessNone(self.PP['PORT']):
                     hp += ':'+str(self.PP['PORT'])
                 proxyconfigoptions += [hp] 
-            if LDSUtilities.mightAsWellBeNone(self.PP['USR']):
+            if LDSUtilities.assessNone(self.PP['USR']):
                 up = 'GDAL_HTTP_PROXYUSERPWD='+str(self.PP['USR'])
-                if LDSUtilities.mightAsWellBeNone(self.PP['PWD']):
+                if LDSUtilities.assessNone(self.PP['PWD']):
                     if self.PP['PWD'].startswith(Encrypt.ENC_PREFIX):
                         up += ":"+str(Encrypt.unSecure(self.PP['PWD']))
                     else:
                         up += ":"+str(self.PP['PWD'])
                 proxyconfigoptions += [up]
                 #NB do we also need to set GDAL_HTTP_USERPWD?
-            if LDSUtilities.mightAsWellBeNone(self.PP['AUTH']):
+            if LDSUtilities.assessNone(self.PP['AUTH']):
                 proxyconfigoptions += ['GDAL_PROXY_AUTH='+str(self.PP['AUTH'])]
                 #NB do we also need to set GDAL_HTTP_AUTH?   
             
@@ -129,7 +129,8 @@ class WFSDataStore(DataStore):
     
     def testURL(self,url):
         '''Connect to a URL using the configured proxy (using urlopen method)'''
-        return LDSUtilities.readDocument(url, self.pxy)
+        return LDSUtilities.timedProcessRunner(LDSUtilities.readLDS, (url,self.pxy), None)
+        #return LDSUtilities.readDocument(url, self.pxy)
         
         
         

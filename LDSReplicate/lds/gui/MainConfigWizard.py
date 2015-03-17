@@ -285,7 +285,7 @@ class ProxyConfigPage(QWizardPage):
         self.authSelect.addItem('')
         self.authSelect.setToolTip('Select appropriate proxy authentication mechanism')
         self.authSelect.addItems(WFSDataStore.PROXY_AUTH)
-        self.authSelect.setCurrentIndex(0 if LDSUtilities.mightAsWellBeNone(pxyauth) is None else WFSDataStore.PROXY_AUTH.index(pxyauth))
+        self.authSelect.setCurrentIndex(0 if LDSUtilities.assessNone(pxyauth) is None else WFSDataStore.PROXY_AUTH.index(pxyauth))
         
         self.usrEdit = QLineEdit(pxyusr)
         self.usrEdit.setToolTip('Enter your proxy username (if required)')
@@ -449,7 +449,7 @@ class PostgreSQLConfigPage(QWizardPage):
         #edit boxes
         self.hostEdit = QLineEdit(pghost)
         self.hostEdit.setToolTip('Enter the name of your PostgreSQL host/IP-address')
-        self.portEdit = QLineEdit('5432' if LDSUtilities.mightAsWellBeNone(pgport) is None else pgport)
+        self.portEdit = QLineEdit('5432' if LDSUtilities.assessNone(pgport) is None else pgport)
         self.portEdit.setToolTip('Enter the PostgreSQL listen port')
         self.dbnameEdit = QLineEdit(pgdbname)
         self.dbnameEdit.setToolTip('Enter the name of the PostgreSQL DB to connect with')
@@ -560,7 +560,7 @@ class MSSQLSpatialConfigPage(QWizardPage):
         self.schemaEdit = QLineEdit(msschema)
         self.schemaEdit.setToolTip('Enter schema name (this is not mandatory but a common default in MSSQL is "dbo")')
         self.trustCheckBox = QCheckBox('YES')
-        self.trustCheckBox.setChecked(mstrust is not None and mstrust.lower()=='yes')
+        self.trustCheckBox.setChecked(mstrust and mstrust.lower()=='yes')
         self.trustCheckBox.setToolTip('Use MSSQL trusted client authentication')
         self.usrEdit = QLineEdit(msusr)
         self.usrEdit.setToolTip('Enter MSSQL Username')
