@@ -19,9 +19,9 @@ import ogr
 import re
 
 from lds.DataStore import DataStore, MalformedConnectionString
-from lds.LDSUtilities import LDSUtilities, Encrypt
+from lds.LDSUtilities import LDSUtilities as LU, Encrypt
 
-ldslog = LDSUtilities.setupLogging()
+ldslog = LU.setupLogging()
 
 class MSSQLSpatialDataStore(DataStore):
     '''
@@ -88,7 +88,7 @@ class MSSQLSpatialDataStore(DataStore):
         if hasattr(self,'conn_str') and self.conn_str:
             return self.validateConnStr(self.conn_str)
         #return "MSSQL:server={};database={};trusted_connection={};".format(self.server, self.dbname, self.trust)
-        if LDSUtilities.assessNone(self.pwd):
+        if LU.assessNone(self.pwd):
             if self.pwd.startswith(Encrypt.ENC_PREFIX):
                 pwd = ";PWD={}".format(Encrypt.unSecure(self.pwd))
             else:
@@ -96,18 +96,18 @@ class MSSQLSpatialDataStore(DataStore):
         else:
             pwd = ""
             
-        sstr = ";Schema={}".format(self.schema) if LDSUtilities.assessNone(self.schema) else ""
-        usr = ";UID={}".format(self.usr) if LDSUtilities.assessNone(self.usr) else ""
-        drv = ";Driver='{}'".format(self.odbc) if LDSUtilities.assessNone(self.odbc) else ""
-        tcn = ";trusted_connection={}".format(self.trust) if LDSUtilities.assessNone(self.trust) else ""
+        sstr = ";Schema={}".format(self.schema) if LU.assessNone(self.schema) else ""
+        usr = ";UID={}".format(self.usr) if LU.assessNone(self.usr) else ""
+        drv = ";Driver='{}'".format(self.odbc) if LU.assessNone(self.odbc) else ""
+        tcn = ";trusted_connection={}".format(self.trust) if LU.assessNone(self.trust) else ""
         uri = "MSSQL:server={};database={}".format(self.server, self.dbname, self.odbc)+usr+pwd+drv+sstr+tcn
         ldslog.debug(uri)
         return uri
         #uid/pwd/t_c squotes removed
 
-    def generateLayerName(self,ref_name):
-        '''compose a layer name with a schema prefix is one exists (has been specified)'''
-        return self.schema+"."+self.sanitise(ref_name) if (hasattr(self,'schema') and self.schema and self.schema is not '') else self.sanitise(ref_name)
+    def constructLayerName(self,ref_name):
+        '''compose a layer name with a schema prefix if one exists (has been specified)'''
+        return self.schema+"."+LU.sanitise(ref_name) if (hasattr(self,'schema') and self.schema and self.schema is not '') else LU.sanitise(ref_name)
 
         
     def deleteOptionalColumns(self,dst_layer):
@@ -129,28 +129,28 @@ class MSSQLSpatialDataStore(DataStore):
         self.executeSQL(dsql)
         #ldslog.error("Field deletion not supported in MSSQLSpatial driver")
 
-    def buildIndex(self,lce,dst_layer_name):
+    def buildIndex(self):
         '''Builds an index creation string for a new full replicate'''
-        tableonly = dst_layer_name.split('.')[-1]
+        tableonly = self.dst_info.ascii_name.split('.')[-1]
         
-        if LDSUtilities.assessNone(lce.pkey):
-            cmd = 'ALTER TABLE {0} ADD CONSTRAINT {1}_{2}_PK UNIQUE({2})'.format(dst_layer_name,tableonly,lce.pkey)
+        if LU.assessNone(self.dst_info.pkey):
+            cmd = 'ALTER TABLE {0} ADD CONSTRAINT {1}_{2}_PK UNIQUE({2})'.format(self.dst_info.ascii_name,tableonly,self.dst_info.pkey)
             try:
                 self.executeSQL(cmd)
-                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.pkey,cmd))
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,self.dst_info.pkey,cmd))
             except RuntimeError as rte:
                 if re.search('already exists', str(rte)): 
                     ldslog.warn(rte)
                 else:
                     raise        
                 
-        if LDSUtilities.assessNone(lce.gcol):
-            cmd = 'CREATE SPATIAL INDEX {1}_{2}_GK ON {0}({2})'.format(dst_layer_name,tableonly,lce.gcol)
+        if LU.assessNone(self.dst_info.geocolumn):
+            cmd = 'CREATE SPATIAL INDEX {1}_{2}_GK ON {0}({2})'.format(self.dst_info.ascii_name,tableonly,self.dst_info.geocolumn)
             cmd += ' WITH (BOUNDING_BOX = (XMIN = {0},YMIN = {1},XMAX = {2},YMAX = {3}))'.format(self.BBOX['XMIN'],self.BBOX['YMIN'],self.BBOX['XMAX'],self.BBOX['YMAX'])
             #cmd = 'CREATE SPATIAL INDEX ON {}'.format(tableonly)
             try:
                 self.executeSQL(cmd)
-                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.gcol,cmd))
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,self.dst_info.geocolumn,cmd))
             except RuntimeError as rte:
                 if re.search('already exists', str(rte)): 
                     ldslog.warn(rte)
@@ -175,7 +175,7 @@ class MSSQLSpatialDataStore(DataStore):
         schema = self.confwrap.readDSProperty(self.DRIVER_NAME,'schema')
         if schema is None:
             schema = self.schema
-        if LDSUtilities.assessNone(schema) and LDSUtilities.containsOnlyAlphaNumeric(schema):
+        if LU.assessNone(schema) and LU.containsOnlyAlphaNumeric(schema):
             local_opts += ['SCHEMA='+schema]
             
         srid = self.layerconf.readLayerProperty(layer_id,'epsg')

@@ -3,8 +3,16 @@ dest = PostgreSQL
 
 [PostgreSQL]
 uconf = kudu
-lgvalue = banana
+lgvalue = data.linz.govt.nz:layer-2052
 epsg = None
 fd = None
 td = None
+
+[FileGDB]
+uconf = kudu
+lgvalue = fgpineapple
+
+[SQLite]
+uconf = kudu
+lgvalue = māorilayers
 

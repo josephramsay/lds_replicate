@@ -31,6 +31,7 @@ from contextlib import closing
 from StringIO import StringIO
 from lxml import etree
 from multiprocessing import Process, Queue
+from functools import wraps, partial
 
 #ldslog = LDSUtilities.setupLogging()
 mainlog = 'DEBUG'
@@ -569,6 +570,19 @@ class LDSUtilities(object):
         return msg
     
     @staticmethod
+    def sanitise(name):
+        '''Manually substitute potential table naming errors implemented as a common function to retain naming convention across all outputs.
+        No guarantees are made that this feature won't cause naming conflicts e.g. A-B-C -> a_b_c <- a::{b}::c'''
+        #append _ to name beginning with a number (NB \A = ^ for non multiline)
+        if re.match('\A\d',name):
+            name = "_"+name
+        #replace unwanted chars with _ and compress multiple and remove trailing
+        sanitised = re.sub('_+','_',re.sub('[ \-,.\\\\/:;{}()\[\]]','_',name.lower())).rstrip('_')
+        #unexpected name substitutions can be a source of bugs, log as debug
+        ldslog.debug("Sanitise: raw="+name+" name="+sanitised)
+        return sanitised
+    
+    @staticmethod
     def recodeForDriver(ustr,driver=None,code='decode'):
         '''Change encoding for drivers that dont support unicode. No used/needed anymore'''
         if driver=='fg': return ustr.encode('iso-8859-1')
@@ -589,8 +603,8 @@ class LDSUtilities(object):
                 pattern = re.compile("|".join(repx.keys()))
                 return pattern.sub(lambda m: repx[re.escape(m.group(0))], val)
             elif uflag=='compat':
-                '''Make the string really compatible, substitute macrons and encode'''
-                return str(LDSUtilities.recode(LDSUtilities.recode(val,uflag='subst'),uflag='encode'))
+                '''Make the string really compatible, esubstitute macrons and encode'''
+                return str(LDSUtilities.recode(LDSUtilities.recode(val,uflag='encode'),uflag='subst'))
         return val
     
     @staticmethod
@@ -601,7 +615,7 @@ class LDSUtilities(object):
     
     @staticmethod
     def treeEncode(lcl,code='utf8',eord=False):
-        return LDSUtilities.treeDecode(lcl, code, eord)
+        return LDSUtilities.treeDecode(lcl, code, eord)        
     
 class FileResolver(etree.Resolver):
     def resolve(self, url, pubid, context):
@@ -807,6 +821,7 @@ class LayerConfEntry(object):
         self.lmod = lmod
         self.disc = disc
         self.cql = cql
+        self.ascii_name = LDSUtilities.recode(self.name,uflag='subst')
         
     def __str__(self):
         return 'LCE {}={} - {}'.format(self.pkey if LDSUtilities.assessNone(self.pkey) else '_id', self.id, self.name)
@@ -820,7 +835,28 @@ def _readLDS(up,q):
     if LDSUtilities.isProxyValid(p): install_opener(build_opener(ProxyHandler(p)))
     with closing(urlopen(u)) as lds:
         q.put(lds.read())
-        
+       
+class Debugging(object):
+    #decorator 
+    @classmethod
+    def dmesg(cls,func=None, prefix='_'):
+        if func is None:
+            return partial(Debugging.dmesg, prefix=prefix)
+        msg = '>>> {} - {}'.format(prefix,cls._qname(func.__name__))
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            #print(msg, args, kwargs)
+            ldslog.info(msg)
+            return func(*args, **kwargs)
+        return wrapper
+    
+    @classmethod
+    def _qname(cls,fn):
+        '''Replacement for func.__qualname__ from Py3'''
+        try: gn = globals()[fn]
+        except KeyError: gn = ''
+        return '{}.{}'.format(fn,gn)
+
 # class STObj(object):
 #     def __init__(self,m,a):
 #         self.method = m

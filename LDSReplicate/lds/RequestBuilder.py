@@ -148,7 +148,7 @@ class RequestBuilderWFS200(RequestBuilder):
 
         return cs,ulayer
     
-    def buildIndex(self,lce,dst_layer_name):
+    def buildIndex(self):
         pass
     
     def sourceURI(self,layername):
@@ -244,7 +244,7 @@ class RequestBuilderWFS110(RequestBuilder):
 
         return cs,ulayer
         
-    def buildIndex(self,lce,dst_layer_name):
+    def buildIndex(self):
         pass
         
     def sourceURI(self,layername):

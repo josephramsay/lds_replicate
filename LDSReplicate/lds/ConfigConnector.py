@@ -100,10 +100,10 @@ class ConfigConnector(object):
         return {'svc':src.svc,'ver':src.ver,'idp':src.idp}
             
     #----------------------------------------------------------------------------------
-    def setupComplete(self,dep):
+    def setupComplete(self,dep,refresh=False):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
         #these are all the keywords in the local file. if no dest has been set returns empty
-        self.complete = dep.getLayerConf().getLayerNames() if dep else []
+        self.complete = dep.getLayerConf().getLayerNames(refresh=refresh) if dep else []
         
     def setupReserved(self):
         '''Read the capabilities doc (as json) for reserved words'''
@@ -441,7 +441,7 @@ class ProgressTimer(QThread):
         if self.tp.layer_total:
             layer_part = 100*float(self.tp.layer_count)/float(self.tp.layer_total)
             if hasattr(self.tp.dst,'src_feat_count') and self.tp.dst.src_feat_count:
-                dst_count = sum(self.tp.dst.change_count.values())
+                dst_count = sum(self.tp.dst.change_ct.values())
                 feat_part = 100*float(dst_count)/(float(self.tp.dst.src_feat_count)*float(self.tp.layer_total))
         if hasattr(self.tp.dst,'dst_info'):
             layer_name = self.tp.dst.dst_info.layer_name

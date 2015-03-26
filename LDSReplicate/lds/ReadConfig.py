@@ -833,8 +833,8 @@ class LayerFileReader(LayerReader):
     def readAllLayerParameters(self):
         '''Gets all LC entries as a list of LCEs using readLayerParameters'''
         lcel = []
-        for id in self.getLayerNames():
-            lcel += [self.readLayerParameters(id),]
+        for ln in self.getLayerNames():
+            lcel += [self.readLayerParameters(ln),]
         return lcel
             
         
@@ -935,11 +935,12 @@ class LayerDSReader(LayerReader):
         return None
         
     @override(LayerReader)
-    def getLayerNames(self):
+    def getLayerNames(self,refresh=False):
         '''Returns configured layers for respective layer properties file'''
         #gdal.SetConfigOption('CPL_DEBUG','ON')
         #gdal.SetConfigOption('CPL_LOG_ERRORS','ON')
-        if not self.namelist:
+        if refresh or not self.namelist:
+            self.namelist = []
             layer = self.lcfname.ds.GetLayer(self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
             if layer:
                 layer.SetIgnoredFields(('OGR_GEOMETRY',))
@@ -1039,7 +1040,7 @@ class LayerDSReader(LayerReader):
         feat = self.lcfname._findMatchingFeature(layer, 'id', p)###fname -> lcfname
         feat.SetField(field,LU.recode(value,uflag='encode'))
         layer.SetFeature(feat)
-        #ldslog.debug("Check "+field+" for layer "+pkey+" is set to "+value+" : GetField="+feat.GetField(field))
+        #ldslog.debug("Check "+field+" for layer "+p+" is set to "+value+" : GetField="+feat.GetField(field))
 
                    
 class GUIPrefsReader(object):

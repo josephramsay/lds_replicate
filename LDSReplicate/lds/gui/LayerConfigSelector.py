@@ -58,7 +58,7 @@ class LayerConfigSelector(QMainWindow):
         
         #Build models splitting by keyword if necessary
         #print 'LGVAL in LCS',self.parent.confconn.lgval
-        av_sl = self.splitData(LU.recode(self.parent.confconn.lgval),self.parent.confconn.complete) if self.parent.confconn.lgval else (list(self.parent.confconn.complete),[])
+        av_sl = self.splitData(LU.recode(self.parent.confconn.lgval),self.parent.confconn.complete) if self.parent.confconn.lgval and self.parent.confconn.complete else (list(self.parent.confconn.complete),[])
         
         self.available_model = LayerTableModel('L::available',self)
         self.available_model.initData(av_sl[0],self.parent.confconn.inclayers)
@@ -108,7 +108,7 @@ class LayerConfigSelector(QMainWindow):
         #print '>>> writing this replacementlist to LC',replacementlist
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
         #new keyword written so re-read complete (LC) and update assigned keys list
-        self.parent.confconn.setupComplete(dep)
+        self.parent.confconn.setupComplete(dep,refresh=True)
         self.parent.confconn.setupAssigned()
         self.parent.confconn.buildLGList()
         #self.refreshLayers(dep,customkey)
@@ -158,7 +158,7 @@ class LayerConfigSelector(QMainWindow):
     
     def signalModels(self,prepost):
         '''Convenience method to call the Layout Change signals when models are modified'''
-        if prepost==self.STEP.PRE:        
+        if prepost==self.STEP.PRE:
             self.available_model.layoutAboutToBeChanged.emit()
             self.selection_model.layoutAboutToBeChanged.emit()
         elif prepost==self.STEP.POST:

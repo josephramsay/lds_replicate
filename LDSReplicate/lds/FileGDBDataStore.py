@@ -89,21 +89,21 @@ class FileGDBDataStore(ESRIDataStore):
         dsql = "alter table "+layer.GetName()+" drop column "+field_name
         self.executeSQL(dsql)
         
-    def _buildIndex(self,lce,dst_layer_name):
+    def _buildIndex(self):
         ldslog.warn('Table indexing not supported by '+self.DRIVER_NAME+' at present')
         return
     
-    def buildIndex(self,lce,dst_layer_name):
+    def buildIndex(self):
         '''Builds an index creation string for a new full replicate in PG format'''
-        tableonly = dst_layer_name.split('.')[-1]
+        tableonly = self.dst_info.ascii_name.split('.')[-1]
         ALLOW_TABLE_INDEX_CREATION=True
         #SpatiaLite doesnt have a unique constraint but since we're using a pk might a well declare it as such
-        if ALLOW_TABLE_INDEX_CREATION and LDSUtilities.assessNone(lce.pkey):
+        if ALLOW_TABLE_INDEX_CREATION and LDSUtilities.assessNone(self.dst_info.pkey):
             #spatialite won't do post create constraint additions (could to a re-create?)
-            cmd = 'CREATE INDEX {0}_{1}_PK ON {0}({1})'.format(tableonly,lce.pkey)
+            cmd = 'CREATE INDEX {0}_{1}_PK ON {0}({1})'.format(tableonly,self.dst_info.pkey)
             try:
                 self.executeSQL(cmd)
-                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.pkey,cmd))
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,self.dst_info.pkey,cmd))
             except RuntimeError as rte:
                 if re.search('already exists', str(rte)): 
                     ldslog.warn(rte)
@@ -112,12 +112,12 @@ class FileGDBDataStore(ESRIDataStore):
         
         #Unless we select SPATIAL_INDEX=no as a Layer option this should never be needed
         #because gcol is also used to determine whether a layer is spatial still do this check   
-        if LDSUtilities.assessNone(lce.gcol):
+        if LDSUtilities.assessNone(self.dst_info.geocolumn):
             #untested and unlikely to work
-            cmd = "CREATE INDEX {0}_{1}_SK ON {0}({1})".format(dst_layer_name,lce.gcol)
+            cmd = "CREATE INDEX {0}_{1}_SK ON {0}({1})".format(self.dst_info.ascii_name,self.dst_info.geocolumn)
             try:
                 self.executeSQL(cmd)
-                ldslog.info("Index = {}({}). Execute = {}.".format(tableonly,lce.gcol,cmd))
+                ldslog.info("Index = {}({}). Execute = {}.".format(tableonly,self.dst_info.geocolumn,cmd))
             except RuntimeError as rte:
                 if re.search('already exists', str(rte)): 
                     ldslog.warn(rte)

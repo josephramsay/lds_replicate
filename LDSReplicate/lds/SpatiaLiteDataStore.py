@@ -118,17 +118,17 @@ class SpatiaLiteDataStore(DataStore):
         '''Hack to turn WAL on when OGR version<2.0'''
         rv = self.executeSQL('PRAGMA '+str(pragma))
 
-    def buildIndex(self,lce,dst_layer_name):
+    def buildIndex(self):
         '''Builds an index creation string for a new full replicate in PG format'''
-        tableonly = dst_layer_name.split('.')[-1]
+        tableonly = self.dst_info.ascii_name.split('.')[-1]
         ALLOW_CONSTRAINT_CREATION=False
         #SpatiaLite doesnt have a unique constraint but since we're using a pk might a well declare it as such
-        if ALLOW_CONSTRAINT_CREATION and LDSUtilities.assessNone(lce.pkey):
+        if ALLOW_CONSTRAINT_CREATION and LDSUtilities.assessNone(self.dst_info.pkey):
             #spatialite won't do post create constraint additions (could to a re-create?)
-            cmd = 'ALTER TABLE {0} ADD PRIMARY KEY {1}_{2}_PK ({2})'.format(dst_layer_name,tableonly,lce.pkey)
+            cmd = 'ALTER TABLE {0} ADD PRIMARY KEY {1}_{2}_PK ({2})'.format(self.dst_info.ascii_name,tableonly,self.dst_info.pkey)
             try:
                 self.executeSQL(cmd)
-                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.pkey,cmd))
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,self.dst_info.pkey,cmd))
             except RuntimeError as rte:
                 if re.search('already exists', str(rte)): 
                     ldslog.warn(rte)
@@ -137,8 +137,8 @@ class SpatiaLiteDataStore(DataStore):
         
         #Unless we select SPATIAL_INDEX=no as a Layer option this should never be needed
         #because gcol is also used to determine whether a layer is spatial still do this check   
-        if LDSUtilities.assessNone(lce.gcol) and 'SPATIAL_INDEX=NO' in [opt.replace(' ','').upper() for opt in self.sl_local_opts]:
-            cmd = "SELECT CreateSpatialIndex('{}','{}')".format(dst_layer_name,self.DEFAULT_GCOL)
+        if LDSUtilities.assessNone(self.dst_info.geocolumn) and 'SPATIAL_INDEX=NO' in [opt.replace(' ','').upper() for opt in self.sl_local_opts]:
+            cmd = "SELECT CreateSpatialIndex('{}','{}')".format(self.dst_info.ascii_name,self.DEFAULT_GCOL)
             try:
                 self.executeSQL(cmd)
                 ldslog.info("Index = {}({}). Execute = {}. NB Cannot override Geo-Column Name.".format(tableonly,self.DEFAULT_GCOL,cmd))
@@ -174,6 +174,7 @@ class SpatiaLiteDataStore(DataStore):
         
         self.executeSQL(sql_drop)
         self.executeSQL(sql_repl)
+
 
     def _baseDeleteColumn(self,table,column):
         '''Basic column delete function for when regular deletes fail. Spatialite doesn't do column drops so we recreate instead'''
@@ -220,7 +221,11 @@ class SpatiaLiteDataStore(DataStore):
         self.executeSQL(sql_i4d)   
         
         
-        
+    def partialCloneFeature(self, fin, fout_def):
+        '''Override of featureclone method to hack feature geometry on for unsupported(?) 3D features'''
+        #fin = self._repairGeometry(fin)
+        return super(SpatiaLiteDataStore,self).partialCloneFeature(fin, fout_def)
+    
     '''Spatialite has datatypes INT, INTEGER, SMALLINT, TINYINT, DEC, DECIMAL, LONGCHAR, LONGVARCHAR, DATETIME, SMALLDATETIME which are only
     remaned INTEGER, REAL, TEXT, BLOB and NULL. This converts and aggregates from gdal to these'''
     def convertToDestinationType(self,key):

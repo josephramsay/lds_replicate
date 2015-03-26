@@ -137,15 +137,15 @@ class PostgreSQLDataStore(DataStore):
     
     
     
-    def buildIndex(self,lce,dst_layer_name):
+    def buildIndex(self):
         '''Builds an index creation string for a new full replicate in PG format'''
-        tableonly = dst_layer_name.split('.')[-1]
+        tableonly = self.dst_info.ascii_name.split('.')[-1]
         
-        if LDSUtilities.assessNone(lce.pkey):
-            cmd = 'ALTER TABLE {0} ADD CONSTRAINT {1}_{2}_PK UNIQUE({2})'.format(dst_layer_name,tableonly,lce.pkey)
+        if LDSUtilities.assessNone(self.dst_info.pkey):
+            cmd = 'ALTER TABLE {0} ADD CONSTRAINT {1}_{2}_PK UNIQUE({2})'.format(self.dst_info.ascii_name,tableonly,self.dst_info.pkey)
             try:
                 self.executeSQL(cmd)
-                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.pkey,cmd))
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,self.dst_info.pkey,cmd))
             except RuntimeError as rte:
                 if re.search('already exists', str(rte)): 
                     ldslog.warn(rte)
@@ -153,11 +153,11 @@ class PostgreSQLDataStore(DataStore):
                     raise
                         
         #If a spatial index has already been created don't try to create another one
-        if self.SPATIAL_INDEX == 'OFF' and LDSUtilities.assessNone(lce.gcol):
-            cmd = 'CREATE INDEX {1}_{2}_GK ON {0} USING GIST({2})'.format(dst_layer_name,tableonly,lce.gcol)
+        if self.SPATIAL_INDEX == 'OFF' and LDSUtilities.assessNone(self.dst_info.geocolumn):
+            cmd = 'CREATE INDEX {1}_{2}_GK ON {0} USING GIST({2})'.format(self.dst_info.ascii_name,tableonly,self.dst_info.geocolumn)
             try:
                 self.executeSQL(cmd)
-                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,lce.gcol,cmd))
+                ldslog.info("Index = {}({}). Execute = {}".format(tableonly,self.dst_info.geocolumn,cmd))
             except RuntimeError as rte:
                 if re.search('already exists', str(rte)): 
                     ldslog.warn(rte)

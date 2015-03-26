@@ -384,7 +384,7 @@ class TransferProcessor(object):
         if intersect:
             return [i for i in self.lds_caps if i[0] in [j[0] for j in self.lds_conf]]
         else: #union
-            return self.lds_conf+[i for i in self.lds_caps if i[0] not in [j[0] for j in self.lds_conf]]
+            return list(self.lds_conf)+[i for i in self.lds_caps if i[0] not in [j[0] for j in self.lds_conf]]
         
 
 #--------------------------------------------------------------------------------------------------

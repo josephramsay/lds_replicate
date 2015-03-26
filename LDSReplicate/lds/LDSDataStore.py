@@ -135,7 +135,7 @@ class LDSDataStore(WFSDataStore):
     def validateConnStr(self,cs):
         return self.requestbuilder.validateConnStr(cs)
         
-    def buildIndex(self,lce,dst_layer_name):
+    def buildIndex(self):
         pass
         
     def destinationURI(self,layername):

@@ -560,7 +560,7 @@ class MSSQLSpatialConfigPage(QWizardPage):
         self.schemaEdit = QLineEdit(msschema)
         self.schemaEdit.setToolTip('Enter schema name (this is not mandatory but a common default in MSSQL is "dbo")')
         self.trustCheckBox = QCheckBox('YES')
-        self.trustCheckBox.setChecked(mstrust and mstrust.lower()=='yes')
+        self.trustCheckBox.setChecked(True if mstrust and mstrust.lower()=='yes' else False)
         self.trustCheckBox.setToolTip('Use MSSQL trusted client authentication')
         self.usrEdit = QLineEdit(msusr)
         self.usrEdit.setToolTip('Enter MSSQL Username')
