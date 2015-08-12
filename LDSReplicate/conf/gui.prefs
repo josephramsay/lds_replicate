@@ -1,18 +1,24 @@
 [prefs]
-dest = PostgreSQL
+dest = FileGDB
 
 [PostgreSQL]
-uconf = kudu
-lgvalue = data.linz.govt.nz:layer-2052
+uconf = impala
+lgvalue = mudlayers
 epsg = None
 fd = None
 td = None
 
 [FileGDB]
 uconf = kudu
-lgvalue = fgpineapple
+lgvalue = test1
+epsg = 
+fd = 
+td = 
 
 [SQLite]
 uconf = kudu
-lgvalue = māorilayers
+lgvalue = second-RebuildSLTable
+epsg = 
+fd = 
+td = 
 

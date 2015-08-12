@@ -54,7 +54,7 @@ xmlns:ows="http://www.opengis.net/ows/1.1" vs ~/ows
         <xsl:text>"],</xsl:text>
 		<xsl:text>null,</xsl:text>
 		<xsl:choose>
-			<xsl:when test="starts-with(wfs:Title,'ASP')">
+			<xsl:when test="contains(wfs:Name,':table-')">
 				<xsl:text>null,</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>

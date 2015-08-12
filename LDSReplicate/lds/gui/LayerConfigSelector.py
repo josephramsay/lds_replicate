@@ -58,7 +58,7 @@ class LayerConfigSelector(QMainWindow):
         
         #Build models splitting by keyword if necessary
         #print 'LGVAL in LCS',self.parent.confconn.lgval
-        av_sl = self.splitData(LU.recode(self.parent.confconn.lgval),self.parent.confconn.complete) if self.parent.confconn.lgval and self.parent.confconn.complete else (list(self.parent.confconn.complete),[])
+        av_sl = self.splitData(LU.recode(self.parent.confconn.lgval),self.parent.confconn.complete) #if self.parent.confconn.lgval and self.parent.confconn.complete else (list(self.parent.confconn.complete),[])
         
         self.available_model = LayerTableModel('L::available',self)
         self.available_model.initData(av_sl[0],self.parent.confconn.inclayers)
@@ -76,19 +76,19 @@ class LayerConfigSelector(QMainWindow):
     def resetLayers(self):
         '''Rebuilds lconf from scratch'''
         dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
-        sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
+        sep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.SRCNAME,self.parent.confconn.uconf)
         #self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep)
         self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,sep,dep,initlc=True)
         self.refreshLayers(dep)
-        self.parent.confconn.reg.closeEndPoint('WFS')
+        self.parent.confconn.reg.closeEndPoint(self.parent.confconn.SRCNAME)
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
         
         
     def refreshLayers(self,dep,customkey=None):
         '''Refreshes from a reread of the lconf object'''
-        self.parent.confconn.setupComplete(dep)
+        self.parent.confconn.setupCompleteLayerList(dep)
         
-        av_sl = self.splitData(customkey,self.parent.confconn.complete) if customkey else self.parent.confconn.complete
+        av_sl = self.splitData(customkey,self.parent.confconn.complete)
         self.signalModels(self.STEP.PRE)
         self.available_model.initData(av_sl[0],self.parent.confconn.inclayers)
         self.selection_model.initData(av_sl[1],self.parent.confconn.inclayers)
@@ -108,9 +108,9 @@ class LayerConfigSelector(QMainWindow):
         #print '>>> writing this replacementlist to LC',replacementlist
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
         #new keyword written so re-read complete (LC) and update assigned keys list
-        self.parent.confconn.setupComplete(dep,refresh=True)
-        self.parent.confconn.setupAssigned()
-        self.parent.confconn.buildLGList()
+        self.parent.confconn.setupCompleteLayerList(dep,refresh=True)
+        self.parent.confconn.setupAssignedLayerList()
+        self.parent.confconn.buildLayerGroupList()
         #self.refreshLayers(dep,customkey)
         #print 'closing dep=',dep,'reg=',self.parent.confconn.reg#DEBUG
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)        
@@ -134,9 +134,9 @@ class LayerConfigSelector(QMainWindow):
         dep.getLayerConf().writeLayerProperty(layerlist, 'category', replacementlist)
  
         #-----------------------------------
-        self.parent.confconn.setupComplete(dep)
-        self.parent.confconn.setupAssigned()
-        self.parent.confconn.buildLGList()   
+        self.parent.confconn.setupCompleteLayerList(dep)
+        self.parent.confconn.setupAssignedLayerList()
+        self.parent.confconn.buildLayerGroupList()   
         #self.refreshLayers(dep,customkey)
         self.parent.confconn.reg.closeEndPoint(self.parent.confconn.destname)
         #print 'closing', dep,self.parent.confconn.reg#DEBUG
@@ -175,10 +175,10 @@ class LayerConfigSelector(QMainWindow):
             dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
             #sep = self.parent.confconn.reg.openEndPoint('WFS',self.parent.confconn.uconf)
             self.parent.confconn.reg.setupLayerConfig(self.parent.confconn.tp,None,dep)
-            self.parent.confconn.setupComplete(dep)
-            self.parent.confconn.setupAssigned()
-            self.parent.confconn.buildLGList()
-            lgindex = self.parent.confconn.getLGIndex(lastgroup,col=1)
+            self.parent.confconn.setupCompleteLayerList(dep)
+            self.parent.confconn.setupAssignedLayerList()
+            self.parent.confconn.buildLayerGroupList()
+            lgindex = self.parent.confconn.getLayerGroupIndex(lastgroup,col=1)
             self.parent.controls.refreshLGCombo()
             #current index wont be available in parent if this is the init run
             self.parent.controls.lgcombo.setCurrentIndex(lgindex if lgindex else 0)
@@ -355,7 +355,7 @@ class LayerSelectionPage(QFrame):
         self.keywordcombo.setEditable(True)
         self.keywordcombo.activated.connect(self.doKeyComboChangeAction)
         
-        lgindex = self.confconn_link.getLGIndex(self.confconn_link.lgval,col=1)
+        lgindex = self.confconn_link.getLayerGroupIndex(self.confconn_link.lgval,col=1)
         lgentry = self.confconn_link.lglist[lgindex] if LU.assessNone(lgindex) else None
         #keywordedit = self.keywordcombo.lineEdit().text().toUtf8().data().decode('utf8')# for writing
         #if no entry or layer indicated then blank 
@@ -475,7 +475,7 @@ class LayerSelectionPage(QFrame):
         self.parent.signalModels(self.parent.STEP.POST)
         #------------------------------
         self.parent.writeKeysToLayerConfig(ktext)
-        #self.confconn_link.setupAssigned()
+        #self.confconn_link.setupAssignedLayerList()
         if self.keywordcombo.findText(ktext) == -1:
             self.keywordcombo.addItem(ktext)
     
@@ -490,7 +490,7 @@ class LayerSelectionPage(QFrame):
             self.transferSelectedRows(select.selectedRows(),self.available_sfpm,self.selection_sfpm)
             #------------------------------
             self.parent.writeKeysToLayerConfig(ktext)
-            #self.confconn_link.assigned = self.confconn_link.setupAssigned()
+            #self.confconn_link.assigned = self.confconn_link.setupAssignedLayerList()
             # -1 to indicate no index since 0,1,... are valid
             if self.keywordcombo.findText(ktext) == -1:
                 self.keywordcombo.addItem(ktext)
@@ -549,7 +549,7 @@ class LayerSelectionPage(QFrame):
         self.parent.selection_model.initData([])
         self.parent.signalModels(self.parent.STEP.POST)        
         #------------------------------
-        #self.confconn_link.setupAssigned()
+        #self.confconn_link.setupAssignedLayerList()
         #self.keywordbypass = True
         self.keywordcombo.removeItem(self.keywordcombo.findText(ktext))
         self.keywordcombo.clearEditText()
@@ -563,7 +563,7 @@ class LayerSelectionPage(QFrame):
         #------------------------------
         ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
         #------------------------------
-        av_sl = self.parent.splitData(ktext,self.confconn_link.complete) if ktext else self.confconn_link.complete
+        av_sl = self.parent.splitData(ktext,self.confconn_link.complete)
         #av_sl = self.parent.splitData(ktext,self.confconn_link.complete)
         self.parent.signalModels(self.parent.STEP.PRE)
         self.parent.available_model.initData(av_sl[0])

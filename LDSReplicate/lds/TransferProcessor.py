@@ -228,7 +228,6 @@ class TransferProcessor(object):
         self.dst.versionCheck()
         (self.sixtyfourlayers,self.partitionlayers,self.partitionsize,self.prefetchsize) = self.dst.confwrap.readDSParameters('Misc',{'idp':self.src.idp})
 
-        capabilities = self.src.getCapabilities()
         if not self.dst.getLayerConf():
             self.dst.setLayerConf(TransferProcessor.getNewLayerConf(self.dst))        
 
@@ -323,7 +322,7 @@ class TransferProcessor(object):
                         self.dst.setPrefetchSize(self.prefetchsize)
                         ldslog.info('Layer='+str(each_layer)+' lastmodified='+str(final_td))
                         ldslog.info('Layer='+str(each_layer)+' epsg='+str(self.dst.getSRS()))
-                        self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
+                        self.dst.write(self.src, self.dst.getURI(), each_layer, self.getSixtyFour(each_layer))
                         #----------------------------------------------------------
                         #self.dst.getLayerConf().writeLayerProperty(each_layer,'lastmodified',final_td)
                         #self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
@@ -345,8 +344,8 @@ class TransferProcessor(object):
                 if self.readLayer():
                     self.dst.clearIncremental()
                     self.cleanLayer(each_layer,truncate=True)
-                    ldslog.info('Cleaning Layer='+str(each_layer)+' epsg='+str(self.dst.getSRS()))
-                    self.dst.write(self.src, self.dst.getURI(), self.getSixtyFour(each_layer))
+                    ldslog.info('Cleaning Layer={} epsg={}'.format(each_layer,self.dst.getSRS()))
+                    self.dst.write(self.src, self.dst.getURI(), each_layer, self.getSixtyFour(each_layer))
                     #since no date provided defaults to current 
                     #self.dst.getLayerConf().writeLayerProperty(each_layer,'epsg',self.dst.getSRS())
                     self.dst.setLastModified(each_layer)
@@ -370,7 +369,7 @@ class TransferProcessor(object):
     def readCapsDoc(self,src):
         '''Fetch, format and store the capabilities document'''
         if not hasattr(self,'lds_caps'):
-            self.lds_caps = LU.treeDecode(LDSDataStore.fetchLayerInfo(src.getCapabilities(),src.pxy))
+            self.lds_caps = LU.treeDecode(LDSDataStore.fetchLayerInfo(src.getCapabilities(),src.ver,src.pxy))
         
     def readConfDoc(self,dst):
         '''Return a list of the LC names'''

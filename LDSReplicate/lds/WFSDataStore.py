@@ -17,6 +17,7 @@ Created on 23/07/2012
 
 import os 
 import re
+import urllib
 
 from abc import ABCMeta, abstractmethod
 
@@ -100,8 +101,9 @@ class WFSDataStore(DataStore):
     
     def getLayerOptions(self,layer_id):
         '''Pass up getLayerOptions call'''
-        return super(WFSDataStore,self).getLayerOptions(layer_id)
-
+        wfs_options = super(WFSDataStore,self).getLayerOptions(layer_id)
+        wfs_options += ['']
+        return wfs_options
         
     def sourceURI(self,layername):
         '''URI method returns source file name'''
@@ -132,6 +134,5 @@ class WFSDataStore(DataStore):
         return LDSUtilities.timedProcessRunner(LDSUtilities.readLDS, (url,self.pxy), None)
         #return LDSUtilities.readDocument(url, self.pxy)
         
-        
-        
+
         

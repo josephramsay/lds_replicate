@@ -16,6 +16,7 @@ Created on 13/02/2013
 '''
 
 import re
+import os
 
 from lds.DataStore import DataStore, UnknownDSTypeException
 from lds.LDSUtilities import LDSUtilities as LU, ConfigInitialiser
@@ -27,11 +28,13 @@ from lds.MSSQLSpatialDataStore import MSSQLSpatialDataStore
 from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
 from lds.WFSDataStore import WFSDataStore
 from lds.LDSDataStore import LDSDataStore
+from lds.ReadConfig import GUIPrefsReader,MainFileReader
 
 
 class EndpointConnectionException(Exception): pass
 class ConnectionConfigurationException(Exception): pass
-class ConfigLayerInitialisationException(Exception):pass
+class UserConfigInitialisationException(Exception):pass
+class LayerConfigInitialisationException(Exception):pass
 
 ldslog = LU.setupLogging()
 
@@ -45,7 +48,9 @@ HCOLS = 2
 #When a new SLITE file is created by entering its name in the SL file dialog, it isnt created but a reference to it is put in the user config file
        
 class ConfigConnector(object):
-
+    
+    SRCNAME = 'WFS'
+    
     def __init__(self,parent,uconf,lgval,destname,initlc=None):
         #HACK. Since we can't init an lg list without first intialising read connections must assume lgval is stored in v:x format. 
         #NOTE. This a controlled call to TP and we can't assume in general that TP will be called with a v:x layer/group (since names are allowed)
@@ -67,11 +72,10 @@ class ConfigConnector(object):
         #Optimisation. If the uconf or dest type are unchanged don't go through the expensive task of updating TP and the layer lists
         if uconf and destname and ((uconf,destname)!=(self.uconf,self.destname)):
             #lgpair = (LORG.LAYER if re.match('^v:x',lgval) else LORG.GROUP,lgval) if lgval else (None,None)
-            self.uconf = uconf
-            self.destname = destname
+            self.uconf = self._checkUConf(uconf)
             self.tp = TransferProcessor(self,lgval, None, None, None, None, None, None, uconf)
-            sep = self.reg.openEndPoint('WFS', self.uconf)    
-            dep = self.reg.openEndPoint(self.destname, self.uconf)
+            sep = self.reg.openEndPoint(self.SRCNAME, self.uconf)    
+            dep = self.reg.openEndPoint(destname, self.uconf)
             self.tp.setSRC(sep)
             self.tp.setDST(dep)
             #svp = Service, Version, Prefix
@@ -79,15 +83,16 @@ class ConfigConnector(object):
             self.reg.setupLayerConfig(self.tp,sep,dep,self.initlc)
             #print 'CCt',self.tp
             #print 'CCd',self.dep
-            if not self.vlayers:
+            if not self.vlayers or self.destname != destname:
+                self.destname = destname
                 self.vlayers = self.getValidLayers(sep,dep)
-                self.setupReserved()
-            self.setupAssigned()
-            self.buildLGList()
+                self.setupReservedLayerList()
+            self.setupAssignedLayerList()
+            self.buildLayerGroupList()
             self.inclayers = [self.svp['idp']+x[0] for x in ConfigInitialiser.readCSV()]
             #self.reg.closeLayerConfig(dep)
-            self.reg.closeEndPoint(self.destname)
-            self.reg.closeEndPoint('WFS')
+            self.reg.closeEndPoint(destname)
+            self.reg.closeEndPoint(self.SRCNAME)
             sep,dep = None,None
         elif destname and not uconf:
             raise ConnectionConfigurationException('Missing configuration, "{}.conf"'.format(uconf))
@@ -95,23 +100,28 @@ class ConfigConnector(object):
             raise ConnectionConfigurationException('No driver/dest specified "{}"'.format(destname))
     
             
+    def _checkUConf(self,uconf):
+        '''Check the uconf exists and is minimally/correctly formatted'''
+        if not MainFileReader.validate(uconf): raise UserConfigInitialisationException('Incorrectly formatted '+uconf)
+        return uconf
+        
     def readProtocolVersion(self,src):
         '''Get WFS/WMS, version and prefix from the Source'''
         return {'svc':src.svc,'ver':src.ver,'idp':src.idp}
             
     #----------------------------------------------------------------------------------
-    def setupComplete(self,dep,refresh=False):
+    def setupCompleteLayerList(self,dep,refresh=False):
         '''Reads a reduced lconf from file/table as a Nx3 array'''
         #these are all the keywords in the local file. if no dest has been set returns empty
         self.complete = dep.getLayerConf().getLayerNames(refresh=refresh) if dep else []
         
-    def setupReserved(self):
+    def setupReservedLayerList(self):
         '''Read the capabilities doc (as json) for reserved words'''
         #these are all the keywords LDS currently knows about         
         self.reserved = set()   
         for s in ([l[2] for l in self.vlayers]): self.reserved.update(s)
             
-    def setupAssigned(self):
+    def setupAssignedLayerList(self):
         '''Read the complete config doc for all keywords and diff out reserved. Requires init of complete and reserved'''   
         #these are the difference between saved and LDS-known keywords therefore, the ones the user has saved or LDS has forgotten about 
         #NB Dont try to build set from list, get unhashable error
@@ -134,7 +144,7 @@ class ConfigConnector(object):
         #In the case where we are setting up unconfigured (first init) populate the layer list with default/all layers
         return vlayers if vlayers else self.tp.assembleLayerList(intersect=False) 
     
-    def buildLGList(self,groups=None,layers=None):
+    def buildLayerGroupList(self,groups=None,layers=None):
         '''Sets the array storing values displayed in the Layer/Group combo; format is ((lyr/grp, name, displaystring),)'''
         from lds.TransferProcessor import LORG
         #self.lgcombo.addItems(('',TransferProcessor.LG_PREFIX['g']))
@@ -144,14 +154,14 @@ class ConfigConnector(object):
             self.lglist += ((LORG.GROUP,LU.recode(g),u'{} (group)'.format(LU.recode(g))),)
         for l in sorted(layers if layers else self.vlayers):
             #if re.search('Electoral',l[0]): 
-            if not isinstance(l,tuple) and not isinstance(l,list): raise ConfigLayerInitialisationException('Layer init value error. {} is not a tuple'.format(l))
+            if not isinstance(l,(tuple,list)): raise LayerConfigInitialisationException('Layer init value error. {} is not a list/tuple'.format(l))
             self.lglist += ((LORG.LAYER,l[0],u'{} ({})'.format(l[1],l[0])),)
         
-    def getLGEntry(self,dispval):
+    def getLayerGroupEntry(self,dispval):
         '''Finds a matching group/layer entry from its displayed name'''
-        return self.lglist[self.getLGIndex(dispval)]
+        return self.lglist[self.getLayerGroupIndex(dispval)]
     
-    def getLGIndex(self,dispval,col=2):
+    def getLayerGroupIndex(self,dispval,col=2):
         '''Finds a matching group/layer entry from its displayed name'''
         #0=lorg,1=value,2=display 
         compval = LU.recode(dispval)
@@ -285,9 +295,9 @@ class DatasourceRegister(object):
     def closeEndPoint(self,name):
         '''Closes the DS is a named EP or delete the EP completely if not needed'''
         fn = LU.standardiseDriverNames(name)
-        #<HACK>. Bypass DS closing for FileGDB connections
+        #<HACK6>. Bypass DS closing for FileGDB connections
         if fn=='FileGDB': return
-        #</HACK>
+        #</HACK6>
         if self.register.has_key(fn):
             self._disconnect(fn)
             if self.register[fn]['rc'] == 0:

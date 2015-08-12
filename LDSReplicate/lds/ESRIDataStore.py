@@ -52,16 +52,17 @@ class ESRIDataStore(DataStore):
         '''Use common uri for src and dst'''
         #raise NotImplementedError("No common URI method for ESRI stack, implement at type level")
         
-    def write(self,src_ds,dsn,sixtyfour):
+    def write(self,src_ds,dsn,layername,sixtyfour):
         '''ESRI specific write method used as entry point for convertDataSourceESRI'''
         '''TODO. No need to do the poly to multi conversion but incremental __change__ removal still reqd'''
         #naive implementation? change SR per layer in place. Conversion not needed with latest GDAL
         #self.convertDataSourceESRI(src_ds.ds)
-        super(ESRIDataStore,self).write(src_ds,dsn,sixtyfour)
+        super(ESRIDataStore,self).write(src_ds,dsn,layername,sixtyfour)
         #self.ds = self.driver.CopyDataSource(src_ds, dsn)
         
     
     def convertDataSourceESRI(self,datasource):
+        #TODO layer by name fetching
         #bypassed when using gdal 1.9.2 since FileGDB SREF handling, its supposed to be fixed now
         '''Spatial Reference method to "Morph" datasource layer by layer, in place'''
         for li in range(0,datasource.GetLayerCount()):

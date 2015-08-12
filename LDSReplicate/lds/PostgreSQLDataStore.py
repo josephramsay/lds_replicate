@@ -112,13 +112,14 @@ class PostgreSQLDataStore(DataStore):
     def getConfigOptions(self):
         '''Add PG options for SCHEMA and GEO_NAME'''
         #PG_USE_COPY,PGSQL_OGR_FID,PG_USE_BASE64
+        #OGR_PG_CURSOR_PAGE
         local_opts = []
         #doesnt work with createlayer... but not needed if we want to overwrite FID with PK
         #local_opts += ['PGSQL_OGR_FID='+str(self.PGSQL_OGR_FID)]
         
         #do not use PG_USE_COPY if you want FID preserved
         local_opts += ['PG_USE_COPY='+str(self.PG_USE_COPY)]
-        local_opts += ['PG_USE_BASE64='+str(self.PG_USE_BASE64)]  
+        local_opts += ['PG_USE_BASE64='+str(self.PG_USE_BASE64)]
               
         return super(PostgreSQLDataStore,self).getConfigOptions() + local_opts    
     

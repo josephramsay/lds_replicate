@@ -24,6 +24,7 @@ import os
 import sys
 import logging
 import ast
+import urllib
 
 from string import whitespace
 from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
@@ -59,7 +60,6 @@ class LDSUtilities(object):
     
     LDS_PREFIXES = (LDS_VX_PREFIX,LDS_LL_PREFIX,LDS_DL_PREFIX,LDS_DT_PREFIX,LDS_ME_PREFIX)
     
-    
     @staticmethod
     def getLDSIDPrefix(ver,svc):
         from lds.DataStore import UnsupportedServiceException
@@ -77,7 +77,7 @@ class LDSUtilities(object):
     @staticmethod
     def adjustWFS2URL(url,ver):
         if ver == '2.0.0':
-            url = re.sub('wfs.','',url)+'services;key='
+            url = re.sub('wfs.','',url)#+'services;key='
             ldslog.warn('\'wfs.\' deleted from URL to comply with LDS WFS2.0 requirements')
         return url
     
@@ -94,8 +94,9 @@ class LDSUtilities(object):
     LDS_IDPATHS = (LDS_VXPATH,LDS_LLPATH,LDS_MEPATH)
     
     @staticmethod
-    def cropChangeset(layername):
-        '''Removes changeset identifier from layer name'''
+    def standardiseLayername(layername):
+        '''Removes changeset identifier from layer name and adds 'the' prefix if its not already there'''
+        if not re.search(LDSUtilities.LDS_DX_PREFIX,layername): layername = '{}{}'.format(LDSUtilities.LDS_DX_PREFIX,layername)
         return layername.rstrip("-changeset")
     
     @staticmethod
@@ -217,7 +218,7 @@ class LDSUtilities(object):
     
     @staticmethod
     def reVersionURL(url,newversion='1.1.0'):
-        '''Because there is sometimes a problem with WFS <1.0.0, esp GetFeatureCount, change to WFS 1.1.0'''
+        '''Because there is sometimes a problem with WFS <1.0.0, esp GetFeatureCount, change to WFS 1.1.0 (or whatever the user wants)'''
         ldslog.warn('Rewriting URI version to '+str(newversion))
         return re.sub('&version=[0-9\.]+','&version='+str(newversion),url)
     
@@ -566,8 +567,10 @@ class LDSUtilities(object):
     @staticmethod
     def errorMessageTranslate(msg):
         '''Convenience function to provide more informative error messages'''
-        if re.search('Failed\swriting\sbody',msg,re.IGNORECASE): return 'Unable to fetch data over network connection. Possible timeout. ({})'.format(msg)
-        return msg
+        searchreplace = [('Failed\swriting\sbody','1.Unable to fetch data over network connection. Possible timeout'),
+                         ('something illegible','2.something sensible')]
+        newmsg = [a[1] for a in searchreplace if re.search(a[0],msg,re.IGNORECASE)]
+        return '*{}*\n{}'.format(newmsg[0],msg) if newmsg else msg
     
     @staticmethod
     def sanitise(name):
@@ -582,28 +585,36 @@ class LDSUtilities(object):
         ldslog.debug("Sanitise: raw="+name+" name="+sanitised)
         return sanitised
     
+    '''
+    NOTE 
+    unicode.encode() -> bytes
+    bytes.decode() -> unicode
+    '''
+    
     @staticmethod
     def recodeForDriver(ustr,driver=None,code='decode'):
-        '''Change encoding for drivers that dont support unicode. No used/needed anymore'''
+        '''Change encoding for drivers that dont support unicode. Not used/needed anymore?'''
         if driver=='fg': return ustr.encode('iso-8859-1')
         if driver=='pg': return ustr.encode('iso-8859-1')
         return ustr.encode('utf-8')
     
     @staticmethod
     def recode(val,code='utf8',uflag='decode'):
-        tv = type(val)==unicode
+        tv = ( type(val)==unicode )
         if val:
             if uflag == 'decode':
+                '''Decode turning ascii coded strings into unicode'''
                 return val if tv else val.decode(code)
             elif uflag == 'encode':
+                '''Encode, converting unicode into ascii'''
                 return val.encode(code) if tv else val
             elif uflag=='subst':
-                '''Macron substitutions used in CreateLayer since ogr can't handle unicode'''
+                '''Macron substitutions used in CreateLayer but keeps val as unicode'''
                 repx = dict((re.escape(k), v) for k, v in MACRON_SUBST.iteritems())
                 pattern = re.compile("|".join(repx.keys()))
                 return pattern.sub(lambda m: repx[re.escape(m.group(0))], val)
             elif uflag=='compat':
-                '''Make the string really compatible, esubstitute macrons and encode'''
+                '''Make the string really compatible, substitute macrons and encode'''
                 return str(LDSUtilities.recode(LDSUtilities.recode(val,uflag='encode'),uflag='subst'))
         return val
     
@@ -611,11 +622,25 @@ class LDSUtilities(object):
     def treeDecode(lcl,code='utf8',uflag='decode'):
         '''Convenience list element-by-element decoder'''
         #return [LDSUtilities.treeDecode(i, code) if isinstance(i,list) or isinstance(i, tuple) else ((i.decode(code) if uflag=='decode' else i.encode(code)) if i else None) for i in lcl]
-        return [LDSUtilities.treeDecode(i,code,uflag) if isinstance(i,list) or isinstance(i, tuple) else (LDSUtilities.recode(i,code,uflag) if i else None) for i in lcl]
+        return [LDSUtilities.treeDecode(i,code,uflag) if isinstance(i,(list,tuple)) else (LDSUtilities.recode(i,code,uflag) if i else None) for i in lcl]
     
     @staticmethod
     def treeEncode(lcl,code='utf8',eord=False):
-        return LDSUtilities.treeDecode(lcl, code, eord)        
+        return LDSUtilities.treeDecode(lcl, code, eord)     
+    
+    @staticmethod
+    def unicodeCompare(str1,str2):  
+        return LDSUtilities.recode(str1) == LDSUtilities.recode(str2) 
+    
+class DirectDownload(object):
+    
+    def __init__(self,url,file):
+        self.url = url
+        self.file = file
+        
+    def download(self):
+        urllib.urlretrieve(self.url, self.file)
+
     
 class FileResolver(etree.Resolver):
     def resolve(self, url, pubid, context):
@@ -785,7 +810,6 @@ class Encrypt(object):
         aes = AES.new(cls.lds, AES.MODE_CBC, cls.ivstr)
         sec = base64.b64encode(aes.encrypt(Encrypt._pad(plaintext)))
         return sec
-
     
     @classmethod
     def unSecure(cls,sectext):
@@ -837,18 +861,43 @@ def _readLDS(up,q):
         q.put(lds.read())
        
 class Debugging(object):
-    #decorator 
+    #simple decorator logging called func 
     @classmethod
-    def dmesg(cls,func=None, prefix='_'):
+    def dmesg(cls,func=None, prefix=''):
         if func is None:
             return partial(Debugging.dmesg, prefix=prefix)
-        msg = '>>> {} - {}'.format(prefix,cls._qname(func.__name__))
+        msg = '<m{}> {}'.format(prefix,cls._qname(func.__name__))
         @wraps(func)
         def wrapper(*args, **kwargs):
-            #print(msg, args, kwargs)
             ldslog.info(msg)
             return func(*args, **kwargs)
         return wrapper
+    
+    #logs function args 
+    @classmethod
+    def darg(cls,func=None, prefix=''):
+        if func is None:
+            return partial(Debugging.darg, prefix=prefix)
+        msg = '<a{}> {} '.format(prefix,cls._qname(func.__name__))
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            ldslog.info(msg+str(args)+'//'+str(kwargs))
+            return func(*args, **kwargs)
+        return wrapper    
+    
+    #logs result of func
+    @classmethod
+    def dres(cls,func=None, prefix=''):
+        if func is None:
+            return partial(Debugging.dres, prefix=prefix)
+        msg = '<r{}> {} '.format(prefix,cls._qname(func.__name__))
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            res = func(*args, **kwargs)
+            ldslog.info(msg+str(res))
+            return res
+        return wrapper
+    
     
     @classmethod
     def _qname(cls,fn):

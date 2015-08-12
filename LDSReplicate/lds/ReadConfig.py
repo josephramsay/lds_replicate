@@ -17,7 +17,6 @@ Created on 24/07/2012
 
 import os
 import re
-import logging
 import json
 import ogr
 import codecs
@@ -25,7 +24,6 @@ import codecs
 #from ConfigParser import ConfigParser, NoSectionError, NoOptionError, ParsingError,  Error
 from backports.configparser import ConfigParser, NoSectionError, NoOptionError, ParsingError,  Error
 from lds.LDSUtilities import LDSUtilities as LU
-
 
 ldslog = LU.setupLogging()
 
@@ -49,7 +47,8 @@ class MainFileReader(object):
         self.driverconfig = {i:() for i in DataStore.DRIVER_NAMES}
             
         self.use_defaults = use_defaults
-        #if we dont give the constructor a file path is uses the template file (which may not be a good idea...)
+        #if we dont give the constructor a file path is uses the template file which will fill in any default values missed in the user conf
+        #but if cpath is requested and doesn't exist we initialise it, otherwise you end up trying to overwrite the template
         if cfpath is None:
             self.filename = LU.standardiseUserConfigName(self.DEFAULT_MF)
         else:
@@ -61,11 +60,15 @@ class MainFileReader(object):
         self.initMainFile()
         self.fn = re.search('(.+)\.conf',os.path.basename(self.filename)).group(1)
         
+    def __str__(self):
+        return self.filename
+        
     def initMainFile(self,template=''):
         '''Open and populate a new config file with 'template' else just touch it. Then call the reader'''
-
-        with codecs.open(self.filename,'a' if template is '' else 'w','utf-8') as f:
-            f.write(template)
+        if self.filename.split('/')[-1] != self.DEFAULT_MF:
+            mode = 'a' if template is '' else 'w'
+            with codecs.open(self.filename, mode, 'utf-8') as f:
+                f.write(template)
         self._readConfigFile(self.filename)    
      
     def hasSection(self,secname):
@@ -554,14 +557,13 @@ class MainFileReader(object):
     
     def readMainProperty(self,driver,key):
         try:
-            value = self.cp.get(driver, key)
-            if LU.assessNone(value) is None:
-                return None
+            return LU.assessNone(self.cp.get(driver, key))
+#             if LU.assessNone(value) is None:
+#                 return None
         except:
             '''return a default value otherwise none which would also be a default for some keys'''
-            ldslog.warn("Cannot find requested driver/key; self.cp.get("+str(driver)+","+str(key)+") combo")
-            return None
-        return value
+            ldslog.warn("Cannot find requested driver/key in {}; self.cp.get('{}','{}') combo".format(self.filename[self.filename.rfind('/'):],driver,key))
+        return None
     
     
     
@@ -576,6 +578,19 @@ class MainFileReader(object):
             ldslog.debug("Check "+str(field)+" for section "+str(section)+" is set to "+str(value)+" : GetField="+self.cp.get(section, field))                                                                                        
         except Exception as e:
             ldslog.warn('Problem writing to config file. '+str(e))
+    
+    
+    @classmethod
+    def validate(cls,uconf):
+        '''Make sure a guipref file is valid, check pref points to alt least one valid DST'''
+        from lds.DataStore import DataStore
+        filename = os.path.join(os.path.dirname(__file__),'../conf',uconf+'.conf')
+        uc = MainFileReader(filename)
+        #validate UC check it has a key and at least one DST sec
+        d = False
+        for sec in DataStore.DRIVER_NAMES.values():
+            d |= uc.cp.has_section(sec)
+        return bool(re.search('[a-zA-Z0-9]{32}',uc.cp.get('LDS','key'))) & d
     
 # Functions above relate to connection config info
 #----------------------------------------------------------------------------------------------------------------------
@@ -618,7 +633,7 @@ class LayerReader(object):
         pass
     
     @abstractmethod
-    def getLayerNames(self):
+    def getLayerNames(self,refresh):
         pass
     
     @abstractmethod
@@ -706,7 +721,7 @@ class LayerFileReader(LayerReader):
         return lid[0] if len(lid)>0 else None
     
     @override(LayerReader)
-    def getLayerNames(self):
+    def getLayerNames(self,refresh=False):
         '''Returns sections from properties file'''
         lcnames = []
         for sec in self.cp.sections():
@@ -883,13 +898,17 @@ class LayerDSReader(LayerReader):
         
     def buildConfigLayer(self,res):
         '''Builds the config table into and using the active DS'''
-
+        config_layer = None
         try:
             self.lcfname.ds.DeleteLayer(self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
         except Exception as e:
             ldslog.warn("Exception deleting config layer: "+str(e))
         #CreateLayer(self, char name, SpatialReference srs = None, OGRwkbGeometryType geom_type = wkbUnknown, char options = None) -> Layer
-        config_layer = self.lcfname.ds.CreateLayer(self.lcfname.LDS_CONFIG_TABLE, None, self.lcfname.selectValidGeom(ogr.wkbNone), ['OVERWRITE=YES'])###fname -> lcfname
+        try:
+            config_layer = self.lcfname.ds.CreateLayer(self.lcfname.LDS_CONFIG_TABLE, None, self.lcfname.selectValidGeom(ogr.wkbNone), ['OVERWRITE=YES'])###fname -> lcfname
+        except Exception as e:
+            ldslog.warn("Exception creating config layer: "+str(e))
+            
         if config_layer is None:
             ldslog.error("Cannot create lds config layer: " + self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
         
@@ -929,7 +948,7 @@ class LayerDSReader(LayerReader):
         layer.GetFeatureCount()
         feat = layer.GetNextFeature() 
         while feat:
-            if lname == feat.GetField('name'):#.encode('utf8'):
+            if LU.unicodeCompare(lname,feat.GetField('name')):#.encode('utf8'):
                 return feat.GetField('id')#.encode('utf8')
             feat = layer.GetNextFeature()
         return None
@@ -974,7 +993,7 @@ class LayerDSReader(LayerReader):
         #HACK Win7
         layer.GetFeatureCount()
         feat = self.lcfname._findMatchingFeature(layer, 'id', id)###fname -> lcfname
-        if feat is None:
+        if not feat:
             InaccessibleFeatureException('Cannot access feature with id='+str(id)+' in layer '+str(layer.GetName()))
         return LU.extractFields(feat)
     
@@ -1131,12 +1150,12 @@ class GUIPrefsReader(object):
         
     def writesecline(self,section,field,value):
         try:            
-            self.cp.set(section,field,value)
+            self.cp.set(section,field,value if LU.assessNone(value) else '')
             with codecs.open(self.fn, 'w','utf-8') as configfile:
                 self.cp.write(configfile)
             ldslog.debug(str(section)+':'+str(field)+'='+str(value))                                                                                        
         except Exception as e:
-            ldslog.warn('Problem writing GUI prefs. '+str(e))
+            ldslog.warn('Problem writing GUI prefs. {} - sfv={}'.format(e,(section,field,value)))
             
             
     def write(self,rlist):
@@ -1176,4 +1195,15 @@ class GUIPrefsReader(object):
             self.writesecline(section,option,None)
             return True
         return False
+    
+    @classmethod
+    def validate():
+        '''Make sure a guipref file is valid, check pref points to alt least one valid DST'''
+        filename = os.path.join(os.path.dirname(__file__),GUIPrefsReader.GUI_PREFS)
+        gp = GUIPrefsReader(filename)
+        #validate UC check it has a valid dest named and configured
+        p = gp.cp.get('prefs', 'dest')
+        return gp.cp.has_section(p)
+
+        
 

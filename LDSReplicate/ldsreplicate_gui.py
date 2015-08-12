@@ -17,21 +17,14 @@ Created on 13/02/2013
 
 from PyQt4.QtGui import (QApplication)
 
-
 import sys
-
 
 from lds.LDSUtilities import LDSUtilities
 from lds.VersionUtilities import AppVersion
 
-
-
 ldslog = LDSUtilities.setupLogging()
 
 __version__ = AppVersion.getVersion()
-
-
-
 
 def lconf():
     #func to call layer config selector

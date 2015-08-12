@@ -21,14 +21,14 @@ import ogr
 import osr
 import gdal
 import re
-import time
+import os
 
 #from osr import CoordinateTransformation
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
 from difflib import SequenceMatcher
 
-from lds.LDSUtilities import LDSUtilities as LU,Debugging as DB,SUFIExtractor,FeatureCounter
+from lds.LDSUtilities import LDSUtilities as LU, Debugging as DB, DirectDownload, SUFIExtractor, FeatureCounter
 from lds.ProjectionReference import Projection
 from lds.ConfigWrapper import ConfigWrapper
 #from TransferProcessor import CONF_EXT, CONF_INT
@@ -40,7 +40,8 @@ timerlog = LU.setupLogging(lf='TIMER',ff=3)
 ogr.UseExceptions()
 
 #exceptions
-class DSReaderException(Exception): pass
+class DSReaderException(Exception): 
+    def __init__(self,em,ll=ldslog.error): ll('{} - {}'.format(type(self).__name__,em))
 class DSConversionException(Exception): pass
 class LDSReaderException(DSReaderException): pass
 
@@ -61,7 +62,8 @@ class UnknownDSTypeException(DSReaderException): pass
 class UnknownTemporaryDSTypeException(DSReaderException): pass
 class MalformedConnectionString(DSReaderException): pass
 class InaccessibleLayerException(DSReaderException): pass
-class InaccessibleFeatureException(DSReaderException): pass
+class InaccessibleFeatureException(DSReaderException): pass    
+class OversizeLayerException(DSReaderException): pass   
 class DatasourcePrivilegeException(DSReaderException): pass
 class UnsupportedServiceException(LDSReaderException): pass
 
@@ -87,6 +89,7 @@ class DataStore(object):
     DRIVER_NAMES = {'pg':'PostgreSQL','ms':'MSSQLSpatial','sl':'SQLite','fg':'FileGDB'}
     
     LDS_CONFIG_TABLE = 'lds_config'
+    TEMP_FILE = os.path.join(os.path.dirname(__file__), '../conf/tempfile.xml')
     DATE_FORMAT = '%Y-%m-%dT%H:%M:%S'
     EARLIEST_INIT_DATE = '2000-01-01T00:00:00'
     #Number of retry attempts before abandoning replication completely
@@ -117,6 +120,9 @@ class DataStore(object):
     #ITYPES = LU.enum('QUERYONLY','QUERYMETHOD','METHODONLY')
     
     CPL_DEBUG = 'OFF'
+    GDAL_CACHEMAX = 2047
+    GML_INVERT = 'YES'
+    GML_URN = 'YES'
     GDAL_IGNORE = 'Function sequence error','HTTP error code : 50[234]','HTTP error code : 404',\
         'General Error','Empty content returned by server','Feature count mismatch','Cannot access any Features'
     
@@ -173,6 +179,8 @@ class DataStore(object):
         
         self.change_ct = {'delete':0,'update':0,'insert':0}
         self.change_op = {'delete':self.deleteFeature,'update':self.updateFeature,'insert':self.insertFeature}
+        
+        self.offline = False
 
     #incr flag copied straight from Datastore
     #def setIncremental(self,itype):
@@ -232,7 +240,7 @@ class DataStore(object):
         ldslog.info('Applying {} option {} -> {}'.format(self.DRIVER_NAME,opt,str(res)))
             
     def getDriver(self,driver_name):
-
+        '''Load the specified driver'''
         self.driver = ogr.GetDriverByName(driver_name)
         if self.driver == None:
             raise DriverInitialisationException, "Driver cannot be initialised for type "+driver_name
@@ -283,7 +291,12 @@ class DataStore(object):
 
     def getConfigOptions(self):
         '''Returns common gdal operating options, overridden in subclasses for source specifc options'''
-        return ['CPL_DEBUG='+str(self.CPL_DEBUG)]  
+        global_opts = ['CPL_DEBUG='+str(self.CPL_DEBUG)]
+        global_opts += ['GDAL_CACHEMAX='+str(self.GDAL_CACHEMAX)]
+        global_opts += ['GML_INVERT_AXIS_ORDER_IF_LAT_LONG='+str(self.GML_INVERT)]
+        global_opts += ['GML_CONSIDER_EPSG_AS_URN='+str(self.GML_URN)]
+        #global_opts += ['CPL_CURL_VERBOSE=YES']
+        return global_opts  
     
     def getDBOptions(self):
         '''Returns database creation options (used by spatialite)'''
@@ -334,7 +347,7 @@ class DataStore(object):
         '''initialise a DS for writing'''
         try:
             #we can turn OGR exceptions off here so reported but recoverable errors don't kill DS initialisation 
-            #ogr.DontUseExceptions()  #see finally below  
+            #ogr.UseExceptions()  #see finally below  
             ds = self.driver.Open(dsn, update = 1 if self.getOverwrite()=='YES' else 0)
             if ds is None:
                 raise DatasourceOpenException('Null DS returned attempting to open {}'.format(dsn))
@@ -345,7 +358,7 @@ class DataStore(object):
                 
             #Try to create a DS
             if create: 
-                ldslog.info('Create '+str(dsn))
+                ldslog.info('Create DS from '+str(dsn))
                 try:
                     ds = self.createDS(dsn)
                 except RuntimeError as re2:
@@ -377,7 +390,6 @@ class DataStore(object):
             raise
         return ds if ds else None
        
-    #NOTE this got commented out for some supposedly good reason... Something to do with Proxies *Investigate*
     def read(self,dsn,create=True):
         '''Main DS read method'''
         ldslog.info("DS read "+dsn)#.split(":")[0])
@@ -387,7 +399,7 @@ class DataStore(object):
             return True
         return False
         
-    def write(self,src,dsn,sixtyfour):
+    def write(self,src,dsn,layername,sixtyfour):
         '''Main DS write method. Attempts to open or alternatively, create a datasource'''
         #mild hack. src_link created so we can re-query the source as a doc to get 64bit ints as strings
         self.src_link = src
@@ -404,10 +416,10 @@ class DataStore(object):
                 if self.getIncremental():
                     # standard incremental featureCopyIncremental. change_col used in delete list and as change (INS/DEL/UPD) indicator
                     #gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','ON')
-                    self.featureCopyIncremental(self.src_link.getDS(),self.getDS(),self.src_link.CHANGE_COL)
+                    self.featureCopyIncremental(self.src_link.getDS(),self.getDS(),layername,self.src_link.CHANGE_COL)
                 else:
                     #gdal.SetConfigOption('OGR_WFS_PAGING_ALLOWED','OFF') 
-                    self.featureCopy(self.src_link.getDS(),self.getDS())
+                    self.featureCopy(self.src_link.getDS(),self.getDS(),layername)
                 
             except (FeatureCopyException, InaccessibleFeatureException, RuntimeError) as rte:
                 em = gdal.GetLastErrorMsg()
@@ -432,15 +444,28 @@ class DataStore(object):
                         ldslog.warn('Reducing Page Size to '+str(reduction))
                         src.setPartitionSize(reduction)
                         src.applyConfigOptionSingle('OGR_WFS_PAGE_SIZE='+str(reduction))
-                    
                 else: 
                     #for all other errors, quit
-                    ldslog.error(rte,exc_info=1)
+                    ldslog.error('Traceback {}'.format(rte),exc_info=1)
                     raise
+                
+            except OversizeLayerException as ole:
+                #HACK7. Layer is too big to fetch over ogr so we have to pre-download and using urllib read local file
+                ldslog.warn('OGR layer download failure {}. Implementing manual download workaround'.format(ole))
+                DirectDownload(self.src_link.getDS().name,self.TEMP_FILE).download()
+                self.src_link.offline = True
+                self.src_link.getDriver('GML')
+                if not self.src_link.read(self.TEMP_FILE):
+                    raise
+                self.attempts += 1
+                
             else:
+                #break if no exceptions
                 break
-        
-        
+            
+            finally:
+                if os.path.exists(self.TEMP_FILE): os.remove(self.TEMP_FILE)
+          
     def deleteOptionalColumns(self,dst_layer):
         '''Delete unwanted columns from layer'''
         #because column deletion behaviour is different for each driver (advancing index or not) split out and subclass
@@ -467,372 +492,409 @@ class DataStore(object):
         
     #--------------------------------------------------------------------------
         
-    def getFeatureCount(self):
+    def getFeatureCount(self,layername):
         '''Alternate feature counter by hacking the uri (using wfs version 1.1.0) and asking for a hits result'''
         import WFSDataStore
-        append = "&resultType=hits"
+        from RequestBuilder import RequestBuilder as RB
+        if self.src_link.offline:
+            try:
+                return self.src_link.GetLayer(LU.recode(layername,uflag='compat')).GetFeatureCount()
+            except: 
+                return self.src_feat_count
+        
         newurl = LU.reVersionURL(self.src_link.getURI(), WFSDataStore.WFSDataStore.VERSION_COUNT)
-        doc = LU.timedProcessRunner(LU.readLDS, (newurl+append,self.src_link.pxy), None)
-        #doc = LU.readDocument(newurl+append,self.src_link.pxy)
+        doc = LU.timedProcessRunner(LU.readLDS, (RB.hitsAppend(newurl),self.src_link.pxy), None)
         fc = FeatureCounter.readCount(doc)
         ldslog.info('Alt FeatureCount '+str(fc))
         return fc
     
-    def getFirstSRCFeature(self,src_layer):
-        '''fetch first source feature. useful for reading feeature.features ie dimensions'''
+    def getFirstFeature(self,src_layer):
+        '''fetch first source feature. useful for reading feeature. features ie dimensions'''
         try:
             src_feat = src_layer.GetNextFeature()
         except Exception as e:
-            raise InaccessibleFeatureException('Unable to GetNextFeature 1. {}'.format(LU.errorMessageTranslate(e.__str__)))
-        
+            m = LU.errorMessageTranslate(e.message)
+            if not re.search('1.Unable',m): raise InaccessibleFeatureException('Error calling layer.GetNextFeature. {}'.format(m))
+            raise OversizeLayerException('Error writing during layer.GetNextFeature. {}'.format(m))
+
         if src_feat:
             self.src_info.feat_info.setGeometryRef(src_feat)
-            new_feat_def = self.partialCloneFeatureDef(src_feat)            
+            new_feat_def = self.partialCloneFeatureDef(src_feat)          
         else:
-            ldslog.warn('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
-            raise InaccessibleFeatureException('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
+            print src_feat
+            raise InaccessibleFeatureException('Cannot access first Feature. ({} available)'.format(self.src_feat_count))
         
         return src_feat,new_feat_def
                 
     @DB.dmesg(prefix='fC')
-    def featureCopy(self,src_ds,dst_ds):
+    def featureCopy(self,src_ds,dst_ds,layername):
         '''Feature copy without the change column (and other incremental) overhead. Replacement for driverCopy(cloneDS).''' 
-        for li in range(0,src_ds.GetLayerCount()):
+        #Since driver update ds.GetFeatureCount will return all layers available in the DS not just those in the original request
+        #so now we have to specify which layer it is we wanted access to. 
+        
+        #for li in range(0,src_ds.GetLayerCount()): Use this when using GML2 and expecting multiple layers per query
 
-            is_new = False
-            transaction_flag = True
-            src_layer = src_ds.GetLayer(li)
+        is_new = False
+        transaction_flag = True
+        src_layer = src_ds.GetLayer(LU.recode(layername,uflag='compat'))
+        
+        lc_id = LU.standardiseLayername(src_layer.GetName())
+        '''retrieve per-layer settings from props'''
+        layerconfentry = self.layerconf.readLayerParameters(lc_id)
+        lc_name = self.constructLayerName(layerconfentry.name)
+        
+        self.src_info = LayerInfo(lc_id,lc_name)
+        self.src_info.setLCE(layerconfentry)
+        
+        self.dst_info = LayerInfo(lc_id,lc_name)
+        self.dst_info.setLCE(layerconfentry)
+        
+        self.src_info.geometry = src_layer.GetGeomType()
+        self.dst_info.geometry = self.selectValidGeom(self.src_info.geometry)
+        self.src_info.spatial_ref = src_layer.GetSpatialRef()
+        self.dst_info.spatial_ref = self.transformSRS(self.src_info.spatial_ref)
+        self.src_info.parseLayerDefn(src_layer.GetLayerDefn())
+        self.dst_info.parseLayerDefn(self.src_info.layer_defn)
+        '''parse discard columns'''
+        self.optcols |= set(self.dst_info.discard.strip('[]{}()').split(',') if LU.assessNone(self.dst_info.discard) else [])
+        
+        ldslog.info("Dest layer: "+self.dst_info.layer_id)
+        try:
+            #self.src_feat_count = src_layer.GetFeatureCount()
+            self.src_feat_count = self.getFeatureCount(layername)
+        except Exception:
+            '''Try to get a feat count one more time'''
+            ldslog.warn('Failed getting feature count. Rebuilding SDS')
+            self.src_link.rebuildDS()
+            src_ds = self.src_link.ds
+            src_layer = src_ds.GetLayer(LU.recode(layername,uflag='compat'))
+            self.src_feat_count = self.getFeatureCount(layername)
             
-            lc_id = LU.cropChangeset(src_layer.GetName())
-            '''retrieve per-layer settings from props'''
-            layerconfentry = self.layerconf.readLayerParameters(lc_id)
-            lc_name = self.constructLayerName(layerconfentry.name)
-            
-            self.src_info = LayerInfo(lc_id,lc_name)
-            self.src_info.setLCE(layerconfentry)
-            
-            self.dst_info = LayerInfo(lc_id,lc_name)
-            self.dst_info.setLCE(layerconfentry)
-            
-            self.src_info.geometry = src_layer.GetGeomType()
-            self.dst_info.geometry = self.selectValidGeom(self.src_info.geometry)
-            self.src_info.spatial_ref = src_layer.GetSpatialRef()
-            self.dst_info.spatial_ref = self.transformSRS(self.src_info.spatial_ref)
-            self.src_info.parseLayerDefn(src_layer.GetLayerDefn())
-            self.dst_info.parseLayerDefn(self.src_info.layer_defn)
-            '''parse discard columns'''
-            self.optcols |= set(self.dst_info.discard.strip('[]{}()').split(',') if LU.assessNone(self.dst_info.discard) else [])
-            
-            ldslog.info("Dest layer: "+self.dst_info.layer_id)
-            try:
-                #self.src_feat_count = src_layer.GetFeatureCount()
-                self.src_feat_count = self.getFeatureCount()
-            except Exception:
-                '''Try to get a feat count one more time'''
-                self.src_link.rebuildDS()
-                src_ds = self.src_link.ds
-                src_layer = src_ds.GetLayer(li)
-                self.src_feat_count = self.getFeatureCount()
-                
-            ldslog.info('Features available = '+str(self.src_feat_count))
-            '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
-            if self.src_feat_count>0:
-                src_feat,new_feat_def = self.getFirstSRCFeature(src_layer)
-            else:
-                #if there are no features (likely with small incr)
-                ldslog.info('No features available, returning')
-                src_layer.ResetReading()
-                #dst_layer.ResetReading()#hasn't been created yet
-                break
-                #no need to raise exception, there are no feats (kinda unlikely) so just return
-
-            #MSSQL doesn't like schema specifiers
-            try:
-                dst_layer = dst_ds.GetLayer(self.dst_info.ascii_name.split('.')[-1])
-            except RuntimeError as rer:
-                '''Instead of returning none, runtime errors occur if the layer doesn't exist and needs to be created or has no data'''
-                ldslog.warning("Runtime Error fetching layer. "+str(rer))
-                dst_layer = None
-            
-            if dst_layer is None:
-                ldslog.warning("Non-Incremental layer ["+self.dst_info.layer_id+"] request. Creating layer")
-                '''create a new layer if a similarly named existing layer can't be found on the dst'''
-                dst_layer,is_new = self.buildNewDestinationLayer(dst_ds)
-                
-            #Start Transaction
-            if  self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
-                dst_layer.StartTransaction()
-                ldslog.debug('FC Start Transaction '+str(self.attempts))
-            else:
-                transaction_flag = False
-                ldslog.warn('FC Transactions Disabled '+str(self.attempts))
-                
-            self.change_ct['insert'] = 0
-            #Loop feats
-            while src_feat:
-                self.change_ct['insert'] += 1
-                #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
-                self.change_op['insert'](dst_layer,src_feat,new_feat_def)
-                ldslog.debug('sref diff {}'.format(SequenceMatcher(None,str(src_layer.GetSpatialRef()),str(dst_layer.GetSpatialRef())).ratio()))
-                try:
-                    #print 'GNF_2'
-                    src_feat = src_layer.GetNextFeature()
-                except Exception as e:
-                    raise InaccessibleFeatureException('Unable to GetNextFeature 2. {}'.format(LU.errorMessageTranslate(e.__str__)))
-            
-            if self.src_feat_count and self.src_feat_count != sum(self.change_ct.values()):
-                if transaction_flag:
-                    dst_layer.RollbackTransaction()
-                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_ct.values()))+']')
-            
-            
-            '''Builds an index on a newly created layer if; 
-            1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has replicated at least 1 feat'''
-            #May need to be pushed out to subclasses depending on syntax differences
-            if is_new and (self.dst_info.geocolumn or self.dst_info.pkey) and sum(self.change_ct.values())>0: self.buildIndex()
-                
-            if transaction_flag:
-                try:
-                    ogr.DontUseExceptions()
-                    dst_layer.CommitTransaction()
-                except RuntimeError as rte:
-                    #HACK
-                    if re.search('General Error',str(rte)):
-                        ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+']')
-                    #else:
-                        raise
-                finally:
-                    ogr.UseExceptions()
-
-            
+        ldslog.info('Features available = '+str(self.src_feat_count))
+        '''since the characteristics of each feature wont change between layers we only need to define a new feature definition once'''
+        if self.src_feat_count>0:
+            src_feat,new_feat_def = self.getFirstFeature(src_layer)
+        else:
+            #if there are no features (likely with small incr)
+            ldslog.info('No features available, returning')
             src_layer.ResetReading()
-            dst_layer.ResetReading()   
-             
+            #dst_layer.ResetReading()#hasn't been created yet
+            return
+            #no need to raise exception, there are no feats (kinda unlikely) so just return
+
+        #MSSQL doesn't like schema specifiers
+        try:
+            tableonly = LU.recode(self.dst_info.layer_id,uflag='compat')
+            dst_layer = dst_ds.GetLayer(tableonly)
+        except RuntimeError as rer:
+            '''Instead of returning none, runtime errors occur if the layer doesn't exist and needs to be created or has no data'''
+            ldslog.warning("Runtime Error fetching layer. "+str(rer))
+            dst_layer = None
+        
+        if dst_layer is None:
+            ldslog.warning("Non-Incremental layer ["+self.dst_info.layer_id+"] request. Creating layer")
+            '''create a new layer if a similarly named existing layer can't be found on the dst'''
+            dst_layer,is_new = self.buildNewDestinationLayer(dst_ds)
+            
+        #Start Transaction
+        if  self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
+            dst_layer.StartTransaction()
+            ldslog.debug('FC Start Transaction '+str(self.attempts))
+        else:
+            transaction_flag = False
+            ldslog.warn('FC Transactions Disabled '+str(self.attempts))
+            
+        self.change_ct['insert'] = 0
+        #Loop feats
+        while src_feat:
+            #slowest part of this copy operation is the insert since we have to build a new feature from defn and check fields for discards and sufis
+            self.change_op['insert'](dst_layer,src_feat,new_feat_def)
+            self.change_ct['insert'] += 1
+            #Produces a lot of output and slows things down
+            #ldslog.debug('sref diff {}'.format(SequenceMatcher(None,str(src_layer.GetSpatialRef()),str(dst_layer.GetSpatialRef())).ratio()))
+            try:
+                src_feat = src_layer.GetNextFeature()
+                #print 'GNF3',src_feat.GetFID(),self.change_ct['insert']
+            except RuntimeError as re1:
+                ldslog.warn('GNF Failure 1 {}'.format(re1))
+                src_feat = self._retryGNF(src_layer)
+            except Exception as e:
+                raise InaccessibleFeatureException('Unable to GetNextFeature 2. {}'.format(LU.errorMessageTranslate(e.message)))
+        
+        if self.src_feat_count and self.src_feat_count != sum(self.change_ct.values()):
+            if transaction_flag:
+                dst_layer.RollbackTransaction()
+            raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_ct.values()))+']')
+        
+        
+        '''Builds an index on a newly created layer if; 
+        1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has replicated at least 1 feat'''
+        #May need to be pushed out to subclasses depending on syntax differences
+        if is_new and (self.dst_info.geocolumn or self.dst_info.pkey) and sum(self.change_ct.values())>0: self.buildIndex()
+            
+        if transaction_flag:
+            try:
+                ogr.DontUseExceptions()
+                dst_layer.CommitTransaction()
+            except RuntimeError as rte:
+                #HACK
+                if re.search('General Error',str(rte)):
+                    ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+']')
+                #else:
+                    raise
+            finally:
+                ogr.UseExceptions()
+
+        
+        src_layer.ResetReading()
+        dst_layer.ResetReading()   
+                
     @DB.dmesg(prefix='fCI')
-    def featureCopyIncremental(self,src_ds,dst_ds,changecol):
+    def featureCopyIncremental(self,src_ds,dst_ds,layername,changecol):
         #TDOD. decide whether C_C is better as an arg or a src.prop
         '''DataStore feature-by-feature replication for incremental queries'''
         #build new layer by duplicating source layers  
 
         ldslog.info("Using featureCopyIncremental. Per-feature copy")
-        for li in range(0,src_ds.GetLayerCount()):
-            is_new = False
-            transaction_flag = True
-            src_layer = src_ds.GetLayer(li)
+        #for li in range(0,src_ds.GetLayerCount()):
+        is_new = False
+        transaction_flag = True
+        src_layer = src_ds.GetLayer(LU.recode(layername,uflag='compat'))
 
-            lc_id = LU.cropChangeset(src_layer.GetName())
-            '''retrieve per-layer settings from props'''
-            layerconfentry = self.layerconf.readLayerParameters(lc_id)
-            lc_name = self.constructLayerName(layerconfentry.name)
+        lc_id = LU.standardiseLayername(src_layer.GetName())
+        '''retrieve per-layer settings from props'''
+        layerconfentry = self.layerconf.readLayerParameters(lc_id)
+        lc_name = self.constructLayerName(layerconfentry.name)
+        
+        self.src_info = LayerInfo(lc_id,lc_name)
+        self.src_info.setLCE(layerconfentry)
+        
+        self.dst_info = LayerInfo(lc_id,lc_name)
+        self.dst_info.setLCE(layerconfentry)
+        
+        ldslog.info("Dest layer: "+self.dst_info.layer_id)
+        
+        '''parse discard columns'''
+        self.optcols |= set(self.dst_info.discard.strip('[]{}()').split(',') if LU.assessNone(self.dst_info.discard) else [])
+        
+        try:
+            tableonly = LU.recode(self.dst_info.layer_id,uflag='compat')
+            if self.dst_info.lastmodified:
+                #if the layer conf had a lastmodified don't overwrite
+                dst_layer = dst_ds.GetLayer(tableonly)#dst_info.layer_name)
+            else:
+                #with no lastmodified can assume the layer doesnt exist in the dst
+                #self.src_info.spatial_ref = src_layer.GetSpatialRef()
+                #self.src_info.geometry = src_layer.GetGeomType()
+                self.src_info.layer_defn = src_layer.GetLayerDefn()
+                #self.dst_info.spatial_ref = self.transformSRS(self.src_info.spatial_ref)
+                (dst_layer,is_new) = self.buildNewDestinationLayer(dst_ds)
+        except RuntimeError as rer:
+            '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
+            ldslog.warning("Runtime Error fetching layer. "+str(rer))
+            dst_layer = None
             
-            self.src_info = LayerInfo(lc_id,lc_name)
-            self.src_info.setLCE(layerconfentry)
-            
-            self.dst_info = LayerInfo(lc_id,lc_name)
-            self.dst_info.setLCE(layerconfentry)
-            
-            ldslog.info("Dest layer: "+self.dst_info.layer_id)
-            
-            '''parse discard columns'''
-            self.optcols |= set(self.dst_info.discard.strip('[]{}()').split(',') if LU.assessNone(self.dst_info.discard) else [])
-            
-            try:
-                tableonly = self.dst_info.ascii_name.split('.')[-1]
-                if self.dst_info.lastmodified:
-                    #if the layer conf had a lastmodified don't overwrite
-                    dst_layer = dst_ds.GetLayer(tableonly)#dst_info.layer_name)
-                else:
-                    #with no lastmodified can assume the layer doesnt exist
-                    #self.src_info.spatial_ref = src_layer.GetSpatialRef()
-                    #self.src_info.geometry = src_layer.GetGeomType()
-                    self.src_info.layer_defn = src_layer.GetLayerDefn()
-                    #self.dst_info.spatial_ref = self.transformSRS(self.src_info.spatial_ref)
-                    (dst_layer,is_new) = self.buildNewDestinationLayer(dst_ds)
-            except RuntimeError as rer:
-                '''Instead of returning none, runtime errors sometimes occur if the layer doesn't exist and needs to be created or has no data'''
-                ldslog.warning("Runtime Error fetching layer. "+str(rer))
-                dst_layer = None
-                
-            self.src_info.geometry = src_layer.GetGeomType()
-            self.dst_info.geometry = self.selectValidGeom(self.src_info.geometry)
-            self.src_info.spatial_ref = src_layer.GetSpatialRef()
-            self.dst_info.spatial_ref = self.transformSRS(self.src_info.spatial_ref)
-            self.src_info.parseLayerDefn(src_layer.GetLayerDefn())
-            self.dst_info.parseLayerDefn(self.src_info.layer_defn)
+        self.src_info.geometry = src_layer.GetGeomType()
+        self.dst_info.geometry = self.selectValidGeom(self.src_info.geometry)
+        self.src_info.spatial_ref = src_layer.GetSpatialRef()
+        self.dst_info.spatial_ref = self.transformSRS(self.src_info.spatial_ref)
+        self.src_info.parseLayerDefn(src_layer.GetLayerDefn())
+        self.dst_info.parseLayerDefn(self.src_info.layer_defn)
+        
+        if dst_layer is None:
+            #with or without a lmod its still possible the layer doesn't exist or cannot be read
+            ldslog.warning(self.dst_info.layer_id+" does not exist. Creating new layer")
+            '''create a new layer if a similarly named existing layer can't be found on the dst'''
+            (dst_layer,is_new) = self.buildNewDestinationLayer(dst_ds)
             
             if dst_layer is None:
-                #with or without a lmod its still possible the layer doesn't exist or cannot be read
-                ldslog.warning(self.dst_info.layer_id+" does not exist. Creating new layer")
-                '''create a new layer if a similarly named existing layer can't be found on the dst'''
-                (dst_layer,is_new) = self.buildNewDestinationLayer(dst_ds)
-                
-                if dst_layer is None:
-                    #if its still none, bail (and don't bother with re-attempt)
-                    raise LayerCreateException('Unable to initialise a new Layer on destination')
+                #if its still none, bail (and don't bother with re-attempt)
+                raise LayerCreateException('Unable to initialise a new Layer on destination')
+        
+        #add/copy features
+        try:
+            #self.src_feat_count = src_layer.GetFeatureCount()
+            self.src_feat_count = self.getFeatureCount(layername)
+        except Exception:         
+            '''Try to get a feat count one more time'''
+            ldslog.warn('Failed getting feature count. Rebuilding SDS')
+            self.src_link.rebuildDS()
+            src_ds = self.src_link.ds
+            src_layer = src_ds.GetLayer(LU.recode(layername,uflag='compat'))
+            self.src_feat_count = self.getFeatureCount(layername)
             
-            #add/copy features
+        ldslog.info('Features available = '+str(self.src_feat_count))
+        
+        if self.src_feat_count>0:
+            #src_feat = LU.timedProcessRunner(LU.wrapWorker,(src_layer.GetNextFeature,), None)
             try:
-                #self.src_feat_count = src_layer.GetFeatureCount()
-                self.src_feat_count = self.getFeatureCount()
-            except Exception:        
-                self.src_link.rebuildDS()
-                src_ds = self.src_link.ds
-                src_layer = src_ds.GetLayer(li)
-                self.src_feat_count = self.getFeatureCount()
-                
-            ldslog.info('Features available = '+str(self.src_feat_count))
+                #print 'GNFi1'
+                src_feat = src_layer.GetNextFeature()
+            except Exception as e:
+                raise InaccessibleFeatureException('Unable to GetNextFeature 1i. {}'.format(LU.errorMessageTranslate(e.message)))
             
-            if self.src_feat_count>0:
-                #src_feat = LU.timedProcessRunner(LU.wrapWorker,(src_layer.GetNextFeature,), None)
-                try:
-                    #print 'GNFi1'
-                    src_feat = src_layer.GetNextFeature()
-                except Exception as e:
-                    raise InaccessibleFeatureException('Unable to GetNextFeature 1i. {}'.format(LU.errorMessageTranslate(e.__str__)))
-                
-                if src_feat:
-                    new_feat_def = self.partialCloneFeatureDef(src_feat)
-                else:
-                    ldslog.warn('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
-                    raise InaccessibleFeatureException('Cannot access first Feature. ('+str(self.src_feat_count)+' available)')
+            if src_feat:
+                new_feat_def = self.partialCloneFeatureDef(src_feat)
             else:
-                #if there are no features (likely with small incr)
-                ldslog.info('No features available, returning')
-                src_layer.ResetReading()
-                dst_layer.ResetReading()
-                break
-                #raise InaccessibleFeatureException('Error attempting to access Feature count, ('+str(self.src_feat_count)+' available)')
-
-
-            #dont bother with transactions if they're failing > N times
-            if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
-                #NB. Jeremy. TestCap for transactions is needed for FileGDB since rollback throws exception if attempted
-                dst_layer.StartTransaction()
-                ldslog.debug('FCI Start Transaction '+str(self.attempts))
-            else:
-                transaction_flag = False
-                ldslog.warn('FCI Transactions Disabled '+str(self.attempts))
-            
-
-            #prefetch vs direct  
-            if self.getPrefetchMethod()=='direct':
-                ldslog.info('Direct')
-
-                e = 0
-                feat_count = 0
-                self.change_ct = {'delete':0,'update':0,'insert':0}
-    
-                while src_feat:
-                    feat_count += 1
-                    #(src_feat.GetField(changecol) if LU.assessNone(changecol) else "insert").lower()
-                    change =  (src_feat.GetField(changecol) if LU.assessNone(changecol) else 'insert').lower()
-                    
-                    try:
-                        e = self.change_op[change](dst_layer, src_feat, new_feat_def)
-                        # raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
-                        self.change_ct[change] += 1
-                    except InvalidFeatureException as ife:
-                        ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
-                    #except Exception as e:
-                    # ldslog.error('trap new errors here... '+str(e))
-                    if e != 0:
-                        ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
-                        if change == 'update':
-                            ldslog.warn('Update failed on SetFeature, attempting delete+insert')
-                            #let delete and insert error handlers take care of any further exceptions
-                            e1 = self.change_op['delete'](dst_layer,src_feat, None)
-                            e2 = self.change_op['insert'](dst_layer,src_feat,new_feat_def)
-                            if e1+e2 != 0:
-                                raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
-                    #testing
-                    #ldslog.info(feat_count) 
-                    try:
-                        #print 'GNFi2'
-                        src_feat = src_layer.GetNextFeature()
-                    except Exception as e:
-                        raise InaccessibleFeatureException('Unable to GetNextFeature 2i. {}'.format(LU.errorMessageTranslate(e.__str__))) 
-                     
-                ##if self.src_feat_count != self.dst_change_ct:
-                if self.src_feat_count != sum(self.change_ct.values()):
-                    if transaction_flag:
-                        dst_layer.RollbackTransaction()
-                    #raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_ct)+']')
-                    raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_ct.values()))+']')
-
-            #prefetch results (mandatory for fgdb)
-            
-            elif self.getPrefetchMethod()=='prefetch':
-                ldslog.info('Pre-Fetch')
-
-                e = 0
-                #key order here is important
-                src_array = {'delete':(),'update':(),'insert':()}    
-                self.change_ct = {'delete':0,'update':0,'insert':0}
-                
-                ldslog.info('Begin Pre-Fetch with {} Features'.format(self.getPrefetchSize()))
-                feat_count = 0
-                proc_count = 0
-    
-                while src_feat:
-                    feat_count += 1
-                    change =  (src_feat.GetField(changecol) if LU.assessNone(changecol) else "insert").lower()
-      
-                    src_array[change] += (src_feat,)
-                    if feat_count>=self.getPrefetchSize():
-                        ldslog.info('Loading Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.getPrefetchSize()*(proc_count+1)))
-                        self.processFetchedIncrement(src_array,dst_layer,new_feat_def)
-                        feat_count = 0
-                        proc_count += 1
-                        src_array = {'delete':(),'update':(),'insert':()}
-                    #testing
-                    #ldslog.info(feat_count) 
-                    #print 'GNFi3'
-                    try:
-                        src_feat = src_layer.GetNextFeature()
-                    except Exception as e:
-                        raise InaccessibleFeatureException('Unable to GetNextFeature 3i. {}'.format(LU.errorMessageTranslate(e.__str__))) 
-                    
-                     
-                ldslog.info('Loading remaining Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.src_feat_count))
-                self.processFetchedIncrement(src_array,dst_layer,new_feat_def)
-                 
-                if self.src_feat_count != sum(self.change_ct.values()):
-                    if transaction_flag:
-                        dst_layer.RollbackTransaction()
-                    raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_ct.values()))+']')
-
-            else:
-                ldslog.error('Unknown Fetch Method') 
-                raise FeatureCopyException('Unknown Fetch Method')        
-    
-            #self._showLayerData(dst_layer)
-            
-            '''Builds an index on a newly created layer if; 
-            1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
-            #Ordinarily pushed out to subclasses depending on syntax differences
-            if is_new and (self.dst_info.geocolumn or self.dst_info.pkey) and sum(self.change_ct.values())>0: self.buildIndex()
-                
-            if transaction_flag:
-                try:
-                    ogr.DontUseExceptions()
-                    dst_layer.CommitTransaction()
-                except RuntimeError as rte:
-                    #HACK
-                    if re.search('General Error',str(rte)):
-                        ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+'] Ignoring!')
-                    #else:
-                        raise
-                finally:
-                    ogr.UseExceptions()
-                
-            ldslog.info('Inserts={0}, Deletes={1}, Updates={2}'.format(self.change_ct['insert'],self.change_ct['delete'],self.change_ct['update']))
-            
+                em = 'Cannot access first Feature. ('+str(self.src_feat_count)+' available)'
+                ldslog.warn(em)
+                raise InaccessibleFeatureException(em)
+        else:
+            #if there are no features (likely with small incr)
+            ldslog.info('No features available, returning')
             src_layer.ResetReading()
             dst_layer.ResetReading()
+            return
+            #raise InaccessibleFeatureException('Error attempting to access Feature count, ('+str(self.src_feat_count)+' available)')
+
+
+        #dont bother with transactions if they're failing > N times
+        if self.attempts < self.TRANSACTION_THRESHOLD_WFS_ATTEMPTS and dst_layer.TestCapability(ogr.OLCTransactions):
+            #NB. Jeremy. TestCap for transactions is needed for FileGDB since rollback throws exception if attempted
+            dst_layer.StartTransaction()
+            ldslog.debug('FCI Start Transaction '+str(self.attempts))
+        else:
+            transaction_flag = False
+            ldslog.warn('FCI Transactions Disabled '+str(self.attempts))
+        
+
+        #prefetch vs direct  
+        if self.getPrefetchMethod()=='direct':
+            ldslog.info('Direct')
+
+            e = 0
+            feat_count = 0
+            self.change_ct = {'delete':0,'update':0,'insert':0}
+
+            while src_feat:
+                feat_count += 1
+                #(src_feat.GetField(changecol) if LU.assessNone(changecol) else "insert").lower()
+                change =  (src_feat.GetField(changecol) if LU.assessNone(changecol) else 'insert').lower()
+                
+                try:
+                    e = self.change_op[change](dst_layer, src_feat, new_feat_def)
+                    # raise KeyError("Error with Key "+str(change)+" !E {ins,del,upd}",exc_info=1)
+                    self.change_ct[change] += 1
+                except InvalidFeatureException as ife:
+                    ldslog.error("Invalid Feature Exception during "+change+" operation on dest. "+str(ife),exc_info=1)
+                #except Exception as e:
+                # ldslog.error('trap new errors here... '+str(e))
+                if e != 0:
+                    ldslog.error("Driver Error ["+str(e)+"] on "+change,exc_info=1)
+                    if change == 'update':
+                        ldslog.warn('Update failed on SetFeature, attempting delete+insert')
+                        #let delete and insert error handlers take care of any further exceptions
+                        e1 = self.change_op['delete'](dst_layer,src_feat, None)
+                        e2 = self.change_op['insert'](dst_layer,src_feat,new_feat_def)
+                        if e1+e2 != 0:
+                            raise InvalidFeatureException("Driver Error [d="+str(e1)+",i="+str(e2)+"] on "+change)
+                #testing
+                #ldslog.info(feat_count) 
+                try:
+                    #print 'GNFi2'
+                    src_feat = src_layer.GetNextFeature()
+                except Exception as e:
+                    raise InaccessibleFeatureException('Unable to GetNextFeature 2i. {}'.format(LU.errorMessageTranslate(e.message))) 
+                 
+            ##if self.src_feat_count != self.dst_change_ct:
+            if self.src_feat_count != sum(self.change_ct.values()):
+                if transaction_flag:
+                    dst_layer.RollbackTransaction()
+                #raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(self.dst_change_ct)+']')
+                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_ct.values()))+']')
+
+        #prefetch results (mandatory for fgdb)
+        
+        elif self.getPrefetchMethod()=='prefetch':
+            ldslog.info('Pre-Fetch')
+
+            e = 0
+            #key order here is important
+            src_array = {'delete':(),'update':(),'insert':()}    
+            self.change_ct = {'delete':0,'update':0,'insert':0}
+            
+            ldslog.info('Begin Pre-Fetch with {} Features'.format(self.getPrefetchSize()))
+            feat_count = 0
+            proc_count = 0
+
+            while src_feat:
+                feat_count += 1
+                change =  (src_feat.GetField(changecol) if LU.assessNone(changecol) else "insert").lower()
+  
+                src_array[change] += (src_feat,)
+                if feat_count>=self.getPrefetchSize():
+                    ldslog.info('Loading Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.getPrefetchSize()*(proc_count+1)))
+                    self.processFetchedIncrement(src_array,dst_layer,new_feat_def)
+                    feat_count = 0
+                    proc_count += 1
+                    src_array = {'delete':(),'update':(),'insert':()}
+                #testing
+                #ldslog.info(feat_count) 
+                #print 'GNFi3'
+                try:
+                    src_feat = src_layer.GetNextFeature()            
+                except RuntimeError as re1:
+                    ldslog.warn('GNFi Failure 1 {}'.format(re1))
+                    src_feat = self._retryGNF(src_layer)
+                except Exception as e:
+                    raise InaccessibleFeatureException('Unable to GetNextFeature 3i. {}'.format(LU.errorMessageTranslate(e.message))) 
+                
+                 
+            ldslog.info('Loading remaining Features {}-{}'.format(self.getPrefetchSize()*proc_count,self.src_feat_count))
+            self.processFetchedIncrement(src_array,dst_layer,new_feat_def)
+             
+            if self.src_feat_count != sum(self.change_ct.values()):
+                if transaction_flag:
+                    dst_layer.RollbackTransaction()
+                raise FeatureCopyException('Feature count mismatch. Source count['+str(self.src_feat_count)+'] <> Change count['+str(sum(self.change_ct.values()))+']')
+
+        else:
+            ldslog.error('Unknown Fetch Method') 
+            raise FeatureCopyException('Unknown Fetch Method')        
+
+        #self._showLayerData(dst_layer)
+        
+        '''Builds an index on a newly created layer if; 
+        1) new layer flag is true, 2) index p|s is asked for, 3) we have a pk to use and 4) the layer has at least 1 feat'''
+        #Ordinarily pushed out to subclasses depending on syntax differences
+        if is_new and (self.dst_info.geocolumn or self.dst_info.pkey) and sum(self.change_ct.values())>0: self.buildIndex()
+            
+        if transaction_flag:
+            try:
+                ogr.DontUseExceptions()
+                dst_layer.CommitTransaction()
+            except RuntimeError as rte:
+                #HACK
+                if re.search('General Error',str(rte)):
+                    ldslog.warn('CommitTransaction raising OGR General Error. [ '+str(rte)+'] Ignoring!')
+                #else:
+                    raise
+            finally:
+                ogr.UseExceptions()
+            
+        ldslog.info('Inserts={0}, Deletes={1}, Updates={2}'.format(self.change_ct['insert'],self.change_ct['delete'],self.change_ct['update']))
+        
+        src_layer.ResetReading()
+        dst_layer.ResetReading()
             
         #returning nothing disables manual paging    
-        #return max_index          
-
+        #return max_index    
+              
+    def _retryGNF(self,src_layer):
+        '''Get trying to get features if the error surfaceMember'''
+        fault = 1
+        #src_layer.ResetReading()
+        while fault:
+            try: 
+                src_feat = src_layer.GetNextFeature()
+            except RuntimeError as re2: 
+                fault += 1
+                ldslog.warn('Retry GNF Failure {} {}'.format(fault,re2))
+            else: 
+                ldslog.info('Found FID {}'.format(src_feat.GetFID()))
+                fault = 0
+        return src_feat
+    
     def processFetchedIncrement(self, src_array, dst_layer, new_feat_def):
         '''Process current feature pool'''          
         for change in src_array.keys():
@@ -874,18 +936,21 @@ class DataStore(object):
                 ldslog.warn("Unable to validate selected SRS, epsg="+str(selected_sref))
         else:
             return src_layer_sref
-                    
+                      
     def insertFeature(self,dst_layer,src_feat,new_feat_def):
         '''insert a new feature'''
         st = datetime.now()
         new_feat = self.partialCloneFeature(src_feat,new_feat_def)
+        #print 'GR','\n'.join(str(new_feat.GetGeometryRef()).split(','))
+        #print 'VR',len(str(new_feat.GetGeometryRef()).split(','))
+        #print 'SR',new_feat.GetGeometryRef().GetSpatialReference()
         e = dst_layer.CreateFeature(new_feat)
         #dst_fid = new_feat.GetFID()
         #ldslog.debug("INSERT: "+str(dst_fid))
         timerlog.info('INSERT,{}'.format(1000*(datetime.now()-st).total_seconds()))
         
         return e
-
+    
     def updateFeature(self,dst_layer,src_feat,new_feat_def):
         '''build new feature, assign it the looked-up matching fid and overwrite on dst'''
         st = datetime.now()
@@ -913,7 +978,7 @@ class DataStore(object):
         timerlog.info('UPDATE,{}'.format(src_pkey,1000*(datetime.now()-st).total_seconds()))
         
         return e
-
+    
     def deleteFeature(self,dst_layer,src_feat,_): 
         '''lookup and delete using fid matching ID of feature being deleted'''
         #naive first implementation, might/will be slow 
@@ -967,7 +1032,9 @@ class DataStore(object):
         #above is commented out because hydro are providing 3D polys
         #self.dst_info.geometry = self.selectValidGeom(src_info.geometry) 
         '''Test coordinate dimensions for 25D. If so set layer geom to 25D'''
-        if max(self.src_info.feat_info.feat_dims,self.src_info.feat_info.feat_cdims)>2:
+        if hasattr(self.src_info.feat_info,'feat_dims') \
+        and hasattr(self.src_info.feat_info,'feat_cdims') \
+        and max(self.src_info.feat_info.feat_dims,self.src_info.feat_info.feat_cdims)>2:
             self.dst_info.geometry = self._convertDim(self.dst_info.geometry)
         '''build layer replacing poly with multi and revert to def if that doesn't work'''
         try:
@@ -1173,7 +1240,6 @@ class DataStore(object):
         fout_def = ogr.FeatureDefn()
         #read input feat defn
         #fin_feat_def = fin.GetDefnRef()
-        
         #loop existing feature defn ignoring column X
         for fin_no in range(0,fin.GetFieldCount()):
             fin_field_def = fin.GetFieldDefnRef(fin_no)
@@ -1584,9 +1650,11 @@ class FeatureInfo(object):
             self.fdef_list.append(fd.GetFieldDefn(fi))
             
     def setGeometryRef(self,feat):
+        '''Save the geometry info for spatial layers'''
         sfg = feat.GetGeometryRef()
-        self.feat_dims = sfg.GetDimension()
-        self.feat_cdims = sfg.GetCoordinateDimension()
+        if sfg:
+            self.feat_dims = sfg.GetDimension()
+            self.feat_cdims = sfg.GetCoordinateDimension()
         
         
         

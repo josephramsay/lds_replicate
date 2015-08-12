@@ -49,7 +49,7 @@ xmlns:ows="http://www.opengis.net/ows/1.1"
         <xsl:text>&#xa;</xsl:text>
 		<xsl:text>lastmodified = &#xa;</xsl:text>
 		<xsl:choose>
-			<xsl:when test="starts-with(wfs:Title,'ASP')">		
+			<xsl:when test="contains(wfs:Name,':table-')">		
 				<xsl:text>geocolumn = &#xa;</xsl:text>
 			</xsl:when>
 			<xsl:otherwise>

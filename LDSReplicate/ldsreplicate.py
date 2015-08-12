@@ -46,7 +46,7 @@ from lds.TransferProcessor import InputMisconfigurationException
 from lds.VersionUtilities import AppVersion, VersionChecker, UnsupportedVersionException
 from lds.DataStore import DSReaderException
 from lds.LDSUtilities import LDSUtilities
-from lds.ConfigConnector import ConfigConnector, DatasourceRegister
+from lds.ConfigConnector import DatasourceRegister
 
 ldslog = LDSUtilities.setupLogging()
 
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     
     try:
         main()
-    except Exception as e:        
+    except Exception as e:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         ldslog.error('LDSReplicate Error.',exc_info=(exc_type,exc_value,exc_traceback))
         print str(e)+'\n(see debug.log for full stack trace)'

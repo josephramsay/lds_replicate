@@ -16,9 +16,8 @@ Created on 23/07/2012
 
 @author: jramsay
 '''
-import re
 
-import logging
+import re
 
 from contextlib import closing
 
@@ -30,7 +29,6 @@ from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
 from lds.WFSDataStore import WFSDataStore
 from lds.RequestBuilder import RequestBuilder
 from lds.LDSUtilities import LDSUtilities
-from lds.DataStore import MalformedConnectionString
 from lds.VersionUtilities import AppVersion
 
 ldslog = LDSUtilities.setupLogging()
@@ -60,7 +58,9 @@ class LDSDataStore(WFSDataStore):
           'r'       : '{http://data.linz.govt.nz/ns/r}', 
           'ows'     : '{http://www.opengis.net/ows/1.1}', 
           'v'       : '{http://data.linz.govt.nz/ns/v}', 
-          'wfs'     : '{http://www.opengis.net/wfs/2.0}', 
+          'wfs10'     : '{http://www.opengis.net/wfs}', 
+          'wfs11'     : '{http://www.opengis.net/wfs}', 
+          'wfs20'     : '{http://www.opengis.net/wfs/2.0}', 
           'xsi'     : '{http://www.w3.org/2001/XMLSchema-instance}', 
           'ogc'     : '{http://www.opengis.net/ogc}',
           'gco'     :'{http://www.isotc211.org/2005/gco}',
@@ -169,13 +169,14 @@ class LDSDataStore(WFSDataStore):
     
     
     @classmethod
-    def fetchLayerInfo(cls,url,proxy=None):
+    def fetchLayerInfo(cls,url,ver=None,proxy=None):
         '''Non-GDAL static method for fetching LDS layer ID's using etree parser.'''
         res = []
         content = None
-        ftxp = "//{0}FeatureType".format(cls.NS['wfs'])
-        nmxp = "./{0}Name".format(cls.NS['wfs'])
-        ttxp = "./{0}Title".format(cls.NS['wfs'])
+        wfs_ns = cls.NS['wfs20'] if re.match('^2',ver) else cls.NS['wfs11']
+        ftxp = "//{0}FeatureType".format(wfs_ns)
+        nmxp = "./{0}Name".format(wfs_ns)
+        ttxp = "./{0}Title".format(wfs_ns)
         kyxp = "./{0}Keywords/{0}Keyword".format(cls.NS['ows'])
         
         try:            

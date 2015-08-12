@@ -59,12 +59,12 @@ class LDSConfigWizard(QWizard):
         self.setMFR(self.uchint)
         
         self.plist = {'lds':(0,'LDS',LDSConfigPage),
-                 'pg':(1,'PostgreSQL',PostgreSQLConfigPage),
-                 'ms':(2,'MSSQLSpatial',MSSQLSpatialConfigPage),
-                 'fg':(3,'FileGDB',FileGDBConfigPage),
-                 'sl':(4,'SQLite',SpatiaLiteConfigPage),
-                 'proxy':(5,'Proxy',ProxyConfigPage),
-                 'final':(6,'Final',ConfirmationPage)}
+                      'pg':(1,'PostgreSQL',PostgreSQLConfigPage),
+                      'ms':(2,'MSSQLSpatial',MSSQLSpatialConfigPage),
+                      'fg':(3,'FileGDB',FileGDBConfigPage),
+                      'sl':(4,'SQLite',SpatiaLiteConfigPage),
+                      'proxy':(5,'Proxy',ProxyConfigPage),
+                      'final':(6,'Final',ConfirmationPage)}
         
         for key in self.plist.keys():
             index = self.plist.get(key)[0]
@@ -433,7 +433,7 @@ class PostgreSQLConfigPage(QWizardPage):
         except:
             (pghost,pgport,pgdbname,pgschema,pgusr,pgpwd,pgover,pgconfig,pgepsg,pgcql) = (None,)*10
         
-        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+        self.setTitle('PostgreSQL/PostGIS Configuration Options')
         self.setSubTitle('Enter the hostname/ip-address, port number, name and schema of your PostgreSQL server instance.')
      
         QToolTip.setFont(QFont('SansSerif', 10))
@@ -539,7 +539,7 @@ class MSSQLSpatialConfigPage(QWizardPage):
         except:
             (msodbc,msserver,msdsn,mstrust,msdbname,msschema,msusr,mspwd,msconfig,msepsg,mscql) = (None,)*11
         
-        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+        self.setTitle('MSSQL Spatial Server Configuration Options')
         self.setSubTitle('Enter the server string (host\instance) name and schema of your MSSQL server. Select "Trust" if using trusted authentication')
        
         QToolTip.setFont(QFont('SansSerif', 10))
@@ -641,7 +641,7 @@ class FileGDBConfigPage(QWizardPage):
         
         self.filter = ".*\.gdb$"
         
-        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+        self.setTitle('File Geodatabase Configuration Options')
         self.setSubTitle('Enter your FileGDB directory name. (This must carry a .gdb suffix)')
 
         
@@ -730,7 +730,7 @@ class SpatiaLiteConfigPage(QWizardPage):
         
         self.filter = ".*\.db$|.*\.sqlite\d*$"
         
-        self.setTitle(self.parent.plist.get(self.key)[1]+' Configuration Options')
+        self.setTitle('SpatialLite Configuration Options')
         self.setSubTitle('Browse to existing SpatiaLite DB OR enter new SpatiaLite DB file name. (This should carry a .db or .sqlite suffix)')
     
         QToolTip.setFont(QFont('SansSerif', 10))

@@ -61,17 +61,17 @@ class Test_2_ConfigConnector(unittest.TestCase):
         
     def test_2_setupComplete(self):     
         self.assertIsNotNone(self.configconnector.complete,'complete init')
-        self.configconnector.setupComplete(self.dep)
+        self.configconnector.setupCompleteLayerList(self.dep)
         self.assertIsNotNone(self.configconnector.complete,'complete indep')
     
     def test_1_setupReserved(self): 
         self.assertIsNotNone(self.configconnector.reserved,'reserved init')
-        self.configconnector.setupReserved()
+        self.configconnector.setupReservedLayerList()
         self.assertIsNotNone(self.configconnector.reserved,'reserved indep')
             
     def test_3_setupAssigned(self):
         self.assertIsNotNone(self.configconnector.assigned,'assigned init')
-        self.configconnector.setupAssigned()
+        self.configconnector.setupAssignedLayerList()
         self.assertIsNotNone(self.configconnector.assigned,'assigned indep')
         
 
