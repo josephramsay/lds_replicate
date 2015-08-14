@@ -16,6 +16,3 @@
 | Description:
 | This script replicates data in the LINZ Data Service to a local data store. Currently supported datastores include; PostgreSQL (PostGIS), MSSQL Spatial, FileGDB and SpatiaLite.
 '''
-
-
-

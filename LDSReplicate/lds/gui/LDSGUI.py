@@ -25,15 +25,25 @@ from PyQt4.QtGui import (QApplication, QProgressBar, QLabel, QCursor,
 from PyQt4.QtCore import (QDate, QDir, Qt, QByteArray,
                           QEventLoop, QSize)
 
+try:  
+    from PyQt4.QtCore import QString  
+except ImportError:  
+    # we are using Python3 or QGis so QString is not defined  
+    QString = str 
+    
 import os
 import re
 import sys
 import subprocess
 import gdal
 
+# print 'CWD from ldsgui :',os.getcwd()
+# print'exists tp',os.path.exists(os.path.join(os.getcwd(),'lds/TransferProcessor.py'))
+
 from lds.TransferProcessor import LORG 
 from lds.ReadConfig import GUIPrefsReader, MainFileReader
 from lds.LDSUtilities import LDSUtilities as LU, ConfigInitialiser
+from lds.gui.LQTUtilities import LQTUtilities as LQ
 from lds.VersionUtilities import AppVersion
 from lds.ConfigConnector import ConfigConnector, ProcessRunner, EndpointConnectionException, ConnectionConfigurationException
 from lds.gui.LayerConfigSelector import LayerConfigSelector
@@ -42,6 +52,9 @@ from lds.DataStore import DataStore, MalformedConnectionString, DriverInitialisa
 ldslog = LU.setupLogging()
 
 __version__ = AppVersion.getVersion()
+
+IMG_LOC = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/'))
+LINZ,OPEN,LC,UC,EXIT,HELP = ['{}/{}.png'.format(IMG_LOC,png) for png in ('linz_static','open','lc','uc','exit','help')]
 
 class LDSMain(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
@@ -53,9 +66,6 @@ class LDSMain(QMainWindow):
     MAX_WIZARD_ATTEMPTS = 2
     
     DUMMY_CONF = '_deleteme'
-    
-    IMG_LOC = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../img/'))
-    OPEN,LC,UC,EXIT,HELP = ['{}/{}.png'.format(IMG_LOC,png) for png in ('open','lc','uc','exit','help')]
     
     WGEO = (300, 300, 350, 250)
     
@@ -93,7 +103,7 @@ class LDSMain(QMainWindow):
 
         self.setGeometry(*self.WGEO)
         self.setWindowTitle('LDS Data Replicator')
-        self.setWindowIcon(QIcon(self.IMG_LOC+'linz_static.png'))
+        self.setWindowIcon(QIcon(LINZ))
         
         self.statusbar = self.statusBar()
         self.statusbar.showMessage('Ready')
@@ -102,33 +112,33 @@ class LDSMain(QMainWindow):
         
         self.setCentralWidget(self.controls)
         
-        openUCAction = QAction(QIcon(self.OPEN), 'Open &User Config', self)        
+        openUCAction = QAction(QIcon(OPEN), 'Open &User Config', self)        
         openUCAction.setShortcut('Ctrl+U')
         openUCAction.setStatusTip('Open User Preferences Editor')
         openUCAction.triggered.connect(self.launchUCEditor)
         
-        openLCAction = QAction(QIcon(self.OPEN), 'Open &Layer Config', self)        
+        openLCAction = QAction(QIcon(OPEN), 'Open &Layer Config', self)        
         openLCAction.setShortcut('Ctrl+L')
         openLCAction.setStatusTip('Open Layer Config File (only applies to external LC storage)')
         openLCAction.triggered.connect(self.launchLCEditor)
         #self.enableLCEdit(openLCAction)
         
-        initUCAction = QAction(QIcon(self.UC), 'Database &Setup Wizard', self)   
+        initUCAction = QAction(QIcon(UC), 'Database &Setup Wizard', self)   
         initUCAction.setShortcut('Ctrl+S')
         initUCAction.setStatusTip('Open Database Setup Wizard')
         initUCAction.triggered.connect(self.runWizardAction)
         
-        initLCAction = QAction(QIcon(self.LC), 'Layer &Config Editor', self)   
+        initLCAction = QAction(QIcon(LC), 'Layer &Config Editor', self)   
         initLCAction.setShortcut('Ctrl+C')
         initLCAction.setStatusTip('Open Layer Config Editor')
         initLCAction.triggered.connect(self.runLayerConfigAction)
         
-        exitAction = QAction(QIcon(self.EXIT), '&Exit', self)        
+        exitAction = QAction(QIcon(EXIT), '&Exit', self)        
         exitAction.setShortcut('Ctrl+E')
         exitAction.setStatusTip('Exit Application')
         exitAction.triggered.connect(self.close)#qApp.quit)
         
-        helpAction = QAction(QIcon(self.HELP), '&Help', self)        
+        helpAction = QAction(QIcon(HELP), '&Help', self)        
         helpAction.setShortcut('Ctrl+H')
         helpAction.setStatusTip('Open Help Document')
         helpAction.triggered.connect(self.launchHelpFile)
@@ -523,7 +533,7 @@ class LDSControls(QFrame):
         self.parent.statusbar.setToolTip(tooltip if tooltip else '')
 
         #progress
-        loc = os.path.abspath(os.path.join(self.parent.IMG_LOC,self.imgset[status]))
+        loc = os.path.abspath(os.path.join(IMG_LOC,self.imgset[status]))
         #loc = os.path.abspath(os.path.join(os.path.dirname(__file__),self.parent.IMG_LOC,self.imgset[status]))
         self.progressbar.setVisible(status in (self.STATUS.BUSY, self.STATUS.CLEAN))
         
@@ -629,7 +639,8 @@ class LDSControls(QFrame):
     def doLGComboChanged(self):
         '''Read the layer/group value and change epsg to layer or gpr match'''
         #get a matching LG entry and test whether its a layer or group
-        lgi = self.parent.confconn.getLayerGroupIndex(self.lgcombo.currentText().toUtf8().data())
+        #lgi = self.parent.confconn.getLayerGroupIndex(self.lgcombo.currentText().toUtf8().data())
+        lgi = self.parent.confconn.getLayerGroupIndex(LQ.readWidgetText(self.lgcombo.currentText()))
         #lgi can be none if we init a new group, in which case we use the GPR value
         if lgi:
             lge = self.parent.confconn.lglist[lgi]
@@ -747,7 +758,8 @@ class LDSControls(QFrame):
     def readParameters(self):
         '''Read values out of dialogs'''
         destination = LU.assessNone(str(self.destlist[self.destcombo.currentIndex()]))
-        lgindex = self.parent.confconn.getLayerGroupIndex(self.lgcombo.currentText().toUtf8().data())
+        #lgindex = self.parent.confconn.getLayerGroupIndex(self.lgcombo.currentText().toUtf8().data())
+        lgindex = self.parent.confconn.getLayerGroupIndex(LQ.readWidgetText(self.lgcombo.currentText()))
         #NB need to test for None explicitly since zero is a valid index
         lgval = self.parent.confconn.lglist[lgindex][1] if LU.assessNone(lgindex) else None       
         #uconf = LU.standardiseUserConfigName(str(self.confcombo.lineEdit().text()))
@@ -776,7 +788,8 @@ class LDSControls(QFrame):
         
     def doCleanClickAction(self):
         '''Set clean anim and run clean'''
-        lgo = self.lgcombo.currentText().toUtf8().data()
+        #lgo = self.lgcombo.currentText().toUtf8().data()
+        lgo = LQ.readWidgetText(self.lgcombo.currentText())
         
         try:
             self.setStatus(self.STATUS.CLEAN,'Running Clean '+lgo)

@@ -23,6 +23,12 @@ from PyQt4.QtGui import (QApplication, QLabel, QComboBox,
                          QPushButton, QTableView,QMessageBox)
 from PyQt4.QtCore import (Qt, QAbstractTableModel, QVariant)
 
+try:  
+    from PyQt4.QtCore import QString  
+except ImportError:  
+    # we are using Python3 or QGis so QString is not defined  
+    QString = str 
+    
 import re
 import sys
 import copy
@@ -31,6 +37,7 @@ import pdb
 
 from lds.TransferProcessor import LORG
 from lds.LDSUtilities import LDSUtilities as LU
+from lds.gui.LQTUtilities import LQTUtilities as LQ
 from lds.VersionUtilities import AppVersion
 
 
@@ -169,7 +176,8 @@ class LayerConfigSelector(QMainWindow):
         '''Intercept close event to signal parent to update status'''
         self.parent.controls.setStatus(self.parent.controls.STATUS.IDLE,'Done')
         #return last group selection
-        lastgroup = LU.recode(self.page.keywordcombo.lineEdit().text().toUtf8().data())
+        #lastgroup = LU.recode(self.page.keywordcombo.lineEdit().text().toUtf8().data())
+        lastgroup = LU.recode(LQ.readWidgetText(self.page.keywordcombo.lineEdit().text()))
         #self.parent.controls.gpr.writeline('lgvalue',lastgroup)
         if LU.assessNone(lastgroup):
             dep = self.parent.confconn.reg.openEndPoint(self.parent.confconn.destname,self.parent.confconn.uconf)
@@ -465,7 +473,8 @@ class LayerSelectionPage(QFrame):
             
     def doChooseAllClickAction(self):
         '''Moves the lot to Selected'''
-        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        #ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        ktext = LU.recode(LQ.readWidgetText(self.keywordcombo.lineEdit().text()))
         if not self.checkKeyword(ktext): return
         #------------------------------
         self.parent.signalModels(self.parent.STEP.PRE)
@@ -481,7 +490,8 @@ class LayerSelectionPage(QFrame):
     
     def doChooseClickAction(self):
         '''Takes available selected and moves to selection'''
-        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        #ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        ktext = LU.recode(LQ.readWidgetText(self.keywordcombo.lineEdit().text()))
         #ktext = str(self.keywordcombo.lineEdit().text())
         if not self.checkKeyword(ktext): return
         #------------------------------
@@ -513,7 +523,8 @@ class LayerSelectionPage(QFrame):
             
     def doRejectClickAction(self):
         '''Takes available selected and moves to selection'''
-        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        #ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        ktext = LU.recode(LQ.readWidgetText(self.keywordcombo.lineEdit().text()))
         if not self.checkKeyword(ktext): return
         #------------------------------
         select = self.selection.selectionModel()
@@ -538,7 +549,8 @@ class LayerSelectionPage(QFrame):
 
                 
     def doRejectAllClickAction(self):
-        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        #ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        ktext = LU.recode(LQ.readWidgetText(self.keywordcombo.lineEdit().text()))
         if not self.checkKeyword(ktext): return
         #------------------------------
         self.parent.deleteKeysFromLayerConfig([ll[0] for ll in self.parent.selection_model.mdata],ktext)
@@ -561,7 +573,8 @@ class LayerSelectionPage(QFrame):
         #    self.keywordbypass = False
         #    return
         #------------------------------
-        ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        #ktext = LU.recode(self.keywordcombo.lineEdit().text().toUtf8().data())
+        ktext = LU.recode(LQ.readWidgetText(self.keywordcombo.lineEdit().text()))
         #------------------------------
         av_sl = self.parent.splitData(ktext,self.confconn_link.complete)
         #av_sl = self.parent.splitData(ktext,self.confconn_link.complete)
@@ -605,7 +618,8 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
         self.direction = not self.direction
         
     def setActiveFilter(self,text):
-        self.ftext = LU.recode(text.toUtf8().data())
+        #self.ftext = LU.recode(text.toUtf8().data())
+        self.ftext = LU.recode(LQ.readWidgetText(text).toUtf8().data())
         self.invalidateFilter()
         
     def addData(self,sourcedatalist):
