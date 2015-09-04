@@ -155,7 +155,7 @@ class LayerConfigSelector(QMainWindow):
         '''Splits up the 'complete' layer list according to whether it has the selection keyword or not'''
         alist = []
         slist = []
-        assert complete, 'Need complete layerlist to generate selection menu'
+        #assert complete, 'Need complete layerlist to generate selection menu'#it'll be empty prior to init
         for dp in complete:
             if keyword and keyword in dp[2]:
                 slist.append(dp)
@@ -246,7 +246,7 @@ class LayerTableModel(QAbstractTableModel):
         if (role == Qt.FontRole):
             if self.mdata[ri][0] in self.ilist:
                 return self.ifont
-        return QVariant()        
+        return None#QVariant()
     
     #editable datamodel subclass funcs
     
@@ -619,7 +619,8 @@ class LDSSortFilterProxyModel(QSortFilterProxyModel):
         
     def setActiveFilter(self,text):
         #self.ftext = LU.recode(text.toUtf8().data())
-        self.ftext = LU.recode(LQ.readWidgetText(text).toUtf8().data())
+        #self.ftext = LU.recode(LQ.readWidgetText(text).toUtf8().data())
+        self.ftext = LU.recode(LQ.readWidgetText(text))
         self.invalidateFilter()
         
     def addData(self,sourcedatalist):

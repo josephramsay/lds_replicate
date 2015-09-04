@@ -237,7 +237,22 @@ class SpatiaLiteDataStore(DataStore):
                 9: 'text', 10: 'text', 11: 'text'
          }.get(key,'text')  
          
-
+    def closeDS(self):
+        '''Close a DS with sync and destroy'''
+        ldslog.info("SL Sync DS and Close")
+        if self.ds:
+            self.ds.SyncToDisk()
+            dsrc = self.ds.GetRefCount()
+            ldslog.info('SL RefCount '+str(dsrc))
+            if dsrc<=1:
+                #OS version HACK
+                if os.name == 'nt':
+                    #Release() crashes Linux OS but this should be okay since in most cases we won't need 
+                    #synchronous access to a FileGDB generated on Linux and opened using ArcMap on Windows
+                    self.ds.Release()
+                self.ds = None
+                
+                
     def versionCheck(self):
         '''SpatiaLite/SQLite version checker'''
         from VersionUtilities import VersionChecker,UnsupportedVersionException

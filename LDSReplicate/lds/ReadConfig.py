@@ -911,6 +911,7 @@ class LayerDSReader(LayerReader):
             
         if config_layer is None:
             ldslog.error("Cannot create lds config layer: " + self.lcfname.LDS_CONFIG_TABLE)###fname -> lcfname
+            return
         
         feat_def = ogr.FeatureDefn()
         for name in self.lcfname.CONFIG_COLUMNS:###fname -> lcfname

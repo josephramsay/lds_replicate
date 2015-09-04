@@ -30,7 +30,7 @@ from lds.DataStore import DSReaderException, DatasourceConnectException, Datasou
 from lds.WFSDataStore import WFSDataStore
 from lds.LDSDataStore import LDSDataStore
 from lds.ReadConfig import GUIPrefsReader, MainFileReader
-from lds.LDSUtilities import LDSUtilities
+from lds.LDSUtilities import LDSUtilities as LU
 from lds.VersionUtilities import AppVersion
 
 from lds.PostgreSQLDataStore import PostgreSQLDataStore
@@ -39,7 +39,7 @@ from lds.FileGDBDataStore import FileGDBDataStore
 from lds.SpatiaLiteDataStore import SpatiaLiteDataStore
 
 
-ldslog = LDSUtilities.setupLogging()
+ldslog = LU.setupLogging()
 
 __version__ = AppVersion.getVersion()
 
@@ -285,7 +285,7 @@ class ProxyConfigPage(QWizardPage):
         self.authSelect.addItem('')
         self.authSelect.setToolTip('Select appropriate proxy authentication mechanism')
         self.authSelect.addItems(WFSDataStore.PROXY_AUTH)
-        self.authSelect.setCurrentIndex(0 if LDSUtilities.assessNone(pxyauth) is None else WFSDataStore.PROXY_AUTH.index(pxyauth))
+        self.authSelect.setCurrentIndex(0 if LU.assessNone(pxyauth) is None else WFSDataStore.PROXY_AUTH.index(pxyauth))
         
         self.usrEdit = QLineEdit(pxyusr)
         self.usrEdit.setToolTip('Enter your proxy username (if required)')
@@ -376,7 +376,7 @@ class ProxyConfigPage(QWizardPage):
         #return int(self.field("ldsdest").toString())
     
         if self.testConnection():
-            return int(self.field("ldsdest").toString())
+            return self.field("ldsdest")
         return self.parent.plist.get('proxy')[0]
     
     def disableUserDefined(self):
@@ -449,7 +449,7 @@ class PostgreSQLConfigPage(QWizardPage):
         #edit boxes
         self.hostEdit = QLineEdit(pghost)
         self.hostEdit.setToolTip('Enter the name of your PostgreSQL host/IP-address')
-        self.portEdit = QLineEdit('5432' if LDSUtilities.assessNone(pgport) is None else pgport)
+        self.portEdit = QLineEdit('5432' if LU.assessNone(pgport) is None else pgport)
         self.portEdit.setToolTip('Enter the PostgreSQL listen port')
         self.dbnameEdit = QLineEdit(pgdbname)
         self.dbnameEdit.setToolTip('Enter the name of the PostgreSQL DB to connect with')
@@ -825,8 +825,7 @@ class ConfirmationPage(QWizardPage):
         sec1.setFont(hfont)
         vbox.addWidget(sec1)
         
-        
-        self.ldsfile = str(self.field("ldsfile").toString())
+        self.ldsfile = LU.recode(self.field("ldsfile"))
         hbox1 = QHBoxLayout()
         hbox1.addWidget(QLabel('LDS File Name'))     
         hbox1.addWidget(QLabel(self.ldsfile))   
@@ -835,13 +834,15 @@ class ConfirmationPage(QWizardPage):
         
         hbox2 = QHBoxLayout()
         hbox2.addWidget(QLabel('LDS API Key'))
-        hbox2.addWidget(QLabel(self.field("ldsapikey").toString()))   
+        #hbox2.addWidget(QLabel(self.field("ldsapikey").toString()))  
+        hbox2.addWidget(QLabel(LU.recode(self.field("ldsapikey"))))     
         
         vbox.addLayout(hbox2)
         
         hbox7 = QHBoxLayout()
         hbox7.addWidget(QLabel('In/Ex Config'))
-        hbox7.addWidget(QLabel('Internal' if self.field("ldsinternal").toBool() else 'External'))   
+        #hbox7.addWidget(QLabel('Internal' if self.field("ldsinternal").toBool() else 'External'))
+        hbox7.addWidget(QLabel('Internal' if self.field("ldsinternal") else 'External'))      
         
         vbox.addLayout(hbox7)
     
@@ -849,7 +850,7 @@ class ConfirmationPage(QWizardPage):
         sec2.setFont(hfont)
         vbox.addWidget(sec2)
         
-        if self.field("proxy"+WFSDataStore.PROXY_TYPE[2]).toBool():
+        if self.field("proxy"+WFSDataStore.PROXY_TYPE[2]):
         #if self.field("proxyproxy").toBool():
             hboxp = QHBoxLayout()
             hboxp.addWidget(QLabel('Proxy Type'))     
@@ -857,34 +858,38 @@ class ConfirmationPage(QWizardPage):
             
             hbox3 = QHBoxLayout()
             hbox3.addWidget(QLabel('Proxy Server'))     
-            hbox3.addWidget(QLabel(self.field("proxyhost").toString()))   
+            #hbox3.addWidget(QLabel(self.field("proxyhost").toString()))   
+            hbox3.addWidget(QLabel(LU.recode(self.field("proxyhost"))))   
             
             vbox.addLayout(hbox3)
         
             hbox4 = QHBoxLayout()
             hbox4.addWidget(QLabel('Proxy Port'))     
-            hbox4.addWidget(QLabel(self.field("proxyport").toString()))   
+            #hbox4.addWidget(QLabel(self.field("proxyport").toString()))
+            hbox4.addWidget(QLabel(LU.recode(self.field("proxyport"))))      
         
             vbox.addLayout(hbox4)
             
             hbox5 = QHBoxLayout()
             hbox5.addWidget(QLabel('Proxy Auth'))     
-            hbox5.addWidget(QLabel(self.field("proxyauth").toString()))   
+            #hbox5.addWidget(QLabel(self.field("proxyauth").toString()))   
+            hbox5.addWidget(QLabel(LU.recode(self.field("proxyauth"))))   
         
             vbox.addLayout(hbox5)
             
             hbox6 = QHBoxLayout()
             hbox6.addWidget(QLabel('Proxy User'))     
-            hbox6.addWidget(QLabel(self.field("proxyusr").toString()))   
+            #hbox6.addWidget(QLabel(self.field("proxyusr").toString()))  
+            hbox6.addWidget(QLabel(LU.recode(self.field("proxyusr"))))   
         
             vbox.addLayout(hbox6)
-        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[1]).toBool():
+        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[1]):
             hbox3 = QHBoxLayout()
             hbox3.addWidget(QLabel('Proxy Type'))     
             hbox3.addWidget(QLabel(WFSDataStore.PROXY_TYPE[1])) 
             vbox.addLayout(hbox3)
               
-        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[0]).toBool():
+        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[0]):
             hbox3 = QHBoxLayout()
             hbox3.addWidget(QLabel('Proxy Type'))     
             hbox3.addWidget(QLabel(WFSDataStore.PROXY_TYPE[0]))  
@@ -894,7 +899,7 @@ class ConfirmationPage(QWizardPage):
             
             
         #select dest from index of destcombo ie PostgreSQL, FileGDB etc
-        self.selected = self.destlist.get(int(self.field("ldsdest").toString()))
+        self.selected = self.destlist.get(self.field("ldsdest"))
         sec3 = QLabel(self.selected[0])
         sec3.setFont(hfont)
         vbox.addWidget(sec3)
@@ -915,32 +920,32 @@ class ConfirmationPage(QWizardPage):
         
     def getPGFields(self):
         flist = []
-        flist += (('host','PostgreSQL Host',str(self.field("pghost").toString())),)
-        flist += (('port','PostgreSQL Port',str(self.field('pgport').toString())),)
-        flist += (('dbname','PostgreSQL DB Name',str(self.field('pgdbname').toString())),)
-        flist += (('schema','PostgreSQL Schema',str(self.field('pgschema').toString())),)
-        flist += (('user','PostgreSQL User Name',str(self.field('pgusr').toString())),)
-        flist += (('pass','PostgreSQL Password',str(self.field('pgpwd').toString())),)
+        flist += (('host','PostgreSQL Host',self.field("pghost")),)
+        flist += (('port','PostgreSQL Port',self.field('pgport')),)
+        flist += (('dbname','PostgreSQL DB Name',self.field('pgdbname')),)
+        flist += (('schema','PostgreSQL Schema',self.field('pgschema')),)
+        flist += (('user','PostgreSQL User Name',self.field('pgusr')),)
+        flist += (('pass','PostgreSQL Password',self.field('pgpwd')),)
         return flist   
     
     def getMSFields(self):
         flist = []
-        flist += (('server','MSSQLSpatial Server String',str(self.field('msserver').toString())),)
-        flist += (('dbname','MSSQLSpatial DB Name',str(self.field('msdbname').toString())),)
-        flist += (('schema','MSSQLSpatial Schema',str(self.field('msschema').toString())),)
-        flist += (('trust','MSSQLSpatial Trust','yes' if self.field('mstrust').toBool() else 'no'),)
-        flist += (('user','MSSQLSpatial User Name',str(self.field('msusr').toString())),)
-        flist += (('pass','MSSQLSpatial Password',str(self.field('mspwd').toString())),)
+        flist += (('server','MSSQLSpatial Server String',self.field('msserver')),)
+        flist += (('dbname','MSSQLSpatial DB Name',self.field('msdbname')),)
+        flist += (('schema','MSSQLSpatial Schema',self.field('msschema')),)
+        flist += (('trust','MSSQLSpatial Trust','yes' if self.field('mstrust') else 'no'),)
+        flist += (('user','MSSQLSpatial User Name',self.field('msusr')),)
+        flist += (('pass','MSSQLSpatial Password',self.field('mspwd')),)
         return flist  
     
     def getFGFields(self):
         flist = []
-        flist += (('file','FileGDB DB File Name',str(self.field('fgfile').toString())),)
+        flist += (('file','FileGDB DB File Name',self.field('fgfile')),)
         return flist  
     
     def getSLFields(self):
         flist = []
-        flist += (('file','SpatiaLite File Name',str(self.field('slfile').toString())),)
+        flist += (('file','SpatiaLite File Name',self.field('slfile')),)
         return flist    
        
     def validatePage(self):
@@ -949,27 +954,27 @@ class ConfirmationPage(QWizardPage):
         from lds.LDSUtilities import Encrypt
         rv = super(ConfirmationPage, self).validatePage()
         
-        encrypt = self.field("ldsencryption").toBool()
-        inex = 'internal' if self.field("ldsinternal").toBool() else 'external'
+        encrypt = self.field("ldsencryption")
+        inex = 'internal' if self.field("ldsinternal") else 'external'
         
         buildarray = ()
         
-        buildarray += ((MFR.LDSN,'key',str(self.field("ldsapikey").toString())),)
+        buildarray += ((MFR.LDSN,'key',self.field("ldsapikey")),)
         
         #proxy type = user defined
-        if self.field("proxy"+WFSDataStore.PROXY_TYPE[2]).toBool():
+        if self.field("proxy"+WFSDataStore.PROXY_TYPE[2]):
             buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[2]),)
-            buildarray += ((MFR.PROXY,'host',str(self.field("proxyhost").toString())),)
-            buildarray += ((MFR.PROXY,'port',str(self.field("proxyport").toString())),)
-            buildarray += ((MFR.PROXY,'auth',WFSDataStore.PROXY_AUTH[int(self.field("proxyauth").toString())-1]),)
-            buildarray += ((MFR.PROXY,'user',str(self.field("proxyusr").toString())),)
-            pwd = self.field("proxypwd").toString()
+            buildarray += ((MFR.PROXY,'host',self.field("proxyhost")),)
+            buildarray += ((MFR.PROXY,'port',self.field("proxyport")),)
+            buildarray += ((MFR.PROXY,'auth',WFSDataStore.PROXY_AUTH[int(self.field("proxyauth"))-1]),)
+            buildarray += ((MFR.PROXY,'user',self.field("proxyusr")),)
+            pwd = self.field("proxypwd")
             if encrypt:
                 pwd = Encrypt.ENC_PREFIX+Encrypt.secure(pwd)
             buildarray += ((MFR.PROXY,'pass',pwd),)
             
         #proxy type = system
-        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[1]).toBool():
+        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[1]):
             buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[1]),)            
             buildarray += ((MFR.PROXY,'host',''),)
             buildarray += ((MFR.PROXY,'port',''),)
@@ -990,7 +995,7 @@ class ConfirmationPage(QWizardPage):
 #                buildarray += ((MFR.PROXY,'port',rm.group(2)),)               
             
         #proxy type = direct
-        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[0]).toBool():
+        elif self.field("proxy"+WFSDataStore.PROXY_TYPE[0]):
             buildarray += ((MFR.PROXY,'type',WFSDataStore.PROXY_TYPE[0]),)            
             buildarray += ((MFR.PROXY,'host',''),)
             buildarray += ((MFR.PROXY,'port',''),)
@@ -1007,8 +1012,8 @@ class ConfirmationPage(QWizardPage):
             buildarray += ((section,name,value),)
 
         buildarray += ((section,'config',inex),)
-        ucfile = str(self.field("ldsfile").toString())
-        #ucfile = LDSUtilities.standardiseUserConfigName(str(self.field("ldsfile").toString()))
+        ucfile = self.field("ldsfile")
+        #ucfile = LU.standardiseUserConfigName(str(self.field("ldsfile").toString()))
         
         #save values to user config file 
         self.parent.setMFR(self.ldsfile)

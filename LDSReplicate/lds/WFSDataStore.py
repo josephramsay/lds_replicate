@@ -131,7 +131,7 @@ class WFSDataStore(DataStore):
     
     def testURL(self,url):
         '''Connect to a URL using the configured proxy (using urlopen method)'''
-        return LDSUtilities.timedProcessRunner(LDSUtilities.readLDS, (url,self.pxy), None)
+        return self.processExternal(LDSUtilities.readLDS, (url, self.pxy))
         #return LDSUtilities.readDocument(url, self.pxy)
         
 

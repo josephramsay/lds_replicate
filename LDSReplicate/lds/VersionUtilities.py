@@ -112,12 +112,12 @@ class VersionChecker(object):
 
         mfr = MainFileReader().readPostgreSQLConfig()
         cmd = "psql -c 'select version()' "+mfr[2]
-        postgresql = VersionChecker.getVersionFromShell(cmd,'PostgreSQL\s+(\d+\.*\d*\.*\d*)')
+        postgresql = VersionChecker.getPostgreSQLVersionFromShell(cmd,'PostgreSQL\s+(\d+\.*\d*\.*\d*)')
 
         return {'PostgreSQL':postgresql}
     
     @staticmethod
-    def getVersionFromShell(command,searchstring):
+    def getPostgreSQLVersionFromShell(command,searchstring):
         ret = None
         sp = subprocess.Popen(command,shell=True, stdout=subprocess.PIPE)
         for line in sp.stdout.readlines():
