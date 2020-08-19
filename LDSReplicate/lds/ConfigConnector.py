@@ -384,6 +384,9 @@ class ProcessRunner(QThread):
         self.enable.connect(self.controls.mainWindowEnable, Qt.QueuedConnection)
         
     def run(self):
+        ldslog.info('BYPASS')
+        self.join()
+        return
         pt = ProgressTimer(self.controls,self.tp)
         try:
             ldslog.debug('BENCHMARK START')
@@ -415,7 +418,10 @@ class ProcessRunner(QThread):
         
         
     def join(self,timeout=None):
-        #QThread.join(self,timeout)
+        #QThread.join(self,timeout)#
+        self.stopped = True
+        self.status.emit(1,'Finished','')
+        self.tp.dst.closeDS()#
         self.quit()
         
         
@@ -473,5 +479,5 @@ class ProgressTimer(QThread):
         #QThread.join(self,timeout)
         self.stopped = True
         self.status.emit(1,'Finished','')
-        #self.tp.dst.closeDS()
+        self.tp.dst.closeDS()#dont need to close this here, can let PR close it
         self.quit()

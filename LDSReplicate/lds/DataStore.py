@@ -77,6 +77,8 @@ ENABLE_FORCE_GEOMETRY = False
 #Constant to add/sub when converting between 2D and 25D
 DIM_CONST = 2147483648
 
+RUN_ENV = LU.getRuntimeEnvironment()
+
 class DataStore(object):
     '''
     DataStore superclasses PostgreSQL, LDS(WFS), FileGDB(ESRI) and SpatiaLite datastores.
@@ -503,7 +505,7 @@ class DataStore(object):
                 return self.src_feat_count
         
         newurl = LU.reVersionURL(self.src_link.getURI(), WFSDataStore.WFSDataStore.VERSION_COUNT)
-        doc = LU.timedProcessRunner(LU.readLDS, (RB.hitsAppend(newurl),self.src_link.pxy), None)
+        doc = self.processExternal(LU.readLDS, (RB.hitsAppend(newurl),self.src_link.pxy))
         fc = FeatureCounter.readCount(doc)
         ldslog.info('Alt FeatureCount '+str(fc))
         return fc
@@ -726,7 +728,7 @@ class DataStore(object):
         ldslog.info('Features available = '+str(self.src_feat_count))
         
         if self.src_feat_count>0:
-            #src_feat = LU.timedProcessRunner(LU.wrapWorker,(src_layer.GetNextFeature,), None)
+            #src_feat = self.processExternal(LU.wrapWorker,(src_layer.GetNextFeature,))
             try:
                 #print 'GNFi1'
                 src_feat = src_layer.GetNextFeature()
@@ -1209,7 +1211,7 @@ class DataStore(object):
                     if doc is None:
                         #fetch the GC document in GML2 format for column extraction. #TODO JSON extractor
                         up = (re.sub('JSON|GML3','GML2',self.src_link.getURI()),self.src_link.pxy)
-                        doc = LU.timedProcessRunner(LU.readLDS, up, None)
+                        doc = self.processExternal(LU.readLDS, up)
                         #doc = LU.readDocument(re.sub('JSON|GML3','GML2',self.src_link.getURI()),self.src_link.pxy)
                     self.sufi_list[fin_field_name] = SUFIExtractor.readURI(doc,fin_field_name)
             
@@ -1597,7 +1599,18 @@ class DataStore(object):
         #Obviously this returns a default True for any subclasses that dont support it
         #return True
 
-
+    @staticmethod
+    def processExternal(proc,args):
+        '''Selects timed process or not based on runtime ie qgis'''
+        if RUN_ENV == 'QGIS':
+            from Queue import Queue
+            q = Queue()
+            proc(args,q)
+            return q.get()
+        else:
+            return LU.timedProcessRunner(proc, args, T=None)
+    
+    
 class LayerInfo(object):
     '''Simple class for layer attributes'''
     def __init__(self,layer_id,layer_name=None,layer_defn=None,spatial_ref=None,geometry=None):

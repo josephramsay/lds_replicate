@@ -10,7 +10,7 @@ td = None
 
 [FileGDB]
 uconf = kudu
-lgvalue = test1
+lgvalue = data.linz.govt.nz:layer-1088
 epsg = 
 fd = 
 td = 

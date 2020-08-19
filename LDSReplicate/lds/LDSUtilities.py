@@ -25,6 +25,7 @@ import sys
 import logging
 import ast
 import urllib
+import traceback
 
 from string import whitespace
 from urllib2 import urlopen, build_opener, install_opener, ProxyHandler
@@ -42,8 +43,8 @@ ldslog = logging.getLogger(mainlog)
 LDS_READ_TIMEOUT = 300 # 5min
 MACRON_SUBST = {'ā':'a','ē':'e','ī':'i','ō':'o','ū':'u'}
 
-class ReadTimeoutException(Exception): pass
-
+class ReadTimeoutException(Exception):
+    def __init__(self,em,ll=ldslog.error): ll('{} - {}'.format(type(self).__name__,em))
 
 class LDSUtilities(object):
     '''Does the LDS related stuff not specifically part of the datastore''' 
@@ -404,20 +405,27 @@ class LDSUtilities(object):
             return WFSDataStore.DRIVER_NAME
         return None
     
+    @staticmethod
+    def getRuntimeEnvironment():
+        for line in traceback.format_stack():
+            if re.search('qgis', line.strip()): return 'QGIS'
+        return 'STANDALONE'
     
     @staticmethod
-    def timedProcessRunner(process,args,t):
+    def timedProcessRunner(process,args,T):
         '''For processes that are inclined to hang, stick them in new process and time them out'''
-        timeout = t if t else LDS_READ_TIMEOUT
+        timeout = T if T else LDS_READ_TIMEOUT
         pn = process.__name__
         #HACK to get around windows no-method-pickling rule 
         if re.search('readLDS',pn) and re.search('win',sys.platform): process = _readLDS
         q = Queue()
         p = Process(name=pn,target=process,args=(args,q))
-        #p.daemon = False
+        p.daemon = False
+        ldslog.debug('Timed Process {} on {} with {}'.format(process.__name__,sys.platform,args))
         p.start()
         p.join(timeout=timeout)
         if p.is_alive():
+            ldslog.debug('Process {} Timeout Exceeded'.format(pn))
             p.terminate()
             q.close()
             fn = args[0].__name__ if hasattr(args[0], '__call__') else pn
@@ -464,7 +472,7 @@ class LDSUtilities(object):
         ldslog.debug("LDS URL {} using Proxy {}".format(u,p))
         if LDSUtilities.isProxyValid(p): install_opener(build_opener(ProxyHandler(p)))
         with closing(urlopen(u)) as lds:
-            q.put(lds.read())
+            q.put(lds.read()) 
             
     @staticmethod
     def isProxyValid(pxy):
@@ -600,6 +608,7 @@ class LDSUtilities(object):
     
     @staticmethod
     def recode(val,code='utf8',uflag='decode'):
+        '''Does unicode decoding (encoding) or just strips out macronated chars'''
         tv = ( type(val)==unicode )
         if val:
             if uflag == 'decode':
@@ -614,8 +623,8 @@ class LDSUtilities(object):
                 pattern = re.compile("|".join(repx.keys()))
                 return pattern.sub(lambda m: repx[re.escape(m.group(0))], val)
             elif uflag=='compat':
-                '''Make the string really compatible, substitute macrons and encode'''
-                return str(LDSUtilities.recode(LDSUtilities.recode(val,uflag='encode'),uflag='subst'))
+                '''Make the string really compatible, substitute macrons and encode then str()'''
+                return str(LDSUtilities.recode(LDSUtilities.recode(val,code,uflag='encode'),code,uflag='subst'))
         return val
     
     @staticmethod
@@ -631,6 +640,14 @@ class LDSUtilities(object):
     @staticmethod
     def unicodeCompare(str1,str2):  
         return LDSUtilities.recode(str1) == LDSUtilities.recode(str2) 
+    
+    @staticmethod
+    def sysPathAppend(plist):
+        '''Append library paths to sys.path if missing'''
+        for p in [os.path.realpath(p) for p in plist]:
+            if p not in sys.path:
+                sys.path.insert(0, p)
+  
     
 class DirectDownload(object):
     
@@ -855,7 +872,7 @@ def _readLDS(up,q):
     '''Simple LDS reader to be used in a timed worker thread context. 
     COPY OF LDSU.readLDS METHOD'''
     (u,p) = up
-    ldslog.debug("LDS URL {} using Proxy {}".format(u,p))
+    ldslog.debug("_LDS URL {} using Proxy {}".format(u,p))
     if LDSUtilities.isProxyValid(p): install_opener(build_opener(ProxyHandler(p)))
     with closing(urlopen(u)) as lds:
         q.put(lds.read())

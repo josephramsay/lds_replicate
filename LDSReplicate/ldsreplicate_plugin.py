@@ -18,15 +18,30 @@ Created on 9/08/2015
 @author: jramsay
 '''
 
+
+import os
+import sys
+
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon
 # Initialize Qt resources from file resources.py
 ###import resources_qrc
 
-from lds.gui import LDSGUI
-from lds.gui.LDSGUI import LDSMain, LINZ, UC, LC
-from lds.gui.MainConfigWizard import LDSConfigWizard
-from lds.gui.LayerConfigSelector import LayerConfigSelector
+from lds.WinUtilities import WinUtilities, Registry
+WIN_ARCH = WinUtilities.getArchitecture()        
+INST_DIR = Registry.readInstDir('Path')+'\\{}'
+#list gets explicitly reverse ordered based on occurance so items at the top go to the top of the sys.path
+ADD_PATH = [(i,INST_DIR.format(p)) for i,p in enumerate([
+    'bin',
+    'bin\\lxml',
+    'bin\\configparser',
+    'bin\\Crypto',
+    'bin\\gdal\\plugins',     
+    'bin\\gdal\\python\\osgeo', 
+    'bin\\gdal\\plugins-optional',
+    'bin\\gdal\\plugins-external' ,
+    'bin\\gdal\\python',
+    ])]
 
 class LDSReplicatePlugin:
     """QGIS Plugin Implementation."""
@@ -35,10 +50,13 @@ class LDSReplicatePlugin:
         '''cons'''
         # Save reference to the QGIS interface
         self.iface = iface
-        
+
+        self.sysPathAppend(ADD_PATH) 
         self.actions = []
         self.menu = self.tr(u'&LDSR')
         self.toolbar = self.iface.addToolBar(u'LDSR')
+        return
+
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -73,7 +91,12 @@ class LDSReplicatePlugin:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-
+        import gdal
+        #from osgeo import gdal
+        return
+        
+        from lds.gui.LDSGUI import LINZ, UC, LC
+        
         self.add_action(LINZ,
             text=self.tr(u'LDS Replicate'),
             callback=self.run,
@@ -101,14 +124,26 @@ class LDSReplicatePlugin:
 
     def run(self):
         """Run method that performs all the real work"""
+        from lds.gui import LDSGUI
         lg = LDSGUI.LDSMain()
         lg.show()
         
     def lconf(self):
+        from lds.gui.LayerConfigSelector import LayerConfigSelector
         lcs = LayerConfigSelector(LDSMain(initlc=True))
         lcs.show()
         
     def uconf(self):
+        from lds.gui.MainConfigWizard import LDSConfigWizard
         lcw = LDSConfigWizard()
         lcw.show()
+        
+        
+    @staticmethod
+    def sysPathAppend(plist):
+        '''Append library paths to sys.path if missing'''
+        for pth in [os.path.realpath(p[1]) for p in sorted(plist,reverse=True)]:
+                if pth not in sys.path:
+                    #print p,'->',sys.path
+                    sys.path.insert(1, pth)
 

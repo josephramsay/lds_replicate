@@ -49,3 +49,15 @@ Test
 ----
 To test whether GDAL has installed correctly open a command prompt and type ogr2ogr. If things have installed correctly you should see the ogr2ogr Usage message returned.
 To test whether the LDS replication script works correctly try the commandline "python <path-to>/ldsreplicate.py -h". This should return a Usage message
+
+
+
+P A R T 2  -  Q G I S  P L U G I N 
+==================================
+
+gdal set path to gdal DLL directory in python sys.path, also include external-plugins, optional-plugins, plugins
+lxml - unzip the windows binary http://www.lfd.uci.edu/~gohlke/pythonlibs/#lxml cp27 w32 into \plugins\bin\lxml
+configparser - copy CP from site-package to plugins. add __init_.py to backports directory 
+Crypto - install windows binary 32bit for py2.7 using the executable found on http://www.voidspace.org.uk/python/modules.shtml. Copy site-package to plugin dir
+
+

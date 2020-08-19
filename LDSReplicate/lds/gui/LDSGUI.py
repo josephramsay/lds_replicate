@@ -58,7 +58,7 @@ LINZ,OPEN,LC,UC,EXIT,HELP = ['{}/{}.png'.format(IMG_LOC,png) for png in ('linz_s
 
 class LDSMain(QMainWindow):
     '''This file (GUI functionality) has not been tested in any meaningful way and is likely to break on unexpected input'''
-    
+
     HELPFILE = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../doc/README'))
     #            destname,lgval,uc, epsg, fd,td
     DEF_RVALS = ('',      '',   '','2193','','')
@@ -805,6 +805,7 @@ class LDSControls(QFrame):
             self.setStatus(self.STATUS.BUSY,'Running Replicate '+lgo)
             self.progressbar.setValue(0)
             self.runReplicationScript(False)
+            ldslog.debug('TRPfinish')
         except Exception as e:
             self.setStatus(self.STATUS.ERROR,'Failed Replication of '+lgo,str(sys.exc_info()))#e))
 
@@ -859,12 +860,13 @@ class LDSControls(QFrame):
             self.layerConfMessage(destination_path)
             return
         #If PR has been successfully created we must vave a valid dst    
+        ldslog.debug('TRPstart')
         self.tpr.start()
         
-    def quitProcessRunner(self):
-        self.tpr.join()
-        self.tpr.quit()
-        self.trp = None
+#     def quitProcessRunner(self):
+#         self.tpr.join()
+#         self.tpr.quit()
+#         self.trp = None
 
         
     def userConfMessage(self,uconf,secname=None):
